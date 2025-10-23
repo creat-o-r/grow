@@ -30,6 +30,13 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
                   const reasoning = log.reasoning || (log.results as any)?.reasoning;
                   const references = log.references || (log.results as any)?.references;
 
+                  // Create a version of results without reasoning and references to avoid duplication
+                  const resultsToShow = { ...log.results };
+                  if (resultsToShow) {
+                    delete (resultsToShow as any).reasoning;
+                    delete (resultsToShow as any).references;
+                  }
+
                   return (
                     <Card key={log.id} className="text-sm">
                       <CardHeader className='pb-3'>
@@ -47,11 +54,11 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
                             </pre>
                           </div>
                         )}
-                        {log.results && (
+                        {log.results && Object.keys(resultsToShow).length > 0 && (
                           <div>
                             <h4 className="font-semibold mb-2">Results</h4>
                             <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto text-foreground">
-                                {JSON.stringify(log.results, null, 2)}
+                                {JSON.stringify(resultsToShow, null, 2)}
                             </pre>
                           </div>
                         )}
