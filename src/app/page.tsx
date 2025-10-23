@@ -7,6 +7,7 @@ import { samplePlants, sampleLocations } from '@/lib/sample-data';
 import importDataset from '@/lib/import-dataset.json';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
+import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
@@ -17,7 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronRight, Download, Upload, Locate, Loader2, X } from 'lucide-react';
+import { PlusCircle, ChevronRight, Download, Upload, Locate, Loader2, X, Sparkles } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
@@ -41,6 +42,7 @@ export default function Home() {
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
@@ -294,6 +296,30 @@ export default function Home() {
     setShowLocationSuggestions(true);
     document.getElementById('location')?.focus();
   }
+
+  const handleAnalyzeConditions = async () => {
+    if (!activeLocation) return;
+    setIsAnalyzing(true);
+    try {
+      const result = await getEnvironmentalData({ location: activeLocation.location });
+      handleConditionChange('temperature', result.soilTemperature);
+      handleConditionChange('sunlight', result.sunlightHours);
+      handleConditionChange('soil', result.soilDescription);
+      toast({
+        title: 'AI Analysis Complete',
+        description: `Conditions for ${activeLocation.location} have been populated.`,
+      });
+    } catch (error) {
+      console.error('AI analysis failed:', error);
+      toast({
+        title: 'AI Analysis Failed',
+        description: 'Could not retrieve environmental data. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
   
   const filteredPlants = statusFilter === 'All' 
     ? plants 
@@ -342,7 +368,7 @@ export default function Home() {
                     </div>
 
                     <AccordionContent className="p-6 pt-2">
-                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-end">
                             <div className="sm:col-span-2 lg:col-span-1 relative">
                                 <Label htmlFor="location" className="text-xs font-semibold uppercase text-muted-foreground">Location</Label>
                                 <div className="flex items-center gap-2">
@@ -398,9 +424,14 @@ export default function Home() {
                             <Label htmlFor="sunlight" className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
                             <Input id="sunlight" value={activeLocation?.conditions.sunlight || ''} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
                             </div>
-                            <div>
-                            <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
-                            <Input id="soil" value={activeLocation?.conditions.soil || ''} onChange={(e) => handleConditionChange('soil', e.target.value)} />
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
+                                    <Input id="soil" value={activeLocation?.conditions.soil || ''} onChange={(e) => handleConditionChange('soil', e.target.value)} />
+                                </div>
+                                <Button size="icon" variant="outline" onClick={handleAnalyzeConditions} disabled={isAnalyzing}>
+                                    {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                </Button>
                             </div>
                         </div>
                     </AccordionContent>
