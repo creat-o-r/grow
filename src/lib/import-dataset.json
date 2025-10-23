@@ -1,0 +1,40 @@
+{
+  "plants": [
+    {
+      "id": "imp-1",
+      "species": "Lettuce (Lactuca sativa)",
+      "germinationNeeds": "Sow seeds in cool soil (40-75°F). Light is required for germination. Keep soil consistently moist.",
+      "optimalConditions": "Prefers cooler weather. Full sun in cool climates, partial shade in warm climates. Loose, well-drained soil with pH 6.0-7.0."
+    },
+    {
+      "id": "imp-2",
+      "species": "Cucumber (Cucumis sativus)",
+      "germinationNeeds": "Sow seeds after all danger of frost has passed. Soil temperature should be at least 70°F. Plant seeds 1 inch deep.",
+      "optimalConditions": "Full sun. Fertile, well-drained soil. Consistent watering is crucial. Provide a trellis for vining varieties."
+    },
+    {
+      "id": "imp-3",
+      "species": "Bell Pepper (Capsicum annuum)",
+      "germinationNeeds": "Start seeds indoors 8-10 weeks before the last frost. Needs warm soil (80-90°F) to germinate. Can be slow to germinate.",
+      "optimalConditions": "Long, warm growing season. Full sun. Well-drained, sandy loam soil. pH 5.5-6.5. Consistent moisture."
+    },
+    {
+      "id": "imp-4",
+      "species": "Spinach (Spinacia oleracea)",
+      "germinationNeeds": "Sow seeds as soon as the ground can be worked in spring. Prefers cool soil (45-65°F).",
+      "optimalConditions": "Cool-season crop. Full sun to light shade. Fertile, well-drained soil rich in organic matter. pH 6.5-7.0."
+    },
+    {
+      "id": "imp-5",
+      "species": "Zucchini (Cucurbita pepo)",
+      "germinationNeeds": "Direct sow seeds after the last frost date when soil is warm (at least 70°F). Plant seeds about 1 inch deep.",
+      "optimalConditions": "Full sun (at least 6-8 hours). Fertile, well-drained soil. Very productive; give them space to grow."
+    },
+    {
+      "id": "imp-6",
+      "species": "Mint (Mentha)",
+      "germinationNeeds": "Best propagated from cuttings or divisions as seeds can be unreliable. Plant in a pot to control its aggressive spread.",
+      "optimalConditions": "Full sun to partial shade. Prefers rich, moist soil. Spreads vigorously via underground runners."
+    }
+  ]
+}
