@@ -18,7 +18,7 @@ export type GetEnvironmentalDataInput = z.infer<typeof GetEnvironmentalDataInput
 const GetEnvironmentalDataOutputSchema = z.object({
   soilTemperature: z.string().describe('The current soil temperature.'),
   sunlightHours: z.string().describe('The current daily hours of sunlight.'),
-  soilDescription: z.string().describe('A brief description of typical soil in the area.'),
+  soilDescription: z.string().describe('A brief description of typical soil in the area. Omit the word "soil" from the description.'),
 });
 export type GetEnvironmentalDataOutput = z.infer<typeof GetEnvironmentalDataOutputSchema>;
 
@@ -39,6 +39,7 @@ const prompt = ai.definePrompt({
   Location: {{{location}}}
 
   Provide the current soil temperature, average daily sunlight hours, and a general description of the typical soil composition for that area.
+  For the soilDescription, describe the characteristics (e.g., "Well-drained, pH 6.0-7.0") and do not include the word "soil".
   Return your response in the structured format defined by the output schema.
   `,
 });
