@@ -178,29 +178,7 @@ export default function Home() {
 
             <div>
               <div className="flex flex-col md:flex-row md:items-center md:justify-end mb-6 gap-4">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button>
-                        <Plus className="h-4 w-4" />
-                        <span className="sr-only">Add Menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={handleOpenAddSheet}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        <span>Add Plant</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleImport}>
-                        <Download className="mr-2 h-4 w-4" />
-                        <span>Import Dataset</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handlePublish}>
-                        <Upload className="mr-2 h-4 w-4" />
-                        <span>Publish Data</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  
               </div>
 
               {activeLocation && (
@@ -216,6 +194,31 @@ export default function Home() {
                           onLocationChange={setActiveLocationId}
                           onAddLocation={handleAddLocation}
                         />
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Plus className="h-4 w-4" />
+                              <span className="sr-only">Add Menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuItem onClick={handleOpenAddSheet}>
+                              <PlusCircle className="mr-2 h-4 w-4" />
+                              <span>Add Plant</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleImport}>
+                              <Download className="mr-2 h-4 w-4" />
+                              <span>Import Dataset</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handlePublish}>
+                              <Upload className="mr-2 h-4 w-4" />
+                              <span>Publish Data</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                      {accordionValue !== 'item-1' && (
@@ -290,3 +293,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
