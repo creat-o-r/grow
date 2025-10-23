@@ -189,13 +189,23 @@ export default function Home() {
               <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg">
                 <AccordionItem value="item-1" className="border-0">
                   <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                    <div className='flex items-center gap-3'>
-                      <Settings2 className="h-5 w-5 text-muted-foreground" />
-                      <div className='text-left'>
-                        <h3 className="font-semibold">{activeLocation.name} Conditions</h3>
-                        <p className='text-sm text-muted-foreground font-normal'>
-                          {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
-                        </p>
+                    <div className='flex items-center justify-between w-full'>
+                      <div className="flex items-center gap-3">
+                        <Settings2 className="h-5 w-5 text-muted-foreground" />
+                        <div className='text-left'>
+                          <h3 className="font-semibold">{activeLocation.name} Conditions</h3>
+                          <p className='text-sm text-muted-foreground font-normal'>
+                            {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
+                          </p>
+                        </div>
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()} className="mr-4">
+                         <LocationSwitcher 
+                          locations={locations}
+                          activeLocationId={activeLocationId}
+                          onLocationChange={setActiveLocationId}
+                          onAddLocation={handleAddLocation}
+                         />
                       </div>
                     </div>
                   </AccordionTrigger>
@@ -262,3 +272,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
