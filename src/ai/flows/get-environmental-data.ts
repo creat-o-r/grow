@@ -22,34 +22,35 @@ const GetEnvironmentalDataOutputSchema = z.object({
 });
 export type GetEnvironmentalDataOutput = z.infer<typeof GetEnvironmentalDataOutputSchema>;
 
-// This is a placeholder tool. In a real application, you would replace this
-// with a call to a real weather/environmental API.
-const getEnvironmentalDataTool = ai.defineTool(
-  {
-    name: 'getEnvironmentalData',
-    description: 'Get environmental data for a specific location.',
-    inputSchema: GetEnvironmentalDataInputSchema,
-    outputSchema: GetEnvironmentalDataOutputSchema,
-  },
-  async (input) => {
-    console.log(`[getEnvironmentalDataTool] Called with: ${input.location}`);
-    // MOCK DATA: Replace this with a real API call.
-    return {
-      soilTemperature: '68°F',
-      sunlightHours: '6-8 hours of direct sunlight',
-      soilDescription: 'Well-drained loam',
-    };
-  }
-);
-
-
 export async function getEnvironmentalData(
   input: GetEnvironmentalDataInput
 ): Promise<GetEnvironmentalDataOutput> {
-  const {output} = await ai.generate({
-      prompt: `Based on the location "${input.location}", provide the soil temperature, sunlight hours, and a general soil description.`,
-      tools: [getEnvironmentalDataTool],
-  });
-
-  return output!;
+  return getEnvironmentalDataFlow(input);
 }
+
+
+const prompt = ai.definePrompt({
+  name: 'getEnvironmentalDataPrompt',
+  input: {schema: GetEnvironmentalDataInputSchema},
+  output: {schema: GetEnvironmentalDataOutputSchema},
+  prompt: `You are a world-class agricultural and environmental data specialist.
+  Based on general knowledge for the provided location, estimate the current environmental conditions.
+
+  Location: {{{location}}}
+
+  Provide the estimated soil temperature, average daily sunlight hours, and a general description of the typical soil composition for that area.
+  Return your response in the structured format defined by the output schema.
+  `,
+});
+
+const getEnvironmentalDataFlow = ai.defineFlow(
+  {
+    name: 'getEnvironmentalDataFlow',
+    inputSchema: GetEnvironmentalDataInputSchema,
+    outputSchema: GetEnvironmentalDataOutputSchema,
+  },
+  async input => {
+    const {output} = await prompt(input);
+    return output!;
+  }
+);
