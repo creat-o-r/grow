@@ -251,19 +251,19 @@ export default function Home() {
                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <div>
                             <Label htmlFor="location" className="text-xs font-semibold uppercase text-muted-foreground">Location</Label>
-                            <Input id="location" value={activeLocation.location} onChange={(e) => handleLocationFieldChange('location', e.target.value)} />
+                            <Input id="location" value={activeLocation?.location || ''} onChange={(e) => handleLocationFieldChange('location', e.target.value)} />
                             </div>
                             <div>
                             <Label htmlFor="temperature" className="text-xs font-semibold uppercase text-muted-foreground">Temperature</Label>
-                            <Input id="temperature" value={activeLocation.conditions.temperature} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
+                            <Input id="temperature" value={activeLocation?.conditions.temperature || ''} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
                             </div>
                             <div>
                             <Label htmlFor="sunlight" className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
-                            <Input id="sunlight" value={activeLocation.conditions.sunlight} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
+                            <Input id="sunlight" value={activeLocation?.conditions.sunlight || ''} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
                             </div>
                             <div>
                             <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
-                            <Input id="soil" value={activeLocation.conditions.soil} onChange={(e) => handleConditionChange('soil', e.target.value)} />
+                            <Input id="soil" value={activeLocation?.conditions.soil || ''} onChange={(e) => handleConditionChange('soil', e.target.value)} />
                             </div>
                         </div>
                     </AccordionContent>
