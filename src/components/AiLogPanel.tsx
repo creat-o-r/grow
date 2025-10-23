@@ -37,13 +37,13 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
                   <CardContent className="space-y-4">
                      <div>
                       <h4 className="font-semibold mb-2">Prompt</h4>
-                      <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto">
+                      <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto text-foreground">
                         {JSON.stringify(log.prompt, null, 2)}
                       </pre>
                     </div>
                      <div>
                       <h4 className="font-semibold mb-2">Results</h4>
-                      <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto">
+                      <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto text-foreground">
                         {JSON.stringify(log.results, null, 2)}
                       </pre>
                     </div>
