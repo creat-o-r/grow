@@ -31,7 +31,7 @@ export type GardenLocation = {
 export type AiLog = {
     id: string;
     timestamp: string; // ISO String
-    location: string;
-    reasoning: string;
-    references?: string;
+    flow: string;
+    prompt: any;
+    results: any;
 }
