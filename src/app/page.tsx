@@ -17,7 +17,6 @@ import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { PlusCircle, Download, Upload, ChevronDown } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 
 export default function Home() {
@@ -125,6 +124,7 @@ export default function Home() {
 
   const handleImport = () => {
     setPlants(importDataset.plants as Plant[]);
+    setIsSheetOpen(false);
     toast({
       title: 'Data Imported',
       description: 'A new plant dataset has been loaded.',
@@ -138,6 +138,7 @@ export default function Home() {
       activeLocationId,
     };
     navigator.clipboard.writeText(JSON.stringify(dataToPublish, null, 2));
+    setIsSheetOpen(false);
     toast({
       title: 'Data Published',
       description: 'Your entire dataset has been copied to the clipboard.',
@@ -220,30 +221,10 @@ export default function Home() {
                         </div>
                         
                         <div className="flex items-center gap-4 pl-4">
-                            <div className="inline-flex rounded-md shadow-sm">
-                                <Button onClick={handleOpenAddSheet} variant="ghost" className="relative inline-flex items-center rounded-l-md bg-background px-3 py-1.5 text-sm font-semibold h-auto">
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                <span>Plant</span>
-                                </Button>
-                                <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="relative inline-flex items-center rounded-r-md bg-background px-2 py-1.5 font-semibold h-auto">
-                                    <span className="sr-only">More options</span>
-                                    <ChevronDown className="h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={handleImport}>
-                                    <Download className="mr-2 h-4 w-4" />
-                                    <span>Import Dataset</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={handlePublish}>
-                                    <Upload className="mr-2 h-4 w-4" />
-                                    <span>Publish Data</span>
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
+                            <Button onClick={handleOpenAddSheet} variant="ghost" className="relative inline-flex items-center rounded-md bg-background px-3 py-1.5 text-sm font-semibold h-auto">
+                              <PlusCircle className="mr-2 h-4 w-4" />
+                              <span>Add Plant</span>
+                            </Button>
                         </div>
                     </div>
 
@@ -309,6 +290,24 @@ export default function Home() {
             plantToEdit={plantToEdit} 
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
           />
+           <div className="mt-8 pt-6 border-t">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-headline text-lg">Data Management</CardTitle>
+                  <CardDescription>Import or publish your entire plant dataset.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex gap-4">
+                  <Button onClick={handleImport} variant="outline" className="w-full">
+                    <Download className="mr-2 h-4 w-4" />
+                    Import Dataset
+                  </Button>
+                  <Button onClick={handlePublish} variant="outline" className="w-full">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Publish Data
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
         </SheetContent>
       </Sheet>
     </div>
