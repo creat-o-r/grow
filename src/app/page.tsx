@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, MouseEvent } from 'react';
@@ -21,7 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronRight, Download, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus } from 'lucide-react';
+import { PlusCircle, ChevronRight, Download, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, KeyRound } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
@@ -43,7 +42,6 @@ export default function Home() {
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
 
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
@@ -641,7 +639,28 @@ export default function Home() {
             plantToEdit={plantToEdit} 
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
           />
-           <div className="mt-8 pt-6 border-t">
+           <div className="mt-8 pt-6 border-t space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-headline text-lg">Perplexity AI Integration</CardTitle>
+                  <CardDescription>Generate a Perplexity API key to use their models.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button 
+                    onClick={() => window.open('https://www.perplexity.ai/pplx-api', '_blank')} 
+                    variant="outline" 
+                    className="w-full"
+                  >
+                    <KeyRound className="mr-2 h-4 w-4" />
+                    Get Your Perplexity API Key
+                  </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor="perplexity-key">Perplexity API Key</Label>
+                    <Input id="perplexity-key" placeholder="Paste your API key here" />
+                  </div>
+                   <Button className="w-full">Save Key</Button>
+                </CardContent>
+              </Card>
               <Card>
                 <CardHeader>
                   <CardTitle className="font-headline text-lg">Data Management</CardTitle>
@@ -664,3 +683,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
