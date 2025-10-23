@@ -38,8 +38,8 @@ const prompt = ai.definePrompt({
 
   Location: {{{location}}}
 
-  Provide the current soil temperature, average daily sunlight hours, and a general description of the typical soil composition for that area.
-  For the soilDescription, describe the characteristics (e.g., "Well-drained, pH 6.0-7.0") and do not include the word "soil".
+  Provide the current soil temperature, average daily sunlight hours, and a description of the typical soil composition.
+  For the soilDescription, return only the key characteristics of the soil type (e.g., "Well-drained, sandy loam, pH 6.5"). Do not include any descriptive words, location information, or the word "soil".
   Return your response in the structured format defined by the output schema.
   `,
 });
