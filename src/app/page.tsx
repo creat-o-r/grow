@@ -171,51 +171,10 @@ export default function Home() {
     <div className="flex min-h-screen w-full flex-col bg-background">
       <main className="flex-1">
         <div className="container mx-auto p-4 md:p-8">
-            <div className="mb-8">
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="item-1">
-                  <AccordionTrigger>
-                      <div className='flex items-center gap-2'>
-                        <Settings2 className="h-5 w-5 text-primary"/>
-                        <h2 className="text-lg font-headline font-semibold">
-                          {activeLocation ? `Location Settings: ${activeLocation.name}` : 'No Location Selected'}
-                        </h2>
-                      </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <Card className="border-none shadow-none">
-                        <CardContent className="pt-6">
-                        {activeLocation ? (
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="temperature">Temperature</Label>
-                              <Input id="temperature" value={activeLocation.conditions.temperature} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="sunlight">Sunlight</Label>
-                              <Input id="sunlight" value={activeLocation.conditions.sunlight} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="soil">Soil</Label>
-                              <Input id="soil" value={activeLocation.conditions.soil} onChange={(e) => handleConditionChange('soil', e.target.value)} />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-center text-muted-foreground py-8">
-                            <p>Select a location to view and edit its conditions.</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
 
             <div>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
                   <div className='flex items-center gap-4'>
-                     <h2 className="text-3xl font-headline font-bold shrink-0">My Plants</h2>
                      <div className='w-full md:w-64'>
                         <LocationSwitcher 
                             locations={locations}
