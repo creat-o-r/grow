@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, MouseEvent } from 'react';
-import type { Plant, GardenLocation, Conditions, StatusHistory } from '@/lib/types';
+import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog } from '@/lib/types';
 import { samplePlants, sampleLocations } from '@/lib/sample-data';
 import importDataset from '@/lib/import-dataset.json';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +13,7 @@ import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
 import { PlantForm } from '@/components/PlantForm';
+import { FooterLog } from '@/components/FooterLog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,7 @@ export default function Home() {
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiLogs, setAiLogs] = useState<AiLog[]>([]);
 
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
@@ -58,6 +60,7 @@ export default function Home() {
     const savedPlants = localStorage.getItem('verdantVerse_plants');
     const savedLocations = localStorage.getItem('verdantVerse_locations');
     const savedActiveLocation = localStorage.getItem('verdantVerse_activeLocation');
+    const savedAiLogs = localStorage.getItem('verdantVerse_aiLogs');
 
     if (savedPlants) {
       setPlants(JSON.parse(savedPlants));
@@ -77,6 +80,10 @@ export default function Home() {
       setLocations(sampleLocations);
       setActiveLocationId(sampleLocations[0]?.id);
     }
+    
+    if (savedAiLogs) {
+      setAiLogs(JSON.parse(savedAiLogs));
+    }
   }, []);
 
   useEffect(() => {
@@ -94,6 +101,12 @@ export default function Home() {
     }
   }, [locations, activeLocationId, isClient]);
   
+  useEffect(() => {
+    if (isClient) {
+      localStorage.setItem('verdantVerse_aiLogs', JSON.stringify(aiLogs));
+    }
+  }, [aiLogs, isClient]);
+
   const activeLocation = locations.find(loc => loc.id === activeLocationId);
 
   // Effect for location search
@@ -305,16 +318,19 @@ export default function Home() {
       handleConditionChange('temperature', result.soilTemperature);
       handleConditionChange('sunlight', result.sunlightHours);
       handleConditionChange('soil', result.soilDescription);
+      
+      const newLog: AiLog = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        location: activeLocation.location,
+        reasoning: result.reasoning,
+        references: result.references,
+      };
+      setAiLogs(prev => [newLog, ...prev]);
+
       toast({
         title: 'AI Analysis Complete',
-        description: (
-          <div>
-            <p>Conditions for {activeLocation.location} have been populated.</p>
-            <p className="text-xs mt-2 text-muted-foreground italic">
-              AI Reasoning: {result.reasoning}
-            </p>
-          </div>
-        ),
+        description: `Conditions for ${activeLocation.location} have been populated.`,
       });
     } catch (error) {
       console.error('AI analysis failed:', error);
@@ -512,6 +528,8 @@ export default function Home() {
             </div>
         </div>
       </main>
+
+      {aiLogs.length > 0 && <FooterLog logs={aiLogs} />}
 
       <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
         <SheetContent className="sm:max-w-lg w-[90vw] overflow-y-auto">

@@ -27,3 +27,11 @@ export type GardenLocation = {
   temperatureUnit: 'C' | 'F';
   conditions: Conditions;
 };
+
+export type AiLog = {
+    id: string;
+    timestamp: string; // ISO String
+    location: string;
+    reasoning: string;
+    references?: string;
+}
