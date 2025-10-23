@@ -184,68 +184,75 @@ export default function Home() {
               {activeLocation && (
               <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg" value={accordionValue} onValueChange={setAccordionValue}>
                 <AccordionItem value="item-1" className="border-0">
-                  <div className="flex items-center justify-between w-full px-4 py-3">
-                    <div className="flex items-center gap-4 flex-1">
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <LocationSwitcher 
-                          locations={locations}
-                          activeLocationId={activeLocationId}
-                          onLocationChange={setActiveLocationId}
-                          onAddLocation={handleAddLocation}
-                        />
-                      </div>
-                       {accordionValue !== 'item-1' && (
-                         <div className='text-left'>
-                            <p className='text-sm text-muted-foreground font-normal'>
-                              {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
-                            </p>
+                    <div className="flex items-center justify-between w-full px-4 py-3">
+                        <AccordionTrigger className="p-0 flex-1 hover:no-underline">
+                            <div className="flex items-center gap-4">
+                                <div onClick={(e) => e.stopPropagation()}>
+                                    <LocationSwitcher 
+                                    locations={locations}
+                                    activeLocationId={activeLocationId}
+                                    onLocationChange={setActiveLocationId}
+                                    onAddLocation={handleAddLocation}
+                                    />
+                                </div>
+                                {accordionValue !== 'item-1' && (
+                                    <div className='text-left flex items-center gap-2'>
+                                        <p className='text-sm text-muted-foreground font-normal'>
+                                        {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
+                                        </p>
+                                        <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 text-muted-foreground" />
+                                    </div>
+                                )}
+                                {accordionValue === 'item-1' && (
+                                     <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 rotate-180 text-muted-foreground" />
+                                )}
+                            </div>
+                        </AccordionTrigger>
+
+                        <div className="flex items-center gap-4 pl-4">
+                            <div className="inline-flex rounded-md shadow-sm">
+                                <Button onClick={handleOpenAddSheet} variant="ghost" className="relative inline-flex items-center rounded-l-md bg-background px-3 py-1.5 text-sm font-semibold h-auto">
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                <span>Plant</span>
+                                </Button>
+                                <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="relative inline-flex items-center rounded-r-md bg-background px-2 py-1.5 font-semibold h-auto">
+                                    <span className="sr-only">More options</span>
+                                    <ChevronDown className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={handleImport}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    <span>Import Dataset</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={handlePublish}>
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    <span>Publish Data</span>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                         </div>
-                      )}
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="inline-flex rounded-md shadow-sm">
-                        <Button onClick={handleOpenAddSheet} variant="ghost" className="relative inline-flex items-center rounded-l-md bg-background px-3 py-1.5 text-sm font-semibold h-auto">
-                          <PlusCircle className="mr-2 h-4 w-4" />
-                          <span>Plant</span>
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="relative inline-flex items-center rounded-r-md bg-background px-2 py-1.5 font-semibold h-auto">
-                              <span className="sr-only">More options</span>
-                              <ChevronDown className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={handleImport}>
-                              <Download className="mr-2 h-4 w-4" />
-                              <span>Import Dataset</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handlePublish}>
-                              <Upload className="mr-2 h-4 w-4" />
-                              <span>Publish Data</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                      <AccordionTrigger className="p-0 w-auto" />
-                    </div>
-                  </div>
-                  <AccordionContent className="p-6 pt-2">
-                     <div className="grid gap-4 sm:grid-cols-3">
-                        <div>
-                          <Label htmlFor="temperature" className="text-xs font-semibold uppercase text-muted-foreground">Temperature</Label>
-                          <Input id="temperature" value={activeLocation.conditions.temperature} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
+
+                    <AccordionContent className="p-6 pt-2">
+                        <div className="grid gap-4 sm:grid-cols-3">
+                            <div>
+                            <Label htmlFor="temperature" className="text-xs font-semibold uppercase text-muted-foreground">Temperature</Label>
+                            <Input id="temperature" value={activeLocation.conditions.temperature} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
+                            </div>
+                            <div>
+                            <Label htmlFor="sunlight" className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
+                            <Input id="sunlight" value={activeLocation.conditions.sunlight} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
+                            </div>
+                            <div>
+                            <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
+                            <Input id="soil" value={activeLocation.conditions.soil} onChange={(e) => handleConditionChange('soil', e.target.value)} />
+                            </div>
                         </div>
-                        <div>
-                          <Label htmlFor="sunlight" className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
-                          <Input id="sunlight" value={activeLocation.conditions.sunlight} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
-                        </div>
-                        <div>
-                          <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
-                          <Input id="soil" value={activeLocation.conditions.soil} onChange={(e) => handleConditionChange('soil', e.target.value)} />
-                        </div>
-                      </div>
-                  </AccordionContent>
+                    </AccordionContent>
                 </AccordionItem>
               </Accordion>
               )}
@@ -293,9 +300,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
-
-    
-
-
