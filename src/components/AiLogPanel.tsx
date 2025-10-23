@@ -27,6 +27,7 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
           <ScrollArea className="h-full w-full">
             <div className="space-y-6 pr-6 py-4">
               {logs.length > 0 ? logs.map(log => {
+                  // This logic handles both old and new log structures gracefully.
                   const reasoning = log.reasoning || (log.results as any)?.reasoning;
                   const references = log.references || (log.results as any)?.references;
 
