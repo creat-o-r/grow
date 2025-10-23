@@ -15,9 +15,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, Download, Upload, Settings2, ChevronDown } from 'lucide-react';
+import { PlusCircle, Download, Upload, ChevronDown } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 
 export default function Home() {
@@ -185,8 +185,7 @@ export default function Home() {
               <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg" value={accordionValue} onValueChange={setAccordionValue}>
                 <AccordionItem value="item-1" className="border-0">
                   <div className="flex items-center justify-between w-full px-4 py-3">
-                    <div className="flex items-center gap-2 flex-1">
-                      <Settings2 className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex items-center gap-4 flex-1">
                       <div onClick={(e) => e.stopPropagation()}>
                         <LocationSwitcher 
                           locations={locations}
@@ -296,3 +295,4 @@ export default function Home() {
     
 
     
+
