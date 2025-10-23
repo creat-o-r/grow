@@ -46,6 +46,7 @@ export default function Home() {
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [locationSuggestions, setLocationSuggestions] = useState<NominatimResult[]>([]);
   const debouncedSearchQuery = useDebounce(locationSearchQuery, 300);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(true);
 
 
   const { toast } = useToast();
@@ -95,7 +96,7 @@ export default function Home() {
 
   // Effect for location search
   useEffect(() => {
-    if (debouncedSearchQuery && debouncedSearchQuery !== activeLocation?.location) {
+    if (debouncedSearchQuery && debouncedSearchQuery !== activeLocation?.location && showLocationSuggestions) {
       setIsSearchingLocation(true);
       fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${debouncedSearchQuery}`)
         .then(response => response.json())
@@ -111,7 +112,7 @@ export default function Home() {
     } else {
       setLocationSuggestions([]);
     }
-  }, [debouncedSearchQuery, activeLocation?.location]);
+  }, [debouncedSearchQuery, activeLocation?.location, showLocationSuggestions]);
 
   useEffect(() => {
     if (activeLocation) {
@@ -278,6 +279,7 @@ export default function Home() {
     handleLocationFieldChange('location', locationName);
     setLocationSearchQuery(locationName);
     setLocationSuggestions([]);
+    setShowLocationSuggestions(false);
   };
   
   const filteredPlants = statusFilter === 'All' 
@@ -334,14 +336,20 @@ export default function Home() {
                                 <Input 
                                   id="location" 
                                   value={locationSearchQuery} 
-                                  onChange={(e) => setLocationSearchQuery(e.target.value)} 
-                                  onFocus={() => setLocationSearchQuery(activeLocation?.location || '')}
+                                  onChange={(e) => {
+                                      setLocationSearchQuery(e.target.value);
+                                      setShowLocationSuggestions(true);
+                                  }}
+                                  onFocus={() => {
+                                      setShowLocationSuggestions(true);
+                                      setLocationSearchQuery(activeLocation?.location || '');
+                                  }}
                                 />
                                 <Button size="icon" variant="outline" onClick={handleGetCurrentLocation} disabled={isLocating}>
                                     {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
                                 </Button>
                                 </div>
-                                { (isSearchingLocation || locationSuggestions.length > 0) && (
+                                { showLocationSuggestions && (isSearchingLocation || locationSuggestions.length > 0) && (
                                     <Card className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto">
                                         <CardContent className="p-2">
                                             {isSearchingLocation && <div className="p-2 text-sm text-muted-foreground">Searching...</div>}
