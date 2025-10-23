@@ -26,6 +26,8 @@ export default function Home() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [plantToEdit, setPlantToEdit] = useState<Plant | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [accordionValue, setAccordionValue] = useState<string>('');
+
 
   const { toast } = useToast();
 
@@ -186,10 +188,10 @@ export default function Home() {
               </div>
 
               {activeLocation && (
-              <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg">
+              <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg" value={accordionValue} onValueChange={setAccordionValue}>
                 <AccordionItem value="item-1" className="border-0">
                   <div className="flex items-center justify-between w-full px-4 py-3">
-                    <div className="flex items-center gap-3 flex-1">
+                    <div className="flex items-center gap-3 flex-1 font-medium">
                       <Settings2 className="h-5 w-5 text-muted-foreground" />
                       <LocationSwitcher 
                         locations={locations}
@@ -198,11 +200,13 @@ export default function Home() {
                         onAddLocation={handleAddLocation}
                       />
                     </div>
-                    <div className='text-left pr-4'>
-                        <p className='text-sm text-muted-foreground font-normal text-right'>
-                          {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
-                        </p>
-                    </div>
+                    {accordionValue !== 'item-1' && (
+                       <div className='text-left pr-4'>
+                          <p className='text-sm text-muted-foreground font-normal text-right'>
+                            {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
+                          </p>
+                      </div>
+                    )}
                     <AccordionTrigger className="p-0 w-auto" />
                   </div>
                   <AccordionContent className="p-6 pt-2">
