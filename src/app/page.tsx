@@ -188,26 +188,23 @@ export default function Home() {
               {activeLocation && (
               <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg">
                 <AccordionItem value="item-1" className="border-0">
-                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                    <div className='flex items-center justify-between w-full'>
-                      <div className="flex items-center gap-3">
-                        <Settings2 className="h-5 w-5 text-muted-foreground" />
-                        <div onClick={(e) => e.stopPropagation()}>
-                           <LocationSwitcher 
-                            locations={locations}
-                            activeLocationId={activeLocationId}
-                            onLocationChange={setActiveLocationId}
-                            onAddLocation={handleAddLocation}
-                           />
-                        </div>
-                      </div>
-                      <div className='text-left pr-4'>
-                          <p className='text-sm text-muted-foreground font-normal text-right'>
-                            {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
-                          </p>
-                      </div>
+                  <div className="flex items-center justify-between w-full px-4 py-3">
+                    <div className="flex items-center gap-3 flex-1">
+                      <Settings2 className="h-5 w-5 text-muted-foreground" />
+                      <LocationSwitcher 
+                        locations={locations}
+                        activeLocationId={activeLocationId}
+                        onLocationChange={setActiveLocationId}
+                        onAddLocation={handleAddLocation}
+                      />
                     </div>
-                  </AccordionTrigger>
+                    <div className='text-left pr-4'>
+                        <p className='text-sm text-muted-foreground font-normal text-right'>
+                          {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
+                        </p>
+                    </div>
+                    <AccordionTrigger className="p-0 w-auto" />
+                  </div>
                   <AccordionContent className="p-6 pt-2">
                      <div className="grid gap-4 sm:grid-cols-3">
                         <div>
