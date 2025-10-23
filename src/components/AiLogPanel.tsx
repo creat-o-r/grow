@@ -13,6 +13,11 @@ type AiLogPanelProps = {
   onOpenChange: (isOpen: boolean) => void;
 };
 
+const FLOW_DISPLAY_NAMES: { [key: string]: string } = {
+    getEnvironmentalData: 'Environmental Analysis',
+    aiSearchPlantData: 'Plant Data Search',
+};
+
 export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -36,11 +41,13 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
                     delete (resultsToShow as any).references;
                   }
 
+                  const displayName = FLOW_DISPLAY_NAMES[log.flow] || log.flow;
+
                   return (
                     <Card key={log.id} className="text-sm">
                       <CardHeader className='pb-3'>
                         <CardTitle className="text-base font-medium flex justify-between items-center">
-                            <span className='font-mono text-primary'>{log.flow}</span>
+                            <span className='font-mono text-primary'>{displayName}</span>
                             <span className="font-sans font-normal text-xs text-muted-foreground">{format(parseISO(log.timestamp), 'MMM d, yyyy, h:mm:ss a')}</span>
                         </CardTitle>
                       </CardHeader>
@@ -48,15 +55,16 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
                         {log.prompt && (
                           <div>
                             <h4 className="font-semibold mb-2">Prompt</h4>
-                            <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto text-foreground">
-                                {JSON.stringify(log.prompt, null, 2)}
-                            </pre>
+                             <div className="text-xs p-2 bg-muted rounded-md text-foreground">
+                                <span className='font-semibold text-muted-foreground'>Location: </span>
+                                <span>{(log.prompt as any)?.location}</span>
+                            </div>
                           </div>
                         )}
                         {log.results && Object.keys(resultsToShow).length > 0 && (
                           <div>
                             <h4 className="font-semibold mb-2">Results</h4>
-                            <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto text-foreground">
+                            <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto whitespace-pre-wrap text-foreground">
                                 {JSON.stringify(resultsToShow, null, 2)}
                             </pre>
                           </div>
@@ -86,5 +94,3 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
     </Sheet>
   );
 }
-
-    
