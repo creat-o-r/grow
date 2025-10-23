@@ -55,7 +55,7 @@ export default function Home() {
 
   const plants = useLiveQuery(() => db.plants.orderBy('species').toArray(), []);
   const locations = useLiveQuery(() => db.locations.toArray(), []);
-  const aiLogs = useLiveQuery(() => db.aiLogs.orderBy('timestamp').reverse().toArray(), []);
+  const aiLogs = useLiveQuery(() => db.aiLogs.orderBy('timestamp').reverse().limit(10).toArray(), []);
 
   useEffect(() => {
     setIsClient(true);
@@ -311,20 +311,9 @@ export default function Home() {
         flow: 'getEnvironmentalData',
         prompt: promptData,
         results: result,
-        reasoning: result.reasoning,
-        references: result.references,
       };
       
       await db.aiLogs.add(newLog);
-      
-      // Keep only the latest 10 logs
-      const logCount = await db.aiLogs.count();
-      if (logCount > 10) {
-        const oldestLogs = await db.aiLogs.orderBy('timestamp').limit(logCount - 10).toArray();
-        const oldestLogIds = oldestLogs.map(log => log.id);
-        await db.aiLogs.bulkDelete(oldestLogIds);
-      }
-
 
       toast({
         title: 'AI Analysis Complete',

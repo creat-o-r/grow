@@ -27,10 +27,9 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
           <ScrollArea className="h-full w-full">
             <div className="space-y-6 pr-6 py-4">
               {logs.length > 0 ? logs.map(log => {
-                  const reasoning = log.reasoning || (log.results as any)?.reasoning;
-                  const references = log.references || (log.results as any)?.references;
+                  const reasoning = (log.results as any)?.reasoning;
+                  const references = (log.results as any)?.references;
 
-                  // Create a version of results without reasoning and references to avoid duplication
                   const resultsToShow = { ...log.results };
                   if (resultsToShow) {
                     delete (resultsToShow as any).reasoning;
@@ -87,3 +86,5 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
     </Sheet>
   );
 }
+
+    

@@ -291,5 +291,3 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
     </div>
   );
 }
-
-    

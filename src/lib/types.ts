@@ -34,6 +34,6 @@ export type AiLog = {
     flow: string;
     prompt: any;
     results: any;
-    reasoning: string;
-    references?: string;
 }
+
+    
