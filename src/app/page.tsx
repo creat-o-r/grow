@@ -299,7 +299,15 @@ export default function Home() {
   }
 
   const handleAnalyzeConditions = async () => {
-    if (!activeLocation) return;
+    if (!activeLocation || !activeLocation.location.trim()) {
+      toast({
+        title: 'Location Required',
+        description: 'Please enter a specific location before analyzing conditions.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsAnalyzing(true);
     const promptData = { location: activeLocation.location };
     try {
