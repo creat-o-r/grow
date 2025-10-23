@@ -1,10 +1,12 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import type { Plant } from '@/lib/types';
+import type { Plant, StatusHistory } from '@/lib/types';
+import { format, parseISO } from 'date-fns';
 
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
 import { useToast } from '@/hooks/use-toast';
@@ -13,15 +15,25 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Plus, Trash2, CalendarIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+
+const statusHistorySchema = z.object({
+  id: z.string(),
+  status: z.enum(['Planning', 'Planting', 'Growing', 'Harvested', 'Dormant']),
+  date: z.string(),
+  notes: z.string().optional(),
+});
 
 const formSchema = z.object({
   species: z.string().min(3, 'Species name is required.'),
   germinationNeeds: z.string().min(10, 'Germination needs are required.'),
   optimalConditions: z.string().min(10, 'Optimal conditions are required.'),
-  status: z.enum(['Planning', 'Planting', 'Growing']),
+  history: z.array(statusHistorySchema),
 });
 
 type PlantFormValues = z.infer<typeof formSchema>;
@@ -42,8 +54,13 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
       species: '',
       germinationNeeds: '',
       optimalConditions: '',
-      status: 'Planning',
+      history: [],
     },
+  });
+  
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "history",
   });
 
   useEffect(() => {
@@ -54,7 +71,7 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
         species: '',
         germinationNeeds: '',
         optimalConditions: '',
-        status: 'Planning',
+        history: [{ id: 'new-1', status: 'Planning', date: new Date().toISOString(), notes: '' }],
       });
     }
   }, [plantToEdit, form]);
@@ -84,12 +101,22 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
   };
 
   const handleSubmit = (data: PlantFormValues) => {
+     const sortedHistory = [...data.history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     if (plantToEdit) {
-      onSubmit({ ...plantToEdit, ...data });
+      onSubmit({ ...plantToEdit, ...data, history: sortedHistory });
     } else {
-      onSubmit(data);
+      onSubmit({...data, history: sortedHistory});
     }
     form.reset();
+  };
+
+  const addNewStatus = () => {
+    append({
+        id: `new-${Date.now()}`,
+        status: 'Growing',
+        date: new Date().toISOString(),
+        notes: '',
+    });
   };
 
   return (
@@ -134,28 +161,6 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
               </FormItem>
             )}
           />
-           <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="Planning">Planning</SelectItem>
-                    <SelectItem value="Planting">Planting</SelectItem>
-                    <SelectItem value="Growing">Growing</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
           <FormField
             control={form.control}
             name="germinationNeeds"
@@ -182,6 +187,102 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
               </FormItem>
             )}
           />
+
+          <div className="space-y-4 rounded-lg border p-4">
+            <div className='flex justify-between items-center'>
+                 <h3 className="font-medium">Plant History</h3>
+                 <Button type="button" size="sm" variant="outline" onClick={addNewStatus}>
+                    <Plus className="mr-2 h-4 w-4"/> Add Status
+                </Button>
+            </div>
+            <div className="space-y-4">
+              {fields.map((field, index) => (
+                <Card key={field.id} className="p-4 space-y-3">
+                   <div className="grid grid-cols-2 gap-4">
+                     <FormField
+                        control={form.control}
+                        name={`history.${index}.status`}
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Status</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                                <SelectTrigger>
+                                <SelectValue placeholder="Select a status" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="Planning">Planning</SelectItem>
+                                <SelectItem value="Planting">Planting</SelectItem>
+                                <SelectItem value="Growing">Growing</SelectItem>
+                                <SelectItem value="Harvested">Harvested</SelectItem>
+                                <SelectItem value="Dormant">Dormant</SelectItem>
+                            </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`history.${index}.date`}
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Date</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "pl-3 text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                    )}
+                                    >
+                                    {field.value ? (
+                                        format(parseISO(field.value), "PPP")
+                                    ) : (
+                                        <span>Pick a date</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={field.value ? parseISO(field.value) : undefined}
+                                    onSelect={(date) => field.onChange(date?.toISOString())}
+                                    initialFocus
+                                />
+                                </PopoverContent>
+                            </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                   </div>
+                   <FormField
+                        control={form.control}
+                        name={`history.${index}.notes`}
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Notes</FormLabel>
+                            <FormControl>
+                            <Textarea placeholder="Add any notes for this status..." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <Button type="button" variant="destructive" size="sm" onClick={() => remove(index)} className="w-full">
+                        <Trash2 className="mr-2 h-4 w-4"/> Remove Status
+                    </Button>
+                </Card>
+              ))}
+            </div>
+          </div>
+
           <Button type="submit" className="w-full">
             {plantToEdit ? 'Save Changes' : 'Add Plant'}
           </Button>

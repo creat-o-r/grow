@@ -1,10 +1,17 @@
 
-export type Plant = {
+export type StatusHistory = {
   id: string;
+  status: 'Planning' | 'Planting' | 'Growing' | 'Harvested' | 'Dormant';
+  date: string; // ISO String
+  notes?: string;
+};
+
+export type Plant = {
+  id:string;
   species: string;
   germinationNeeds: string;
   optimalConditions: string;
-  status: 'Planning' | 'Planting' | 'Growing';
+  history: StatusHistory[];
 };
 
 export type Conditions = {

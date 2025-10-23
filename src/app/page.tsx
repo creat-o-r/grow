@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Plant, GardenLocation, Conditions } from '@/lib/types';
+import type { Plant, GardenLocation, Conditions, StatusHistory } from '@/lib/types';
 import { samplePlants, sampleLocations } from '@/lib/sample-data';
 import importDataset from '@/lib/import-dataset.json';
 import { useToast } from '@/hooks/use-toast';
@@ -15,11 +15,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, Download, Upload, ChevronDown } from 'lucide-react';
+import { PlusCircle, ChevronDown, Download, Upload } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
-type PlantStatus = Plant['status'];
+type PlantStatus = StatusHistory['status'];
 
 export default function Home() {
   const [plants, setPlants] = useState<Plant[]>([]);
@@ -126,7 +126,11 @@ export default function Home() {
   };
 
   const handleImport = () => {
-    setPlants(importDataset.plants as Plant[]);
+    const plantsWithHistory = (importDataset.plants as any[]).map(p => ({
+        ...p,
+        history: [{ id: `h-${p.id}`, status: p.status, date: new Date().toISOString() }]
+    }));
+    setPlants(plantsWithHistory as Plant[]);
     setIsSheetOpen(false);
     toast({
       title: 'Data Imported',
@@ -156,7 +160,8 @@ export default function Home() {
         : loc
     ));
   };
-    const handleLocationFieldChange = (field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
+
+  const handleLocationFieldChange = (field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
     if (!activeLocationId) return;
     setLocations(prev => prev.map(loc =>
       loc.id === activeLocationId
@@ -181,7 +186,10 @@ export default function Home() {
     setActiveLocationId(newLocation.id);
   };
   
-  const filteredPlants = statusFilter === 'All' ? plants : plants.filter(p => p.status === statusFilter);
+  const filteredPlants = statusFilter === 'All' 
+    ? plants 
+    : plants.filter(p => p.history.length > 0 && p.history[p.history.length - 1].status === statusFilter);
+
 
   if (!isClient) {
     return null;
@@ -210,14 +218,14 @@ export default function Home() {
                                 onAddLocation={handleAddLocation}
                                 />
                             </div>
-                            <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start">
+                            <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2">
                                 {accordionValue !== 'item-1' && (
-                                    <div className='text-left flex items-center gap-2'>
-                                        <p className='text-sm text-muted-foreground font-normal'>
-                                        {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
+                                    <>
+                                        <p className='text-sm text-muted-foreground font-normal truncate'>
+                                            {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
                                         </p>
                                         <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 text-muted-foreground" />
-                                    </div>
+                                    </>
                                 )}
                                 {accordionValue === 'item-1' && (
                                      <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 rotate-180 text-muted-foreground" />
@@ -259,7 +267,7 @@ export default function Home() {
 
               <div className="flex items-center gap-2 mb-6">
                 <span className="text-sm font-medium text-muted-foreground">Filter by:</span>
-                {(['All', 'Planning', 'Planting', 'Growing'] as const).map(status => (
+                {(['All', 'Planning', 'Planting', 'Growing', 'Harvested', 'Dormant'] as const).map(status => (
                     <Button 
                         key={status}
                         variant={statusFilter === status ? 'default' : 'outline'}
