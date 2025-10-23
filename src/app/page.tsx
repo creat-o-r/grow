@@ -180,7 +180,7 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center">
           <div className="mr-4 hidden items-center md:flex">
             <Leaf className="h-6 w-6 mr-2 text-primary" />
@@ -228,7 +228,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </header>
+      </nav>
       <main className="flex-1">
         <section className="relative w-full h-[30vh] md:h-[35vh] text-white">
           {heroImage && (
