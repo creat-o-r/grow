@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, MouseEvent } from 'react';
 import type { Plant, GardenLocation, Conditions, StatusHistory } from '@/lib/types';
 import { samplePlants, sampleLocations } from '@/lib/sample-data';
 import importDataset from '@/lib/import-dataset.json';
@@ -288,7 +288,8 @@ export default function Home() {
     }, 0);
   };
 
-  const handleClearLocationSearch = () => {
+  const handleClearLocationSearch = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
     setLocationSearchQuery('');
     setShowLocationSuggestions(true);
     document.getElementById('location')?.focus();
@@ -355,7 +356,10 @@ export default function Home() {
                                       }}
                                       onFocus={() => {
                                           setShowLocationSuggestions(true);
-                                          setLocationSearchQuery(activeLocation?.location || '');
+                                          // only reset if they haven't typed anything
+                                          if (!locationSearchQuery) {
+                                            setLocationSearchQuery(activeLocation?.location || '');
+                                          }
                                       }}
                                       autoComplete="off"
                                     />
