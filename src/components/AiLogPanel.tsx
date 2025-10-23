@@ -35,28 +35,22 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                     <div>
-                      <h4 className="font-semibold mb-2">Prompt</h4>
-                      <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto text-foreground">
-                        {JSON.stringify(log.prompt, null, 2)}
-                      </pre>
-                    </div>
-                     <div>
-                      <h4 className="font-semibold mb-2">Results</h4>
-                      <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto text-foreground">
-                        {JSON.stringify(log.results, null, 2)}
-                      </pre>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold mb-2">Reasoning</h4>
-                      <p className="text-muted-foreground text-xs">{log.reasoning}</p>
-                    </div>
-                    {log.references && (
-                      <div>
-                        <h4 className="font-semibold mb-2">References</h4>
-                        <p className="text-muted-foreground text-xs italic">{log.references}</p>
-                      </div>
-                    )}
+                     {log.prompt && (
+                        <div>
+                        <h4 className="font-semibold mb-2">Prompt</h4>
+                        <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto text-foreground">
+                            {JSON.stringify(log.prompt, null, 2)}
+                        </pre>
+                        </div>
+                     )}
+                     {log.results && (
+                        <div>
+                        <h4 className="font-semibold mb-2">Results</h4>
+                        <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto text-foreground">
+                            {JSON.stringify(log.results, null, 2)}
+                        </pre>
+                        </div>
+                     )}
                   </CardContent>
                 </Card>
               )) : (
