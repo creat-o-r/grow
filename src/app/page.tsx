@@ -175,12 +175,10 @@ export default function Home() {
         <div className="container mx-auto p-4 md:p-8">
 
             <div>
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-end mb-6 gap-4">
                  <div className='flex items-center gap-2'>
-                    <div className="hidden md:flex items-center space-x-2">
-                      <Button variant="ghost" size="sm" onClick={handleImport}><Download className="mr-2 h-4 w-4" /> Import</Button>
-                      <Button variant="ghost" size="sm" onClick={handlePublish}><Upload className="mr-2 h-4 w-4" /> Publish</Button>
-                    </div>
+                    <Button variant="outline" size="sm" onClick={handleImport}><Download className="mr-2 h-4 w-4" /> Import</Button>
+                    <Button variant="outline" size="sm" onClick={handlePublish}><Upload className="mr-2 h-4 w-4" /> Publish</Button>
                     <Button onClick={handleOpenAddSheet}>
                       <PlusCircle className="mr-2 h-4 w-4" /> Add Plant
                     </Button>
@@ -200,7 +198,7 @@ export default function Home() {
                         onAddLocation={handleAddLocation}
                       />
                     </div>
-                    {accordionValue !== 'item-1' && (
+                     {accordionValue !== 'item-1' && (
                        <div className='text-left pr-4'>
                           <p className='text-sm text-muted-foreground font-normal text-right'>
                             {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
