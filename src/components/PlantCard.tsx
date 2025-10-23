@@ -19,7 +19,7 @@ type PlantCardProps = {
 };
 
 export function PlantCard({ plant, gardenConditions, onEdit, onDelete }: PlantCardProps) {
-    const latestStatus = plant.history.length > 0 ? plant.history[plant.history.length - 1] : null;
+    const latestStatus = plant.history && plant.history.length > 0 ? plant.history[plant.history.length - 1] : null;
 
     const statusConfig: { [key: string]: string } = {
         Planning: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800',
