@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ViabilityIndicator } from './ViabilityIndicator';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 type PlantCardProps = {
   plant: Plant;
@@ -15,6 +17,12 @@ type PlantCardProps = {
 };
 
 export function PlantCard({ plant, gardenConditions, onEdit, onDelete }: PlantCardProps) {
+    const statusConfig = {
+    Planning: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800',
+    Planting: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-800',
+    Growing: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-800',
+  };
+
   return (
     <Card className="flex flex-col transition-all hover:shadow-lg hover:-translate-y-1">
       <CardHeader>
@@ -32,7 +40,12 @@ export function PlantCard({ plant, gardenConditions, onEdit, onDelete }: PlantCa
                 </DropdownMenuContent>
             </DropdownMenu>
         </div>
-        {gardenConditions && <ViabilityIndicator plant={plant} gardenConditions={gardenConditions} />}
+        <div className="flex flex-wrap gap-2 items-center">
+            {gardenConditions && <ViabilityIndicator plant={plant} gardenConditions={gardenConditions} />}
+            <Badge variant="outline" className={cn("font-normal", statusConfig[plant.status])}>
+                {plant.status}
+            </Badge>
+        </div>
       </CardHeader>
       <CardContent className="flex-grow space-y-4">
         <div>

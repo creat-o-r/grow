@@ -1,8 +1,10 @@
+
 export type Plant = {
   id: string;
   species: string;
   germinationNeeds: string;
   optimalConditions: string;
+  status: 'Planning' | 'Planting' | 'Growing';
 };
 
 export type Conditions = {

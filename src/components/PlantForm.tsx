@@ -15,11 +15,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Search, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const formSchema = z.object({
   species: z.string().min(3, 'Species name is required.'),
   germinationNeeds: z.string().min(10, 'Germination needs are required.'),
   optimalConditions: z.string().min(10, 'Optimal conditions are required.'),
+  status: z.enum(['Planning', 'Planting', 'Growing']),
 });
 
 type PlantFormValues = z.infer<typeof formSchema>;
@@ -40,6 +42,7 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
       species: '',
       germinationNeeds: '',
       optimalConditions: '',
+      status: 'Planning',
     },
   });
 
@@ -47,7 +50,12 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
     if (plantToEdit) {
       form.reset(plantToEdit);
     } else {
-      form.reset();
+      form.reset({
+        species: '',
+        germinationNeeds: '',
+        optimalConditions: '',
+        status: 'Planning',
+      });
     }
   }, [plantToEdit, form]);
 
@@ -122,6 +130,28 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
                 <FormControl>
                   <Input placeholder="e.g., Solanum lycopersicum" {...field} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Planning">Planning</SelectItem>
+                    <SelectItem value="Planting">Planting</SelectItem>
+                    <SelectItem value="Growing">Growing</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

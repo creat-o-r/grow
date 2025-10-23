@@ -19,6 +19,8 @@ import { PlusCircle, Download, Upload, ChevronDown } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
+type PlantStatus = Plant['status'];
+
 export default function Home() {
   const [plants, setPlants] = useState<Plant[]>([]);
   const [locations, setLocations] = useState<GardenLocation[]>([]);
@@ -28,6 +30,7 @@ export default function Home() {
   const [plantToEdit, setPlantToEdit] = useState<Plant | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [accordionValue, setAccordionValue] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
 
 
   const { toast } = useToast();
@@ -177,6 +180,8 @@ export default function Home() {
     setLocations(prev => [...prev, newLocation]);
     setActiveLocationId(newLocation.id);
   };
+  
+  const filteredPlants = statusFilter === 'All' ? plants : plants.filter(p => p.status === statusFilter);
 
   if (!isClient) {
     return null;
@@ -221,9 +226,9 @@ export default function Home() {
                         </div>
                         
                         <div className="flex items-center gap-4 pl-4">
-                            <Button onClick={handleOpenAddSheet} variant="ghost" className="relative inline-flex items-center rounded-md bg-background px-3 py-1.5 text-sm font-semibold h-auto">
-                              <PlusCircle className="mr-2 h-4 w-4" />
-                              <span>Add Plant</span>
+                           <Button onClick={handleOpenAddSheet}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Add Plant
                             </Button>
                         </div>
                     </div>
@@ -251,10 +256,25 @@ export default function Home() {
                 </AccordionItem>
               </Accordion>
               )}
+
+              <div className="flex items-center gap-2 mb-6">
+                <span className="text-sm font-medium text-muted-foreground">Filter by:</span>
+                {(['All', 'Planning', 'Planting', 'Growing'] as const).map(status => (
+                    <Button 
+                        key={status}
+                        variant={statusFilter === status ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setStatusFilter(status)}
+                        className="h-8"
+                    >
+                        {status}
+                    </Button>
+                ))}
+              </div>
               
-              {plants.length > 0 ? (
+              {filteredPlants.length > 0 ? (
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {plants.map(plant => (
+                  {filteredPlants.map(plant => (
                     <PlantCard 
                       key={plant.id} 
                       plant={plant} 
@@ -267,11 +287,15 @@ export default function Home() {
               ) : (
                 <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                   <CardHeader>
-                    <CardTitle className="font-headline">No Plants Yet</CardTitle>
-                    <CardDescription>Add your first plant to get started!</CardDescription>
+                    <CardTitle className="font-headline">No Plants Found</CardTitle>
+                    <CardDescription>
+                      {statusFilter === 'All'
+                        ? "You haven't added any plants yet."
+                        : `No plants with the status "${statusFilter}".`}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Button onClick={handleOpenAddSheet}>
+                     <Button onClick={handleOpenAddSheet}>
                        <PlusCircle className="mr-2 h-4 w-4" /> Add Plant
                     </Button>
                   </CardContent>
