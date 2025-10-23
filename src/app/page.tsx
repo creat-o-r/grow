@@ -174,16 +174,6 @@ export default function Home() {
 
             <div>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-                  <div className='flex items-center gap-4'>
-                     <div className='w-full md:w-64'>
-                        <LocationSwitcher 
-                            locations={locations}
-                            activeLocationId={activeLocationId}
-                            setActiveLocationId={setActiveLocationId}
-                            onAddLocation={handleAddLocation}
-                        />
-                     </div>
-                  </div>
                  <div className='flex items-center gap-2'>
                     <div className="hidden md:flex items-center space-x-2">
                       <Button variant="ghost" size="sm" onClick={handleImport}><Download className="mr-2 h-4 w-4" /> Import</Button>
