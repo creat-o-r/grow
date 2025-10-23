@@ -2,6 +2,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, MouseEvent } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
 import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog } from '@/lib/types';
 import { samplePlants, sampleLocations } from '@/lib/sample-data';
 import importDataset from '@/lib/import-dataset.json';
@@ -32,10 +34,6 @@ type NominatimResult = {
 
 
 export default function Home() {
-  const [plants, setPlants] = useState<Plant[]>([]);
-  const [locations, setLocations] = useState<GardenLocation[]>([]);
-  const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
-  
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [plantToEdit, setPlantToEdit] = useState<Plant | null>(null);
   const [isClient, setIsClient] = useState(false);
@@ -44,7 +42,6 @@ export default function Home() {
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [aiLogs, setAiLogs] = useState<AiLog[]>([]);
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
 
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
@@ -53,62 +50,50 @@ export default function Home() {
   const debouncedSearchQuery = useDebounce(locationSearchQuery, 300);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(true);
 
+  const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
 
   const { toast } = useToast();
 
+  const plants = useLiveQuery(() => db.plants.orderBy('species').toArray(), []);
+  const locations = useLiveQuery(() => db.locations.toArray(), []);
+  const aiLogs = useLiveQuery(() => db.aiLogs.orderBy('timestamp').reverse().toArray(), []);
+
   useEffect(() => {
     setIsClient(true);
-    const savedPlants = localStorage.getItem('verdantVerse_plants');
-    const savedLocations = localStorage.getItem('verdantVerse_locations');
-    const savedActiveLocation = localStorage.getItem('verdantVerse_activeLocation');
-    const savedAiLogs = localStorage.getItem('verdantVerse_aiLogs');
-
-    if (savedPlants) {
-      setPlants(JSON.parse(savedPlants));
-    } else {
-      setPlants(samplePlants);
+    const initDb = async () => {
+        const locationCount = await db.locations.count();
+        if (locationCount === 0) {
+            await db.locations.bulkAdd(sampleLocations);
+            const firstLocation = await db.locations.toCollection().first();
+            if (firstLocation) {
+                setActiveLocationId(firstLocation.id);
+            }
+        } else {
+             const savedActiveLocation = localStorage.getItem('verdantVerse_activeLocation');
+             if (savedActiveLocation) {
+                setActiveLocationId(savedActiveLocation);
+             } else {
+                const firstLocation = await db.locations.toCollection().first();
+                if (firstLocation) {
+                    setActiveLocationId(firstLocation.id);
+                }
+             }
+        }
+        const plantCount = await db.plants.count();
+        if (plantCount === 0) {
+            await db.plants.bulkAdd(samplePlants);
+        }
     }
-
-    if (savedLocations) {
-      const parsedLocations = JSON.parse(savedLocations);
-      setLocations(parsedLocations);
-      if (savedActiveLocation) {
-        setActiveLocationId(savedActiveLocation);
-      } else if (parsedLocations.length > 0) {
-        setActiveLocationId(parsedLocations[0].id);
-      }
-    } else {
-      setLocations(sampleLocations);
-      setActiveLocationId(sampleLocations[0]?.id);
-    }
-    
-    if (savedAiLogs) {
-      setAiLogs(JSON.parse(savedAiLogs));
-    }
+    initDb();
   }, []);
 
   useEffect(() => {
-    if (isClient) {
-      localStorage.setItem('verdantVerse_plants', JSON.stringify(plants));
-    }
-  }, [plants, isClient]);
-
-  useEffect(() => {
-    if (isClient) {
-      localStorage.setItem('verdantVerse_locations', JSON.stringify(locations));
-      if (activeLocationId) {
+    if (activeLocationId) {
         localStorage.setItem('verdantVerse_activeLocation', activeLocationId);
-      }
     }
-  }, [locations, activeLocationId, isClient]);
-  
-  useEffect(() => {
-    if (isClient) {
-      localStorage.setItem('verdantVerse_aiLogs', JSON.stringify(aiLogs));
-    }
-  }, [aiLogs, isClient]);
+  }, [activeLocationId]);
 
-  const activeLocation = locations.find(loc => loc.id === activeLocationId);
+  const activeLocation = locations?.find(loc => loc.id === activeLocationId);
 
   // Effect for location search
   useEffect(() => {
@@ -137,9 +122,9 @@ export default function Home() {
     }
   }, [activeLocation]);
 
-  const handleAddPlant = (plant: Omit<Plant, 'id'>) => {
+  const handleAddPlant = async (plant: Omit<Plant, 'id'>) => {
     const newPlant = { ...plant, id: Date.now().toString(), history: plant.history || [] };
-    setPlants(prev => [newPlant, ...prev]);
+    await db.plants.add(newPlant);
     setIsSheetOpen(false);
     toast({
       title: 'Plant Added',
@@ -147,8 +132,8 @@ export default function Home() {
     });
   };
 
-  const handleUpdatePlant = (updatedPlant: Plant) => {
-    setPlants(prev => prev.map(p => (p.id === updatedPlant.id ? updatedPlant : p)));
+  const handleUpdatePlant = async (updatedPlant: Plant) => {
+    await db.plants.put(updatedPlant);
     setPlantToEdit(null);
     setIsSheetOpen(false);
      toast({
@@ -157,9 +142,9 @@ export default function Home() {
     });
   };
 
-  const handleDeletePlant = (plantId: string) => {
-    const plantToDelete = plants.find(p => p.id === plantId);
-    setPlants(prev => prev.filter(p => p.id !== plantId));
+  const handleDeletePlant = async (plantId: string) => {
+    const plantToDelete = await db.plants.get(plantId);
+    await db.plants.delete(plantId);
     toast({
       title: 'Plant Removed',
       description: `${plantToDelete?.species} has been removed.`,
@@ -184,22 +169,26 @@ export default function Home() {
     }
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     const plantsWithHistory = (importDataset.plants as any[]).map(p => ({
         ...p,
-        history: [{ id: `h-${p.id}`, status: p.status, date: new Date().toISOString() }]
+        id: `imp-${Date.now()}-${Math.random()}`, // ensure unique ids
+        history: [{ id: `h-${p.id}-${Date.now()}`, status: p.status, date: new Date().toISOString() }]
     }));
-    setPlants(plantsWithHistory as Plant[]);
+    await db.plants.clear();
+    await db.plants.bulkAdd(plantsWithHistory as Plant[]);
     toast({
       title: 'Data Imported',
       description: 'A new plant dataset has been loaded.',
     });
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
+    const plantsData = await db.plants.toArray();
+    const locationsData = await db.locations.toArray();
     const dataToPublish = {
-      plants,
-      locations,
+      plants: plantsData,
+      locations: locationsData,
       activeLocationId,
     };
     navigator.clipboard.writeText(JSON.stringify(dataToPublish, null, 2));
@@ -209,26 +198,18 @@ export default function Home() {
     });
   };
 
-  const handleConditionChange = (field: keyof Conditions, value: string) => {
+  const handleConditionChange = async (field: keyof Conditions, value: string) => {
     if (!activeLocationId) return;
-    setLocations(prev => prev.map(loc => 
-      loc.id === activeLocationId 
-        ? { ...loc, conditions: { ...loc.conditions, [field]: value } }
-        : loc
-    ));
+    await db.locations.update(activeLocationId, { conditions: { ...activeLocation?.conditions, [field]: value } });
   };
   
-  const handleLocationFieldChange = useCallback((field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
+  const handleLocationFieldChange = useCallback(async (field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
     if (!activeLocationId) return;
-    setLocations(prev => prev.map(loc =>
-      loc.id === activeLocationId
-        ? { ...loc, [field]: value }
-        : loc
-    ));
+    await db.locations.update(activeLocationId, { [field]: value });
   }, [activeLocationId]);
 
   
-  const handleAddLocation = (name: string) => {
+  const handleAddLocation = async (name: string) => {
     const newLocation: GardenLocation = {
       id: Date.now().toString(),
       name,
@@ -240,8 +221,8 @@ export default function Home() {
         soil: 'Well-drained, pH 6.0-7.0',
       }
     };
-    setLocations(prev => [...prev, newLocation]);
-    setActiveLocationId(newLocation.id);
+    const newId = await db.locations.add(newLocation);
+    setActiveLocationId(newId.toString());
   };
   
   const handleGetCurrentLocation = () => {
@@ -317,9 +298,13 @@ export default function Home() {
     const promptData = { location: activeLocation.location };
     try {
       const result = await getEnvironmentalData(promptData);
-      handleConditionChange('temperature', result.soilTemperature);
-      handleConditionChange('sunlight', result.sunlightHours);
-      handleConditionChange('soil', result.soilDescription);
+      await db.locations.update(activeLocation.id, {
+        conditions: {
+            temperature: result.soilTemperature,
+            sunlight: result.sunlightHours,
+            soil: result.soilDescription,
+        }
+      });
       
       const newLog: AiLog = {
         id: Date.now().toString(),
@@ -330,7 +315,17 @@ export default function Home() {
         reasoning: result.reasoning,
         references: result.references,
       };
-      setAiLogs(prev => [newLog, ...prev.slice(0, 9)]);
+      
+      await db.aiLogs.add(newLog);
+      
+      // Keep only the latest 10 logs
+      const logCount = await db.aiLogs.count();
+      if (logCount > 10) {
+        const oldestLogs = await db.aiLogs.orderBy('timestamp').limit(logCount - 10).toArray();
+        const oldestLogIds = oldestLogs.map(log => log.id);
+        await db.aiLogs.bulkDelete(oldestLogIds);
+      }
+
 
       toast({
         title: 'AI Analysis Complete',
@@ -348,15 +343,15 @@ export default function Home() {
     }
   };
   
-  const filteredPlants = statusFilter === 'All' 
+  const filteredPlants = plants ? (statusFilter === 'All' 
     ? plants 
-    : plants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length - 1].status === statusFilter);
+    : plants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length - 1].status === statusFilter)) : [];
 
   const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
   const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
 
 
-  if (!isClient) {
+  if (!isClient || !plants || !locations || !aiLogs) {
     return null;
   }
 
