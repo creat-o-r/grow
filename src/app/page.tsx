@@ -330,7 +330,7 @@ export default function Home() {
         reasoning: result.reasoning,
         references: result.references,
       };
-      setAiLogs(prev => [newLog, ...prev]);
+      setAiLogs(prev => [newLog, ...prev.slice(0, 9)]);
 
       toast({
         title: 'AI Analysis Complete',
