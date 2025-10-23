@@ -37,11 +37,11 @@ export function PlantCard({ plant, gardenConditions, onEdit, onDelete }: PlantCa
       <CardContent className="flex-grow space-y-4">
         <div>
           <h4 className="font-bold text-sm mb-1 tracking-wide uppercase text-muted-foreground">Germination Needs</h4>
-          <p className="text-sm text-foreground/80">{plant.germinationNeeds}</p>
+          <p className="text-sm text-foreground/80 line-clamp-3">{plant.germinationNeeds}</p>
         </div>
         <div>
           <h4 className="font-bold text-sm mb-1 tracking-wide uppercase text-muted-foreground">Optimal Conditions</h4>
-          <p className="text-sm text-foreground/80">{plant.optimalConditions}</p>
+          <p className="text-sm text-foreground/80 line-clamp-3">{plant.optimalConditions}</p>
         </div>
       </CardContent>
     </Card>

@@ -7,7 +7,7 @@ import importDataset from '@/lib/import-dataset.json';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 
-import { Header } from '@/components/Header';
+import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
 import { PlantForm } from '@/components/PlantForm';
 import { Button } from '@/components/ui/button';
@@ -15,9 +15,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, MapPin } from 'lucide-react';
+import { PlusCircle, MapPin, Leaf, Download, Upload, MoreVertical } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { LocationSwitcher } from '@/components/LocationSwitcher';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
 
 export default function Home() {
   const [plants, setPlants] = useState<Plant[]>([]);
@@ -172,9 +180,57 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
-      <Header onAddPlant={handleOpenAddSheet} onImport={handleImport} onPublish={handlePublish} />
+      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center">
+          <div className="mr-4 hidden items-center md:flex">
+            <Leaf className="h-6 w-6 mr-2 text-primary" />
+            <h1 className="text-xl font-headline font-bold">VerdantVerse</h1>
+          </div>
+          
+          <div className="md:w-[250px]">
+            <LocationSwitcher 
+              locations={locations}
+              activeLocationId={activeLocationId}
+              setActiveLocationId={setActiveLocationId}
+              onAddLocation={handleAddLocation}
+            />
+          </div>
+
+          <div className="flex flex-1 items-center justify-end space-x-2">
+            <div className="hidden md:flex items-center space-x-2">
+              <Button variant="ghost" onClick={handleImport}><Download className="mr-2 h-4 w-4" /> Import</Button>
+              <Button variant="ghost" onClick={handlePublish}><Upload className="mr-2 h-4 w-4" /> Publish</Button>
+              <Button onClick={handleOpenAddSheet}><PlusCircle className="mr-2 h-4 w-4" /> Add Plant</Button>
+            </div>
+            <div className="md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleOpenAddSheet}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    <span>Add Plant</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleImport}>
+                    <Download className="mr-2 h-4 w-4" />
+                    <span>Import Data</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handlePublish}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    <span>Publish Data</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </div>
+      </header>
       <main className="flex-1">
-        <section className="relative w-full h-[40vh] text-white">
+        <section className="relative w-full h-[30vh] md:h-[35vh] text-white">
           {heroImage && (
              <Image
                 src={heroImage.imageUrl}
@@ -186,53 +242,56 @@ export default function Home() {
               />
           )}
           <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-center p-4">
-            <h1 className="text-4xl md:text-6xl font-headline font-bold tracking-tighter">VerdantVerse</h1>
-            <p className="mt-4 text-lg md:text-xl max-w-2xl font-body text-neutral-300">
-              Cultivate your knowledge. Compare your garden's conditions with ideal plant needs and grow with confidence.
+            <h1 className="text-4xl md:text-5xl font-headline font-bold tracking-tighter">My Digital Garden</h1>
+            <p className="mt-2 text-lg md:text-xl max-w-2xl font-body text-neutral-300">
+              Grow with confidence.
             </p>
           </div>
         </section>
 
         <div className="container mx-auto p-4 md:p-8">
-          <div className="grid gap-8 md:grid-cols-12">
-            <aside className="md:col-span-4 lg:col-span-3">
-              <Card className="sticky top-24 shadow-lg">
-                <CardHeader>
-                  <LocationSwitcher 
-                    locations={locations}
-                    activeLocationId={activeLocationId}
-                    setActiveLocationId={setActiveLocationId}
-                    onAddLocation={handleAddLocation}
-                  />
-                </CardHeader>
-                <CardContent className="space-y-4 pt-4">
-                  {activeLocation ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="temperature">Temperature</Label>
-                        <Input id="temperature" value={activeLocation.conditions.temperature} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="sunlight">Sunlight</Label>
-                        <Input id="sunlight" value={activeLocation.conditions.sunlight} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="soil">Soil</Label>
-                        <Input id="soil" value={activeLocation.conditions.soil} onChange={(e) => handleConditionChange('soil', e.target.value)} />
-                      </div>
-                    </>
-                  ) : (
-                     <div className="text-center text-muted-foreground py-8">
-                      <MapPin className="mx-auto h-8 w-8 mb-2" />
-                      <p>No location selected.</p>
-                      <p className="text-sm">Add a location to get started.</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </aside>
+            <div className="mb-8">
+              <Accordion type="single" collapsible defaultValue="item-1">
+                <AccordionItem value="item-1">
+                  <AccordionTrigger>
+                     <div className='flex items-center gap-2'>
+                        <MapPin className="h-5 w-5 text-primary"/>
+                        <h2 className="text-xl font-headline font-semibold">
+                          {activeLocation ? `Current Conditions: ${activeLocation.name}` : 'No Location Selected'}
+                        </h2>
+                     </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <Card className="border-none shadow-none">
+                       <CardContent className="pt-6">
+                        {activeLocation ? (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="temperature">Temperature</Label>
+                              <Input id="temperature" value={activeLocation.conditions.temperature} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="sunlight">Sunlight</Label>
+                              <Input id="sunlight" value={activeLocation.conditions.sunlight} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="soil">Soil</Label>
+                              <Input id="soil" value={activeLocation.conditions.soil} onChange={(e) => handleConditionChange('soil', e.target.value)} />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center text-muted-foreground py-8">
+                            <p>Select a location to view and edit its conditions.</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
 
-            <div className="md:col-span-8 lg:col-span-9">
+            <div>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-3xl font-headline font-bold">My Plants</h2>
                  <Button onClick={handleOpenAddSheet} className="md:hidden">
@@ -241,7 +300,7 @@ export default function Home() {
               </div>
               
               {plants.length > 0 ? (
-                <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {plants.map(plant => (
                     <PlantCard 
                       key={plant.id} 
@@ -266,7 +325,6 @@ export default function Home() {
                 </Card>
               )}
             </div>
-          </div>
         </div>
       </main>
 
