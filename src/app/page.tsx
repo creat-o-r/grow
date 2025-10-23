@@ -307,7 +307,14 @@ export default function Home() {
       handleConditionChange('soil', result.soilDescription);
       toast({
         title: 'AI Analysis Complete',
-        description: `Conditions for ${activeLocation.location} have been populated.`,
+        description: (
+          <div>
+            <p>Conditions for {activeLocation.location} have been populated.</p>
+            <p className="text-xs mt-2 text-muted-foreground italic">
+              AI Reasoning: {result.reasoning}
+            </p>
+          </div>
+        ),
       });
     } catch (error) {
       console.error('AI analysis failed:', error);
