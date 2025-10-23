@@ -192,20 +192,19 @@ export default function Home() {
                     <div className='flex items-center justify-between w-full'>
                       <div className="flex items-center gap-3">
                         <Settings2 className="h-5 w-5 text-muted-foreground" />
-                        <div className='text-left'>
-                          <h3 className="font-semibold">{activeLocation.name} Conditions</h3>
-                          <p className='text-sm text-muted-foreground font-normal'>
-                            {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
-                          </p>
+                        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                           <LocationSwitcher 
+                            locations={locations}
+                            activeLocationId={activeLocationId}
+                            onLocationChange={setActiveLocationId}
+                            onAddLocation={handleAddLocation}
+                           />
                         </div>
                       </div>
-                      <div onClick={(e) => e.stopPropagation()} className="mr-4">
-                         <LocationSwitcher 
-                          locations={locations}
-                          activeLocationId={activeLocationId}
-                          onLocationChange={setActiveLocationId}
-                          onAddLocation={handleAddLocation}
-                         />
+                      <div className='text-left pr-4'>
+                          <p className='text-sm text-muted-foreground font-normal text-right'>
+                            {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
+                          </p>
                       </div>
                     </div>
                   </AccordionTrigger>

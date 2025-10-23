@@ -44,17 +44,21 @@ export function LocationSwitcher({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="w-48 justify-between">
+        <Button variant="ghost" className="px-2 py-1 h-auto font-semibold text-base -ml-2">
           {activeLocation ? activeLocation.name : 'Select Location'}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end">
-        <DropdownMenuLabel>My Gardens</DropdownMenuLabel>
+      <DropdownMenuContent className="w-64" align="start">
         <DropdownMenuRadioGroup value={activeLocationId ?? ''} onValueChange={onLocationChange}>
           {locations.map(location => (
             <DropdownMenuRadioItem key={location.id} value={location.id}>
-              {location.name}
+              <div className="flex flex-col">
+                <span>{location.name}</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  {location.conditions.temperature}, {location.conditions.sunlight}
+                </span>
+              </div>
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
