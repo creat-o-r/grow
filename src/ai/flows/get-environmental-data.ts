@@ -8,7 +8,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 const GetEnvironmentalDataInputSchema = z.object({
   location: z.string().describe('The city and country, e.g., "San Francisco, USA"'),
@@ -16,8 +16,8 @@ const GetEnvironmentalDataInputSchema = z.object({
 export type GetEnvironmentalDataInput = z.infer<typeof GetEnvironmentalDataInputSchema>;
 
 const GetEnvironmentalDataOutputSchema = z.object({
-  soilTemperature: z.string().describe('The estimated soil temperature.'),
-  sunlightHours: z.string().describe('The estimated daily hours of sunlight.'),
+  soilTemperature: z.string().describe('The current soil temperature.'),
+  sunlightHours: z.string().describe('The current daily hours of sunlight.'),
   soilDescription: z.string().describe('A brief description of typical soil in the area.'),
 });
 export type GetEnvironmentalDataOutput = z.infer<typeof GetEnvironmentalDataOutputSchema>;
@@ -34,11 +34,11 @@ const prompt = ai.definePrompt({
   input: {schema: GetEnvironmentalDataInputSchema},
   output: {schema: GetEnvironmentalDataOutputSchema},
   prompt: `You are a world-class agricultural and environmental data specialist.
-  Based on general knowledge for the provided location, estimate the current environmental conditions.
+  Based on general knowledge for the provided location, provide the current environmental conditions.
 
   Location: {{{location}}}
 
-  Provide the estimated soil temperature, average daily sunlight hours, and a general description of the typical soil composition for that area.
+  Provide the current soil temperature, average daily sunlight hours, and a general description of the typical soil composition for that area.
   Return your response in the structured format defined by the output schema.
   `,
 });
