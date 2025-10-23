@@ -192,7 +192,7 @@ export default function Home() {
                     <div className='flex items-center justify-between w-full'>
                       <div className="flex items-center gap-3">
                         <Settings2 className="h-5 w-5 text-muted-foreground" />
-                        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                        <div onClick={(e) => e.stopPropagation()}>
                            <LocationSwitcher 
                             locations={locations}
                             activeLocationId={activeLocationId}
@@ -271,5 +271,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
