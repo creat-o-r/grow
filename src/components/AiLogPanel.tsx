@@ -18,6 +18,21 @@ const FLOW_DISPLAY_NAMES: { [key: string]: string } = {
     aiSearchPlantData: 'Plant Data Search',
 };
 
+// Helper function to render result values
+const renderResultValue = (value: any) => {
+    if (typeof value === 'object' && value !== null) {
+        return <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto whitespace-pre-wrap text-foreground">{JSON.stringify(value, null, 2)}</pre>;
+    }
+    return <span>{String(value)}</span>;
+}
+
+// Helper to convert camelCase to Title Case
+const toTitleCase = (str: string) => {
+    return str
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, (s) => s.toUpperCase());
+}
+
 export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -55,18 +70,27 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
                         {log.prompt && (
                           <div>
                             <h4 className="font-semibold mb-2">Prompt</h4>
-                             <div className="text-xs p-2 bg-muted rounded-md text-foreground">
-                                <span className='font-semibold text-muted-foreground'>Location: </span>
-                                <span>{(log.prompt as any)?.location}</span>
+                             <div className="text-xs p-3 bg-muted rounded-md text-foreground space-y-1">
+                                {Object.entries(log.prompt).map(([key, value]) => (
+                                    <div key={key}>
+                                        <span className='font-semibold text-muted-foreground'>{toTitleCase(key)}: </span>
+                                        <span>{String(value)}</span>
+                                    </div>
+                                ))}
                             </div>
                           </div>
                         )}
                         {log.results && Object.keys(resultsToShow).length > 0 && (
                           <div>
                             <h4 className="font-semibold mb-2">Results</h4>
-                            <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto whitespace-pre-wrap text-foreground">
-                                {JSON.stringify(resultsToShow, null, 2)}
-                            </pre>
+                            <div className="text-sm p-3 bg-muted rounded-md text-foreground space-y-2">
+                               {Object.entries(resultsToShow).map(([key, value]) => (
+                                    <div key={key} className="grid grid-cols-3 gap-2">
+                                        <span className='font-semibold text-muted-foreground col-span-1'>{toTitleCase(key)}</span>
+                                        <div className='col-span-2'>{renderResultValue(value)}</div>
+                                    </div>
+                               ))}
+                            </div>
                           </div>
                         )}
                          {reasoning && (
