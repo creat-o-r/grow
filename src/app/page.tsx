@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronDown, Download, Upload } from 'lucide-react';
+import { PlusCircle, ChevronDown, ChevronRight, Download, Upload } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
@@ -31,6 +31,7 @@ export default function Home() {
   const [isClient, setIsClient] = useState(false);
   const [accordionValue, setAccordionValue] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
 
 
   const { toast } = useToast();
@@ -161,7 +162,7 @@ export default function Home() {
     ));
   };
 
-  const handleLocationFieldChange = (field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
+  const handleLocationFieldChange = (field: keyof Omit<GardenLocation, 'id' | 'conditions' | 'temperatureUnit'>, value: string) => {
     if (!activeLocationId) return;
     setLocations(prev => prev.map(loc =>
       loc.id === activeLocationId
@@ -188,7 +189,10 @@ export default function Home() {
   
   const filteredPlants = statusFilter === 'All' 
     ? plants 
-    : plants.filter(p => p.history.length > 0 && p.history[p.history.length - 1].status === statusFilter);
+    : plants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length - 1].status === statusFilter);
+
+  const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
+  const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
 
 
   if (!isClient) {
@@ -201,10 +205,6 @@ export default function Home() {
         <div className="container mx-auto p-4 md:p-8">
 
             <div>
-              <div className="flex flex-col md:flex-row md:items-center md:justify-end mb-6 gap-4">
-                  
-              </div>
-
               {activeLocation && (
               <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg" value={accordionValue} onValueChange={setAccordionValue}>
                 <AccordionItem value="item-1" className="border-0">
@@ -219,17 +219,10 @@ export default function Home() {
                                 />
                             </div>
                             <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2">
-                                {accordionValue !== 'item-1' && (
-                                    <>
-                                        <p className='text-sm text-muted-foreground font-normal truncate'>
-                                            {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
-                                        </p>
-                                        <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 text-muted-foreground" />
-                                    </>
-                                )}
-                                {accordionValue === 'item-1' && (
-                                     <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 rotate-180 text-muted-foreground" />
-                                )}
+                                <span className='text-sm text-muted-foreground font-normal truncate'>
+                                    {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
+                                </span>
+                                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 text-muted-foreground" />
                             </AccordionTrigger>
                         </div>
                         
@@ -267,7 +260,26 @@ export default function Home() {
 
               <div className="flex items-center gap-2 mb-6">
                 <span className="text-sm font-medium text-muted-foreground">Filter by:</span>
-                {(['All', 'Planning', 'Planting', 'Growing', 'Harvested', 'Dormant'] as const).map(status => (
+                {primaryFilters.map(status => (
+                    <Button 
+                        key={status}
+                        variant={statusFilter === status ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setStatusFilter(status)}
+                        className="h-8"
+                    >
+                        {status}
+                    </Button>
+                ))}
+                 <Button 
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowMoreFilters(!showMoreFilters)}
+                    className="h-8 w-8"
+                >
+                    <ChevronRight className={`h-4 w-4 transition-transform ${showMoreFilters ? 'rotate-90' : ''}`} />
+                </Button>
+                {showMoreFilters && secondaryFilters.map(status => (
                     <Button 
                         key={status}
                         variant={statusFilter === status ? 'default' : 'outline'}
@@ -345,3 +357,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
