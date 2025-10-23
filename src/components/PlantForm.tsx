@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, Trash2, CalendarIcon } from 'lucide-react';
+import { Search, Loader2, Plus, Trash2, CalendarIcon, KeyRound } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -41,9 +41,11 @@ type PlantFormValues = z.infer<typeof formSchema>;
 type PlantFormProps = {
   plantToEdit?: Plant | null;
   onSubmit: (data: PlantFormValues | Plant) => void;
+  isApiKeySet: boolean;
+  onConfigureApiKey: () => void;
 };
 
-export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
+export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKey }: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const { toast } = useToast();
@@ -134,7 +136,12 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
               onChange={(e) => setAiSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAiSearch()}
             />
-            <Button onClick={handleAiSearch} disabled={isAiSearching}>
+            {!isApiKeySet && (
+              <Button type="button" size="icon" variant="outline" onClick={onConfigureApiKey}>
+                <KeyRound className="h-4 w-4" />
+              </Button>
+            )}
+            <Button type="button" onClick={handleAiSearch} disabled={isAiSearching}>
               {isAiSearching ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
@@ -291,3 +298,5 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
     </div>
   );
 }
+
+    

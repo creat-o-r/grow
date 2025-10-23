@@ -15,6 +15,7 @@ import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
 import { PlantForm } from '@/components/PlantForm';
 import { AiLogPanel } from '@/components/AiLogPanel';
+import { SettingsSheet } from '@/components/SettingsSheet';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -54,6 +55,11 @@ export default function Home() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [locationToDelete, setLocationToDelete] = useState<GardenLocation | null>(null);
 
+  const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
+  const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
+  const [perplexityApiKey, setPerplexityApiKey] = useState('');
+
+
   const { toast } = useToast();
 
   const plants = useLiveQuery(() => db.plants.orderBy('species').toArray(), []);
@@ -62,6 +68,10 @@ export default function Home() {
 
   useEffect(() => {
     setIsClient(true);
+    const savedApiKey = localStorage.getItem('verdantVerse_perplexityApiKey');
+    if (savedApiKey) {
+      setPerplexityApiKey(savedApiKey);
+    }
     const initDb = async () => {
         const locationCount = await db.locations.count();
         if (locationCount > 0) {
@@ -383,6 +393,16 @@ export default function Home() {
       setIsAnalyzing(false);
     }
   };
+
+  const handleSaveApiKey = (key: string) => {
+    setPerplexityApiKey(key);
+    localStorage.setItem('verdantVerse_perplexityApiKey', key);
+    toast({
+      title: 'API Key Saved',
+      description: 'Your Perplexity API key has been securely saved in your browser.',
+    });
+    setIsSettingsSheetOpen(false);
+  };
   
   const filteredPlants = plants ? (statusFilter === 'All' 
     ? plants 
@@ -504,6 +524,11 @@ export default function Home() {
                                       <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
                                       <Input id="soil" value={activeLocation?.conditions.soil || ''} onChange={(e) => handleConditionChange('soil', e.target.value)} />
                                   </div>
+                                  {!perplexityApiKey && (
+                                    <Button size="icon" variant="outline" onClick={() => setIsSettingsSheetOpen(true)}>
+                                      <KeyRound className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                   <Button size="icon" variant="outline" onClick={handleAnalyzeConditions} disabled={isAnalyzing}>
                                       {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                   </Button>
@@ -594,7 +619,7 @@ export default function Home() {
         </div>
       </main>
 
-      {aiLogs.length > 0 && (
+      {(aiLogs.length > 0 || !perplexityApiKey) && (
         <div className="fixed bottom-4 right-4 z-20">
           <Button
             size="icon"
@@ -627,6 +652,16 @@ export default function Home() {
         logs={aiLogs}
         isOpen={isLogPanelOpen}
         onOpenChange={setIsLogPanelOpen}
+        onOpenSettings={() => setIsSettingsSheetOpen(true)}
+      />
+
+      <SettingsSheet 
+        isOpen={isSettingsSheetOpen}
+        onOpenChange={setIsSettingsSheetOpen}
+        onSaveApiKey={handleSaveApiKey}
+        currentApiKey={perplexityApiKey}
+        onImport={handleImport}
+        onPublish={handlePublish}
       />
 
 
@@ -638,50 +673,15 @@ export default function Home() {
           <PlantForm 
             plantToEdit={plantToEdit} 
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
+            isApiKeySet={!!perplexityApiKey}
+            onConfigureApiKey={() => setIsSettingsSheetOpen(true)}
           />
-           <div className="mt-8 pt-6 border-t space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-headline text-lg">Perplexity AI Integration</CardTitle>
-                  <CardDescription>Generate a Perplexity API key to use their models.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Button 
-                    onClick={() => window.open('https://www.perplexity.ai/pplx-api', '_blank')} 
-                    variant="outline" 
-                    className="w-full"
-                  >
-                    <KeyRound className="mr-2 h-4 w-4" />
-                    Get Your Perplexity API Key
-                  </Button>
-                  <div className="space-y-2">
-                    <Label htmlFor="perplexity-key">Perplexity API Key</Label>
-                    <Input id="perplexity-key" placeholder="Paste your API key here" />
-                  </div>
-                   <Button className="w-full">Save Key</Button>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-headline text-lg">Data Management</CardTitle>
-                  <CardDescription>Import or publish your entire plant dataset.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex gap-4">
-                  <Button onClick={handleImport} variant="outline" className="w-full">
-                    <Download className="mr-2 h-4 w-4" />
-                    Import Sample Data
-                  </Button>
-                  <Button onClick={handlePublish} variant="outline" className="w-full">
-                    <Upload className="mr-2 h-4 w-4" />
-                    Publish Data
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
         </SheetContent>
       </Sheet>
     </div>
   );
 }
+
+    
 
     

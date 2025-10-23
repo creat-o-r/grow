@@ -6,11 +6,14 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Settings } from 'lucide-react';
 
 type AiLogPanelProps = {
   logs: AiLog[];
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  onOpenSettings: () => void;
 };
 
 const FLOW_DISPLAY_NAMES: { [key: string]: string } = {
@@ -33,15 +36,23 @@ const toTitleCase = (str: string) => {
         .replace(/^./, (s) => s.toUpperCase());
 }
 
-export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
+export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings }: AiLogPanelProps) {
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-2xl w-[90vw] flex flex-col">
         <SheetHeader>
-          <SheetTitle className="font-headline">AI Reasoning Log</SheetTitle>
-          <SheetDescription>
-            A history of analyses performed by the AI.
-          </SheetDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <SheetTitle className="font-headline">AI Reasoning Log</SheetTitle>
+              <SheetDescription>
+                A history of analyses performed by the AI.
+              </SheetDescription>
+            </div>
+            <Button variant="outline" size="icon" onClick={onOpenSettings}>
+              <Settings className="h-4 w-4" />
+              <span className="sr-only">Open Settings</span>
+            </Button>
+          </div>
         </SheetHeader>
         <div className="flex-1 overflow-hidden">
           <ScrollArea className="h-full w-full">
@@ -118,3 +129,5 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
     </Sheet>
   );
 }
+
+    
