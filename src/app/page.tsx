@@ -194,6 +194,15 @@ export default function Home() {
                           onAddLocation={handleAddLocation}
                         />
                       </div>
+                       {accordionValue !== 'item-1' && (
+                         <div className='text-left'>
+                            <p className='text-sm text-muted-foreground font-normal'>
+                              {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
+                            </p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4">
                       <div className="inline-flex rounded-md shadow-sm">
                         <Button onClick={handleOpenAddSheet} variant="ghost" className="relative inline-flex items-center rounded-l-md bg-background px-3 py-1.5 text-sm font-semibold h-auto">
                           <PlusCircle className="mr-2 h-4 w-4" />
@@ -218,15 +227,8 @@ export default function Home() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
+                      <AccordionTrigger className="p-0 w-auto" />
                     </div>
-                     {accordionValue !== 'item-1' && (
-                       <div className='text-left pr-4'>
-                          <p className='text-sm text-muted-foreground font-normal text-right'>
-                            {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
-                          </p>
-                      </div>
-                    )}
-                    <AccordionTrigger className="p-0 w-auto" />
                   </div>
                   <AccordionContent className="p-6 pt-2">
                      <div className="grid gap-4 sm:grid-cols-3">
@@ -295,4 +297,5 @@ export default function Home() {
     
 
     
+
 
