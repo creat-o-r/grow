@@ -30,12 +30,10 @@ export function SettingsSheet({
 }: SettingsSheetProps) {
   const [perplexityKey, setPerplexityKey] = useState(apiKeys.perplexity);
   const [openAIKey, setOpenAIKey] = useState(apiKeys.openai);
-  const [groqKey, setGroqKey] = useState(apiKeys.groq);
 
   useEffect(() => {
     setPerplexityKey(apiKeys.perplexity);
     setOpenAIKey(apiKeys.openai);
-    setGroqKey(apiKeys.groq);
   }, [apiKeys]);
 
   const handleSaveClick = (keyName: ApiKeyName, key: string) => {

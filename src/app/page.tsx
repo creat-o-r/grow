@@ -405,7 +405,7 @@ export default function Home() {
   };
 
   const handleSaveApiKey = (keyName: ApiKeyName, key: string) => {
-    const keyMap = {
+    const keyMap: Record<ApiKeyName, string> = {
       perplexity: 'verdantVerse_perplexityApiKey',
       openai: 'verdantVerse_openaiApiKey',
       groq: 'verdantVerse_groqApiKey',
