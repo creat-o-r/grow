@@ -27,9 +27,18 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
           <ScrollArea className="h-full w-full">
             <div className="space-y-6 pr-6 py-4">
               {logs.length > 0 ? logs.map(log => {
-                  // This logic handles both old and new log structures gracefully.
                   const reasoning = log.reasoning || (log.results as any)?.reasoning;
                   const references = log.references || (log.results as any)?.references;
+
+                  // Create a copy of results and remove the redundant keys for display
+                  const resultsForDisplay = log.results ? { ...log.results } : null;
+                  if (resultsForDisplay) {
+                    delete (resultsForDisplay as any).reasoning;
+                    delete (resultsForDisplay as any).references;
+                  }
+                  
+                  // Don't show the results card if it's empty after removing keys
+                  const showResults = resultsForDisplay && Object.keys(resultsForDisplay).length > 0;
 
                   return (
                     <Card key={log.id} className="text-sm">
@@ -48,11 +57,11 @@ export function AiLogPanel({ logs, isOpen, onOpenChange }: AiLogPanelProps) {
                             </pre>
                           </div>
                         )}
-                        {log.results && (
+                        {showResults && (
                           <div>
                             <h4 className="font-semibold mb-2">Results</h4>
                             <pre className="text-xs p-2 bg-muted rounded-md overflow-x-auto text-foreground">
-                                {JSON.stringify(log.results, null, 2)}
+                                {JSON.stringify(resultsForDisplay, null, 2)}
                             </pre>
                           </div>
                         )}
