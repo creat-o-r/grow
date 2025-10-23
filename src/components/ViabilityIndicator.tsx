@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
-import type { Plant, GardenConditions } from '@/lib/types';
+import type { Plant, Conditions } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 type Viability = 'High' | 'Medium' | 'Low' | 'Unknown';
 
 // A very simplified analysis function
-const analyzeViability = (plant: Plant, conditions: GardenConditions): Viability => {
+const analyzeViability = (plant: Plant, conditions: Conditions): Viability => {
   let score = 0;
   const plantConditions = `${plant.optimalConditions} ${plant.germinationNeeds}`.toLowerCase();
   
@@ -27,7 +27,7 @@ const analyzeViability = (plant: Plant, conditions: GardenConditions): Viability
 };
 
 
-export function ViabilityIndicator({ plant, gardenConditions }: { plant: Plant; gardenConditions: GardenConditions }) {
+export function ViabilityIndicator({ plant, gardenConditions }: { plant: Plant; gardenConditions: Conditions }) {
   const viability = useMemo(() => analyzeViability(plant, gardenConditions), [plant, gardenConditions]);
 
   const viabilityConfig = {

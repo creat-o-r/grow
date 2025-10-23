@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Plant, GardenConditions } from '@/lib/types';
-import { samplePlants } from '@/lib/sample-data';
+import type { Plant, GardenLocation, Conditions } from '@/lib/types';
+import { samplePlants, sampleLocations } from '@/lib/sample-data';
 import importDataset from '@/lib/import-dataset.json';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -15,16 +15,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, MapPin } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { LocationSwitcher } from '@/components/LocationSwitcher';
 
 export default function Home() {
   const [plants, setPlants] = useState<Plant[]>([]);
-  const [gardenConditions, setGardenConditions] = useState<GardenConditions>({
-    temperature: '70°F - 85°F',
-    sunlight: '6-8 hours of full sun',
-    soil: 'Well-drained, pH 6.0-7.0',
-  });
+  const [locations, setLocations] = useState<GardenLocation[]>([]);
+  const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
+  
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [plantToEdit, setPlantToEdit] = useState<Plant | null>(null);
   const [isClient, setIsClient] = useState(false);
@@ -34,7 +33,8 @@ export default function Home() {
   useEffect(() => {
     setIsClient(true);
     const savedPlants = localStorage.getItem('verdantVerse_plants');
-    const savedConditions = localStorage.getItem('verdantVerse_conditions');
+    const savedLocations = localStorage.getItem('verdantVerse_locations');
+    const savedActiveLocation = localStorage.getItem('verdantVerse_activeLocation');
 
     if (savedPlants) {
       setPlants(JSON.parse(savedPlants));
@@ -42,8 +42,17 @@ export default function Home() {
       setPlants(samplePlants);
     }
 
-    if (savedConditions) {
-      setGardenConditions(JSON.parse(savedConditions));
+    if (savedLocations) {
+      const parsedLocations = JSON.parse(savedLocations);
+      setLocations(parsedLocations);
+      if (savedActiveLocation) {
+        setActiveLocationId(savedActiveLocation);
+      } else if (parsedLocations.length > 0) {
+        setActiveLocationId(parsedLocations[0].id);
+      }
+    } else {
+      setLocations(sampleLocations);
+      setActiveLocationId(sampleLocations[0]?.id);
     }
   }, []);
 
@@ -55,9 +64,14 @@ export default function Home() {
 
   useEffect(() => {
     if (isClient) {
-      localStorage.setItem('verdantVerse_conditions', JSON.stringify(gardenConditions));
+      localStorage.setItem('verdantVerse_locations', JSON.stringify(locations));
+      if (activeLocationId) {
+        localStorage.setItem('verdantVerse_activeLocation', activeLocationId);
+      }
     }
-  }, [gardenConditions, isClient]);
+  }, [locations, activeLocationId, isClient]);
+  
+  const activeLocation = locations.find(loc => loc.id === activeLocationId);
 
   const handleAddPlant = (plant: Omit<Plant, 'id'>) => {
     const newPlant = { ...plant, id: Date.now().toString() };
@@ -65,7 +79,7 @@ export default function Home() {
     setIsSheetOpen(false);
     toast({
       title: 'Plant Added',
-      description: `${plant.species} has been added to your garden.`,
+      description: `${plant.species} has been added to your collection.`,
     });
   };
 
@@ -115,25 +129,49 @@ export default function Home() {
   };
 
   const handlePublish = () => {
-    navigator.clipboard.writeText(JSON.stringify(plants, null, 2));
+    const dataToPublish = {
+      plants,
+      locations,
+      activeLocationId,
+    };
+    navigator.clipboard.writeText(JSON.stringify(dataToPublish, null, 2));
     toast({
       title: 'Data Published',
-      description: 'Your plant dataset has been copied to the clipboard.',
+      description: 'Your entire dataset has been copied to the clipboard.',
     });
   };
 
-  const handleConditionChange = (field: keyof GardenConditions, value: string) => {
-    setGardenConditions(prev => ({ ...prev, [field]: value }));
+  const handleConditionChange = (field: keyof Conditions, value: string) => {
+    if (!activeLocationId) return;
+    setLocations(prev => prev.map(loc => 
+      loc.id === activeLocationId 
+        ? { ...loc, conditions: { ...loc.conditions, [field]: value } }
+        : loc
+    ));
+  };
+  
+  const handleAddLocation = (name: string) => {
+    const newLocation: GardenLocation = {
+      id: Date.now().toString(),
+      name,
+      conditions: {
+        temperature: '70°F - 85°F',
+        sunlight: '6-8 hours of full sun',
+        soil: 'Well-drained, pH 6.0-7.0',
+      }
+    };
+    setLocations(prev => [...prev, newLocation]);
+    setActiveLocationId(newLocation.id);
   };
 
   const heroImage = PlaceHolderImages.find(img => img.id === 'hero-background');
 
   if (!isClient) {
-    return null; // or a loading skeleton
+    return null;
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <div className="flex min-h-screen w-full flex-col bg-background">
       <Header onAddPlant={handleOpenAddSheet} onImport={handleImport} onPublish={handlePublish} />
       <main className="flex-1">
         <section className="relative w-full h-[40vh] text-white">
@@ -147,9 +185,9 @@ export default function Home() {
                 priority
               />
           )}
-          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center p-4">
-            <h1 className="text-4xl md:text-6xl font-headline font-bold">VerdantVerse</h1>
-            <p className="mt-4 text-lg md:text-xl max-w-2xl font-body">
+          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-center p-4">
+            <h1 className="text-4xl md:text-6xl font-headline font-bold tracking-tighter">VerdantVerse</h1>
+            <p className="mt-4 text-lg md:text-xl max-w-2xl font-body text-neutral-300">
               Cultivate your knowledge. Compare your garden's conditions with ideal plant needs and grow with confidence.
             </p>
           </div>
@@ -158,24 +196,38 @@ export default function Home() {
         <div className="container mx-auto p-4 md:p-8">
           <div className="grid gap-8 md:grid-cols-12">
             <aside className="md:col-span-4 lg:col-span-3">
-              <Card className="sticky top-24">
+              <Card className="sticky top-24 shadow-lg">
                 <CardHeader>
-                  <CardTitle className="font-headline">Your Garden</CardTitle>
-                  <CardDescription>Current and predicted conditions.</CardDescription>
+                  <LocationSwitcher 
+                    locations={locations}
+                    activeLocationId={activeLocationId}
+                    setActiveLocationId={setActiveLocationId}
+                    onAddLocation={handleAddLocation}
+                  />
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="temperature">Temperature</Label>
-                    <Input id="temperature" value={gardenConditions.temperature} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sunlight">Sunlight</Label>
-                    <Input id="sunlight" value={gardenConditions.sunlight} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="soil">Soil</Label>
-                    <Input id="soil" value={gardenConditions.soil} onChange={(e) => handleConditionChange('soil', e.target.value)} />
-                  </div>
+                <CardContent className="space-y-4 pt-4">
+                  {activeLocation ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="temperature">Temperature</Label>
+                        <Input id="temperature" value={activeLocation.conditions.temperature} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="sunlight">Sunlight</Label>
+                        <Input id="sunlight" value={activeLocation.conditions.sunlight} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="soil">Soil</Label>
+                        <Input id="soil" value={activeLocation.conditions.soil} onChange={(e) => handleConditionChange('soil', e.target.value)} />
+                      </div>
+                    </>
+                  ) : (
+                     <div className="text-center text-muted-foreground py-8">
+                      <MapPin className="mx-auto h-8 w-8 mb-2" />
+                      <p>No location selected.</p>
+                      <p className="text-sm">Add a location to get started.</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </aside>
@@ -194,14 +246,14 @@ export default function Home() {
                     <PlantCard 
                       key={plant.id} 
                       plant={plant} 
-                      gardenConditions={gardenConditions}
+                      gardenConditions={activeLocation?.conditions}
                       onEdit={() => handleEditPlant(plant)}
                       onDelete={() => handleDeletePlant(plant.id)}
                     />
                   ))}
                 </div>
               ) : (
-                <Card className="flex flex-col items-center justify-center py-20 text-center">
+                <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                   <CardHeader>
                     <CardTitle className="font-headline">No Plants Yet</CardTitle>
                     <CardDescription>Add your first plant to get started!</CardDescription>

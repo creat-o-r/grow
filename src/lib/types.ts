@@ -5,8 +5,14 @@ export type Plant = {
   optimalConditions: string;
 };
 
-export type GardenConditions = {
+export type Conditions = {
   temperature: string;
   sunlight: string;
   soil: string;
+};
+
+export type GardenLocation = {
+  id: string;
+  name: string;
+  conditions: Conditions;
 };

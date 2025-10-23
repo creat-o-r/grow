@@ -1,4 +1,4 @@
-import type { Plant } from './types';
+import type { Plant, GardenLocation } from './types';
 
 export const samplePlants: Plant[] = [
   {
@@ -18,5 +18,35 @@ export const samplePlants: Plant[] = [
     species: 'Carrot (Daucus carota)',
     germinationNeeds: 'Sow seeds directly in loose, sandy soil. Keep moist. Germination takes 14-21 days.',
     optimalConditions: 'Full sun to partial shade. Loose, well-drained soil. pH 6.0-7.0. Cooler temperatures preferred.',
+  },
+];
+
+export const sampleLocations: GardenLocation[] = [
+  {
+    id: 'loc-1',
+    name: 'Backyard Garden',
+    conditions: {
+      temperature: '70°F - 85°F',
+      sunlight: '6-8 hours of full sun',
+      soil: 'Well-drained, pH 6.0-7.0',
+    },
+  },
+  {
+    id: 'loc-2',
+    name: 'Community Plot',
+    conditions: {
+      temperature: '65°F - 80°F',
+      sunlight: '8+ hours of full sun',
+      soil: 'Clay-heavy, pH 7.2',
+    },
+  },
+  {
+    id: 'loc-3',
+    name: 'Patio Containers',
+    conditions: {
+      temperature: '75°F - 90°F',
+      sunlight: '4-6 hours of partial sun',
+      soil: 'Potting mix, pH 6.5',
+    },
   },
 ];
