@@ -194,6 +194,40 @@ export default function Home() {
                     </Button>
                  </div>
               </div>
+
+              {activeLocation && (
+              <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg">
+                <AccordionItem value="item-1" className="border-0">
+                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                    <div className='flex items-center gap-3'>
+                      <Settings2 className="h-5 w-5 text-muted-foreground" />
+                      <div className='text-left'>
+                        <h3 className="font-semibold">{activeLocation.name} Conditions</h3>
+                        <p className='text-sm text-muted-foreground font-normal'>
+                          {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
+                        </p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="p-6 pt-2">
+                     <div className="grid gap-4 sm:grid-cols-3">
+                        <div>
+                          <Label htmlFor="temperature" className="text-xs font-semibold uppercase text-muted-foreground">Temperature</Label>
+                          <Input id="temperature" value={activeLocation.conditions.temperature} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
+                        </div>
+                        <div>
+                          <Label htmlFor="sunlight" className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
+                          <Input id="sunlight" value={activeLocation.conditions.sunlight} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
+                        </div>
+                        <div>
+                          <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
+                          <Input id="soil" value={activeLocation.conditions.soil} onChange={(e) => handleConditionChange('soil', e.target.value)} />
+                        </div>
+                      </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+              )}
               
               {plants.length > 0 ? (
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -238,5 +272,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
