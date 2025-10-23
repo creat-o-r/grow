@@ -32,6 +32,7 @@ type NominatimResult = {
   lat: string;
   lon: string;
 };
+type ApiKeyName = 'perplexity' | 'openai' | 'groq';
 
 
 export default function Home() {
@@ -57,8 +58,11 @@ export default function Home() {
 
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
-  const [perplexityApiKey, setPerplexityApiKey] = useState('');
-
+  const [apiKeys, setApiKeys] = useState<Record<ApiKeyName, string>>({
+    perplexity: '',
+    openai: '',
+    groq: '',
+  });
 
   const { toast } = useToast();
 
@@ -68,10 +72,16 @@ export default function Home() {
 
   useEffect(() => {
     setIsClient(true);
-    const savedApiKey = localStorage.getItem('verdantVerse_perplexityApiKey');
-    if (savedApiKey) {
-      setPerplexityApiKey(savedApiKey);
-    }
+    const savedPerplexityKey = localStorage.getItem('verdantVerse_perplexityApiKey') || '';
+    const savedOpenAIKey = localStorage.getItem('verdantVerse_openaiApiKey') || '';
+    const savedGroqKey = localStorage.getItem('verdantVerse_groqApiKey') || '';
+    
+    setApiKeys({
+      perplexity: savedPerplexityKey,
+      openai: savedOpenAIKey,
+      groq: savedGroqKey,
+    });
+    
     const initDb = async () => {
         const locationCount = await db.locations.count();
         if (locationCount > 0) {
@@ -394,12 +404,19 @@ export default function Home() {
     }
   };
 
-  const handleSaveApiKey = (key: string) => {
-    setPerplexityApiKey(key);
-    localStorage.setItem('verdantVerse_perplexityApiKey', key);
+  const handleSaveApiKey = (keyName: ApiKeyName, key: string) => {
+    const keyMap = {
+      perplexity: 'verdantVerse_perplexityApiKey',
+      openai: 'verdantVerse_openaiApiKey',
+      groq: 'verdantVerse_groqApiKey',
+    };
+
+    localStorage.setItem(keyMap[keyName], key);
+    setApiKeys(prev => ({...prev, [keyName]: key}));
+
     toast({
       title: 'API Key Saved',
-      description: 'Your Perplexity API key has been securely saved in your browser.',
+      description: `Your ${keyName.charAt(0).toUpperCase() + keyName.slice(1)} API key has been securely saved in your browser.`,
     });
     setIsSettingsSheetOpen(false);
   };
@@ -411,6 +428,7 @@ export default function Home() {
   const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
   const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
 
+  const areApiKeysSet = !!apiKeys.openai;
 
   if (!isClient || !plants || !locations || !aiLogs) {
     return null;
@@ -524,7 +542,7 @@ export default function Home() {
                                       <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
                                       <Input id="soil" value={activeLocation?.conditions.soil || ''} onChange={(e) => handleConditionChange('soil', e.target.value)} />
                                   </div>
-                                  {!perplexityApiKey && (
+                                  {!areApiKeysSet && (
                                     <Button size="icon" variant="outline" onClick={() => setIsSettingsSheetOpen(true)}>
                                       <KeyRound className="h-4 w-4" />
                                     </Button>
@@ -619,7 +637,7 @@ export default function Home() {
         </div>
       </main>
 
-      {(aiLogs.length > 0 || !perplexityApiKey) && (
+      {(aiLogs.length > 0 || !areApiKeysSet) && (
         <div className="fixed bottom-4 right-4 z-20">
           <Button
             size="icon"
@@ -659,7 +677,7 @@ export default function Home() {
         isOpen={isSettingsSheetOpen}
         onOpenChange={setIsSettingsSheetOpen}
         onSaveApiKey={handleSaveApiKey}
-        currentApiKey={perplexityApiKey}
+        apiKeys={apiKeys}
         onImport={handleImport}
         onPublish={handlePublish}
       />
@@ -673,7 +691,7 @@ export default function Home() {
           <PlantForm 
             plantToEdit={plantToEdit} 
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
-            isApiKeySet={!!perplexityApiKey}
+            isApiKeySet={areApiKeysSet}
             onConfigureApiKey={() => setIsSettingsSheetOpen(true)}
           />
         </SheetContent>
@@ -681,7 +699,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
-
-    

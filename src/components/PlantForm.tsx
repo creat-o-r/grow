@@ -298,5 +298,3 @@ export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKe
     </div>
   );
 }
-
-    
