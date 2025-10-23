@@ -20,7 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronRight, Download, Upload, Locate, Loader2, X, Sparkles, NotebookText } from 'lucide-react';
+import { PlusCircle, ChevronRight, Download, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
@@ -347,184 +347,199 @@ export default function Home() {
     <div className="flex min-h-screen w-full flex-col bg-background">
       <main className="flex-1">
         <div className="container mx-auto p-4 md:p-8">
+          <div>
+            {!activeLocation ? (
+              <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
+                <CardHeader>
+                  <CardTitle className="font-headline">Welcome to VerdantVerse</CardTitle>
+                  <CardDescription>
+                    Create a garden to start tracking your plants.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button onClick={() => handleAddLocation('My First Garden')}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Your First Garden
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg" value={accordionValue} onValueChange={setAccordionValue}>
+                  <AccordionItem value="item-1" className="border-0">
+                      <div className="flex items-center justify-between w-full px-4 py-3">
+                          <div className="flex items-center gap-4 flex-1 min-w-0">
+                               <div onClick={(e) => e.stopPropagation()}>
+                                  <LocationSwitcher 
+                                  locations={locations}
+                                  activeLocationId={activeLocationId}
+                                  onLocationChange={setActiveLocationId}
+                                  onAddLocation={handleAddLocation}
+                                  />
+                              </div>
+                              <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
+                                  <span className='text-sm text-muted-foreground font-normal truncate'>
+                                      {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
+                                  </span>
+                              </AccordionTrigger>
+                          </div>
+                          
+                          <div className="flex items-center gap-4 pl-4">
+                             <Button onClick={handleOpenAddSheet}>
+                                  <PlusCircle className="mr-2 h-4 w-4" />
+                                  Add Plant
+                              </Button>
+                          </div>
+                      </div>
 
-            <div>
-              {activeLocation && (
-              <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg" value={accordionValue} onValueChange={setAccordionValue}>
-                <AccordionItem value="item-1" className="border-0">
-                    <div className="flex items-center justify-between w-full px-4 py-3">
-                        <div className="flex items-center gap-4 flex-1 min-w-0">
-                             <div onClick={(e) => e.stopPropagation()}>
-                                <LocationSwitcher 
-                                locations={locations}
-                                activeLocationId={activeLocationId}
-                                onLocationChange={setActiveLocationId}
-                                onAddLocation={handleAddLocation}
-                                />
-                            </div>
-                            <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
-                                <span className='text-sm text-muted-foreground font-normal truncate'>
-                                    {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
-                                </span>
-                            </AccordionTrigger>
-                        </div>
-                        
-                        <div className="flex items-center gap-4 pl-4">
-                           <Button onClick={handleOpenAddSheet}>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Add Plant
-                            </Button>
-                        </div>
-                    </div>
-
-                    <AccordionContent className="p-6 pt-2">
-                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-end">
-                            <div className="sm:col-span-2 lg:col-span-1 relative">
-                                <Label htmlFor="location" className="text-xs font-semibold uppercase text-muted-foreground">Location</Label>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative w-full">
-                                    <Input 
-                                      id="location" 
-                                      value={locationSearchQuery || ''} 
-                                      onChange={(e) => {
-                                          setLocationSearchQuery(e.target.value);
-                                          setShowLocationSuggestions(true);
-                                      }}
-                                      onFocus={() => {
-                                          setShowLocationSuggestions(true);
-                                          // only reset if they haven't typed anything
-                                          if (!locationSearchQuery) {
-                                            setLocationSearchQuery(activeLocation?.location || '');
-                                          }
-                                      }}
-                                      autoComplete="off"
-                                    />
-                                    {locationSearchQuery && (
-                                      <button onClick={handleClearLocationSearch} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                                        <X className="h-4 w-4"/>
-                                      </button>
-                                    )}
+                      <AccordionContent className="p-6 pt-2">
+                           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-end">
+                              <div className="sm:col-span-2 lg:col-span-1 relative">
+                                  <Label htmlFor="location" className="text-xs font-semibold uppercase text-muted-foreground">Location</Label>
+                                  <div className="flex items-center gap-2">
+                                    <div className="relative w-full">
+                                      <Input 
+                                        id="location" 
+                                        value={locationSearchQuery || ''} 
+                                        onChange={(e) => {
+                                            setLocationSearchQuery(e.target.value);
+                                            setShowLocationSuggestions(true);
+                                        }}
+                                        onFocus={() => {
+                                            setShowLocationSuggestions(true);
+                                            // only reset if they haven't typed anything
+                                            if (!locationSearchQuery) {
+                                              setLocationSearchQuery(activeLocation?.location || '');
+                                            }
+                                        }}
+                                        autoComplete="off"
+                                      />
+                                      {locationSearchQuery && (
+                                        <button onClick={handleClearLocationSearch} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                                          <X className="h-4 w-4"/>
+                                        </button>
+                                      )}
+                                    </div>
+                                  <Button size="icon" variant="outline" onClick={handleGetCurrentLocation} disabled={isLocating}>
+                                      {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
+                                  </Button>
                                   </div>
-                                <Button size="icon" variant="outline" onClick={handleGetCurrentLocation} disabled={isLocating}>
-                                    {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
-                                </Button>
-                                </div>
-                                { showLocationSuggestions && (isSearchingLocation || locationSuggestions.length > 0) && (
-                                    <Card className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto">
-                                        <CardContent className="p-2">
-                                            {isSearchingLocation && <div className="p-2 text-sm text-muted-foreground">Searching...</div>}
-                                            {!isSearchingLocation && locationSuggestions.map((suggestion, index) => (
-                                                <button
-                                                    key={`${suggestion.lat}-${suggestion.lon}-${index}`}
-                                                    className="block w-full text-left p-2 text-sm rounded-md hover:bg-accent"
-                                                    onClick={() => handleLocationSuggestionSelect(suggestion.display_name)}
-                                                >
-                                                    {suggestion.display_name}
-                                                </button>
-                                            ))}
-                                        </CardContent>
-                                    </Card>
-                                )}
-                            </div>
-                            <div>
-                            <Label htmlFor="temperature" className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
-                            <Input id="temperature" value={activeLocation?.conditions.temperature || ''} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
-                            </div>
-                            <div>
-                            <Label htmlFor="sunlight" className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
-                            <Input id="sunlight" value={activeLocation?.conditions.sunlight || ''} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
-                            </div>
-                            <div className="flex gap-2">
-                                <div className="flex-1">
-                                    <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
-                                    <Input id="soil" value={activeLocation?.conditions.soil || ''} onChange={(e) => handleConditionChange('soil', e.target.value)} />
-                                </div>
-                                <Button size="icon" variant="outline" onClick={handleAnalyzeConditions} disabled={isAnalyzing}>
-                                    {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                                </Button>
-                            </div>
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-              )}
-
-              <div className="flex items-center gap-2 mb-6">
-                <span className="text-sm font-medium text-muted-foreground">Filter by:</span>
-                {primaryFilters.map(status => (
-                    <Button 
-                        key={status}
-                        variant={statusFilter === status ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setStatusFilter(status)}
-                        className="h-8"
-                    >
-                        {status}
-                    </Button>
-                ))}
-                 <Button 
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setShowMoreFilters(!showMoreFilters)}
-                    className="h-8 w-8"
-                >
-                    <ChevronRight className={`h-4 w-4 transition-transform ${showMoreFilters ? 'rotate-90' : ''}`} />
-                </Button>
-                {showMoreFilters && secondaryFilters.map(status => (
-                    <Button 
-                        key={status}
-                        variant={statusFilter === status ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setStatusFilter(status)}
-                        className="h-8"
-                    >
-                        {status}
-                    </Button>
-                ))}
-              </div>
-              
-              {plants && plants.length > 0 ? (
-                filteredPlants.length > 0 ? (
-                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {filteredPlants.map(plant => (
-                        <PlantCard 
-                        key={plant.id} 
-                        plant={plant} 
-                        gardenConditions={activeLocation?.conditions}
-                        onEdit={() => handleEditPlant(plant)}
-                        onDelete={() => handleDeletePlant(plant.id)}
-                        />
-                    ))}
-                    </div>
+                                  { showLocationSuggestions && (isSearchingLocation || locationSuggestions.length > 0) && (
+                                      <Card className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto">
+                                          <CardContent className="p-2">
+                                              {isSearchingLocation && <div className="p-2 text-sm text-muted-foreground">Searching...</div>}
+                                              {!isSearchingLocation && locationSuggestions.map((suggestion, index) => (
+                                                  <button
+                                                      key={`${suggestion.lat}-${suggestion.lon}-${index}`}
+                                                      className="block w-full text-left p-2 text-sm rounded-md hover:bg-accent"
+                                                      onClick={() => handleLocationSuggestionSelect(suggestion.display_name)}
+                                                  >
+                                                      {suggestion.display_name}
+                                                  </button>
+                                              ))}
+                                          </CardContent>
+                                      </Card>
+                                  )}
+                              </div>
+                              <div>
+                              <Label htmlFor="temperature" className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
+                              <Input id="temperature" value={activeLocation?.conditions.temperature || ''} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
+                              </div>
+                              <div>
+                              <Label htmlFor="sunlight" className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
+                              <Input id="sunlight" value={activeLocation?.conditions.sunlight || ''} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
+                              </div>
+                              <div className="flex gap-2">
+                                  <div className="flex-1">
+                                      <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
+                                      <Input id="soil" value={activeLocation?.conditions.soil || ''} onChange={(e) => handleConditionChange('soil', e.target.value)} />
+                                  </div>
+                                  <Button size="icon" variant="outline" onClick={handleAnalyzeConditions} disabled={isAnalyzing}>
+                                      {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                  </Button>
+                              </div>
+                          </div>
+                      </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+                
+                <div className="flex items-center gap-2 mb-6">
+                  <span className="text-sm font-medium text-muted-foreground">Filter by:</span>
+                  {primaryFilters.map(status => (
+                      <Button 
+                          key={status}
+                          variant={statusFilter === status ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setStatusFilter(status)}
+                          className="h-8"
+                      >
+                          {status}
+                      </Button>
+                  ))}
+                   <Button 
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowMoreFilters(!showMoreFilters)}
+                      className="h-8 w-8"
+                  >
+                      <ChevronRight className={`h-4 w-4 transition-transform ${showMoreFilters ? 'rotate-90' : ''}`} />
+                  </Button>
+                  {showMoreFilters && secondaryFilters.map(status => (
+                      <Button 
+                          key={status}
+                          variant={statusFilter === status ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setStatusFilter(status)}
+                          className="h-8"
+                      >
+                          {status}
+                      </Button>
+                  ))}
+                </div>
+                
+                {plants && plants.length > 0 ? (
+                  filteredPlants.length > 0 ? (
+                      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      {filteredPlants.map(plant => (
+                          <PlantCard 
+                          key={plant.id} 
+                          plant={plant} 
+                          gardenConditions={activeLocation?.conditions}
+                          onEdit={() => handleEditPlant(plant)}
+                          onDelete={() => handleDeletePlant(plant.id)}
+                          />
+                      ))}
+                      </div>
+                  ) : (
+                      <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
+                      <CardHeader>
+                          <CardTitle className="font-headline">No Plants Found</CardTitle>
+                          <CardDescription>
+                          No plants with the status "{statusFilter}".
+                          </CardDescription>
+                      </CardHeader>
+                      </Card>
+                  )
                 ) : (
-                    <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
+                  <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                     <CardHeader>
-                        <CardTitle className="font-headline">No Plants Found</CardTitle>
-                        <CardDescription>
-                        No plants with the status "{statusFilter}".
-                        </CardDescription>
+                      <CardTitle className="font-headline">Your Garden is Empty</CardTitle>
+                      <CardDescription>
+                        Add a plant or import the sample dataset to get started.
+                      </CardDescription>
                     </CardHeader>
-                    </Card>
-                )
-              ) : (
-                <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
-                  <CardHeader>
-                    <CardTitle className="font-headline">Welcome to VerdantVerse</CardTitle>
-                    <CardDescription>
-                      Your garden is empty. Add a plant or import the sample dataset to get started.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex gap-4">
-                     <Button onClick={handleOpenAddSheet}>
-                       <PlusCircle className="mr-2 h-4 w-4" /> Add Your First Plant
-                    </Button>
-                     <Button onClick={handleImport} variant="secondary">
-                       <Download className="mr-2 h-4 w-4" /> Import Sample Data
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+                    <CardContent className="flex gap-4">
+                       <Button onClick={handleOpenAddSheet}>
+                         <PlusCircle className="mr-2 h-4 w-4" /> Add Your First Plant
+                      </Button>
+                       <Button onClick={handleImport} variant="secondary">
+                         <Download className="mr-2 h-4 w-4" /> Import Sample Data
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </main>
 
@@ -579,5 +594,7 @@ export default function Home() {
     </div>
   );
 }
+
+    
 
     

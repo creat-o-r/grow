@@ -34,38 +34,6 @@ export const samplePlants: Plant[] = [
   },
 ];
 
-export const sampleLocations: GardenLocation[] = [
-  {
-    id: 'loc-1',
-    name: 'Backyard Garden',
-    location: 'New York, USA',
-    temperatureUnit: 'F',
-    conditions: {
-      temperature: '70°F - 85°F',
-      sunlight: '6-8 hours of full sun',
-      soil: 'Well-drained, pH 6.0-7.0',
-    },
-  },
-  {
-    id: 'loc-2',
-    name: 'Community Plot',
-    location: 'London, UK',
-    temperatureUnit: 'C',
-    conditions: {
-      temperature: '18°C - 26°C',
-      sunlight: '8+ hours of full sun',
-      soil: 'Clay-heavy, pH 7.2',
-    },
-  },
-  {
-    id: 'loc-3',
-    name: 'Patio Containers',
-    location: 'Sydney, AU',
-    temperatureUnit: 'C',
-    conditions: {
-      temperature: '24°C - 32°C',
-      sunlight: '4-6 hours of partial sun',
-      soil: 'Potting mix, pH 6.5',
-    },
-  },
-];
+export const sampleLocations: GardenLocation[] = [];
+
+    
