@@ -15,8 +15,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, Download, Upload, Settings2 } from 'lucide-react';
+import { Plus, PlusCircle, Download, Upload, Settings2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
 
 export default function Home() {
   const [plants, setPlants] = useState<Plant[]>([]);
@@ -176,13 +178,29 @@ export default function Home() {
 
             <div>
               <div className="flex flex-col md:flex-row md:items-center md:justify-end mb-6 gap-4">
-                 <div className='flex items-center gap-2'>
-                    <Button variant="outline" size="sm" onClick={handleImport}><Download className="mr-2 h-4 w-4" /> Import</Button>
-                    <Button variant="outline" size="sm" onClick={handlePublish}><Upload className="mr-2 h-4 w-4" /> Publish</Button>
-                    <Button onClick={handleOpenAddSheet}>
-                      <PlusCircle className="mr-2 h-4 w-4" /> Add Plant
-                    </Button>
-                 </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4" />
+                        <span className="sr-only">Add Menu</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleOpenAddSheet}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        <span>Add Plant</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleImport}>
+                        <Download className="mr-2 h-4 w-4" />
+                        <span>Import Dataset</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handlePublish}>
+                        <Upload className="mr-2 h-4 w-4" />
+                        <span>Publish Data</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
               </div>
 
               {activeLocation && (
@@ -191,12 +209,14 @@ export default function Home() {
                   <div className="flex items-center justify-between w-full px-4 py-3">
                     <div className="flex items-center gap-3 flex-1 font-medium">
                       <Settings2 className="h-5 w-5 text-muted-foreground" />
-                      <LocationSwitcher 
-                        locations={locations}
-                        activeLocationId={activeLocationId}
-                        onLocationChange={setActiveLocationId}
-                        onAddLocation={handleAddLocation}
-                      />
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <LocationSwitcher 
+                          locations={locations}
+                          activeLocationId={activeLocationId}
+                          onLocationChange={setActiveLocationId}
+                          onAddLocation={handleAddLocation}
+                        />
+                      </div>
                     </div>
                      {accordionValue !== 'item-1' && (
                        <div className='text-left pr-4'>
