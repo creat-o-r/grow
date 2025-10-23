@@ -6,7 +6,6 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog } from '@/lib/types';
 import { samplePlants, sampleLocations } from '@/lib/sample-data';
-import importDataset from '@/lib/import-dataset.json';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
@@ -62,26 +61,19 @@ export default function Home() {
     setIsClient(true);
     const initDb = async () => {
         const locationCount = await db.locations.count();
-        if (locationCount === 0) {
-            await db.locations.bulkAdd(sampleLocations);
+        if (locationCount > 0) {
+             const savedActiveLocation = localStorage.getItem('verdantVerse_activeLocation');
+             if (savedActiveLocation) {
+                const doesLocationExist = await db.locations.get(savedActiveLocation);
+                if (doesLocationExist) {
+                    setActiveLocationId(savedActiveLocation);
+                    return;
+                }
+             }
             const firstLocation = await db.locations.toCollection().first();
             if (firstLocation) {
                 setActiveLocationId(firstLocation.id);
             }
-        } else {
-             const savedActiveLocation = localStorage.getItem('verdantVerse_activeLocation');
-             if (savedActiveLocation) {
-                setActiveLocationId(savedActiveLocation);
-             } else {
-                const firstLocation = await db.locations.toCollection().first();
-                if (firstLocation) {
-                    setActiveLocationId(firstLocation.id);
-                }
-             }
-        }
-        const plantCount = await db.plants.count();
-        if (plantCount === 0) {
-            await db.plants.bulkAdd(samplePlants);
         }
     }
     initDb();
@@ -119,8 +111,10 @@ export default function Home() {
   useEffect(() => {
     if (activeLocation) {
       setLocationSearchQuery(activeLocation.location);
+    } else if (locations && locations.length > 0) {
+      setActiveLocationId(locations[0].id);
     }
-  }, [activeLocation]);
+  }, [activeLocation, locations]);
 
   const handleAddPlant = async (plant: Omit<Plant, 'id'>) => {
     const newPlant = { ...plant, id: Date.now().toString(), history: plant.history || [] };
@@ -170,16 +164,21 @@ export default function Home() {
   };
 
   const handleImport = async () => {
-    const plantsWithHistory = (importDataset.plants as any[]).map(p => ({
-        ...p,
-        id: `imp-${Date.now()}-${Math.random()}`, // ensure unique ids
-        history: [{ id: `h-${p.id}-${Date.now()}`, status: p.status, date: new Date().toISOString() }]
-    }));
-    await db.plants.clear();
-    await db.plants.bulkAdd(plantsWithHistory as Plant[]);
+    await db.transaction('rw', db.plants, db.locations, async () => {
+      await db.plants.clear();
+      await db.locations.clear();
+      await db.plants.bulkAdd(samplePlants);
+      await db.locations.bulkAdd(sampleLocations);
+    });
+    
+    const firstLocation = await db.locations.toCollection().first();
+    if (firstLocation) {
+      setActiveLocationId(firstLocation.id);
+    }
+
     toast({
       title: 'Data Imported',
-      description: 'A new plant dataset has been loaded.',
+      description: 'The sample dataset has been loaded.',
     });
   };
 
@@ -495,31 +494,43 @@ export default function Home() {
                 ))}
               </div>
               
-              {filteredPlants.length > 0 ? (
-                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {filteredPlants.map(plant => (
-                    <PlantCard 
-                      key={plant.id} 
-                      plant={plant} 
-                      gardenConditions={activeLocation?.conditions}
-                      onEdit={() => handleEditPlant(plant)}
-                      onDelete={() => handleDeletePlant(plant.id)}
-                    />
-                  ))}
-                </div>
+              {plants && plants.length > 0 ? (
+                filteredPlants.length > 0 ? (
+                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {filteredPlants.map(plant => (
+                        <PlantCard 
+                        key={plant.id} 
+                        plant={plant} 
+                        gardenConditions={activeLocation?.conditions}
+                        onEdit={() => handleEditPlant(plant)}
+                        onDelete={() => handleDeletePlant(plant.id)}
+                        />
+                    ))}
+                    </div>
+                ) : (
+                    <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
+                    <CardHeader>
+                        <CardTitle className="font-headline">No Plants Found</CardTitle>
+                        <CardDescription>
+                        No plants with the status "{statusFilter}".
+                        </CardDescription>
+                    </CardHeader>
+                    </Card>
+                )
               ) : (
                 <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                   <CardHeader>
-                    <CardTitle className="font-headline">No Plants Found</CardTitle>
+                    <CardTitle className="font-headline">Welcome to VerdantVerse</CardTitle>
                     <CardDescription>
-                      {statusFilter === 'All'
-                        ? "You haven't added any plants yet."
-                        : `No plants with the status "${statusFilter}".`}
+                      Your garden is empty. Add a plant or import the sample dataset to get started.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="flex gap-4">
                      <Button onClick={handleOpenAddSheet}>
-                       <PlusCircle className="mr-2 h-4 w-4" /> Add Plant
+                       <PlusCircle className="mr-2 h-4 w-4" /> Add Your First Plant
+                    </Button>
+                     <Button onClick={handleImport} variant="secondary">
+                       <Download className="mr-2 h-4 w-4" /> Import Sample Data
                     </Button>
                   </CardContent>
                 </Card>
@@ -565,7 +576,7 @@ export default function Home() {
                 <CardContent className="flex gap-4">
                   <Button onClick={handleImport} variant="outline" className="w-full">
                     <Download className="mr-2 h-4 w-4" />
-                    Import Dataset
+                    Import Sample Data
                   </Button>
                   <Button onClick={handlePublish} variant="outline" className="w-full">
                     <Upload className="mr-2 h-4 w-4" />
@@ -579,3 +590,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
