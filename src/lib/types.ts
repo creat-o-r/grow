@@ -32,6 +32,8 @@ export type AiLog = {
     id: string;
     timestamp: string; // ISO String
     flow: string;
+    prompt: any;
+    results: any;
     reasoning: string;
     references?: string;
 }

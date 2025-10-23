@@ -314,8 +314,9 @@ export default function Home() {
   const handleAnalyzeConditions = async () => {
     if (!activeLocation) return;
     setIsAnalyzing(true);
+    const promptData = { location: activeLocation.location };
     try {
-      const result = await getEnvironmentalData({ location: activeLocation.location });
+      const result = await getEnvironmentalData(promptData);
       handleConditionChange('temperature', result.soilTemperature);
       handleConditionChange('sunlight', result.sunlightHours);
       handleConditionChange('soil', result.soilDescription);
@@ -324,6 +325,8 @@ export default function Home() {
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
         flow: 'getEnvironmentalData',
+        prompt: promptData,
+        results: result,
         reasoning: result.reasoning,
         references: result.references,
       };
