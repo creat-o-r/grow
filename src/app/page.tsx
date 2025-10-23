@@ -152,11 +152,21 @@ export default function Home() {
         : loc
     ));
   };
+    const handleLocationFieldChange = (field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
+    if (!activeLocationId) return;
+    setLocations(prev => prev.map(loc =>
+      loc.id === activeLocationId
+        ? { ...loc, [field]: value }
+        : loc
+    ));
+  };
   
   const handleAddLocation = (name: string) => {
     const newLocation: GardenLocation = {
       id: Date.now().toString(),
       name,
+      location: 'New Location',
+      temperatureUnit: 'F',
       conditions: {
         temperature: '70°F - 85°F',
         sunlight: '6-8 hours of full sun',
@@ -185,16 +195,16 @@ export default function Home() {
               <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg" value={accordionValue} onValueChange={setAccordionValue}>
                 <AccordionItem value="item-1" className="border-0">
                     <div className="flex items-center justify-between w-full px-4 py-3">
-                        <AccordionTrigger className="p-0 flex-1 hover:no-underline">
-                            <div className="flex items-center gap-4">
-                                <div onClick={(e) => e.stopPropagation()}>
-                                    <LocationSwitcher 
-                                    locations={locations}
-                                    activeLocationId={activeLocationId}
-                                    onLocationChange={setActiveLocationId}
-                                    onAddLocation={handleAddLocation}
-                                    />
-                                </div>
+                        <div className="flex items-center gap-4 flex-1">
+                             <div onClick={(e) => e.stopPropagation()}>
+                                <LocationSwitcher 
+                                locations={locations}
+                                activeLocationId={activeLocationId}
+                                onLocationChange={setActiveLocationId}
+                                onAddLocation={handleAddLocation}
+                                />
+                            </div>
+                            <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start">
                                 {accordionValue !== 'item-1' && (
                                     <div className='text-left flex items-center gap-2'>
                                         <p className='text-sm text-muted-foreground font-normal'>
@@ -206,9 +216,9 @@ export default function Home() {
                                 {accordionValue === 'item-1' && (
                                      <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 rotate-180 text-muted-foreground" />
                                 )}
-                            </div>
-                        </AccordionTrigger>
-
+                            </AccordionTrigger>
+                        </div>
+                        
                         <div className="flex items-center gap-4 pl-4">
                             <div className="inline-flex rounded-md shadow-sm">
                                 <Button onClick={handleOpenAddSheet} variant="ghost" className="relative inline-flex items-center rounded-l-md bg-background px-3 py-1.5 text-sm font-semibold h-auto">
@@ -238,7 +248,11 @@ export default function Home() {
                     </div>
 
                     <AccordionContent className="p-6 pt-2">
-                        <div className="grid gap-4 sm:grid-cols-3">
+                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            <div>
+                            <Label htmlFor="location" className="text-xs font-semibold uppercase text-muted-foreground">Location</Label>
+                            <Input id="location" value={activeLocation.location} onChange={(e) => handleLocationFieldChange('location', e.target.value)} />
+                            </div>
                             <div>
                             <Label htmlFor="temperature" className="text-xs font-semibold uppercase text-muted-foreground">Temperature</Label>
                             <Input id="temperature" value={activeLocation.conditions.temperature} onChange={(e) => handleConditionChange('temperature', e.target.value)} />

@@ -14,5 +14,7 @@ export type Conditions = {
 export type GardenLocation = {
   id: string;
   name: string;
+  location: string;
+  temperatureUnit: 'C' | 'F';
   conditions: Conditions;
 };
