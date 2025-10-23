@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, MouseEvent } from 'react';
@@ -22,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { PlusCircle, ChevronRight, Download, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
 type PlantStatus = StatusHistory['status'];
@@ -50,6 +52,9 @@ export default function Home() {
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(true);
 
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
+
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [locationToDelete, setLocationToDelete] = useState<GardenLocation | null>(null);
 
   const { toast } = useToast();
 
@@ -82,6 +87,8 @@ export default function Home() {
   useEffect(() => {
     if (activeLocationId) {
         localStorage.setItem('verdantVerse_activeLocation', activeLocationId);
+    } else {
+        localStorage.removeItem('verdantVerse_activeLocation');
     }
   }, [activeLocationId]);
 
@@ -231,6 +238,39 @@ export default function Home() {
     }, 100);
   };
   
+  const promptDeleteLocation = (location: GardenLocation) => {
+    setLocationToDelete(location);
+    setIsDeleteAlertOpen(true);
+  };
+
+  const handleDeleteLocation = async () => {
+    if (!locationToDelete || !locations) return;
+
+    const locationIdToDelete = locationToDelete.id;
+    const locationName = locationToDelete.name;
+
+    await db.locations.delete(locationIdToDelete);
+
+    if (activeLocationId === locationIdToDelete) {
+      const remainingLocations = locations.filter(loc => loc.id !== locationIdToDelete);
+      if (remainingLocations.length > 0) {
+        setActiveLocationId(remainingLocations[0].id);
+      } else {
+        setActiveLocationId(null);
+      }
+    }
+
+    toast({
+      title: 'Garden Deleted',
+      description: `${locationName} has been deleted.`,
+      variant: 'destructive',
+    });
+
+    setLocationToDelete(null);
+    setIsDeleteAlertOpen(false);
+  };
+
+
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
       toast({
@@ -385,10 +425,11 @@ export default function Home() {
                           <div className="flex items-center gap-4 flex-1 min-w-0">
                                <div onClick={(e) => e.stopPropagation()}>
                                   <LocationSwitcher 
-                                  locations={locations}
-                                  activeLocationId={activeLocationId}
-                                  onLocationChange={setActiveLocationId}
-                                  onAddLocation={handleAddLocation}
+                                    locations={locations}
+                                    activeLocationId={activeLocationId}
+                                    onLocationChange={setActiveLocationId}
+                                    onAddLocation={handleAddLocation}
+                                    onDeleteLocation={promptDeleteLocation}
                                   />
                               </div>
                               <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
@@ -566,6 +607,23 @@ export default function Home() {
           </Button>
         </div>
       )}
+      
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this garden?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{locationToDelete?.name}" and all of its associated data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsDeleteAlertOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteLocation}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AiLogPanel 
         logs={aiLogs}
@@ -606,5 +664,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
