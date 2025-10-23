@@ -212,16 +212,23 @@ export default function Home() {
     const newLocation: GardenLocation = {
       id: Date.now().toString(),
       name,
-      location: 'New Location',
+      location: '',
       temperatureUnit: 'F',
       conditions: {
-        temperature: '70°F - 85°F',
-        sunlight: '6-8 hours of full sun',
-        soil: 'Well-drained, pH 6.0-7.0',
+        temperature: '',
+        sunlight: '',
+        soil: '',
       }
     };
     const newId = await db.locations.add(newLocation);
     setActiveLocationId(newId.toString());
+    setAccordionValue('item-1');
+    setTimeout(() => {
+      const locationInput = document.getElementById('location');
+      if (locationInput) {
+        locationInput.focus();
+      }
+    }, 100);
   };
   
   const handleGetCurrentLocation = () => {
@@ -378,7 +385,7 @@ export default function Home() {
                               </div>
                               <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
                                   <span className='text-sm text-muted-foreground font-normal truncate'>
-                                      {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
+                                      {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
                                   </span>
                               </AccordionTrigger>
                           </div>
@@ -404,12 +411,9 @@ export default function Home() {
                                             setLocationSearchQuery(e.target.value);
                                             setShowLocationSuggestions(true);
                                         }}
+                                        onBlur={() => handleLocationFieldChange('location', locationSearchQuery)}
                                         onFocus={() => {
                                             setShowLocationSuggestions(true);
-                                            // only reset if they haven't typed anything
-                                            if (!locationSearchQuery) {
-                                              setLocationSearchQuery(activeLocation?.location || '');
-                                            }
                                         }}
                                         autoComplete="off"
                                       />
@@ -594,7 +598,5 @@ export default function Home() {
     </div>
   );
 }
-
-    
 
     
