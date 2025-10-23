@@ -13,13 +13,13 @@ import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
 import { PlantForm } from '@/components/PlantForm';
-import { FooterLog } from '@/components/FooterLog';
+import { AiLogPanel } from '@/components/AiLogPanel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronRight, Download, Upload, Locate, Loader2, X, Sparkles } from 'lucide-react';
+import { PlusCircle, ChevronRight, Download, Upload, Locate, Loader2, X, Sparkles, NotebookText } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
@@ -45,6 +45,7 @@ export default function Home() {
   const [isLocating, setIsLocating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiLogs, setAiLogs] = useState<AiLog[]>([]);
+  const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
 
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
@@ -529,7 +530,24 @@ export default function Home() {
         </div>
       </main>
 
-      {aiLogs.length > 0 && <FooterLog logs={aiLogs} />}
+      {aiLogs.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-20">
+          <Button
+            size="icon"
+            onClick={() => setIsLogPanelOpen(true)}
+            aria-label="Open AI Log"
+          >
+            <NotebookText />
+          </Button>
+        </div>
+      )}
+
+      <AiLogPanel 
+        logs={aiLogs}
+        isOpen={isLogPanelOpen}
+        onOpenChange={setIsLogPanelOpen}
+      />
+
 
       <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
         <SheetContent className="sm:max-w-lg w-[90vw] overflow-y-auto">
@@ -563,5 +581,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
