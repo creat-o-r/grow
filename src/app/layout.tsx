@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
-import { Leaf } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'VerdantVerse',
@@ -30,21 +29,9 @@ export default function RootLayout({
           'bg-background text-foreground'
         )}
       >
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-14 items-center">
-            <div className="mr-4 flex items-center">
-              <a className="mr-6 flex items-center space-x-2" href="/">
-                <Leaf className="h-6 w-6 text-primary" />
-                <span className="font-bold font-headline">VerdantVerse</span>
-              </a>
-            </div>
-          </div>
-        </header>
         {children}
         <Toaster />
       </body>
     </html>
   );
 }
-
-    
