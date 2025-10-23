@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Plus, PlusCircle, Download, Upload, Settings2 } from 'lucide-react';
+import { PlusCircle, Download, Upload, Settings2, MoreHorizontal } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -185,7 +185,7 @@ export default function Home() {
               <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg" value={accordionValue} onValueChange={setAccordionValue}>
                 <AccordionItem value="item-1" className="border-0">
                   <div className="flex items-center justify-between w-full px-4 py-3">
-                    <div className="flex items-center gap-3 flex-1 font-medium">
+                    <div className="flex items-center gap-3 flex-1">
                       <Settings2 className="h-5 w-5 text-muted-foreground" />
                       <div onClick={(e) => e.stopPropagation()}>
                         <LocationSwitcher 
@@ -199,8 +199,8 @@ export default function Home() {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <Plus className="h-4 w-4" />
-                              <span className="sr-only">Add Menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">More Options</span>
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start">
@@ -293,5 +293,7 @@ export default function Home() {
     </div>
   );
 }
+
+    
 
     
