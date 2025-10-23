@@ -1,11 +1,13 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Plant, GardenLocation, Conditions, StatusHistory } from '@/lib/types';
 import { samplePlants, sampleLocations } from '@/lib/sample-data';
 import importDataset from '@/lib/import-dataset.json';
 import { useToast } from '@/hooks/use-toast';
+import { useDebounce } from '@/hooks/use-debounce';
+
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
@@ -15,11 +17,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronDown, ChevronRight, Download, Upload, Locate, Loader2 } from 'lucide-react';
+import { PlusCircle, ChevronRight, Download, Upload, Locate, Loader2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 type PlantStatus = StatusHistory['status'];
+type NominatimResult = {
+  display_name: string;
+  lat: string;
+  lon: string;
+};
+
 
 export default function Home() {
   const [plants, setPlants] = useState<Plant[]>([]);
@@ -33,6 +41,11 @@ export default function Home() {
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+
+  const [locationSearchQuery, setLocationSearchQuery] = useState('');
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const [locationSuggestions, setLocationSuggestions] = useState<NominatimResult[]>([]);
+  const debouncedSearchQuery = useDebounce(locationSearchQuery, 300);
 
 
   const { toast } = useToast();
@@ -80,6 +93,32 @@ export default function Home() {
   
   const activeLocation = locations.find(loc => loc.id === activeLocationId);
 
+  // Effect for location search
+  useEffect(() => {
+    if (debouncedSearchQuery && debouncedSearchQuery !== activeLocation?.location) {
+      setIsSearchingLocation(true);
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${debouncedSearchQuery}`)
+        .then(response => response.json())
+        .then(data => {
+          setLocationSuggestions(data);
+          setIsSearchingLocation(false);
+        })
+        .catch(error => {
+          console.error("Error fetching location suggestions:", error);
+          setIsSearchingLocation(false);
+          setLocationSuggestions([]);
+        });
+    } else {
+      setLocationSuggestions([]);
+    }
+  }, [debouncedSearchQuery, activeLocation?.location]);
+
+  useEffect(() => {
+    if (activeLocation) {
+      setLocationSearchQuery(activeLocation.location);
+    }
+  }, [activeLocation]);
+
   const handleAddPlant = (plant: Omit<Plant, 'id'>) => {
     const newPlant = { ...plant, id: Date.now().toString(), history: plant.history || [] };
     setPlants(prev => [newPlant, ...prev]);
@@ -101,11 +140,11 @@ export default function Home() {
   };
 
   const handleDeletePlant = (plantId: string) => {
-    const plant = plants.find(p => p.id === plantId);
+    const plantToDelete = plants.find(p => p.id === plantId);
     setPlants(prev => prev.filter(p => p.id !== plantId));
     toast({
       title: 'Plant Removed',
-      description: `${plant?.species} has been removed.`,
+      description: `${plantToDelete?.species} has been removed.`,
       variant: 'destructive',
     });
   };
@@ -160,15 +199,16 @@ export default function Home() {
         : loc
     ));
   };
-
-  const handleLocationFieldChange = (field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
+  
+  const handleLocationFieldChange = useCallback((field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
     if (!activeLocationId) return;
     setLocations(prev => prev.map(loc =>
       loc.id === activeLocationId
         ? { ...loc, [field]: value }
         : loc
     ));
-  };
+  }, [activeLocationId]);
+
   
   const handleAddLocation = (name: string) => {
     const newLocation: GardenLocation = {
@@ -204,9 +244,9 @@ export default function Home() {
           // Using a free, open-source reverse geocoding API
           const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await response.json();
-          const { city, country } = data.address;
-          const locationName = city && country ? `${city}, ${country}` : 'Unknown Location';
+          const locationName = data.display_name || 'Unknown Location';
           handleLocationFieldChange('location', locationName);
+          setLocationSearchQuery(locationName); // Update search query as well
           toast({
             title: 'Location Found',
             description: `Set to ${locationName}`,
@@ -232,6 +272,12 @@ export default function Home() {
         setIsLocating(false);
       }
     );
+  };
+
+  const handleLocationSuggestionSelect = (locationName: string) => {
+    handleLocationFieldChange('location', locationName);
+    setLocationSearchQuery(locationName);
+    setLocationSuggestions([]);
   };
   
   const filteredPlants = statusFilter === 'All' 
@@ -282,14 +328,35 @@ export default function Home() {
 
                     <AccordionContent className="p-6 pt-2">
                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            <div className="sm:col-span-2 lg:col-span-1">
+                            <div className="sm:col-span-2 lg:col-span-1 relative">
                                 <Label htmlFor="location" className="text-xs font-semibold uppercase text-muted-foreground">Location</Label>
                                 <div className="flex items-center gap-2">
-                                <Input id="location" value={activeLocation?.location || ''} onChange={(e) => handleLocationFieldChange('location', e.target.value)} />
+                                <Input 
+                                  id="location" 
+                                  value={locationSearchQuery} 
+                                  onChange={(e) => setLocationSearchQuery(e.target.value)} 
+                                  onFocus={() => setLocationSearchQuery(activeLocation?.location || '')}
+                                />
                                 <Button size="icon" variant="outline" onClick={handleGetCurrentLocation} disabled={isLocating}>
                                     {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
                                 </Button>
                                 </div>
+                                { (isSearchingLocation || locationSuggestions.length > 0) && (
+                                    <Card className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto">
+                                        <CardContent className="p-2">
+                                            {isSearchingLocation && <div className="p-2 text-sm text-muted-foreground">Searching...</div>}
+                                            {!isSearchingLocation && locationSuggestions.map((suggestion, index) => (
+                                                <button
+                                                    key={`${suggestion.lat}-${suggestion.lon}-${index}`}
+                                                    className="block w-full text-left p-2 text-sm rounded-md hover:bg-accent"
+                                                    onClick={() => handleLocationSuggestionSelect(suggestion.display_name)}
+                                                >
+                                                    {suggestion.display_name}
+                                                </button>
+                                            ))}
+                                        </CardContent>
+                                    </Card>
+                                )}
                             </div>
                             <div>
                             <Label htmlFor="temperature" className="text-xs font-semibold uppercase text-muted-foreground">Temperature</Label>
@@ -408,5 +475,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
