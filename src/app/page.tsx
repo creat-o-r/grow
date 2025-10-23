@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronDown, ChevronRight, Download, Upload } from 'lucide-react';
+import { PlusCircle, ChevronDown, ChevronRight, Download, Upload, Locate, Loader2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
@@ -32,6 +32,7 @@ export default function Home() {
   const [accordionValue, setAccordionValue] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
   const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
 
 
   const { toast } = useToast();
@@ -80,7 +81,7 @@ export default function Home() {
   const activeLocation = locations.find(loc => loc.id === activeLocationId);
 
   const handleAddPlant = (plant: Omit<Plant, 'id'>) => {
-    const newPlant = { ...plant, id: Date.now().toString() };
+    const newPlant = { ...plant, id: Date.now().toString(), history: plant.history || [] };
     setPlants(prev => [newPlant, ...prev]);
     setIsSheetOpen(false);
     toast({
@@ -132,7 +133,6 @@ export default function Home() {
         history: [{ id: `h-${p.id}`, status: p.status, date: new Date().toISOString() }]
     }));
     setPlants(plantsWithHistory as Plant[]);
-    setIsSheetOpen(false);
     toast({
       title: 'Data Imported',
       description: 'A new plant dataset has been loaded.',
@@ -146,7 +146,6 @@ export default function Home() {
       activeLocationId,
     };
     navigator.clipboard.writeText(JSON.stringify(dataToPublish, null, 2));
-    setIsSheetOpen(false);
     toast({
       title: 'Data Published',
       description: 'Your entire dataset has been copied to the clipboard.',
@@ -162,7 +161,7 @@ export default function Home() {
     ));
   };
 
-  const handleLocationFieldChange = (field: keyof Omit<GardenLocation, 'id' | 'conditions' | 'temperatureUnit'>, value: string) => {
+  const handleLocationFieldChange = (field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
     if (!activeLocationId) return;
     setLocations(prev => prev.map(loc =>
       loc.id === activeLocationId
@@ -187,6 +186,54 @@ export default function Home() {
     setActiveLocationId(newLocation.id);
   };
   
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: 'Geolocation Not Supported',
+        description: 'Your browser does not support geolocation.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          // Using a free, open-source reverse geocoding API
+          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          const data = await response.json();
+          const { city, country } = data.address;
+          const locationName = city && country ? `${city}, ${country}` : 'Unknown Location';
+          handleLocationFieldChange('location', locationName);
+          toast({
+            title: 'Location Found',
+            description: `Set to ${locationName}`,
+          });
+        } catch (error) {
+          console.error("Error fetching location name:", error);
+          handleLocationFieldChange('location', 'Current Location');
+          toast({
+            title: 'Could Not Get Location Name',
+            description: 'Location set to your current position.',
+            variant: 'destructive',
+          });
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      (error) => {
+        toast({
+          title: 'Geolocation Error',
+          description: error.message,
+          variant: 'destructive',
+        });
+        setIsLocating(false);
+      }
+    );
+  };
+  
   const filteredPlants = statusFilter === 'All' 
     ? plants 
     : plants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length - 1].status === statusFilter);
@@ -209,7 +256,7 @@ export default function Home() {
               <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg" value={accordionValue} onValueChange={setAccordionValue}>
                 <AccordionItem value="item-1" className="border-0">
                     <div className="flex items-center justify-between w-full px-4 py-3">
-                        <div className="flex items-center gap-4 flex-1">
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
                              <div onClick={(e) => e.stopPropagation()}>
                                 <LocationSwitcher 
                                 locations={locations}
@@ -218,11 +265,10 @@ export default function Home() {
                                 onAddLocation={handleAddLocation}
                                 />
                             </div>
-                            <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2">
+                            <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
                                 <span className='text-sm text-muted-foreground font-normal truncate'>
                                     {activeLocation.conditions.temperature}, {activeLocation.conditions.sunlight}, {activeLocation.conditions.soil}
                                 </span>
-                                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 text-muted-foreground" />
                             </AccordionTrigger>
                         </div>
                         
@@ -236,9 +282,14 @@ export default function Home() {
 
                     <AccordionContent className="p-6 pt-2">
                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            <div>
-                            <Label htmlFor="location" className="text-xs font-semibold uppercase text-muted-foreground">Location</Label>
-                            <Input id="location" value={activeLocation?.location || ''} onChange={(e) => handleLocationFieldChange('location', e.target.value)} />
+                            <div className="sm:col-span-2 lg:col-span-1">
+                                <Label htmlFor="location" className="text-xs font-semibold uppercase text-muted-foreground">Location</Label>
+                                <div className="flex items-center gap-2">
+                                <Input id="location" value={activeLocation?.location || ''} onChange={(e) => handleLocationFieldChange('location', e.target.value)} />
+                                <Button size="icon" variant="outline" onClick={handleGetCurrentLocation} disabled={isLocating}>
+                                    {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
+                                </Button>
+                                </div>
                             </div>
                             <div>
                             <Label htmlFor="temperature" className="text-xs font-semibold uppercase text-muted-foreground">Temperature</Label>
