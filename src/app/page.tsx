@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronRight, Download, Upload, Locate, Loader2 } from 'lucide-react';
+import { PlusCircle, ChevronRight, Download, Upload, Locate, Loader2, X } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
@@ -109,10 +109,11 @@ export default function Home() {
           setIsSearchingLocation(false);
           setLocationSuggestions([]);
         });
-    } else {
-      setLocationSuggestions([]);
+    } else if (!debouncedSearchQuery) {
+        setLocationSuggestions([]);
     }
   }, [debouncedSearchQuery, activeLocation?.location, showLocationSuggestions]);
+
 
   useEffect(() => {
     if (activeLocation) {
@@ -280,7 +281,18 @@ export default function Home() {
     setLocationSearchQuery(locationName);
     setLocationSuggestions([]);
     setShowLocationSuggestions(false);
+    // Briefly set focus away and back to prevent immediate re-opening of suggestions
+    setTimeout(() => {
+        const activeEl = document.activeElement as HTMLElement;
+        if(activeEl) activeEl.blur();
+    }, 0);
   };
+
+  const handleClearLocationSearch = () => {
+    setLocationSearchQuery('');
+    setShowLocationSuggestions(true);
+    document.getElementById('location')?.focus();
+  }
   
   const filteredPlants = statusFilter === 'All' 
     ? plants 
@@ -333,18 +345,26 @@ export default function Home() {
                             <div className="sm:col-span-2 lg:col-span-1 relative">
                                 <Label htmlFor="location" className="text-xs font-semibold uppercase text-muted-foreground">Location</Label>
                                 <div className="flex items-center gap-2">
-                                <Input 
-                                  id="location" 
-                                  value={locationSearchQuery} 
-                                  onChange={(e) => {
-                                      setLocationSearchQuery(e.target.value);
-                                      setShowLocationSuggestions(true);
-                                  }}
-                                  onFocus={() => {
-                                      setShowLocationSuggestions(true);
-                                      setLocationSearchQuery(activeLocation?.location || '');
-                                  }}
-                                />
+                                  <div className="relative w-full">
+                                    <Input 
+                                      id="location" 
+                                      value={locationSearchQuery || ''} 
+                                      onChange={(e) => {
+                                          setLocationSearchQuery(e.target.value);
+                                          setShowLocationSuggestions(true);
+                                      }}
+                                      onFocus={() => {
+                                          setShowLocationSuggestions(true);
+                                          setLocationSearchQuery(activeLocation?.location || '');
+                                      }}
+                                      autoComplete="off"
+                                    />
+                                    {locationSearchQuery && (
+                                      <button onClick={handleClearLocationSearch} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                                        <X className="h-4 w-4"/>
+                                      </button>
+                                    )}
+                                  </div>
                                 <Button size="icon" variant="outline" onClick={handleGetCurrentLocation} disabled={isLocating}>
                                     {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
                                 </Button>
@@ -483,3 +503,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
