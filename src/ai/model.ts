@@ -9,9 +9,14 @@
 
 /**
  * Gets the appropriate AI model.
- * At present, this defaults to the OpenAI gpt-4o model.
+ * Prefers OpenAI if the API key is available, otherwise falls back to Google AI.
  */
 export async function getModel(): Promise<string> {
-  // Default to the OpenAI model.
-  return 'openai/gpt-4o';
+  // Check if the OpenAI API key is present in the server's environment.
+  if (process.env.OPENAI_API_KEY) {
+    return 'openai/gpt-4o';
+  }
+  
+  // Fallback to Google AI model.
+  return 'googleai/gemini-pro';
 }
