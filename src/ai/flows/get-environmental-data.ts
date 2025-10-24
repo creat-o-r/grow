@@ -22,7 +22,7 @@ const GetEnvironmentalDataOutputSchema = z.object({
   sunlightHours: z.string().describe('The current daily hours of sunlight.'),
   soilDescription: z.string().describe('A brief description of typical soil in the area. Omit the word "soil" from the description.'),
   reasoning: z.string().describe('A detailed explanation of how the data was determined based on the location.'),
-  references: z<any>().describe('A full list of references or sources used to determine the data.'),
+  references: z.any().describe('A full list of references or sources used to determine the data.'),
 });
 export type GetEnvironmentalDataOutput = z.infer<typeof GetEnvironmentalDataOutputSchema>;
 
