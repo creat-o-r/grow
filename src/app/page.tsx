@@ -32,7 +32,7 @@ type NominatimResult = {
   lat: string;
   lon: string;
 };
-type ApiKeyName = 'perplexity' | 'openai' | 'groq';
+type ApiKeyName = 'perplexity' | 'openai' | 'groq' | 'gemini';
 
 
 export default function Home() {
@@ -62,6 +62,7 @@ export default function Home() {
     perplexity: '',
     openai: '',
     groq: '',
+    gemini: '',
   });
 
   const { toast } = useToast();
@@ -75,18 +76,24 @@ export default function Home() {
     const savedPerplexityKey = localStorage.getItem('verdantVerse_perplexityApiKey') || '';
     const savedOpenAIKey = localStorage.getItem('verdantVerse_openaiApiKey') || '';
     const savedGroqKey = localStorage.getItem('verdantVerse_groqApiKey') || '';
+    const savedGeminiKey = localStorage.getItem('verdantVerse_geminiApiKey') || '';
     
     setApiKeys({
       perplexity: savedPerplexityKey,
       openai: savedOpenAIKey,
       groq: savedGroqKey,
+      gemini: savedGeminiKey,
     });
 
-    if (savedOpenAIKey) {
+    const envPayload: { [key: string]: string } = {};
+    if (savedOpenAIKey) envPayload.OPENAI_API_KEY = savedOpenAIKey;
+    if (savedGeminiKey) envPayload.GEMINI_API_KEY = savedGeminiKey;
+
+    if (Object.keys(envPayload).length > 0) {
         fetch('/api/genkit/env', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ OPENAI_API_KEY: savedOpenAIKey }),
+          body: JSON.stringify(envPayload),
         });
     }
     
@@ -430,13 +437,18 @@ export default function Home() {
       perplexity: 'verdantVerse_perplexityApiKey',
       openai: 'verdantVerse_openaiApiKey',
       groq: 'verdantVerse_groqApiKey',
+      gemini: 'verdantVerse_geminiApiKey',
     };
     
-    if (keyName === 'openai') {
+    const envPayload: { [key: string]: string } = {};
+    if (keyName === 'openai') envPayload.OPENAI_API_KEY = key;
+    if (keyName === 'gemini') envPayload.GEMINI_API_KEY = key;
+
+    if (Object.keys(envPayload).length > 0) {
         fetch('/api/genkit/env', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ OPENAI_API_KEY: key }),
+          body: JSON.stringify(envPayload),
         });
     }
 
@@ -473,7 +485,7 @@ export default function Home() {
   const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
   const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
 
-  const areApiKeysSet = !!(apiKeys.openai || apiKeys.perplexity);
+  const areApiKeysSet = !!(apiKeys.openai || apiKeys.perplexity || apiKeys.gemini);
 
   if (!isClient || !plants || !locations || !aiLogs) {
     return null;

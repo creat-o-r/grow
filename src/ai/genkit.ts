@@ -1,9 +1,10 @@
+
 import {genkit, GenkitPlugin} from 'genkit';
 import {googleAI} from '@genkit-ai/google-genai';
 import {openAI} from 'genkitx-openai';
 
 const plugins: GenkitPlugin[] = [
-  googleAI(),
+  googleAI({apiKey: process.env.GEMINI_API_KEY}),
 ];
 
 if (process.env.OPENAI_API_KEY) {

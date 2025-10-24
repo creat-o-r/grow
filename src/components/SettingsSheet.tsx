@@ -12,7 +12,7 @@ import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
-type ApiKeyName = 'perplexity' | 'openai' | 'groq';
+type ApiKeyName = 'perplexity' | 'openai' | 'groq' | 'gemini';
 
 type SettingsSheetProps = {
   isOpen: boolean;
@@ -33,11 +33,13 @@ export function SettingsSheet({
 }: SettingsSheetProps) {
   const [perplexityKey, setPerplexityKey] = useState(apiKeys.perplexity);
   const [openAIKey, setOpenAIKey] = useState(apiKeys.openai);
+  const [geminiKey, setGeminiKey] = useState(apiKeys.gemini);
   const [datasetToImport, setDatasetToImport] = useState<string | null>(null);
 
   useEffect(() => {
     setPerplexityKey(apiKeys.perplexity);
     setOpenAIKey(apiKeys.openai);
+    setGeminiKey(apiKeys.gemini);
   }, [apiKeys]);
 
   const handleSaveClick = (keyName: ApiKeyName, key: string) => {
@@ -72,29 +74,29 @@ export function SettingsSheet({
                   <CardDescription>Manage API keys for third-party AI model providers.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Perplexity */}
+                  {/* Gemini */}
                   <div className="space-y-4 p-4 border rounded-lg">
-                    <h4 className="font-semibold">Perplexity AI</h4>
+                    <h4 className="font-semibold">Google Gemini</h4>
                     <Button 
-                      onClick={() => window.open('https://www.perplexity.ai/pplx-api', '_blank')} 
+                      onClick={() => window.open('https://aistudio.google.com/app/apikey', '_blank')} 
                       variant="outline" 
                       className="w-full"
                     >
                       <KeyRound className="mr-2 h-4 w-4" />
-                      Get Perplexity API Key
+                      Get Gemini API Key
                     </Button>
                     <div className="space-y-2">
-                      <Label htmlFor="perplexity-key">API Key</Label>
+                      <Label htmlFor="gemini-key">API Key</Label>
                       <Input 
-                        id="perplexity-key" 
+                        id="gemini-key" 
                         placeholder="Paste your key here"
-                        value={perplexityKey}
-                        onChange={(e) => setPerplexityKey(e.target.value)}
+                        value={geminiKey}
+                        onChange={(e) => setGeminiKey(e.target.value)}
                       />
                     </div>
-                    <Button onClick={() => handleSaveClick('perplexity', perplexityKey)} className="w-full">Save Key</Button>
+                    <Button onClick={() => handleSaveClick('gemini', geminiKey)} className="w-full">Save Key</Button>
                   </div>
-                  
+
                   {/* OpenAI */}
                   <div className="space-y-4 p-4 border rounded-lg">
                     <h4 className="font-semibold">OpenAI</h4>
@@ -116,6 +118,29 @@ export function SettingsSheet({
                       />
                     </div>
                     <Button onClick={() => handleSaveClick('openai', openAIKey)} className="w-full">Save Key</Button>
+                  </div>
+                  
+                  {/* Perplexity */}
+                  <div className="space-y-4 p-4 border rounded-lg">
+                    <h4 className="font-semibold">Perplexity AI</h4>
+                    <Button 
+                      onClick={() => window.open('https://www.perplexity.ai/pplx-api', '_blank')} 
+                      variant="outline" 
+                      className="w-full"
+                    >
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Get Perplexity API Key
+                    </Button>
+                    <div className="space-y-2">
+                      <Label htmlFor="perplexity-key">API Key</Label>
+                      <Input 
+                        id="perplexity-key" 
+                        placeholder="Paste your key here"
+                        value={perplexityKey}
+                        onChange={(e) => setPerplexityKey(e.target.value)}
+                      />
+                    </div>
+                    <Button onClick={() => handleSaveClick('perplexity', perplexityKey)} className="w-full">Save Key</Button>
                   </div>
                 </CardContent>
               </Card>
