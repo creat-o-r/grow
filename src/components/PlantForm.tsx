@@ -141,7 +141,7 @@ export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKe
                 <KeyRound className="h-4 w-4" />
               </Button>
             )}
-            <Button type="button" onClick={handleAiSearch} disabled={isAiSearching}>
+            <Button type="button" onClick={handleAiSearch} disabled={isAiSearching || !isApiKeySet}>
               {isAiSearching ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (

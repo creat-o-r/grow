@@ -81,6 +81,14 @@ export default function Home() {
       openai: savedOpenAIKey,
       groq: savedGroqKey,
     });
+
+    if (savedOpenAIKey) {
+        fetch('/api/genkit/env', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ OPENAI_API_KEY: savedOpenAIKey }),
+        });
+    }
     
     const initDb = async () => {
         const locationCount = await db.locations.count();
@@ -423,6 +431,14 @@ export default function Home() {
       openai: 'verdantVerse_openaiApiKey',
       groq: 'verdantVerse_groqApiKey',
     };
+    
+    if (keyName === 'openai') {
+        fetch('/api/genkit/env', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ OPENAI_API_KEY: key }),
+        });
+    }
 
     localStorage.setItem(keyMap[keyName], key);
     setApiKeys(prev => ({...prev, [keyName]: key}));
@@ -576,7 +592,7 @@ export default function Home() {
                                       <KeyRound className="h-4 w-4" />
                                     </Button>
                                   )}
-                                  <Button size="icon" variant="outline" onClick={handleAnalyzeConditions} disabled={isAnalyzing}>
+                                  <Button size="icon" variant="outline" onClick={handleAnalyzeConditions} disabled={isAnalyzing || !areApiKeysSet}>
                                       {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                   </Button>
                               </div>
@@ -700,6 +716,7 @@ export default function Home() {
         isOpen={isLogPanelOpen}
         onOpenChange={setIsLogPanelOpen}
         onOpenSettings={() => setIsSettingsSheetOpen(true)}
+        areApiKeysSet={areApiKeysSet}
       />
 
       <SettingsSheet 

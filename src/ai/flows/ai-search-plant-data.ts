@@ -10,7 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import {googleAI} from '@genkit-ai/google-genai';
+import { getModel } from '../model';
 
 const AISearchPlantDataInputSchema = z.object({
   searchTerm: z
@@ -36,7 +36,7 @@ const prompt = ai.definePrompt({
   name: 'aiSearchPlantDataPrompt',
   input: {schema: AISearchPlantDataInputSchema},
   output: {schema: AISearchPlantDataOutputSchema},
-  model: googleAI('gemini-1.5-flash'),
+  model: getModel(),
   prompt: `You are an expert botanist. Extract plant data based on the search term provided.
 
   Search Term: {{{searchTerm}}}
