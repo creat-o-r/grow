@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { z } from 'zod';
 import type { Plant, StatusHistory } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 

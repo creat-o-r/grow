@@ -11,7 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import { getModel } from '@/ai/model';
-import {z} from 'genkit';
+import { z } from 'zod';
 
 const AISearchPlantDataInputSchema = z.object({
   searchTerm: z
@@ -54,13 +54,7 @@ const aiSearchPlantDataFlow = ai.defineFlow(
   },
   async input => {
     const model = await getModel();
-    const {output} = await ai.generate({
-      model,
-      prompt: prompt.render({input}),
-      output: {
-        schema: AISearchPlantDataOutputSchema,
-      },
-    });
+    const {output} = await prompt(input, { model });
     return output!;
   }
 );
