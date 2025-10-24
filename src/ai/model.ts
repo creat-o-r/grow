@@ -5,6 +5,7 @@
  * This file provides a function to dynamically select the AI model based on
  * the available API keys in the environment.
  */
+import { ModelReference } from 'genkit/ai';
 import {openAI} from 'genkitx-openai';
 import {googleAI} from '@genkit-ai/google-genai';
 
@@ -12,7 +13,7 @@ import {googleAI} from '@genkit-ai/google-genai';
  * Gets the appropriate AI model based on available environment variables.
  * Prefers OpenAI if the API key is available, otherwise falls back to Google AI.
  */
-export async function getModel() {
+export async function getModel(): Promise<ModelReference<any>> {
   // Check if the OpenAI API key is present in the server's environment.
   if (process.env.OPENAI_API_KEY) {
     return openAI('gpt-4o');
