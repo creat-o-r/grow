@@ -126,12 +126,7 @@ export function LocationSwitcher({
                       className="flex items-center w-full cursor-pointer hover:bg-accent rounded-sm px-2 py-1.5"
                       onClick={() => onLocationChange(location.id)}
                     >
-                      <div className="flex flex-col flex-1">
-                        <span>{location.name}</span>
-                        <span className="text-xs text-muted-foreground font-normal">
-                          {location.conditions.temperature || 'Temp'}, {location.conditions.sunlight || 'Sunlight'}
-                        </span>
-                      </div>
+                      <span className="flex-1">{location.name}</span>
                       <div className="flex items-center">
                           <Button 
                             variant="ghost" 
