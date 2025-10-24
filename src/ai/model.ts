@@ -13,12 +13,12 @@ config();
 
 /**
  * Gets the appropriate AI model.
- * Prefers OpenAI if the API key is available, otherwise falls back to Google AI.
+ * Falls back to Google AI model.
  */
 export async function getModel(): Promise<string> {
-  // Fallback to Google AI model if no API key is available for OpenAI.
   if (!process.env.GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY is not set.');
   }
-  return 'googleai/gemini-1.5-flash-latest';
+  // Use a standard, stable model name to avoid 404 errors.
+  return 'gemini-pro';
 }
