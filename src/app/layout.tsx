@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'VerdantVerse',
-  description: 'Your personal digital garden assistant.',
+  title: 'Grow',
+  description: 'Your personal digital garden.',
 };
 
 export default function RootLayout({

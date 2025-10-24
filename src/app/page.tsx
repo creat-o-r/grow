@@ -73,10 +73,10 @@ export default function Home() {
 
   useEffect(() => {
     setIsClient(true);
-    const savedPerplexityKey = localStorage.getItem('verdantVerse_perplexityApiKey') || '';
-    const savedOpenAIKey = localStorage.getItem('verdantVerse_openaiApiKey') || '';
-    const savedGroqKey = localStorage.getItem('verdantVerse_groqApiKey') || '';
-    const savedGeminiKey = localStorage.getItem('verdantVerse_geminiApiKey') || '';
+    const savedPerplexityKey = localStorage.getItem('grow_perplexityApiKey') || '';
+    const savedOpenAIKey = localStorage.getItem('grow_openaiApiKey') || '';
+    const savedGroqKey = localStorage.getItem('grow_groqApiKey') || '';
+    const savedGeminiKey = localStorage.getItem('grow_geminiApiKey') || '';
     
     setApiKeys({
       perplexity: savedPerplexityKey,
@@ -100,7 +100,7 @@ export default function Home() {
     const initDb = async () => {
         const locationCount = await db.locations.count();
         if (locationCount > 0) {
-             const savedActiveLocation = localStorage.getItem('verdantVerse_activeLocation');
+             const savedActiveLocation = localStorage.getItem('grow_activeLocation');
              if (savedActiveLocation) {
                 const doesLocationExist = await db.locations.get(savedActiveLocation);
                 if (doesLocationExist) {
@@ -119,9 +119,9 @@ export default function Home() {
 
   useEffect(() => {
     if (activeLocationId) {
-        localStorage.setItem('verdantVerse_activeLocation', activeLocationId);
+        localStorage.setItem('grow_activeLocation', activeLocationId);
     } else {
-        localStorage.removeItem('verdantVerse_activeLocation');
+        localStorage.removeItem('grow_activeLocation');
     }
   }, [activeLocationId]);
 
@@ -434,10 +434,10 @@ export default function Home() {
 
   const handleSaveApiKey = (keyName: ApiKeyName, key: string) => {
     const keyMap: Record<ApiKeyName, string> = {
-      perplexity: 'verdantVerse_perplexityApiKey',
-      openai: 'verdantVerse_openaiApiKey',
-      groq: 'verdantVerse_groqApiKey',
-      gemini: 'verdantVerse_geminiApiKey',
+      perplexity: 'grow_perplexityApiKey',
+      openai: 'grow_openaiApiKey',
+      groq: 'grow_groqApiKey',
+      gemini: 'grow_geminiApiKey',
     };
     
     const envPayload: { [key: string]: string } = {};
@@ -499,7 +499,7 @@ export default function Home() {
             {!activeLocation ? (
               <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                 <CardHeader>
-                  <CardTitle className="font-headline">Welcome to VerdantVerse</CardTitle>
+                  <CardTitle className="font-headline">Welcome to Grow</CardTitle>
                   <CardDescription>
                     Create a garden to start tracking your plants.
                   </CardDescription>
