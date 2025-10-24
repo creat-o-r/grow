@@ -3,7 +3,7 @@ import {googleAI} from '@genkit-ai/google-genai';
 import {openAI} from 'genkitx-openai';
 
 const plugins: GenkitPlugin[] = [
-  googleAI({defaultModel: 'gemini-1.5-flash-latest'}),
+  googleAI({defaultModel: 'gemini-1.5-flash'}),
 ];
 
 if (process.env.OPENAI_API_KEY) {
