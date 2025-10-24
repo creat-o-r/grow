@@ -473,7 +473,7 @@ export default function Home() {
   const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
   const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
 
-  const areApiKeysSet = !!apiKeys.openai;
+  const areApiKeysSet = !!(apiKeys.openai || apiKeys.perplexity);
 
   if (!isClient || !plants || !locations || !aiLogs) {
     return null;
