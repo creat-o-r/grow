@@ -5,7 +5,7 @@ import type { AiLog } from '@/lib/types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, parseISO } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription as ShadcnCardDescription } from './ui/card';
 import { Button } from './ui/button';
 import { Settings } from 'lucide-react';
 
@@ -62,7 +62,7 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                   <Card className="p-4 text-center">
                       <CardHeader>
                           <CardTitle>API Key Required</CardTitle>
-                          <CardDescription>Please set an API key in the settings to enable AI features.</CardDescription>
+                          <ShadcnCardDescription>Please set an API key in the settings to enable AI features.</ShadcnCardDescription>
                       </CardHeader>
                       <CardContent>
                           <Button onClick={() => {
@@ -146,5 +146,3 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
     </Sheet>
   );
 }
-
-    
