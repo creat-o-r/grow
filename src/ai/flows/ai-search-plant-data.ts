@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -55,7 +56,7 @@ const aiSearchPlantDataFlow = ai.defineFlow(
     const model = await getModel();
     const {output} = await ai.generate({
       model,
-      prompt: prompt.compile({input}),
+      prompt: prompt.render({input}),
       output: {
         schema: AISearchPlantDataOutputSchema,
       },

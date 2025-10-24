@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI agent that fetches environmental data for a given location.
@@ -59,7 +60,7 @@ const getEnvironmentalDataFlow = ai.defineFlow(
     const model = await getModel();
     const {output} = await ai.generate({
       model,
-      prompt: prompt.compile({input}),
+      prompt: prompt.render({input}),
       output: {
         schema: GetEnvironmentalDataOutputSchema,
       },
