@@ -8,7 +8,6 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 import { z } from 'zod';
 
 const GetEnvironmentalDataInputSchema = z.object({
@@ -34,7 +33,6 @@ export async function getEnvironmentalData(
 
 const prompt = ai.definePrompt({
   name: 'getEnvironmentalDataPrompt',
-  model: googleAI.model('gemini-1.5-flash-latest'),
   input: {schema: GetEnvironmentalDataInputSchema},
   output: {schema: GetEnvironmentalDataOutputSchema},
   prompt: `You are a world-class agricultural and environmental data specialist.
