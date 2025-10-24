@@ -19,6 +19,6 @@ export async function getModel(): Promise<string> {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY is not set.');
   }
-  // Use a standard, stable model name to avoid 404 errors.
-  return 'googleai/gemini-pro';
+  // Use the correct, fully-qualified model name to avoid 404 errors.
+  return 'googleAI/gemini-1.0-pro';
 }
