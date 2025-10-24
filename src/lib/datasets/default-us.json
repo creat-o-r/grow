@@ -1,0 +1,102 @@
+
+{
+    "locations": [
+        {
+            "id": "us-loc-1",
+            "name": "My US Garden",
+            "location": "Sacramento, California, USA",
+            "temperatureUnit": "F",
+            "conditions": {
+                "temperature": "75°F",
+                "sunlight": "8+ hours",
+                "soil": "Well-drained loam"
+            }
+        }
+    ],
+    "plants": [
+        {
+            "id": "us-1",
+            "species": "Tomato (Solanum lycopersicum)",
+            "germinationNeeds": "Start seeds indoors 6-8 weeks before last frost. Needs warm soil (75-90°F) to germinate.",
+            "optimalConditions": "Full sun (6-8 hours). Fertile, well-drained soil. pH 6.2-6.8. Consistent watering is key.",
+            "history": [
+                {
+                    "id": "h1",
+                    "status": "Planning",
+                    "date": "2024-05-15T12:00:00.000Z",
+                    "notes": "Heirloom variety, 'Brandywine'."
+                }
+            ]
+        },
+        {
+            "id": "us-2",
+            "species": "Cucumber (Cucumis sativus)",
+            "germinationNeeds": "Sow seeds after all danger of frost has passed. Soil temperature should be at least 70°F. Plant seeds 1 inch deep.",
+            "optimalConditions": "Full sun. Fertile, well-drained soil. Consistent watering is crucial. Provide a trellis for vining varieties.",
+            "history": [
+                {
+                    "id": "h2",
+                    "status": "Growing",
+                    "date": "2024-06-01T12:00:00.000Z",
+                    "notes": "Vining variety, needs support."
+                }
+            ]
+        },
+        {
+            "id": "us-3",
+            "species": "Bell Pepper (Capsicum annuum)",
+            "germinationNeeds": "Start seeds indoors 8-10 weeks before the last frost. Needs warm soil (80-90°F) to germinate. Can be slow to germinate.",
+            "optimalConditions": "Long, warm growing season. Full sun. Well-drained, sandy loam soil. pH 5.5-6.5. Consistent moisture.",
+            "history": [
+                {
+                    "id": "h3",
+                    "status": "Planting",
+                    "date": "2024-05-20T12:00:00.000Z",
+                    "notes": ""
+                }
+            ]
+        },
+        {
+            "id": "us-4",
+            "species": "Spinach (Spinacia oleracea)",
+            "germinationNeeds": "Sow seeds as soon as the ground can be worked in spring. Prefers cool soil (45-65°F).",
+            "optimalConditions": "Cool-season crop. Full sun to light shade. Fertile, well-drained soil rich in organic matter. pH 6.5-7.0.",
+            "history": [
+                {
+                    "id": "h4",
+                    "status": "Harvested",
+                    "date": "2024-04-30T12:00:00.000Z",
+                    "notes": "Harvested baby leaves."
+                }
+            ]
+        },
+        {
+            "id": "us-5",
+            "species": "Zucchini (Cucurbita pepo)",
+            "germinationNeeds": "Direct sow seeds after the last frost date when soil is warm (at least 70°F). Plant seeds about 1 inch deep.",
+            "optimalConditions": "Full sun (at least 6-8 hours). Fertile, well-drained soil. Very productive; give them space to grow.",
+            "history": [
+                {
+                    "id": "h5",
+                    "status": "Growing",
+                    "date": "2024-06-05T12:00:00.000Z",
+                    "notes": "Already seeing small fruits."
+                }
+            ]
+        },
+        {
+            "id": "us-6",
+            "species": "Mint (Mentha)",
+            "germinationNeeds": "Best propagated from cuttings or divisions as seeds can be unreliable. Plant in a pot to control its aggressive spread.",
+            "optimalConditions": "Full sun to partial shade. Prefers rich, moist soil. Spreads vigorously via underground runners.",
+            "history": [
+                {
+                    "id": "h6",
+                    "status": "Dormant",
+                    "date": "2024-01-10T12:00:00.000Z",
+                    "notes": "Will come back in spring."
+                }
+            ]
+        }
+    ]
+}

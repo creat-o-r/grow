@@ -7,7 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Download, Upload, KeyRound } from 'lucide-react';
+import { Upload, KeyRound, Download } from 'lucide-react';
+import { availableDatasets } from '@/lib/datasets';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
 
 type ApiKeyName = 'perplexity' | 'openai' | 'groq';
 
@@ -16,7 +19,7 @@ type SettingsSheetProps = {
   onOpenChange: (isOpen: boolean) => void;
   onSaveApiKey: (keyName: ApiKeyName, key: string) => void;
   apiKeys: Record<ApiKeyName, string>;
-  onImport: () => void;
+  onImport: (datasetKey: string) => void;
   onPublish: () => void;
 };
 
@@ -30,6 +33,7 @@ export function SettingsSheet({
 }: SettingsSheetProps) {
   const [perplexityKey, setPerplexityKey] = useState(apiKeys.perplexity);
   const [openAIKey, setOpenAIKey] = useState(apiKeys.openai);
+  const [datasetToImport, setDatasetToImport] = useState<string | null>(null);
 
   useEffect(() => {
     setPerplexityKey(apiKeys.perplexity);
@@ -40,88 +44,129 @@ export function SettingsSheet({
     onSaveApiKey(keyName, key);
   };
 
-  return (
-    <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-lg w-[90vw] overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="font-headline">Settings</SheetTitle>
-          <SheetDescription>
-            Manage application settings, API keys, and data.
-          </SheetDescription>
-        </SheetHeader>
-        <div className="py-6 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-headline text-lg">API Keys</CardTitle>
-                <CardDescription>Manage API keys for third-party AI model providers.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Perplexity */}
-                <div className="space-y-4 p-4 border rounded-lg">
-                  <h4 className="font-semibold">Perplexity AI</h4>
-                  <Button 
-                    onClick={() => window.open('https://www.perplexity.ai/pplx-api', '_blank')} 
-                    variant="outline" 
-                    className="w-full"
-                  >
-                    <KeyRound className="mr-2 h-4 w-4" />
-                    Get Perplexity API Key
-                  </Button>
-                  <div className="space-y-2">
-                    <Label htmlFor="perplexity-key">API Key</Label>
-                    <Input 
-                      id="perplexity-key" 
-                      placeholder="Paste your key here"
-                      value={perplexityKey}
-                      onChange={(e) => setPerplexityKey(e.target.value)}
-                    />
-                  </div>
-                   <Button onClick={() => handleSaveClick('perplexity', perplexityKey)} className="w-full">Save Key</Button>
-                </div>
-                
-                {/* OpenAI */}
-                 <div className="space-y-4 p-4 border rounded-lg">
-                  <h4 className="font-semibold">OpenAI</h4>
-                  <Button 
-                    onClick={() => window.open('https://platform.openai.com/api-keys', '_blank')} 
-                    variant="outline" 
-                    className="w-full"
-                  >
-                    <KeyRound className="mr-2 h-4 w-4" />
-                    Get OpenAI API Key
-                  </Button>
-                  <div className="space-y-2">
-                    <Label htmlFor="openai-key">API Key</Label>
-                    <Input 
-                      id="openai-key" 
-                      placeholder="Paste your key here"
-                      value={openAIKey}
-                      onChange={(e) => setOpenAIKey(e.target.value)}
-                    />
-                  </div>
-                   <Button onClick={() => handleSaveClick('openai', openAIKey)} className="w-full">Save Key</Button>
-                </div>
-              </CardContent>
-            </Card>
+  const handleImportClick = (datasetKey: string) => {
+    setDatasetToImport(datasetKey);
+  }
+  
+  const handleConfirmImport = () => {
+    if (datasetToImport) {
+        onImport(datasetToImport);
+        setDatasetToImport(null);
+    }
+  }
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-headline text-lg">Data Management</CardTitle>
-                <CardDescription>Import or publish your entire plant dataset.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex gap-4">
-                <Button onClick={onImport} variant="outline" className="w-full">
-                  <Download className="mr-2 h-4 w-4" />
-                  Import Sample Data
-                </Button>
-                <Button onClick={onPublish} variant="outline" className="w-full">
-                  <Upload className="mr-2 h-4 w-4" />
-                  Publish Data
-                </Button>
-              </CardContent>
-            </Card>
-        </div>
-      </SheetContent>
-    </Sheet>
+  return (
+    <>
+      <Sheet open={isOpen} onOpenChange={onOpenChange}>
+        <SheetContent className="sm:max-w-lg w-[90vw] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="font-headline">Settings</SheetTitle>
+            <SheetDescription>
+              Manage application settings, API keys, and data.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="py-6 space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-headline text-lg">API Keys</CardTitle>
+                  <CardDescription>Manage API keys for third-party AI model providers.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Perplexity */}
+                  <div className="space-y-4 p-4 border rounded-lg">
+                    <h4 className="font-semibold">Perplexity AI</h4>
+                    <Button 
+                      onClick={() => window.open('https://www.perplexity.ai/pplx-api', '_blank')} 
+                      variant="outline" 
+                      className="w-full"
+                    >
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Get Perplexity API Key
+                    </Button>
+                    <div className="space-y-2">
+                      <Label htmlFor="perplexity-key">API Key</Label>
+                      <Input 
+                        id="perplexity-key" 
+                        placeholder="Paste your key here"
+                        value={perplexityKey}
+                        onChange={(e) => setPerplexityKey(e.target.value)}
+                      />
+                    </div>
+                    <Button onClick={() => handleSaveClick('perplexity', perplexityKey)} className="w-full">Save Key</Button>
+                  </div>
+                  
+                  {/* OpenAI */}
+                  <div className="space-y-4 p-4 border rounded-lg">
+                    <h4 className="font-semibold">OpenAI</h4>
+                    <Button 
+                      onClick={() => window.open('https://platform.openai.com/api-keys', '_blank')} 
+                      variant="outline" 
+                      className="w-full"
+                    >
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Get OpenAI API Key
+                    </Button>
+                    <div className="space-y-2">
+                      <Label htmlFor="openai-key">API Key</Label>
+                      <Input 
+                        id="openai-key" 
+                        placeholder="Paste your key here"
+                        value={openAIKey}
+                        onChange={(e) => setOpenAIKey(e.target.value)}
+                      />
+                    </div>
+                    <Button onClick={() => handleSaveClick('openai', openAIKey)} className="w-full">Save Key</Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-headline text-lg">Data Management</CardTitle>
+                  <CardDescription>Import a sample dataset or publish your current data.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {availableDatasets.map((dataset) => (
+                        <Card key={dataset.key} className="p-4">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <h4 className="font-semibold">{dataset.name}</h4>
+                                    <p className="text-sm text-muted-foreground">{dataset.description}</p>
+                                </div>
+                                <Button onClick={() => handleImportClick(dataset.key)} variant="secondary">
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Import
+                                </Button>
+                            </div>
+                        </Card>
+                    ))}
+                    <div className="border-t pt-4">
+                      <Button onClick={onPublish} variant="outline" className="w-full">
+                        <Upload className="mr-2 h-4 w-4" />
+                        Publish All Data to Clipboard
+                      </Button>
+                    </div>
+                </CardContent>
+              </Card>
+          </div>
+        </SheetContent>
+      </Sheet>
+      <AlertDialog open={!!datasetToImport} onOpenChange={(open) => !open && setDatasetToImport(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Importing a new dataset will overwrite all your existing gardens and plants. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDatasetToImport(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmImport}>
+              Import
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

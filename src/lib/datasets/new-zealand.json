@@ -1,0 +1,130 @@
+
+{
+    "locations": [
+        {
+            "id": "nz-loc-1",
+            "name": "New Zealand Garden",
+            "location": "Auckland, New Zealand",
+            "temperatureUnit": "C",
+            "conditions": {
+                "temperature": "18°C",
+                "sunlight": "6-7 hours",
+                "soil": "Volcanic loam"
+            }
+        }
+    ],
+    "plants": [
+        {
+            "id": "nz-1",
+            "species": "Kūmara (Sweet Potato)",
+            "germinationNeeds": "Propagate from 'slips' (sprouts from a mature tuber). Plant slips in mounds after the last frost when soil is warm (at least 18°C).",
+            "optimalConditions": "Full sun. Prefers well-drained, sandy loam. Needs a long, warm growing season of at least 5 months. Frost sensitive.",
+            "history": [
+                {
+                    "id": "h1",
+                    "status": "Planning",
+                    "date": "2024-10-01T12:00:00.000Z",
+                    "notes": "Traditional Māori crop."
+                }
+            ]
+        },
+        {
+            "id": "nz-2",
+            "species": "Kiwifruit (Actinidia deliciosa)",
+            "germinationNeeds": "Best grown from a grafted plant. Requires both male and female plants for pollination. Plant in early spring.",
+            "optimalConditions": "Full sun, sheltered from strong winds. Needs very well-drained, fertile soil and a sturdy support structure like a pergola or trellis. Requires regular watering.",
+            "history": [
+                {
+                    "id": "h2",
+                    "status": "Planning",
+                    "date": "2024-09-15T12:00:00.000Z",
+                    "notes": "Need to buy male and female 'Hayward' plants."
+                }
+            ]
+        },
+        {
+            "id": "nz-3",
+            "species": "Silverbeet (Swiss Chard)",
+            "germinationNeeds": "Sow seeds directly into the garden from spring to early autumn. Plant seeds 1-2cm deep in moist soil.",
+            "optimalConditions": "Full sun or partial shade. Tolerant of a wide range of soils but prefers fertile, well-drained soil. Hardy and productive year-round in many parts of NZ.",
+            "history": [
+                {
+                    "id": "h3",
+                    "status": "Planting",
+                    "date": "2024-03-10T12:00:00.000Z",
+                    "notes": "Planted in a raised bed."
+                }
+            ]
+        },
+        {
+            "id": "nz-4",
+            "species": "Feijoa (Acca sellowiana)",
+            "germinationNeeds": "Easily grown from purchased plants. Can be grown from seed but may not be true to type. Plant in autumn or spring.",
+            "optimalConditions": "Full sun. Hardy and tolerates a range of soil types, but needs good drainage. Tolerant of light frosts and some coastal exposure.",
+            "history": [
+                {
+                    "id": "h4",
+                    "status": "Growing",
+                    "date": "2023-04-20T12:00:00.000Z",
+                    "notes": "Established well, expecting first fruit this season."
+                }
+            ]
+        },
+        {
+            "id": "nz-5",
+            "species": "Broccoli",
+            "germinationNeeds": "Sow seeds in trays in late summer/autumn for a winter/spring harvest, or in spring for a summer/autumn harvest. Transplant when seedlings have 4-6 true leaves.",
+            "optimalConditions": "Full sun. Prefers fertile, well-drained soil with plenty of organic matter. A cool-season crop that can 'bolt' (flower prematurely) in hot weather.",
+            "history": [
+                {
+                    "id": "h5",
+                    "status": "Growing",
+                    "date": "2024-04-05T12:00:00.000Z",
+                    "notes": "Heads are starting to form."
+                }
+            ]
+        },
+        {
+            "id": "nz-6",
+            "species": "Parsley",
+            "germinationNeeds": "Seeds can be slow to germinate. Soak overnight before sowing. Sow directly in the garden or in pots from spring to autumn.",
+            "optimalConditions": "Full sun to partial shade. Prefers rich, moist, well-drained soil. Can be grown in pots or garden beds.",
+            "history": [
+                {
+                    "id": "h6",
+                    "status": "Harvested",
+                    "date": "2024-05-01T12:00:00.000Z",
+                    "notes": "Continuously harvesting."
+                }
+            ]
+        },
+        {
+            "id": "nz-7",
+            "species": "Tamarillo (Tree Tomato)",
+            "germinationNeeds": "Best grown from a purchased plant. Frost tender, so plant in a sheltered spot after all danger of frost has passed.",
+            "optimalConditions": "Full sun and protection from strong winds. Requires rich, fertile, well-drained soil. Needs consistent moisture.",
+            "history": [
+                {
+                    "id": "h7",
+                    "status": "Planning",
+                    "date": "2024-10-20T12:00:00.000Z",
+                    "notes": "Find a warm, sunny, sheltered spot."
+                }
+            ]
+        },
+        {
+            "id": "nz-8",
+            "species": "Kawakawa (Piper excelsum)",
+            "germinationNeeds": "Propagate from cuttings taken in spring or autumn. Can also be grown from fresh seed, though germination can be slow.",
+            "optimalConditions": "Native New Zealand plant. Thrives in partial to full shade in damp, rich, free-draining soil. Often found in coastal or lowland forests.",
+            "history": [
+                {
+                    "id": "h8",
+                    "status": "Growing",
+                    "date": "2023-02-15T12:00:00.000Z",
+                    "notes": "Leaves used for tea. Heart-shaped holes are a good sign."
+                }
+            ]
+        }
+    ]
+}

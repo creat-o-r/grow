@@ -5,11 +5,10 @@ import { useState, useEffect, useCallback, MouseEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog } from '@/lib/types';
-import { samplePlants, sampleLocations } from '@/lib/sample-data';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
-
+import { loadDataset } from '@/lib/datasets';
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
@@ -21,7 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronRight, Download, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, KeyRound } from 'lucide-react';
+import { PlusCircle, ChevronRight, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, KeyRound } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
@@ -188,23 +187,36 @@ export default function Home() {
     }
   };
 
-  const handleImport = async () => {
-    await db.transaction('rw', db.plants, db.locations, async () => {
-      await db.plants.clear();
-      await db.locations.clear();
-      await db.plants.bulkAdd(samplePlants);
-      await db.locations.bulkAdd(sampleLocations);
-    });
-    
-    const firstLocation = await db.locations.toCollection().first();
-    if (firstLocation) {
-      setActiveLocationId(firstLocation.id);
-    }
+  const handleImport = async (datasetKey: string) => {
+    try {
+        const dataset = await loadDataset(datasetKey);
+        await db.transaction('rw', db.plants, db.locations, async () => {
+            await db.plants.clear();
+            await db.locations.clear();
+            await db.plants.bulkAdd(dataset.plants);
+            await db.locations.bulkAdd(dataset.locations);
+        });
 
-    toast({
-      title: 'Data Imported',
-      description: 'The sample dataset has been loaded.',
-    });
+        const firstLocation = dataset.locations[0];
+        if (firstLocation) {
+            setActiveLocationId(firstLocation.id);
+        } else {
+            setActiveLocationId(null);
+        }
+
+        toast({
+            title: 'Data Imported',
+            description: `The "${dataset.name}" dataset has been loaded.`,
+        });
+        setIsSettingsSheetOpen(false);
+    } catch (error) {
+        console.error('Failed to import dataset:', error);
+        toast({
+            title: 'Import Failed',
+            description: 'There was an error loading the dataset.',
+            variant: 'destructive',
+        });
+    }
   };
 
   const handlePublish = async () => {
@@ -618,15 +630,15 @@ export default function Home() {
                     <CardHeader>
                       <CardTitle className="font-headline">Your Garden is Empty</CardTitle>
                       <CardDescription>
-                        Add a plant or import the sample dataset to get started.
+                        Add a plant or import a sample dataset to get started.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="flex gap-4">
                        <Button onClick={handleOpenAddSheet}>
                          <PlusCircle className="mr-2 h-4 w-4" /> Add Your First Plant
                       </Button>
-                       <Button onClick={handleImport} variant="secondary">
-                         <Download className="mr-2 h-4 w-4" /> Import Sample Data
+                       <Button onClick={() => setIsSettingsSheetOpen(true)} variant="secondary">
+                         <Upload className="mr-2 h-4 w-4" /> Import Datasets
                       </Button>
                     </CardContent>
                   </Card>
