@@ -16,9 +16,6 @@ config();
  * Prefers OpenAI if the API key is available, otherwise falls back to Google AI.
  */
 export async function getModel(): Promise<string> {
-  if (process.env.OPENAI_API_KEY) {
-    return 'openai/gpt-4o';
-  }
   // Fallback to Google AI model if no API key is available for OpenAI.
   if (!process.env.GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY is not set.');
