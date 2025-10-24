@@ -18,5 +18,5 @@ export async function getModel(): Promise<string> {
   }
   
   // Fallback to Google AI model.
-  return 'googleai/gemini-pro';
+  return 'googleai/gemini-1.0-pro';
 }
