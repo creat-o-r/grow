@@ -6,5 +6,6 @@ import {openai} from 'genkitx-openai';
 export const ai = genkit({
   plugins: [
     googleAI(),
+    openai()
   ],
 });
