@@ -21,5 +21,6 @@ export async function getModel(): Promise<string> {
   }
   
   // Fallback to Google AI model.
-  return 'googleai/gemini-1.5-flash';
+  return 'googleai/gemini-1.5-flash-latest';
 }
+
