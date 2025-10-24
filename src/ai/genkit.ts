@@ -7,7 +7,7 @@ const plugins: GenkitPlugin[] = [];
 
 // Only add the Google AI plugin if the key is available
 if (process.env.GEMINI_API_KEY) {
-  plugins.push(googleAI({apiKey: process.env.GEMINI_API_KEY}));
+  plugins.push(googleAI());
 }
 
 // Only add the OpenAI plugin if the key is available during the server's runtime.
