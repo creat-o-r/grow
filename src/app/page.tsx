@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, MouseEvent } from 'react';
+import { useState, useEffect, useCallback, MouseEvent, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog } from '@/lib/types';
@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { loadDataset } from '@/lib/datasets';
+import { analyzeViability, Viability } from '@/lib/viability';
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
@@ -433,9 +434,25 @@ export default function Home() {
     setIsSettingsSheetOpen(false);
   };
   
-  const filteredPlants = plants ? (statusFilter === 'All' 
-    ? plants 
-    : plants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length - 1].status === statusFilter)) : [];
+  const sortedAndFilteredPlants = useMemo(() => {
+    if (!plants) return [];
+
+    const filtered = statusFilter === 'All' 
+        ? plants 
+        : plants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length - 1].status === statusFilter);
+
+    if (activeLocation?.conditions) {
+        const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
+        
+        return filtered.slice().sort((a, b) => {
+            const viabilityA = analyzeViability(a, activeLocation.conditions);
+            const viabilityB = analyzeViability(b, activeLocation.conditions);
+            return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
+        });
+    }
+    
+    return filtered;
+  }, [plants, statusFilter, activeLocation?.conditions]);
 
   const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
   const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
@@ -603,9 +620,9 @@ export default function Home() {
                 </div>
                 
                 {plants && plants.length > 0 ? (
-                  filteredPlants.length > 0 ? (
+                  sortedAndFilteredPlants.length > 0 ? (
                       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                      {filteredPlants.map(plant => (
+                      {sortedAndFilteredPlants.map(plant => (
                           <PlantCard 
                           key={plant.id} 
                           plant={plant} 
