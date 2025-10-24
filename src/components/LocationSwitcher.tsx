@@ -129,7 +129,7 @@ export function LocationSwitcher({
                       <div className="flex flex-col flex-1">
                         <span>{location.name}</span>
                         <span className="text-xs text-muted-foreground font-normal">
-                          {location.conditions.temperature || 'N/A'}, {location.conditions.sunlight || 'N/A'}
+                          {location.conditions.temperature || 'Temp'}, {location.conditions.sunlight || 'Sunlight'}
                         </span>
                       </div>
                       <div className="flex items-center">
