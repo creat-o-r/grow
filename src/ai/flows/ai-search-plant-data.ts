@@ -36,7 +36,6 @@ const prompt = ai.definePrompt({
   name: 'aiSearchPlantDataPrompt',
   input: {schema: AISearchPlantDataInputSchema},
   output: {schema: AISearchPlantDataOutputSchema},
-  model: getModel(),
   prompt: `You are an expert botanist. Extract plant data based on the search term provided.
 
   Search Term: {{{searchTerm}}}
@@ -53,7 +52,14 @@ const aiSearchPlantDataFlow = ai.defineFlow(
     outputSchema: AISearchPlantDataOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const model = await getModel();
+    const {output} = await ai.generate({
+      model,
+      prompt: prompt.compile({input}),
+      output: {
+        schema: AISearchPlantDataOutputSchema,
+      },
+    });
     return output!;
   }
 );

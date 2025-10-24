@@ -36,7 +36,6 @@ const prompt = ai.definePrompt({
   name: 'getEnvironmentalDataPrompt',
   input: {schema: GetEnvironmentalDataInputSchema},
   output: {schema: GetEnvironmentalDataOutputSchema},
-  model: getModel(),
   prompt: `You are a world-class agricultural and environmental data specialist.
   Based on general knowledge for the provided location, provide the current environmental conditions.
 
@@ -57,7 +56,14 @@ const getEnvironmentalDataFlow = ai.defineFlow(
     outputSchema: GetEnvironmentalDataOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const model = await getModel();
+    const {output} = await ai.generate({
+      model,
+      prompt: prompt.compile({input}),
+      output: {
+        schema: GetEnvironmentalDataOutputSchema,
+      },
+    });
     return output!;
   }
 );
