@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A model selector for the Genkit AI flows.
@@ -20,5 +19,5 @@ export async function getModel(): Promise<string> {
     throw new Error('GEMINI_API_KEY is not set.');
   }
   // Use the correct, fully-qualified model name to avoid 404 errors.
-  return 'googleAI/gemini-1.0-pro';
+  return 'googleAI/gemini-1.5-flash-latest';
 }
