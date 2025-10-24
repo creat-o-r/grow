@@ -4,12 +4,13 @@
  * @fileOverview An AI agent that searches for plant data based on a given name or description.
  *
  * - aiSearchPlantData - A function that initiates the plant data search.
- * - AISearchPlantDataInput - The input type for the aiSearchPlantData function.
+ * - AISearchPlantDataInput - The input type for the aiSearchPlant-data function.
  * - AISearchPlantDataOutput - The return type for the aiSearchPlantData function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {googleAI} from '@genkit-ai/google-genai';
 
 const AISearchPlantDataInputSchema = z.object({
   searchTerm: z
@@ -35,6 +36,7 @@ const prompt = ai.definePrompt({
   name: 'aiSearchPlantDataPrompt',
   input: {schema: AISearchPlantDataInputSchema},
   output: {schema: AISearchPlantDataOutputSchema},
+  model: googleAI('gemini-1.5-flash'),
   prompt: `You are an expert botanist. Extract plant data based on the search term provided.
 
   Search Term: {{{searchTerm}}}

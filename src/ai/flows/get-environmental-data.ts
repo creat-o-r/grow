@@ -9,6 +9,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import {googleAI} from '@genkit-ai/google-genai';
 
 const GetEnvironmentalDataInputSchema = z.object({
   location: z.string().describe('The city and country, e.g., "San Francisco, USA"'),
@@ -35,6 +36,7 @@ const prompt = ai.definePrompt({
   name: 'getEnvironmentalDataPrompt',
   input: {schema: GetEnvironmentalDataInputSchema},
   output: {schema: GetEnvironmentalDataOutputSchema},
+  model: googleAI('gemini-1.5-flash'),
   prompt: `You are a world-class agricultural and environmental data specialist.
   Based on general knowledge for the provided location, provide the current environmental conditions.
 
