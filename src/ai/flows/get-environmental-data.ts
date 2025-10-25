@@ -8,12 +8,13 @@
  * - GetEnvironmentalDataOutput - The return type for the function.
  */
 
-import { initializeGenkit } from '@/ai/genkit';
+import { initializeGenkit, ApiKeys } from '@/ai/genkit';
 import { getModel } from '@/ai/model';
 import { z } from 'zod';
 
 const GetEnvironmentalDataInputSchema = z.object({
   location: z.string().describe('The city and country, e.g., "San Francisco, USA"'),
+  apiKeys: z.custom<ApiKeys>().optional(),
 });
 export type GetEnvironmentalDataInput = z.infer<typeof GetEnvironmentalDataInputSchema>;
 
@@ -29,7 +30,7 @@ export type GetEnvironmentalDataOutput = z.infer<typeof GetEnvironmentalDataOutp
 export async function getEnvironmentalData(
   input: GetEnvironmentalDataInput
 ): Promise<GetEnvironmentalDataOutput> {
-  const ai = initializeGenkit();
+  const ai = initializeGenkit(input.apiKeys);
   ai.definePrompt(getEnvironmentalDataPrompt);
   const getEnvironmentalDataFlow = ai.defineFlow(
     {
@@ -37,9 +38,9 @@ export async function getEnvironmentalData(
       inputSchema: GetEnvironmentalDataInputSchema,
       outputSchema: GetEnvironmentalDataOutputSchema,
     },
-    async input => {
-      const model = await getModel();
-      const {output} = await ai.prompt('getEnvironmentalDataPrompt')(input, { model });
+    async (flowInput) => {
+      const model = await getModel(flowInput.apiKeys);
+      const {output} = await ai.prompt('getEnvironmentalDataPrompt')(flowInput, { model });
       return output!;
     }
   );

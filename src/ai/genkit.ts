@@ -3,18 +3,26 @@ import { genkit, GenkitPlugin } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 import { openAI } from 'genkitx-openai';
 import { groq } from 'genkitx-groq';
+import { ApiKeyName } from '@/lib/types';
 
-export function initializeGenkit() {
+export type ApiKeys = Record<ApiKeyName, string>;
+
+export function initializeGenkit(apiKeys?: ApiKeys) {
   const plugins: GenkitPlugin[] = [];
 
-  if (process.env.GEMINI_API_KEY) {
-    plugins.push(googleAI({ apiKey: process.env.GEMINI_API_KEY }));
+  const geminiApiKey = apiKeys?.gemini || process.env.GEMINI_API_KEY;
+  if (geminiApiKey) {
+    plugins.push(googleAI({ apiKey: geminiApiKey }));
   }
-  if (process.env.OPENAI_API_KEY) {
-    plugins.push(openAI({ apiKey: process.env.OPENAI_API_KEY }));
+
+  const openaiApiKey = apiKeys?.openai || process.env.OPENAI_API_KEY;
+  if (openaiApiKey) {
+    plugins.push(openAI({ apiKey: openaiApiKey }));
   }
-  if (process.env.GROQ_API_KEY) {
-    plugins.push(groq({ apiKey: process.env.GROQ_API_KEY }));
+
+  const groqApiKey = apiKeys?.groq || process.env.GROQ_API_KEY;
+  if (groqApiKey) {
+    plugins.push(groq({ apiKey: groqApiKey }));
   }
 
   return genkit({

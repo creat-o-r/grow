@@ -71,19 +71,6 @@ export default function Home() {
   const locations = useLiveQuery(() => db.locations.toArray(), []);
   const aiLogs = useLiveQuery(() => db.aiLogs.orderBy('timestamp').reverse().limit(10).toArray(), []);
 
-  const syncEnv = useCallback((keys: Record<ApiKeyName, string>) => {
-    console.log('Syncing env with keys:', keys);
-    fetch('/api/genkit/env', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        OPENAI_API_KEY: keys.openai || '',
-        GEMINI_API_KEY: keys.gemini || '',
-        GROQ_API_KEY: keys.groq || '',
-      }),
-    });
-  }, []);
-
   useEffect(() => {
     setIsClient(true);
     const savedPerplexityKey = localStorage.getItem('grow_perplexityApiKey') || '';
@@ -99,7 +86,6 @@ export default function Home() {
     };
 
     setApiKeys(currentApiKeys);
-    syncEnv(currentApiKeys);
     
     const initDb = async () => {
         const locationCount = await db.locations.count();
@@ -119,7 +105,7 @@ export default function Home() {
         }
     }
     initDb();
-  }, [syncEnv]);
+  }, []);
 
   useEffect(() => {
     if (activeLocationId) {
@@ -399,7 +385,10 @@ export default function Home() {
     }
 
     setIsAnalyzing(true);
-    const promptData = { location: activeLocation.location };
+    const promptData = {
+      location: activeLocation.location,
+      apiKeys,
+    };
     try {
       const result = await getEnvironmentalData(promptData);
       await db.locations.update(activeLocation.id, {
@@ -447,7 +436,6 @@ export default function Home() {
     localStorage.setItem(keyMap[keyName], key);
     const newApiKeys = {...apiKeys, [keyName]: key};
     setApiKeys(newApiKeys);
-    syncEnv(newApiKeys);
 
     toast({
       title: 'API Key Saved',
@@ -745,6 +733,7 @@ export default function Home() {
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
             isApiKeySet={areApiKeysSet}
             onConfigureApiKey={() => setIsSettingsSheetOpen(true)}
+            apiKeys={apiKeys}
           />
         </SheetContent>
       </Sheet>

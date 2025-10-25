@@ -6,23 +6,27 @@
  * the available API keys in the environment.
  */
 
-import {config} from 'dotenv';
-
-config();
+import { ApiKeys } from './genkit';
 
 /**
  * Gets the appropriate AI model based on the available API keys.
  * Prioritizes Groq, then OpenAI, and falls back to Google AI.
  */
-export async function getModel(): Promise<string> {
-  if (process.env.GROQ_API_KEY) {
+export async function getModel(apiKeys?: ApiKeys): Promise<string> {
+  const groqApiKey = apiKeys?.groq || process.env.GROQ_API_KEY;
+  if (groqApiKey) {
     return 'groq/gemma-7b-it';
   }
-  if (process.env.OPENAI_API_KEY) {
+
+  const openaiApiKey = apiKeys?.openai || process.env.OPENAI_API_KEY;
+  if (openaiApiKey) {
     return 'openai/gpt-4-turbo';
   }
-  if (process.env.GEMINI_API_KEY) {
+
+  const geminiApiKey = apiKeys?.gemini || process.env.GEMINI_API_KEY;
+  if (geminiApiKey) {
     return 'googleai/gemini-1.5-pro';
   }
+
   throw new Error('No API key is set.');
 }
