@@ -9,7 +9,7 @@
  * - AISearchPlantDataOutput - The return type for the aiSearchPlantData function.
  */
 
-import {ai} from '@/ai/genkit';
+import { initializeGenkit } from '@/ai/genkit';
 import { getModel } from '@/ai/model';
 import { z } from 'zod';
 
@@ -30,10 +30,24 @@ export type AISearchPlantDataOutput = z.infer<typeof AISearchPlantDataOutputSche
 export async function aiSearchPlantData(
   input: AISearchPlantDataInput
 ): Promise<AISearchPlantDataOutput> {
+  const ai = initializeGenkit();
+  ai.definePrompt(aiSearchPlantDataPrompt);
+  const aiSearchPlantDataFlow = ai.defineFlow(
+    {
+      name: 'aiSearchPlantDataFlow',
+      inputSchema: AISearchPlantDataInputSchema,
+      outputSchema: AISearchPlantDataOutputSchema,
+    },
+    async input => {
+      const model = await getModel();
+      const {output} = await ai.prompt('aiSearchPlantDataPrompt')(input, { model });
+      return output!;
+    }
+  );
   return aiSearchPlantDataFlow(input);
 }
 
-const prompt = ai.definePrompt({
+const aiSearchPlantDataPrompt = {
   name: 'aiSearchPlantDataPrompt',
   input: {schema: AISearchPlantDataInputSchema},
   output: {schema: AISearchPlantDataOutputSchema},
@@ -44,17 +58,4 @@ const prompt = ai.definePrompt({
   Return the plant's species, germination needs, and optimal conditions.
   Ensure the output is structured according to the provided output schema, with the Zod descriptions.
   If there is no definitive answer based on the search term, make your best guess.`,
-});
-
-const aiSearchPlantDataFlow = ai.defineFlow(
-  {
-    name: 'aiSearchPlantDataFlow',
-    inputSchema: AISearchPlantDataInputSchema,
-    outputSchema: AISearchPlantDataOutputSchema,
-  },
-  async input => {
-    const model = await getModel();
-    const {output} = await prompt(input, { model });
-    return output!;
-  }
-);
+};

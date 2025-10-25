@@ -8,7 +8,7 @@
  * - GetEnvironmentalDataOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { initializeGenkit } from '@/ai/genkit';
 import { getModel } from '@/ai/model';
 import { z } from 'zod';
 
@@ -29,11 +29,24 @@ export type GetEnvironmentalDataOutput = z.infer<typeof GetEnvironmentalDataOutp
 export async function getEnvironmentalData(
   input: GetEnvironmentalDataInput
 ): Promise<GetEnvironmentalDataOutput> {
+  const ai = initializeGenkit();
+  ai.definePrompt(getEnvironmentalDataPrompt);
+  const getEnvironmentalDataFlow = ai.defineFlow(
+    {
+      name: 'getEnvironmentalDataFlow',
+      inputSchema: GetEnvironmentalDataInputSchema,
+      outputSchema: GetEnvironmentalDataOutputSchema,
+    },
+    async input => {
+      const model = await getModel();
+      const {output} = await ai.prompt('getEnvironmentalDataPrompt')(input, { model });
+      return output!;
+    }
+  );
   return getEnvironmentalDataFlow(input);
 }
 
-
-const prompt = ai.definePrompt({
+const getEnvironmentalDataPrompt = {
   name: 'getEnvironmentalDataPrompt',
   input: {schema: GetEnvironmentalDataInputSchema},
   output: {schema: GetEnvironmentalDataOutputSchema},
@@ -48,17 +61,4 @@ const prompt = ai.definePrompt({
   In the references field, cite the full list of any general sources or knowledge bases you are using.
   Return your response in the structured format defined by the output schema.
   `,
-});
-
-const getEnvironmentalDataFlow = ai.defineFlow(
-  {
-    name: 'getEnvironmentalDataFlow',
-    inputSchema: GetEnvironmentalDataInputSchema,
-    outputSchema: GetEnvironmentalDataOutputSchema,
-  },
-  async input => {
-    const model = await getModel();
-    const {output} = await prompt(input, { model });
-    return output!;
-  }
-);
+};
