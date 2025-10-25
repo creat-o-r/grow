@@ -11,13 +11,18 @@ import {config} from 'dotenv';
 config();
 
 /**
- * Gets the appropriate AI model.
- * Falls back to Google AI model.
+ * Gets the appropriate AI model based on the available API keys.
+ * Prioritizes Groq, then OpenAI, and falls back to Google AI.
  */
 export async function getModel(): Promise<string> {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY is not set.');
+  if (process.env.GROQ_API_KEY) {
+    return 'groq/gemma-7b-it';
   }
-  // Use the correct, fully-qualified model name to avoid 404 errors.
-  return 'googleai/gemini-1.5-pro';
+  if (process.env.OPENAI_API_KEY) {
+    return 'openai/gpt-4-turbo';
+  }
+  if (process.env.GEMINI_API_KEY) {
+    return 'googleai/gemini-1.5-pro';
+  }
+  throw new Error('No API key is set.');
 }

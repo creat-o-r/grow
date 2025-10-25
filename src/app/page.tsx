@@ -71,31 +71,35 @@ export default function Home() {
   const locations = useLiveQuery(() => db.locations.toArray(), []);
   const aiLogs = useLiveQuery(() => db.aiLogs.orderBy('timestamp').reverse().limit(10).toArray(), []);
 
+  const syncEnv = useCallback((keys: Record<ApiKeyName, string>) => {
+    console.log('Syncing env with keys:', keys);
+    fetch('/api/genkit/env', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        OPENAI_API_KEY: keys.openai || '',
+        GEMINI_API_KEY: keys.gemini || '',
+        GROQ_API_KEY: keys.groq || '',
+      }),
+    });
+  }, []);
+
   useEffect(() => {
     setIsClient(true);
     const savedPerplexityKey = localStorage.getItem('grow_perplexityApiKey') || '';
     const savedOpenAIKey = localStorage.getItem('grow_openaiApiKey') || '';
     const savedGroqKey = localStorage.getItem('grow_groqApiKey') || '';
     const savedGeminiKey = localStorage.getItem('grow_geminiApiKey') || '';
-    
-    setApiKeys({
+
+    const currentApiKeys = {
       perplexity: savedPerplexityKey,
       openai: savedOpenAIKey,
       groq: savedGroqKey,
       gemini: savedGeminiKey,
-    });
+    };
 
-    const envPayload: { [key: string]: string } = {};
-    if (savedOpenAIKey) envPayload.OPENAI_API_KEY = savedOpenAIKey;
-    if (savedGeminiKey) envPayload.GEMINI_API_KEY = savedGeminiKey;
-
-    if (Object.keys(envPayload).length > 0) {
-        fetch('/api/genkit/env', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(envPayload),
-        });
-    }
+    setApiKeys(currentApiKeys);
+    syncEnv(currentApiKeys);
     
     const initDb = async () => {
         const locationCount = await db.locations.count();
@@ -115,7 +119,7 @@ export default function Home() {
         }
     }
     initDb();
-  }, []);
+  }, [syncEnv]);
 
   useEffect(() => {
     if (activeLocationId) {
@@ -440,20 +444,10 @@ export default function Home() {
       gemini: 'grow_geminiApiKey',
     };
     
-    const envPayload: { [key: string]: string } = {};
-    if (keyName === 'openai') envPayload.OPENAI_API_KEY = key;
-    if (keyName === 'gemini') envPayload.GEMINI_API_KEY = key;
-
-    if (Object.keys(envPayload).length > 0) {
-        fetch('/api/genkit/env', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(envPayload),
-        });
-    }
-
     localStorage.setItem(keyMap[keyName], key);
-    setApiKeys(prev => ({...prev, [keyName]: key}));
+    const newApiKeys = {...apiKeys, [keyName]: key};
+    setApiKeys(newApiKeys);
+    syncEnv(newApiKeys);
 
     toast({
       title: 'API Key Saved',
@@ -485,7 +479,7 @@ export default function Home() {
   const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
   const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
 
-  const areApiKeysSet = !!(apiKeys.openai || apiKeys.perplexity || apiKeys.gemini);
+  const areApiKeysSet = !!(apiKeys.openai || apiKeys.perplexity || apiKeys.gemini || apiKeys.groq);
 
   if (!isClient || !plants || !locations || !aiLogs) {
     return null;
