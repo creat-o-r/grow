@@ -20,7 +20,7 @@ export async function getModel(apiKeys?: ApiKeys): Promise<string> {
 
   const openaiApiKey = apiKeys?.openai || process.env.OPENAI_API_KEY;
   if (openaiApiKey) {
-    return 'openai/gpt-4-turbo';
+    return 'openai/gpt-4o';
   }
 
   const geminiApiKey = apiKeys?.gemini || process.env.GEMINI_API_KEY;
