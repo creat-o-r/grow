@@ -3,6 +3,7 @@ import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 import { openAI } from 'genkitx-openai';
 import { groq } from 'genkitx-groq';
+import openAICompatible from '@genkit-ai/compat-oai';
 import { ApiKeyName } from '@/lib/types';
 
 export type ApiKeys = Record<ApiKeyName, string>;
@@ -23,6 +24,30 @@ export function initializeGenkit(apiKeys?: ApiKeys) {
   const groqApiKey = apiKeys?.groq || process.env.GROQ_API_KEY;
   if (groqApiKey) {
     plugins.push(groq({ apiKey: groqApiKey }));
+  }
+
+  const openRouterApiKey = apiKeys?.openrouter || process.env.OPENROUTER_API_KEY;
+  if (openRouterApiKey) {
+    plugins.push(
+      openAICompatible({
+        name: 'openrouter',
+        apiKey: openRouterApiKey,
+        baseURL: 'https://openrouter.ai/api/v1',
+        resolver: ((client: any, actionType: any, actionName: string) => {
+          if (actionType === 'model') {
+            return {
+              name: `openrouter/${actionName}`,
+              run: async (input: any, options: any) => {
+                return await client.chat.completions.create({
+                  ...input,
+                  model: actionName,
+                }, options);
+              },
+            };
+          }
+        }) as any,
+      }),
+    );
   }
 
   return genkit({
