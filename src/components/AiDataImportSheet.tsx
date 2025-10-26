@@ -169,9 +169,20 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                 });
             }
         } else if (importMode === 'new') {
-            // Add the new garden location and plants
+            // Add the new garden location and plants, checking for duplicate species
+            const existingPlants = await db.plants.toArray();
+            const existingSpecies = new Set(existingPlants.map(p => p.species.toLowerCase()));
+            
+            const plantsToAdd = generatedData.plants.map(p => {
+              if (existingSpecies.has(p.species.toLowerCase())) {
+                // If it's a duplicate species, create a new object with a new ID
+                return { ...p, id: `plant-${Date.now()}-${Math.random()}` };
+              }
+              return p;
+            });
+            
             if (generatedData.locations) await db.locations.bulkAdd(generatedData.locations);
-            if (generatedData.plants) await db.plants.bulkAdd(generatedData.plants);
+            if (plantsToAdd.length > 0) await db.plants.bulkAdd(plantsToAdd);
              toast({
               title: 'Import Successful',
               description: `The new garden and plants have been added.`,
