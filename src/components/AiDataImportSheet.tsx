@@ -289,7 +289,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                         {generatedData.plants.map(plant => (
                                             <AccordionItem value={plant.id} key={plant.id} className="border-x-0 border-t-0 px-4">
                                                 <div className="flex items-center w-full">
-                                                    <AccordionTrigger className="py-3 hover:no-underline flex-1 justify-start">
+                                                    <AccordionTrigger className="py-3 hover:no-underline flex-1 justify-start text-left">
                                                         <div className="flex items-center gap-2">
                                                             <span className="font-semibold">{plant.species}</span>
                                                             <a 
