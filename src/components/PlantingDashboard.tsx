@@ -76,7 +76,7 @@ export function PlantingDashboard({ plants, gardenConditions, onOpenAddSheet, on
                         )}
                     </div>
                 ) : (
-                    <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
+                    <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed mt-6">
                         <CardHeader>
                             <CardTitle className="font-headline">No Plants to Plan</CardTitle>
                             <CardDescription>
@@ -98,3 +98,4 @@ export function PlantingDashboard({ plants, gardenConditions, onOpenAddSheet, on
     );
 }
 
+    

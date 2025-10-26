@@ -481,7 +481,7 @@ export default function Home() {
   const sortedAndFilteredPlants = useMemo(() => {
     if (!plants) return [];
 
-    const filtered = statusFilter === 'All' 
+    const filtered = statusFilter === 'All' || statusFilter === 'Planting'
         ? plants 
         : plants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length - 1].status === statusFilter);
 
@@ -497,6 +497,11 @@ export default function Home() {
     
     return filtered;
   }, [plants, statusFilter, activeLocation?.conditions]);
+
+  const plantsInPlantingStatus = useMemo(() => {
+      if (!plants) return [];
+      return plants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length-1].status === 'Planting');
+  }, [plants]);
   
   const plantingDashboardPlants = useMemo(() => {
     if (!plants) return [];
@@ -662,41 +667,65 @@ export default function Home() {
                 </div>
                 
                 {plants && plants.length > 0 ? (
-                    sortedAndFilteredPlants.length > 0 ? (
-                      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                      {sortedAndFilteredPlants.map(plant => (
-                          <PlantCard 
-                              key={plant.id} 
-                              plant={plant} 
-                              gardenConditions={activeLocation?.conditions}
-                              onEdit={() => handleEditPlant(plant)}
-                              onDelete={() => handleDeletePlant(plant.id)}
-                              onMarkAsDuplicate={() => handleMarkAsDuplicate(plant)}
-                              isDuplicateSource={duplicateSelectionMode?.id === plant.id}
-                              isSelectionMode={!!duplicateSelectionMode}
-                              onSelectDuplicate={() => handleDuplicateSelection(plant)}
-                          />
-                      ))}
-                      </div>
-                    ) : (
-                        statusFilter === 'Planting' ? (
-                            <PlantingDashboard
-                                plants={plantingDashboardPlants}
-                                gardenConditions={activeLocation.conditions}
-                                onOpenAddSheet={handleOpenAddSheet}
-                                onOpenSettings={() => setIsSettingsSheetOpen(true)}
-                            />
-                        ) : (
-                          <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
-                          <CardHeader>
-                              <CardTitle className="font-headline">No Plants Found</CardTitle>
-                              <CardDescription>
-                              No plants with the status "{statusFilter}".
-                              </CardDescription>
-                          </CardHeader>
-                          </Card>
-                        )
-                    )
+                    <>
+                      {statusFilter === 'Planting' ? (
+                          <div className="space-y-8">
+                              {plantsInPlantingStatus.length > 0 && (
+                                <div>
+                                    <h2 className="text-2xl font-headline mb-4">Currently Planting</h2>
+                                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                        {plantsInPlantingStatus.map(plant => (
+                                            <PlantCard 
+                                                key={plant.id} 
+                                                plant={plant} 
+                                                gardenConditions={activeLocation?.conditions}
+                                                onEdit={() => handleEditPlant(plant)}
+                                                onDelete={() => handleDeletePlant(plant.id)}
+                                                onMarkAsDuplicate={() => handleMarkAsDuplicate(plant)}
+                                                isDuplicateSource={duplicateSelectionMode?.id === plant.id}
+                                                isSelectionMode={!!duplicateSelectionMode}
+                                                onSelectDuplicate={() => handleDuplicateSelection(plant)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                              )}
+                              <PlantingDashboard
+                                  plants={plantingDashboardPlants}
+                                  gardenConditions={activeLocation.conditions}
+                                  onOpenAddSheet={handleOpenAddSheet}
+                                  onOpenSettings={() => setIsSettingsSheetOpen(true)}
+                              />
+                          </div>
+                      ) : (
+                          sortedAndFilteredPlants.length > 0 ? (
+                              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                  {sortedAndFilteredPlants.map(plant => (
+                                      <PlantCard 
+                                          key={plant.id} 
+                                          plant={plant} 
+                                          gardenConditions={activeLocation?.conditions}
+                                          onEdit={() => handleEditPlant(plant)}
+                                          onDelete={() => handleDeletePlant(plant.id)}
+                                          onMarkAsDuplicate={() => handleMarkAsDuplicate(plant)}
+                                          isDuplicateSource={duplicateSelectionMode?.id === plant.id}
+                                          isSelectionMode={!!duplicateSelectionMode}
+                                          onSelectDuplicate={() => handleDuplicateSelection(plant)}
+                                      />
+                                  ))}
+                              </div>
+                          ) : (
+                              <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
+                                  <CardHeader>
+                                      <CardTitle className="font-headline">No Plants Found</CardTitle>
+                                      <CardDescription>
+                                          No plants with the status "{statusFilter}".
+                                      </CardDescription>
+                                  </CardHeader>
+                              </Card>
+                          )
+                      )}
+                    </>
                 ) : (
                   <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                     <CardHeader>
@@ -822,3 +851,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
