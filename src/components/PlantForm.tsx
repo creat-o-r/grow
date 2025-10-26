@@ -84,7 +84,7 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
     if (!areApiKeysSet) {
       toast({
         title: 'API Key Required',
-        description: 'Please configure your Gemini API key in the settings to use this feature.',
+        description: 'Please configure an API key in the settings to use this feature.',
         variant: 'destructive',
       });
       onConfigureApiKey();
@@ -145,7 +145,7 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>API Key Not Set</AlertTitle>
               <AlertDescription>
-                <Button variant="link" className="p-0 h-auto" onClick={onConfigureApiKey}>Configure your Gemini API key</Button> to enable AI search.
+                <Button variant="link" className="p-0 h-auto" onClick={onConfigureApiKey}>Configure an API key</Button> to enable AI search.
               </AlertDescription>
             </Alert>
           )}

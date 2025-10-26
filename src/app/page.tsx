@@ -93,7 +93,7 @@ export default function Home() {
     if (storedKeys) {
       const parsedKeys = JSON.parse(storedKeys);
       setApiKeys(parsedKeys);
-      if (parsedKeys.gemini) {
+      if (parsedKeys.gemini || parsedKeys.anthropic || parsedKeys.openai) {
         setAreApiKeysSet(true);
       }
     }
@@ -111,11 +111,11 @@ export default function Home() {
   const handleApiKeysChange = (newKeys: ApiKeys) => {
     localStorage.setItem('verdantVerse_apiKeys', JSON.stringify(newKeys));
     setApiKeys(newKeys);
-    if (newKeys.gemini) {
+    if (newKeys.gemini || newKeys.anthropic || newKeys.openai) {
       setAreApiKeysSet(true);
       toast({
-        title: 'API Key Saved',
-        description: 'Your Gemini API key has been saved.',
+        title: 'API Keys Saved',
+        description: 'Your API keys have been saved.',
       });
     } else {
       setAreApiKeysSet(false);
@@ -385,7 +385,7 @@ export default function Home() {
     if (!areApiKeysSet) {
       toast({
         title: 'API Key Required',
-        description: 'Please set your Gemini API key in the settings.',
+        description: 'Please set an API key in the settings.',
         variant: 'destructive',
       });
       setIsSettingsSheetOpen(true);

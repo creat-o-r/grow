@@ -68,7 +68,7 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>API Key Not Set</AlertTitle>
                   <AlertDescription>
-                    The AI features are disabled. Please set your Gemini API key in the settings.
+                    The AI features are disabled. Please set an API key in the settings.
                   </AlertDescription>
                 </Alert>
               }
