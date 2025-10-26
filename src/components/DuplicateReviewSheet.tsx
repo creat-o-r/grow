@@ -19,6 +19,11 @@ type DuplicateGroup = {
   plants: Plant[];
 };
 
+const normalizeSpecies = (name: string): string => {
+  // Remove anything in parentheses and then trim/lowercase.
+  return name.replace(/\(.*\)/g, '').trim().toLowerCase();
+};
+
 export function DuplicateReviewSheet({ isOpen, onOpenChange }: { isOpen: boolean; onOpenChange: (isOpen: boolean) => void; }) {
   const allPlants = useLiveQuery(() => db.plants.toArray(), []);
   const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
@@ -36,7 +41,7 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange }: { isOpen: boolean
     const plantsBySpecies = new Map<string, Plant[]>();
 
     allPlants.forEach(plant => {
-      const speciesKey = plant.species.toLowerCase().trim();
+      const speciesKey = normalizeSpecies(plant.species);
       const existing = plantsBySpecies.get(speciesKey) || [];
       plantsBySpecies.set(speciesKey, [...existing, plant]);
     });
