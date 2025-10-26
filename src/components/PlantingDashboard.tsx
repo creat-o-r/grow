@@ -2,7 +2,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { Plant, Conditions } from '@/lib/types';
+import type { PlantingWithPlant, Conditions } from '@/lib/types';
 import { analyzeViability, Viability } from '@/lib/viability';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,32 +11,32 @@ import { PlantingDashboardCard } from './PlantingDashboardCard';
 
 
 type PlantingDashboardProps = {
-    plants: Plant[];
+    plantings: PlantingWithPlant[];
     gardenConditions: Conditions;
     onOpenAddSheet: () => void;
     onOpenSettings: () => void;
 };
 
-export function PlantingDashboard({ plants, gardenConditions, onOpenAddSheet, onOpenSettings }: PlantingDashboardProps) {
+export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet, onOpenSettings }: PlantingDashboardProps) {
 
     const viabilityGroups = useMemo(() => {
-        const groups: Record<Viability, Plant[]> = {
+        const groups: Record<Viability, PlantingWithPlant[]> = {
             High: [],
             Medium: [],
             Low: [],
         };
         
-        if (!plants || !gardenConditions) return groups;
+        if (!plantings || !gardenConditions) return groups;
 
-        plants.forEach(plant => {
-            const viability = analyzeViability(plant, gardenConditions);
-            groups[viability].push(plant);
+        plantings.forEach(p => {
+            const viability = analyzeViability(p.plant, gardenConditions);
+            groups[viability].push(p);
         });
 
         return groups;
-    }, [plants, gardenConditions]);
+    }, [plantings, gardenConditions]);
     
-    const hasAnyPlants = plants.length > 0;
+    const hasAnyPlants = plantings.length > 0;
 
     return (
         <div className="space-y-8">
@@ -44,7 +44,7 @@ export function PlantingDashboard({ plants, gardenConditions, onOpenAddSheet, on
                 <CardHeader className="px-0 pb-4">
                     <CardTitle className="font-headline">Planting Possibilities</CardTitle>
                     <CardDescription>
-                        Here are plants from your Wishlist and completed Harvests, prioritized by their viability in your current garden.
+                        Here are plantings from your Wishlist and completed Harvests, prioritized by their viability in your current garden.
                     </CardDescription>
                 </CardHeader>
                 
@@ -54,7 +54,7 @@ export function PlantingDashboard({ plants, gardenConditions, onOpenAddSheet, on
                             <section>
                                 <h3 className="text-lg font-semibold mb-4 text-green-400">High Viability</h3>
                                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                                    {viabilityGroups.High.map(plant => <PlantingDashboardCard key={plant.id} plant={plant} />)}
+                                    {viabilityGroups.High.map(p => <PlantingDashboardCard key={p.id} planting={p} />)}
                                 </div>
                             </section>
                         )}
@@ -62,7 +62,7 @@ export function PlantingDashboard({ plants, gardenConditions, onOpenAddSheet, on
                              <section>
                                 <h3 className="text-lg font-semibold mb-4 text-yellow-400">Medium Viability</h3>
                                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                                    {viabilityGroups.Medium.map(plant => <PlantingDashboardCard key={plant.id} plant={plant} />)}
+                                    {viabilityGroups.Medium.map(p => <PlantingDashboardCard key={p.id} planting={p} />)}
                                 </div>
                             </section>
                         )}
@@ -70,14 +70,14 @@ export function PlantingDashboard({ plants, gardenConditions, onOpenAddSheet, on
                              <section>
                                 <h3 className="text-lg font-semibold mb-4 text-red-400">Low Viability</h3>
                                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                                    {viabilityGroups.Low.map(plant => <PlantingDashboardCard key={plant.id} plant={plant} />)}
+                                    {viabilityGroups.Low.map(p => <PlantingDashboardCard key={p.id} planting={p} />)}
                                 </div>
                             </section>
                         )}
                     </div>
                 ) : (
                     <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed mt-6">
-                        <CardHeader>
+                         <CardHeader>
                             <CardTitle className="font-headline">Add more plants to plan</CardTitle>
                         </CardHeader>
                         <CardContent className="flex gap-4">
@@ -96,5 +96,3 @@ export function PlantingDashboard({ plants, gardenConditions, onOpenAddSheet, on
         </div>
     );
 }
-
-    

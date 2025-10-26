@@ -1,7 +1,7 @@
 
 'use client';
 import { useState, useEffect } from 'react';
-import type { Plant } from '@/lib/types';
+import type { PlantingWithPlant } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,25 +13,25 @@ import { ToastAction } from '@/components/ui/toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-export function PlantingDashboardCard({ plant }: { plant: Plant }) {
+export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlant }) {
     const [seedsOnHand, setSeedsOnHand] = useState<number | string>('');
-    const [plannedQty, setPlannedQty] = useState<number | string>(plant.plannedQty || '');
+    const [plannedQty, setPlannedQty] = useState<number | string>(planting.plannedQty || '');
     const [isSavingPlannedQty, setIsSavingPlannedQty] = useState(false);
 
     const { toast } = useToast();
     
     // Store initial state for undo
-    const [previousPlantState, setPreviousPlantState] = useState<Partial<Plant> | null>(null);
+    const [previousPlantingState, setPreviousPlantingState] = useState<Partial<PlantingWithPlant> | null>(null);
     useEffect(() => {
-        setPreviousPlantState({
-            history: plant.history,
-            seedsOnHand: plant.seedsOnHand,
-            plannedQty: plant.plannedQty,
+        setPreviousPlantingState({
+            history: planting.history,
+            seedsOnHand: planting.seedsOnHand,
+            plannedQty: planting.plannedQty,
         });
-    }, [plant.history, plant.seedsOnHand, plant.plannedQty]);
+    }, [planting.history, planting.seedsOnHand, planting.plannedQty]);
 
     
-    const latestStatus = plant.history && plant.history.length > 0 ? plant.history[plant.history.length - 1] : null;
+    const latestStatus = planting.history && planting.history.length > 0 ? planting.history[planting.history.length - 1] : null;
     const statusConfig: { [key: string]: string } = {
         Wishlist: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800',
         Planting: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-800',
@@ -40,33 +40,33 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
     };
 
     const handleUndo = async () => {
-        if (!previousPlantState) return;
+        if (!previousPlantingState) return;
         try {
-            await db.plants.update(plant.id, {
-                history: previousPlantState.history,
-                seedsOnHand: previousPlantState.seedsOnHand,
-                plannedQty: previousPlantState.plannedQty,
+            await db.plantings.update(planting.id, {
+                history: previousPlantingState.history,
+                seedsOnHand: previousPlantingState.seedsOnHand,
+                plannedQty: previousPlantingState.plannedQty,
             });
             toast({
                 title: 'Undo Successful',
-                description: `${plant.species} has been reverted.`,
+                description: `${planting.name} has been reverted.`,
             });
         } catch (error) {
             toast({
                 title: 'Undo Failed',
-                description: 'Could not revert the plant status.',
+                description: 'Could not revert the planting status.',
                 variant: 'destructive',
             });
         }
     };
 
 
-    const updatePlantStatus = async (status: 'Planting' | 'Growing', seeds?: number) => {
+    const updatePlantingStatus = async (status: 'Planting' | 'Growing', seeds?: number) => {
         // Capture current state before changing it
-        setPreviousPlantState({
-            history: plant.history,
-            seedsOnHand: plant.seedsOnHand,
-            plannedQty: plant.plannedQty,
+        setPreviousPlantingState({
+            history: planting.history,
+            seedsOnHand: planting.seedsOnHand,
+            plannedQty: planting.plannedQty,
         });
 
         const newHistoryEntry = {
@@ -76,18 +76,18 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
             notes: `Status changed from Planting Dashboard.`,
         };
         try {
-            const updatePayload: Partial<Plant> = {
-                history: [...(plant.history || []), newHistoryEntry],
+            const updatePayload: Partial<PlantingWithPlant> = {
+                history: [...(planting.history || []), newHistoryEntry],
             };
             if (seeds !== undefined) {
                 updatePayload.seedsOnHand = seeds;
             }
 
-            await db.plants.update(plant.id, updatePayload);
+            await db.plantings.update(planting.id, updatePayload);
             
             toast({
-                title: 'Plant Updated',
-                description: `${plant.species} has been marked as ${status}.`,
+                title: 'Planting Updated',
+                description: `${planting.name} has been marked as ${status}.`,
                 action: <ToastAction altText="Undo" onClick={handleUndo}>Undo</ToastAction>,
             });
             
@@ -96,7 +96,7 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
         } catch (error) {
             toast({
                 title: 'Error',
-                description: `Could not update ${plant.species}.`,
+                description: `Could not update ${planting.name}.`,
                 variant: 'destructive',
             });
         }
@@ -105,7 +105,7 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
     const handleSetSeeds = () => {
         const qty = Number(seedsOnHand);
         if (qty > 0) {
-            updatePlantStatus('Planting', qty);
+            updatePlantingStatus('Planting', qty);
         } else {
             toast({
                 title: 'Invalid Quantity',
@@ -117,12 +117,12 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
 
     const handleSetPlannedQty = async () => {
         const qty = Number(plannedQty);
-        if (plannedQty !== '' && !isNaN(qty) && qty >= 0 && qty !== plant.plannedQty) {
+        if (plannedQty !== '' && !isNaN(qty) && qty >= 0 && qty !== planting.plannedQty) {
             setIsSavingPlannedQty(true);
-            await db.plants.update(plant.id, { plannedQty: qty });
+            await db.plantings.update(planting.id, { plannedQty: qty });
             setTimeout(() => setIsSavingPlannedQty(false), 1000); // Show checkmark briefly
-        } else if (plannedQty === '' && plant.plannedQty !== undefined) {
-            await db.plants.update(plant.id, { plannedQty: undefined });
+        } else if (plannedQty === '' && planting.plannedQty !== undefined) {
+            await db.plantings.update(planting.id, { plannedQty: undefined });
         } else {
              toast({
                 title: 'Invalid Quantity',
@@ -132,35 +132,35 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
         }
     };
 
-    const seedsRequired = Math.max(0, (plant.plannedQty || 0) - (plant.seedsOnHand || 0));
+    const seedsRequired = Math.max(0, (planting.plannedQty || 0) - (planting.seedsOnHand || 0));
 
     return (
         <Card className="flex flex-col bg-muted/50">
             <CardHeader>
                 <div className="flex justify-between items-start">
-                    <CardTitle className="font-headline text-lg leading-tight mb-1 pr-2">{plant.species}</CardTitle>
-                    <a href={`https://www.google.com/search?q=${encodeURIComponent(plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center -mt-1 -mr-2" onClick={(e) => e.stopPropagation()}>
+                    <div>
+                        <CardTitle className="font-headline text-lg leading-tight mb-1 pr-2">{planting.name}</CardTitle>
+                        <CardDescription>{planting.plant.species}</CardDescription>
+                    </div>
+                    <a href={`https://www.google.com/search?q=${encodeURIComponent(planting.plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center -mt-1 -mr-2" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
                             <ExternalLink className="h-4 w-4" />
-                            <span className="sr-only">Search for {plant.species}</span>
+                            <span className="sr-only">Search for {planting.plant.species}</span>
                         </Button>
                     </a>
                 </div>
                 {latestStatus && (
-                    <Badge variant="outline" className={cn("font-normal w-fit", statusConfig[latestStatus.status])}>
+                    <Badge variant="outline" className={cn("font-normal w-fit mt-2", statusConfig[latestStatus.status])}>
                         {latestStatus.status}
                     </Badge>
                 )}
-                <CardDescription className="text-xs text-muted-foreground line-clamp-2 pt-1">
-                    {plant.optimalConditions}
-                </CardDescription>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
                  <div className="space-y-2">
-                    <Label htmlFor={`seeds-on-hand-${plant.id}`}>Seeds on Hand</Label>
+                    <Label htmlFor={`seeds-on-hand-${planting.id}`}>Seeds on Hand</Label>
                     <div className="flex gap-2">
                         <Input
-                            id={`seeds-on-hand-${plant.id}`}
+                            id={`seeds-on-hand-${planting.id}`}
                             type="number"
                             placeholder="e.g., 50"
                             value={seedsOnHand}
@@ -172,34 +172,34 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
                 </div>
                  <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                        <Label htmlFor={`planned-qty-${plant.id}`}>Planned Planting Qty</Label>
+                        <Label htmlFor={`planned-qty-${planting.id}`}>Planned Planting Qty</Label>
                         {isSavingPlannedQty && <CheckCircle className="h-4 w-4 text-green-500 animate-in fade-in" />}
                     </div>
                     <div className="flex gap-2">
                         <Input
-                            id={`planned-qty-${plant.id}`}
+                            id={`planned-qty-${planting.id}`}
                             type="number"
                             placeholder="e.g., 20"
                             value={plannedQty}
                             onChange={(e) => setPlannedQty(e.target.value)}
                         />
-                        <Button onClick={handleSetPlannedQty} disabled={plannedQty === ''}>Set</Button>
+                        <Button onClick={handleSetPlannedQty}>Set</Button>
                     </div>
-                     {plant.plannedQty !== undefined && plant.plannedQty > 0 ? (
+                     {planting.plannedQty !== undefined && planting.plannedQty > 0 ? (
                         <p className="text-xs text-muted-foreground">
-                            Currently planned: {plant.plannedQty}. Seeds on hand: {plant.seedsOnHand || 0}. 
+                            Currently planned: {planting.plannedQty}. Seeds on hand: {planting.seedsOnHand || 0}. 
                             <span className="font-bold"> Seeds required: {seedsRequired}</span>
                         </p>
                      ) : (
                         <p className="text-xs text-muted-foreground">
-                             Seeds on hand: {plant.seedsOnHand || 0}.
+                             Seeds on hand: {planting.seedsOnHand || 0}.
                         </p>
                      )
                     }
                 </div>
                  <div className="flex gap-2">
-                    <Button variant="secondary" className="w-full" onClick={() => updatePlantStatus('Planting')}>Mark as Planting</Button>
-                    <Button variant="secondary" className="w-full" onClick={() => updatePlantStatus('Growing')}>Mark as Growing</Button>
+                    <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Planting')}>Mark as Planting</Button>
+                    <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Growing')}>Mark as Growing</Button>
                 </div>
             </CardContent>
         </Card>

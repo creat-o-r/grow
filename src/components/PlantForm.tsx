@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { Plant, StatusHistory } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, StatusHistory } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
@@ -22,6 +22,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Check, ChevronsUpDown } from "lucide-react"
 
 const statusHistorySchema = z.object({
   id: z.string(),
@@ -31,6 +33,7 @@ const statusHistorySchema = z.object({
 });
 
 const formSchema = z.object({
+  name: z.string().min(3, 'Planting name is required.'),
   species: z.string().min(3, 'Species name is required.'),
   germinationNeeds: z.string().min(10, 'Germination needs are required.'),
   optimalConditions: z.string().min(10, 'Optimal conditions are required.'),
@@ -42,14 +45,15 @@ const formSchema = z.object({
 type PlantFormValues = z.infer<typeof formSchema>;
 
 type PlantFormProps = {
-  plantToEdit?: Plant | null;
-  onSubmit: (data: PlantFormValues | Plant) => void;
+  plantingToEdit?: PlantingWithPlant | null;
+  onSubmit: (plantingData: Omit<Planting, 'id'>, plantData: Omit<Plant, 'id'>) => void;
   onConfigureApiKey: () => void;
   areApiKeysSet: boolean;
   apiKeys: { gemini: string };
+  plants: Plant[];
 };
 
-export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeysSet, apiKeys }: PlantFormProps) {
+export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiKeysSet, apiKeys, plants }: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const { toast } = useToast();
@@ -57,6 +61,7 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
   const form = useForm<PlantFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      name: '',
       species: '',
       germinationNeeds: '',
       optimalConditions: '',
@@ -77,14 +82,19 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
 
 
   useEffect(() => {
-    if (plantToEdit) {
+    if (plantingToEdit) {
       form.reset({
-        ...plantToEdit,
-        seedsOnHand: plantToEdit.seedsOnHand || 0,
-        plannedQty: plantToEdit.plannedQty || 0,
+        name: plantingToEdit.name,
+        species: plantingToEdit.plant.species,
+        germinationNeeds: plantingToEdit.plant.germinationNeeds,
+        optimalConditions: plantingToEdit.plant.optimalConditions,
+        history: plantingToEdit.history,
+        seedsOnHand: plantingToEdit.seedsOnHand || 0,
+        plannedQty: plantingToEdit.plannedQty || 0,
       });
     } else {
       form.reset({
+        name: '',
         species: '',
         germinationNeeds: '',
         optimalConditions: '',
@@ -93,7 +103,7 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
         plannedQty: 0,
       });
     }
-  }, [plantToEdit, form]);
+  }, [plantingToEdit, form]);
 
   const handleAiSearch = async () => {
     if (!areApiKeysSet) {
@@ -110,6 +120,9 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
     try {
       const result = await aiSearchPlantData({ searchTerm: aiSearchTerm, apiKeys });
       form.setValue('species', result.species, { shouldValidate: true });
+      if (!form.getValues('name')) {
+        form.setValue('name', result.species, { shouldValidate: true });
+      }
       form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
       form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });
       toast({
@@ -130,10 +143,27 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
 
   const handleSubmit = (data: PlantFormValues) => {
      const sortedHistory = [...data.history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    if (plantToEdit) {
-      onSubmit({ ...plantToEdit, ...data, history: sortedHistory });
+    
+    const plantData = {
+        species: data.species,
+        germinationNeeds: data.germinationNeeds,
+        optimalConditions: data.optimalConditions,
+    };
+
+    const plantingData: Omit<Planting, 'id'> = {
+        plantId: plantingToEdit?.plantId || '', // This will be set properly in the parent
+        gardenId: plantingToEdit?.gardenId || '', // This will be set properly in the parent
+        name: data.name,
+        createdAt: plantingToEdit?.createdAt || new Date().toISOString(),
+        history: sortedHistory,
+        seedsOnHand: data.seedsOnHand,
+        plannedQty: data.plannedQty,
+    };
+
+    if (plantingToEdit) {
+        onSubmit({ ...plantingToEdit, ...plantingData }, { ...plantingToEdit.plant, ...plantData });
     } else {
-      onSubmit({...data, history: sortedHistory});
+        onSubmit(plantingData, plantData);
     }
     form.reset();
   };
@@ -147,12 +177,18 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
     });
   };
 
+  const handleSpeciesSelect = (plant: Plant) => {
+     form.setValue('species', plant.species);
+     form.setValue('germinationNeeds', plant.germinationNeeds);
+     form.setValue('optimalConditions', plant.optimalConditions);
+  }
+
   return (
     <div className="space-y-6 py-6">
       <Card>
         <CardHeader>
           <CardTitle className="font-headline text-lg">AI-Powered Search</CardTitle>
-          <CardDescription>Enter a plant name to automatically fill the form.</CardDescription>
+          <CardDescription>Enter a plant name to automatically fill the form with a new species.</CardDescription>
         </CardHeader>
         <CardContent>
           {!areApiKeysSet && (
@@ -197,27 +233,78 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <FormField
             control={form.control}
-            name="species"
+            name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Species</FormLabel>
+                <FormLabel>Planting Name</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <Input placeholder="e.g., Solanum lycopersicum" {...field} />
-                     {speciesValue && (
-                       <a href={`https://www.google.com/search?q=${encodeURIComponent(speciesValue)}`} target="_blank" rel="noopener noreferrer" className="absolute right-2 top-1/2 -translate-y-1/2">
-                          <Button variant="ghost" size="icon" type="button" className="h-7 w-7 text-muted-foreground hover:text-foreground">
-                              <ExternalLink className="h-4 w-4" />
-                          </Button>
-                      </a>
-                    )}
-                  </div>
+                  <Input placeholder="e.g., Spring Carrots" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-           {(lastStatus === 'Planting' || lastStatus === 'Growing' || plantToEdit?.seedsOnHand) && (
+
+          <FormField
+            control={form.control}
+            name="species"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Species</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value
+                          ? plants.find(
+                              (plant) => plant.species === field.value
+                            )?.species
+                          : "Select a species or create a new one"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                    <Command>
+                      <CommandInput placeholder="Search species..." />
+                      <CommandEmpty>No species found.</CommandEmpty>
+                      <CommandGroup>
+                        {plants.map((plant) => (
+                          <CommandItem
+                            value={plant.species}
+                            key={plant.id}
+                            onSelect={() => {
+                                handleSpeciesSelect(plant);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                plant.species === field.value
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            {plant.species}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+           {(lastStatus === 'Planting' || lastStatus === 'Growing' || plantingToEdit?.seedsOnHand) && (
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -276,7 +363,7 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
 
           <div className="space-y-4 rounded-lg border p-4">
             <div className='flex justify-between items-center'>
-                 <h3 className="font-medium">Plant History</h3>
+                 <h3 className="font-medium">History</h3>
                  <Button type="button" size="sm" variant="outline" onClick={addNewStatus}>
                     <Plus className="mr-2 h-4 w-4"/> Add Status
                 </Button>
@@ -369,7 +456,7 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
           </div>
 
           <Button type="submit" className="w-full">
-            {plantToEdit ? 'Save Changes' : 'Add Plant'}
+            {plantingToEdit ? 'Save Changes' : 'Add Planting'}
           </Button>
         </form>
       </Form>

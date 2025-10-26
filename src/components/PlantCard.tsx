@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Plant, Conditions } from '@/lib/types';
+import type { PlantingWithPlant, Conditions } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, ExternalLink, Copy, Package } from 'lucide-react';
@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 
 type PlantCardProps = {
-  plant: Plant;
+  planting: PlantingWithPlant;
   gardenConditions?: Conditions;
   onEdit: () => void;
   onDelete: () => void;
@@ -23,7 +23,7 @@ type PlantCardProps = {
 };
 
 export function PlantCard({
-    plant, 
+    planting, 
     gardenConditions, 
     onEdit, 
     onDelete, 
@@ -32,7 +32,8 @@ export function PlantCard({
     isSelectionMode,
     onSelectDuplicate,
 }: PlantCardProps) {
-    const latestStatus = plant.history && plant.history.length > 0 ? plant.history[plant.history.length - 1] : null;
+    const { plant } = planting;
+    const latestStatus = planting.history && planting.history.length > 0 ? planting.history[planting.history.length - 1] : null;
 
     const statusConfig: { [key: string]: string } = {
         Wishlist: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800',
@@ -45,7 +46,10 @@ export function PlantCard({
         <>
             <CardHeader>
                 <div className="flex justify-between items-start">
-                    <CardTitle className="font-headline text-xl leading-tight mb-1 pr-2">{plant.species}</CardTitle>
+                    <div>
+                        <CardTitle className="font-headline text-xl leading-tight mb-1 pr-2">{planting.name}</CardTitle>
+                        <CardDescription>{plant.species}</CardDescription>
+                    </div>
                     <div className="flex items-center -mt-1 -mr-2">
                         <a href={`https://www.google.com/search?q=${encodeURIComponent(plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
@@ -71,17 +75,17 @@ export function PlantCard({
                         </DropdownMenu>
                     </div>
                 </div>
-                <div className="flex flex-wrap gap-2 items-center">
+                 <div className="flex flex-wrap gap-2 items-center pt-2">
                     {gardenConditions && <ViabilityIndicator plant={plant} gardenConditions={gardenConditions} />}
                     {latestStatus && (
                         <Badge variant="outline" className={cn("font-normal", statusConfig[latestStatus.status])}>
                             {latestStatus.status}
                         </Badge>
                     )}
-                     {latestStatus?.status === 'Planting' && plant.seedsOnHand && plant.seedsOnHand > 0 && (
+                     {latestStatus?.status === 'Planting' && planting.seedsOnHand && planting.seedsOnHand > 0 && (
                         <Badge variant="secondary" className="flex items-center gap-1.5">
                             <Package className="h-3 w-3" />
-                            {plant.seedsOnHand} seeds on hand
+                            {planting.seedsOnHand} seeds on hand
                         </Badge>
                      )}
                 </div>

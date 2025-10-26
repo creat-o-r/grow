@@ -16,6 +16,14 @@ const PlantSchema = z.object({
   species: z.string(),
   germinationNeeds: z.string(),
   optimalConditions: z.string(),
+});
+
+const PlantingSchema = z.object({
+  id: z.string(),
+  plantId: z.string(),
+  gardenId: z.string(),
+  name: z.string().describe("A simple, friendly name for this specific planting, e.g., 'Balcony Basil' or 'Spring Radishes'"),
+  createdAt: z.string().describe("The ISO 8601 date this planting was notionally created."),
   history: z.array(z.object({
     id: z.string(),
     status: z.enum(['Wishlist', 'Planting', 'Growing', 'Harvest']),
@@ -23,6 +31,7 @@ const PlantSchema = z.object({
     notes: z.string().optional(),
   })),
 });
+
 
 const GardenLocationSchema = z.object({
   id: z.string(),
@@ -48,6 +57,7 @@ type CreateDatasetInput = z.infer<typeof CreateDatasetInputSchema>;
 const CreateDatasetOutputSchema = z.object({
   locations: z.array(GardenLocationSchema),
   plants: z.array(PlantSchema),
+  plantings: z.array(PlantingSchema),
 });
 type CreateDatasetOutput = z.infer<typeof CreateDatasetOutputSchema>;
 
@@ -71,7 +81,8 @@ export async function createDataset(
 Theme: {{{theme}}}
 
 {{#if activeLocation}}
-Your primary goal is to generate a list of 5-8 plant objects that are perfectly suited to the provided active garden location and the theme.
+Your primary goal is to generate a list of 5-8 plant species and a corresponding 'planting' for each.
+The plantings must be perfectly suited to the provided active garden location and the theme.
 The provided location already exists, so you MUST return it as the single item in the 'locations' array in your output. Do not create a new location.
 For the 'name' field of the location, generate a NEW, creative name for the garden that fits the theme and location (e.g., "Balcony Bounty," "Shady Oasis," "Urban Jungle"). Do not just use the existing name.
 Active Location:
@@ -81,7 +92,8 @@ Active Location:
 {{else}}
 Your task is to generate a dataset containing:
 1.  A single garden location object that fits the theme. It must have a creative name (e.g., "Balcony Bounty," "Shady Oasis," "Urban Jungle"), a plausible real-world city/country, and realistic environmental conditions. Use Fahrenheit for US locations and Celsius otherwise.
-2.  A list of 5-8 plant objects that are well-suited to the theme and the location you created.
+2.  A list of 5-8 plant species objects that are well-suited to the theme and the location you created.
+3.  A corresponding list of 'planting' objects, one for each plant species.
 {{/if}}
 
 For each plant, you must provide:
@@ -89,6 +101,13 @@ For each plant, you must provide:
 - The species name.
 - A description of its germination needs.
 - A description of its optimal growing conditions.
+
+For each planting, you must provide:
+- A unique ID (e.g., "ai-planting-1").
+- The corresponding plantId.
+- The corresponding gardenId.
+- A simple, creative name (e.g., "Pesto Basil", "Windowbox Thyme").
+- A createdAt date.
 - A history array with a single entry where the status is 'Wishlist'.
 
 IMPORTANT: The list of plants MUST contain distinct and unique plant species. Do not generate duplicate plants, even with minor name variations (e.g., 'Tomato' and 'Tomato (Solanum lycopersicum)').

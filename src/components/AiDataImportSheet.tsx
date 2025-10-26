@@ -16,7 +16,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Loader2, Sparkles, AlertTriangle, CheckCircle, Replace, PlusCircle, Wand2, RefreshCw, Trash2, ExternalLink } from 'lucide-react';
 import { createDataset } from '@/ai/flows/create-dataset-flow';
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
-import type { AiDataset, AiLog, Plant, GardenLocation } from '@/lib/types';
+import type { AiDataset, AiLog, Plant, Planting, GardenLocation } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/db';
 import { ToastAction } from '@/components/ui/toast';
@@ -105,10 +105,10 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     setGeneratedData({ ...generatedData, locations: updatedLocations });
   };
 
-  const handleRemovePlant = (plantId: string) => {
+  const handleRemovePlanting = (plantingId: string) => {
     if (!generatedData) return;
-    const updatedPlants = generatedData.plants.filter(p => p.id !== plantId);
-    setGeneratedData({ ...generatedData, plants: updatedPlants });
+    const updatedPlantings = generatedData.plantings.filter(p => p.id !== plantingId);
+    setGeneratedData({ ...generatedData, plantings: updatedPlantings });
   };
 
   const handleFetchMoreLikeThis = async (plant: Plant) => {
@@ -119,14 +119,23 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
       const newPlant: Plant = {
         ...result,
         id: `ai-plant-${Date.now()}`,
-        history: [{ id: 'new-1', status: 'Wishlist', date: new Date().toISOString(), notes: `Suggested as similar to ${plant.species}` }],
       };
 
+      const newPlanting: Planting = {
+        id: `ai-planting-${Date.now()}`,
+        plantId: newPlant.id,
+        gardenId: generatedData?.locations[0].id || '',
+        name: result.species,
+        createdAt: new Date().toISOString(),
+        history: [{ id: 'new-1', status: 'Wishlist', date: new Date().toISOString(), notes: `Suggested as similar to ${plant.species}` }],
+      }
+
       if (generatedData) {
-         const plantIndex = generatedData.plants.findIndex(p => p.id === plant.id);
-         const newPlants = [...generatedData.plants];
-         newPlants.splice(plantIndex + 1, 0, newPlant);
-         setGeneratedData({ ...generatedData, plants: newPlants });
+         const plantIndex = generatedData.plantings.findIndex(p => p.plantId === plant.id);
+         const newPlants = [...generatedData.plants, newPlant];
+         const newPlantings = [...generatedData.plantings];
+         newPlantings.splice(plantIndex + 1, 0, newPlanting);
+         setGeneratedData({ ...generatedData, plants: newPlants, plantings: newPlantings });
       }
 
     } catch (err: any) {
@@ -137,17 +146,18 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     }
   };
 
-  const handleUndoImport = async (importedIds: string[]) => {
+  const handleUndoImport = async (importedPlantingIds: string[], importedPlantIds: string[]) => {
     try {
-      await db.plants.bulkDelete(importedIds);
+      await db.plantings.bulkDelete(importedPlantingIds);
+      await db.plants.bulkDelete(importedPlantIds);
       toast({
         title: 'Undo Successful',
-        description: 'The imported plants have been removed.',
+        description: 'The imported data has been removed.',
       });
     } catch (e) {
       toast({
         title: 'Undo Failed',
-        description: 'Could not remove the imported plants.',
+        description: 'Could not remove the imported data.',
         variant: 'destructive',
       });
     }
@@ -160,65 +170,53 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     setError(null);
 
     try {
-        const plantsWithNewIds = generatedData.plants.map(p => ({
+        const newPlantsWithNewIds = generatedData.plants.map(p => ({ ...p, id: `plant-${Date.now()}-${Math.random().toString(36).substring(2, 9)}` }));
+        const newPlantIdMap = new Map(generatedData.plants.map((p, i) => [p.id, newPlantsWithNewIds[i].id]));
+        const newPlantingsWithNewIds = generatedData.plantings.map(p => ({
             ...p,
-            id: `plant-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+            id: `planting-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            plantId: newPlantIdMap.get(p.plantId) || '',
         }));
 
-        await db.transaction('rw', db.plants, db.locations, async () => {
+        await db.transaction('rw', db.plants, db.plantings, db.locations, async () => {
             if (importMode === 'replace') {
-                const locationWithNewId = {
-                    ...generatedData.locations[0],
-                    id: `loc-${Date.now()}`
-                };
+                const locationWithNewId = { ...generatedData.locations[0], id: `loc-${Date.now()}` };
                 await db.plants.clear();
+                await db.plantings.clear();
                 await db.locations.clear();
-                await db.plants.bulkAdd(plantsWithNewIds);
+
+                await db.plants.bulkAdd(newPlantsWithNewIds);
+                await db.plantings.bulkAdd(newPlantingsWithNewIds);
                 await db.locations.add(locationWithNewId);
                 toast({
                     title: 'Import Successful',
                     description: 'Your garden has been replaced with the new dataset.',
                 });
-            } else if (importMode === 'add') {
+            } else if (importMode === 'add' || importMode === 'new') {
                 const existingPlants = await db.plants.toArray();
                 const existingSpecies = new Set(existingPlants.map(p => p.species.toLowerCase().trim()));
-                const newPlantsToAdd = plantsWithNewIds.filter(p => !existingSpecies.has(p.species.toLowerCase().trim()));
-                const addedIds: string[] = [];
+                
+                const plantsToAdd = newPlantsWithNewIds.filter(p => !existingSpecies.has(p.species.toLowerCase().trim()));
+                const plantingsToAdd = newPlantingsWithNewIds.filter(p => {
+                    const plant = newPlantsWithNewIds.find(pl => pl.id === p.plantId);
+                    return plant && !existingSpecies.has(plant.species.toLowerCase().trim());
+                });
 
-                if (newPlantsToAdd.length > 0) {
-                    await db.plants.bulkAdd(newPlantsToAdd);
-                    newPlantsToAdd.forEach(p => addedIds.push(p.id));
+                if (plantsToAdd.length > 0) {
+                    await db.plants.bulkAdd(plantsToAdd);
+                }
+                if (plantingsToAdd.length > 0) {
+                    await db.plantings.bulkAdd(plantingsToAdd);
+                }
+
+                if (importMode === 'new') {
+                    const locationWithNewId = { ...generatedData.locations[0], id: `loc-${Date.now()}` };
+                    await db.locations.add(locationWithNewId);
                 }
                 
                 toast({
                     title: 'Import Successful',
-                    description: `${newPlantsToAdd.length} new plants added to your active garden. ${plantsWithNewIds.length - newPlantsToAdd.length} duplicates were skipped.`,
-                    action: newPlantsToAdd.length > 0 ? (
-                        <ToastAction altText="Undo" onClick={() => handleUndoImport(addedIds)}>
-                          Undo
-                        </ToastAction>
-                    ) : undefined,
-                });
-            } else if (importMode === 'new') {
-                 const locationWithNewId = {
-                    ...generatedData.locations[0],
-                    id: `loc-${Date.now()}`
-                };
-                await db.locations.add(locationWithNewId);
-                await db.plants.bulkAdd(plantsWithNewIds);
-                
-                const addedIds = plantsWithNewIds.map(p => p.id);
-                toast({
-                    title: 'Import Successful',
-                    description: 'The new garden and its plants have been added.',
-                     action: (
-                        <ToastAction altText="Undo" onClick={() => {
-                            db.locations.delete(locationWithNewId.id);
-                            handleUndoImport(addedIds);
-                        }}>
-                          Undo
-                        </ToastAction>
-                    )
+                    description: `${plantingsToAdd.length} new plantings added.`,
                 });
             }
         });
@@ -237,6 +235,12 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
         setIsImporting(false);
     }
   };
+  
+  const generatedPlantMap = useMemo(() => {
+    if (!generatedData) return new Map();
+    return new Map(generatedData.plants.map(p => [p.id, p]));
+  }, [generatedData]);
+
 
   return (
     <Sheet open={isOpen} onOpenChange={handleClose}>
@@ -319,24 +323,20 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                 </CardContent>
                             </Card>
                              <div className="space-y-2">
-                                <h4 className="font-medium text-sm">Generated Plants ({generatedData.plants.length})</h4>
+                                <h4 className="font-medium text-sm">Generated Plantings ({generatedData.plantings.length})</h4>
                                 <ScrollArea className="h-64 rounded-md border">
                                     <Accordion type="single" collapsible className="w-full">
-                                        {generatedData.plants.map(plant => (
-                                            <AccordionItem value={plant.id} key={plant.id} className="border-x-0 border-t-0 px-4">
+                                        {generatedData.plantings.map(planting => {
+                                            const plant = generatedPlantMap.get(planting.plantId);
+                                            if (!plant) return null;
+
+                                            return (
+                                            <AccordionItem value={planting.id} key={planting.id} className="border-x-0 border-t-0 px-4">
                                                 <div className="flex items-center w-full py-3">
                                                     <AccordionTrigger className="p-0 hover:no-underline flex-1 justify-start text-left">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="font-semibold">{plant.species}</span>
-                                                            <a 
-                                                                href={`https://www.google.com/search?q=${encodeURIComponent(plant.species)}`} 
-                                                                target="_blank" 
-                                                                rel="noopener noreferrer" 
-                                                                className="text-muted-foreground hover:text-foreground"
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            >
-                                                                <ExternalLink className="h-4 w-4" />
-                                                            </a>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-semibold">{planting.name}</span>
+                                                            <span className="text-sm text-muted-foreground">{plant.species}</span>
                                                         </div>
                                                     </AccordionTrigger>
                                                     <div className="flex items-center gap-2 pl-4" onClick={(e) => e.stopPropagation()}>
@@ -344,7 +344,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                                             {isFetchingMore === plant.id ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <RefreshCw className="mr-2 h-3 w-3"/>}
                                                             More like this
                                                         </Button>
-                                                        <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => handleRemovePlant(plant.id)}>
+                                                        <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => handleRemovePlanting(planting.id)}>
                                                             <Trash2 className="mr-2 h-3 w-3"/>
                                                             Remove
                                                         </Button>
@@ -363,7 +363,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                                     </div>
                                                 </AccordionContent>
                                             </AccordionItem>
-                                        ))}
+                                        )})}
                                     </Accordion>
                                 </ScrollArea>
                             </div>
@@ -403,14 +403,14 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                     <RadioGroupItem value="new" id="r3" />
                                     <div className="flex flex-col">
                                         <span className="font-bold flex items-center gap-2"><Wand2/> Create as New Garden</span>
-                                        <span className="text-sm text-muted-foreground">Adds the new location and plants without affecting existing data.</span>
+                                        <span className="text-sm text-muted-foreground">Adds the new location and plantings without affecting existing data.</span>
                                     </div>
                                 </Label>
                                 <Label htmlFor="r2" className="flex items-start space-x-3 space-y-0 rounded-md border p-4 cursor-pointer hover:bg-accent has-[[data-state=checked]]:border-primary">
                                     <RadioGroupItem value="add" id="r2" />
                                     <div className="flex flex-col">
-                                        <span className="font-bold flex items-center gap-2"><PlusCircle/> Add Plants to Active Garden</span>
-                                        <span className="text-sm text-muted-foreground">Adds new plants to your active garden. Skips duplicates and ignores the new location.</span>
+                                        <span className="font-bold flex items-center gap-2"><PlusCircle/> Add Plantings to Active Garden</span>
+                                        <span className="text-sm text-muted-foreground">Adds new plantings to your active garden. Skips duplicates and ignores the new location.</span>
                                     </div>
                                 </Label>
                             </RadioGroup>

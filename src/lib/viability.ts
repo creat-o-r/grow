@@ -1,5 +1,5 @@
 
-import type { Plant, Conditions } from '@/lib/types';
+import type { Plant, PlantingWithPlant, Conditions } from '@/lib/types';
 
 export type Viability = 'High' | 'Medium' | 'Low';
 

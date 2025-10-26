@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, MouseEvent, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog, AiDataset } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, AiDataset } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
@@ -41,7 +41,7 @@ const REPO_URL = 'https://github.com/creat-o-r/grow';
 
 export default function Home() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [plantToEdit, setPlantToEdit] = useState<Plant | null>(null);
+  const [plantingToEdit, setPlantingToEdit] = useState<PlantingWithPlant | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [accordionValue, setAccordionValue] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
@@ -58,18 +58,21 @@ export default function Home() {
 
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [locationToDelete, setLocationToDelete] = useState<GardenLocation | null>(null);
+  const [plantingToDelete, setPlantingToDelete] = useState<PlantingWithPlant | null>(null);
+
 
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
   const [isAiImportSheetOpen, setIsAiImportSheetOpen] = useState(false);
   const [isDuplicateReviewSheetOpen, setIsDuplicateReviewSheetOpen] = useState(false);
 
-  const [duplicateSelectionMode, setDuplicateSelectionMode] = useState<Plant | null>(null);
+  const [duplicateSelectionMode, setDuplicateSelectionMode] = useState<PlantingWithPlant | null>(null);
 
 
   const { toast } = useToast();
 
-  const plants = useLiveQuery(() => db.plants.orderBy('species').toArray(), []);
+  const plants = useLiveQuery(() => db.plants.toArray(), []);
+  const plantings = useLiveQuery(() => db.plantings.toArray(), []);
   const locations = useLiveQuery(() => db.locations.toArray(), []);
   const aiLogs = useLiveQuery(() => db.aiLogs.orderBy('timestamp').reverse().limit(10).toArray(), []);
   
@@ -163,58 +166,77 @@ export default function Home() {
     }
   }, [activeLocation, locations]);
 
-  const handleAddPlant = async (plant: Omit<Plant, 'id'>) => {
-    const newPlant = { ...plant, id: Date.now().toString(), history: plant.history || [] };
-    await db.plants.add(newPlant);
+  const handleAddPlanting = async (plantingData: Omit<Planting, 'id'>, plantData: Omit<Plant, 'id'>) => {
+    let plantId = (await db.plants.where('species').equalsIgnoreCase(plantData.species).first())?.id;
+
+    if (!plantId) {
+        const newPlant: Plant = { ...plantData, id: `plant-${Date.now()}` };
+        plantId = await db.plants.add(newPlant);
+    }
+
+    const newPlanting: Planting = {
+        ...plantingData,
+        id: `planting-${Date.now()}`,
+        plantId: plantId.toString(),
+        gardenId: activeLocationId || '',
+    };
+    await db.plantings.add(newPlanting);
+
     setIsSheetOpen(false);
     toast({
-      title: 'Plant Added',
-      description: `${plant.species} has been added to your collection.`,
+      title: 'Planting Added',
+      description: `${plantingData.name} has been added to your collection.`,
     });
-  };
+};
 
-  const handleUpdatePlant = async (updatedPlant: Plant) => {
+const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Plant) => {
+    await db.plantings.put(updatedPlanting);
     await db.plants.put(updatedPlant);
-    setPlantToEdit(null);
-    setIsSheetOpen(false);
-     toast({
-      title: 'Plant Updated',
-      description: `${updatedPlant.species} has been updated.`,
-    });
-  };
 
-  const handleDeletePlant = async (plantId: string) => {
-    const plantToDelete = await db.plants.get(plantId);
-    await db.plants.delete(plantId);
+    setPlantingToEdit(null);
+    setIsSheetOpen(false);
     toast({
-      title: 'Plant Removed',
-      description: `${plantToDelete?.species} has been removed.`,
+        title: 'Planting Updated',
+        description: `${updatedPlanting.name} has been updated.`,
+    });
+};
+
+  const handleDeletePlanting = async () => {
+    if (!plantingToDelete) return;
+    await db.plantings.delete(plantingToDelete.id);
+    toast({
+      title: 'Planting Removed',
+      description: `${plantingToDelete.name} has been removed.`,
       variant: 'destructive',
     });
+    setPlantingToDelete(null);
+    setIsDeleteAlertOpen(false);
   };
   
-  const handleEditPlant = (plant: Plant) => {
-    setPlantToEdit(plant);
+  const handleEditPlanting = (planting: PlantingWithPlant) => {
+    setPlantingToEdit(planting);
     setIsSheetOpen(true);
   };
 
   const handleOpenAddSheet = () => {
-    setPlantToEdit(null);
+    setPlantingToEdit(null);
     setIsSheetOpen(true);
   };
 
   const handleSheetOpenChange = (open: boolean) => {
     setIsSheetOpen(open);
     if (!open) {
-      setPlantToEdit(null);
+      setPlantingToEdit(null);
     }
   };
 
   const importData = async (data: AiDataset, name: string) => {
-    await db.transaction('rw', db.plants, db.locations, async () => {
+    await db.transaction('rw', db.plants, db.plantings, db.locations, async () => {
       await db.plants.clear();
+      await db.plantings.clear();
       await db.locations.clear();
       if (data.plants) await db.plants.bulkAdd(data.plants);
+      if (data.plantings) await db.plantings.bulkAdd(data.plantings);
       if (data.locations) await db.locations.bulkAdd(data.locations);
     });
 
@@ -247,9 +269,11 @@ export default function Home() {
 
   const handlePublish = async () => {
     const plantsData = await db.plants.toArray();
+    const plantingsData = await db.plantings.toArray();
     const locationsData = await db.locations.toArray();
     const dataToPublish = {
       plants: plantsData,
+      plantings: plantingsData,
       locations: locationsData,
       activeLocationId,
     };
@@ -294,8 +318,12 @@ export default function Home() {
     }, 100);
   };
   
-  const promptDeleteLocation = (location: GardenLocation) => {
-    setLocationToDelete(location);
+  const promptDelete = (item: GardenLocation | PlantingWithPlant) => {
+    if ('conditions' in item) { // It's a GardenLocation
+        setLocationToDelete(item);
+    } else { // It's a PlantingWithPlant
+        setPlantingToDelete(item);
+    }
     setIsDeleteAlertOpen(true);
   };
 
@@ -451,18 +479,19 @@ export default function Home() {
     }
   };
   
-  const handleMarkAsDuplicate = (plant: Plant) => {
-    setDuplicateSelectionMode(plant);
+  const handleMarkAsDuplicate = (planting: PlantingWithPlant) => {
+    setDuplicateSelectionMode(planting);
   };
 
-  const handleDuplicateSelection = async (plantToModify: Plant) => {
+  const handleDuplicateSelection = async (plantingToModify: PlantingWithPlant) => {
     if (!duplicateSelectionMode) return;
 
     try {
-      await db.plants.update(plantToModify.id, { species: duplicateSelectionMode.species });
+      // Re-assign the planting to the same plantId as the source
+      await db.plantings.update(plantingToModify.id, { plantId: duplicateSelectionMode.plantId });
       toast({
         title: 'Duplicate Marked',
-        description: `"${plantToModify.species}" is now marked as a duplicate of "${duplicateSelectionMode.species}".`,
+        description: `"${plantingToModify.name}" is now marked as a duplicate of "${duplicateSelectionMode.name}".`,
       });
       setDuplicateSelectionMode(null);
       setIsDuplicateReviewSheetOpen(true);
@@ -470,64 +499,74 @@ export default function Home() {
       console.error('Failed to mark as duplicate:', error);
       toast({
         title: 'Error',
-        description: 'Could not mark plant as duplicate. See console for details.',
+        description: 'Could not mark planting as duplicate. See console for details.',
         variant: 'destructive',
       });
       setDuplicateSelectionMode(null);
     }
   };
 
+  const plantingsWithPlants = useMemo((): PlantingWithPlant[] => {
+    if (!plantings || !plants) return [];
+    const plantMap = new Map(plants.map(p => [p.id, p]));
+    return plantings
+      .map(p => ({ ...p, plant: plantMap.get(p.plantId)! }))
+      .filter(p => p.plant); // Filter out plantings with no matching plant
+  }, [plantings, plants]);
 
-  const sortedAndFilteredPlants = useMemo(() => {
-    if (!plants) return [];
+
+  const sortedAndFilteredPlantings = useMemo(() => {
+    if (!plantingsWithPlants) return [];
+
+    const getStatus = (p: Planting) => p.history && p.history.length > 0 ? p.history[p.history.length - 1].status : null;
 
     const filtered = statusFilter === 'All' || statusFilter === 'Planting'
-        ? plants 
-        : plants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length - 1].status === statusFilter);
+        ? plantingsWithPlants 
+        : plantingsWithPlants.filter(p => getStatus(p) === statusFilter);
 
     if (activeLocation?.conditions) {
         const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
         
         return filtered.slice().sort((a, b) => {
-            const viabilityA = analyzeViability(a, activeLocation.conditions);
-            const viabilityB = analyzeViability(b, activeLocation.conditions);
+            const viabilityA = analyzeViability(a.plant, activeLocation.conditions);
+            const viabilityB = analyzeViability(b.plant, activeLocation.conditions);
             return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
         });
     }
     
     return filtered;
-  }, [plants, statusFilter, activeLocation?.conditions]);
+  }, [plantingsWithPlants, statusFilter, activeLocation?.conditions]);
 
-  const plantsInPlantingStatus = useMemo(() => {
-      if (!plants) return [];
-      return plants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length-1].status === 'Planting');
-  }, [plants]);
+  const plantingsInPlantingStatus = useMemo(() => {
+      if (!plantingsWithPlants) return [];
+      return plantingsWithPlants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length-1].status === 'Planting');
+  }, [plantingsWithPlants]);
   
-  const plantingDashboardPlants = useMemo(() => {
-    if (!plants) return [];
-    return plants.filter(p => p.history && p.history.length > 0 && ['Wishlist', 'Harvest'].includes(p.history[p.history.length-1].status));
-  }, [plants]);
+  const plantingDashboardPlantings = useMemo(() => {
+    if (!plantingsWithPlants) return [];
+    return plantingsWithPlants.filter(p => p.history && p.history.length > 0 && ['Wishlist', 'Harvest'].includes(p.history[p.history.length-1].status));
+  }, [plantingsWithPlants]);
 
 
   const statusCounts = useMemo(() => {
     const counts: { [key in PlantStatus | 'All']: number } = {
         All: 0, Wishlist: 0, Planting: 0, Growing: 0, Harvest: 0
     };
-    if (!plants) return counts;
-    counts.All = plants.length;
-    plants.forEach(p => {
+    if (!plantings) return counts;
+    counts.All = plantings.length;
+    plantings.forEach(p => {
         if (p.history && p.history.length > 0) {
             const lastStatus = p.history[p.history.length - 1].status;
             counts[lastStatus]++;
         }
     });
     return counts;
-  }, [plants]);
+  }, [plantings]);
 
   const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
 
 
-  if (!isClient || !plants || !locations || !aiLogs) {
+  if (!isClient || !plantings || !plants || !locations || !aiLogs) {
     return null;
   }
 
@@ -541,7 +580,7 @@ export default function Home() {
                         <div className="flex items-center gap-3">
                             <Info className="h-5 w-5 text-blue-400" />
                             <p className="text-sm font-medium">
-                                Select a plant to mark as a duplicate of <span className="font-bold text-white">{duplicateSelectionMode.species}</span>.
+                                Select a planting to mark as a duplicate of <span className="font-bold text-white">{duplicateSelectionMode.name}</span>.
                             </p>
                         </div>
                         <Button variant="ghost" size="icon" onClick={() => setDuplicateSelectionMode(null)}>
@@ -577,7 +616,7 @@ export default function Home() {
                                     activeLocationId={activeLocationId}
                                     onLocationChange={setActiveLocationId}
                                     onAddLocation={handleAddLocation}
-                                    onDeleteLocation={promptDeleteLocation}
+                                    onDeleteLocation={(loc) => promptDelete(loc)}
                                   />
                               </div>
                               <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
@@ -590,7 +629,7 @@ export default function Home() {
                           <div className="flex items-center gap-2 pl-4">
                              <Button onClick={handleOpenAddSheet}>
                                   <PlusCircle className="mr-2 h-4 w-4" />
-                                  Add Plant
+                                  Add Planting
                               </Button>
                               <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10">
                                 <Settings className="h-4 w-4" />
@@ -672,8 +711,8 @@ export default function Home() {
                         const count = statusCounts[status];
                         let displayCount: string | number = count;
 
-                        if (status === 'Planting' && plantingDashboardPlants.length > 0) {
-                            displayCount = `${count}+${plantingDashboardPlants.length}`;
+                        if (status === 'Planting' && plantingDashboardPlantings.length > 0) {
+                            displayCount = `${count}+${plantingDashboardPlantings.length}`;
                         }
 
                         return (
@@ -693,60 +732,60 @@ export default function Home() {
                     })}
                 </div>
                 
-                {plants && plants.length > 0 ? (
+                {plantings && plantings.length > 0 ? (
                     <>
                       {statusFilter === 'Planting' ? (
                           <div className="space-y-8">
-                              {plantsInPlantingStatus.length > 0 && (
+                              {plantingsInPlantingStatus.length > 0 && (
                                 <div>
                                     <h2 className="text-2xl font-headline mb-4">Currently Planting</h2>
                                     <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                        {plantsInPlantingStatus.map(plant => (
+                                        {plantingsInPlantingStatus.map(p => (
                                             <PlantCard 
-                                                key={plant.id} 
-                                                plant={plant} 
+                                                key={p.id} 
+                                                planting={p} 
                                                 gardenConditions={activeLocation?.conditions}
-                                                onEdit={() => handleEditPlant(plant)}
-                                                onDelete={() => handleDeletePlant(plant.id)}
-                                                onMarkAsDuplicate={() => handleMarkAsDuplicate(plant)}
-                                                isDuplicateSource={duplicateSelectionMode?.id === plant.id}
+                                                onEdit={() => handleEditPlanting(p)}
+                                                onDelete={() => promptDelete(p)}
+                                                onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                                isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                                 isSelectionMode={!!duplicateSelectionMode}
-                                                onSelectDuplicate={() => handleDuplicateSelection(plant)}
+                                                onSelectDuplicate={() => handleDuplicateSelection(p)}
                                             />
                                         ))}
                                     </div>
                                 </div>
                               )}
                               <PlantingDashboard
-                                  plants={plantingDashboardPlants}
+                                  plantings={plantingDashboardPlantings}
                                   gardenConditions={activeLocation.conditions}
                                   onOpenAddSheet={handleOpenAddSheet}
                                   onOpenSettings={() => setIsSettingsSheetOpen(true)}
                               />
                           </div>
                       ) : (
-                          sortedAndFilteredPlants.length > 0 ? (
+                          sortedAndFilteredPlantings.length > 0 ? (
                               <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                  {sortedAndFilteredPlants.map(plant => (
+                                  {sortedAndFilteredPlantings.map(p => (
                                       <PlantCard 
-                                          key={plant.id} 
-                                          plant={plant} 
+                                          key={p.id} 
+                                          planting={p} 
                                           gardenConditions={activeLocation?.conditions}
-                                          onEdit={() => handleEditPlant(plant)}
-                                          onDelete={() => handleDeletePlant(plant.id)}
-                                          onMarkAsDuplicate={() => handleMarkAsDuplicate(plant)}
-                                          isDuplicateSource={duplicateSelectionMode?.id === plant.id}
+                                          onEdit={() => handleEditPlanting(p)}
+                                          onDelete={() => promptDelete(p)}
+                                          onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                          isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                           isSelectionMode={!!duplicateSelectionMode}
-                                          onSelectDuplicate={() => handleDuplicateSelection(plant)}
+                                          onSelectDuplicate={() => handleDuplicateSelection(p)}
                                       />
                                   ))}
                               </div>
                           ) : (
                               <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                                   <CardHeader>
-                                      <CardTitle className="font-headline">No Plants Found</CardTitle>
+                                      <CardTitle className="font-headline">No Plantings Found</CardTitle>
                                       <CardDescription>
-                                          No plants with the status "{statusFilter}".
+                                          No plantings with the status "{statusFilter}".
                                       </CardDescription>
                                   </CardHeader>
                               </Card>
@@ -763,7 +802,7 @@ export default function Home() {
                     </CardHeader>
                     <CardContent className="flex gap-4">
                        <Button onClick={handleOpenAddSheet}>
-                         <PlusCircle className="mr-2 h-4 w-4" /> Add Your First Plant
+                         <PlusCircle className="mr-2 h-4 w-4" /> Add Your First Planting
                       </Button>
                        <Button onClick={() => setIsSettingsSheetOpen(true)} variant="secondary">
                          <Upload className="mr-2 h-4 w-4" /> Import Datasets
@@ -801,14 +840,25 @@ export default function Home() {
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to delete this garden?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete "{locationToDelete?.name}" and all of its associated data. This action cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            {locationToDelete && (
+                <AlertDialogDescription>
+                    This will permanently delete "{locationToDelete.name}" and all of its associated data. This action cannot be undone.
+                </AlertDialogDescription>
+            )}
+            {plantingToDelete && (
+                 <AlertDialogDescription>
+                    This will permanently delete the planting "{plantingToDelete.name}". This action cannot be undone.
+                </AlertDialogDescription>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsDeleteAlertOpen(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteLocation}>
+            <AlertDialogCancel onClick={() => {
+                setIsDeleteAlertOpen(false);
+                setLocationToDelete(null);
+                setPlantingToDelete(null);
+            }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={locationToDelete ? handleDeleteLocation : handleDeletePlanting}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -855,28 +905,28 @@ export default function Home() {
       <DuplicateReviewSheet
         isOpen={isDuplicateReviewSheetOpen}
         onOpenChange={setIsDuplicateReviewSheetOpen}
+        plantings={plantingsWithPlants}
       />
 
 
       <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
         <SheetContent className="sm:max-w-lg w-[90vw] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="font-headline">{plantToEdit ? 'Edit Plant' : 'Add a New Plant'}</SheetTitle>
+            <SheetTitle className="font-headline">{plantingToEdit ? 'Edit Planting' : 'Add a New Planting'}</SheetTitle>
           </SheetHeader>
           <PlantForm 
-            plantToEdit={plantToEdit} 
-            onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
+            plantingToEdit={plantingToEdit} 
+            onSubmit={plantingToEdit ? handleUpdatePlanting : handleAddPlanting}
             onConfigureApiKey={() => {
               handleSheetOpenChange(false);
               setIsSettingsSheetOpen(true);
             }}
             areApiKeysSet={areApiKeysSet}
             apiKeys={apiKeys}
+            plants={plants}
           />
         </SheetContent>
       </Sheet>
     </div>
   );
 }
-
-    

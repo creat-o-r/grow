@@ -6,15 +6,25 @@ export type StatusHistory = {
   notes?: string;
 };
 
+// Represents the core, unchanging information about a plant species
 export type Plant = {
   id:string;
   species: string;
   germinationNeeds: string;
   optimalConditions: string;
+};
+
+// Represents a specific instance or "lot" of a plant being grown
+export type Planting = {
+  id: string;
+  plantId: string;
+  gardenId: string;
+  name: string; // e.g., "Spring Carrots 2024"
+  createdAt: string; // ISO String
   history: StatusHistory[];
   seedsOnHand?: number;
   plannedQty?: number;
-};
+}
 
 export type Conditions = {
   temperature: string;
@@ -40,5 +50,11 @@ export type AiLog = {
 
 export type AiDataset = {
   plants: Plant[];
+  plantings: Planting[];
   locations: GardenLocation[];
+}
+
+// A helper type for combining Plant and Planting data for display
+export type PlantingWithPlant extends Planting {
+  plant: Plant;
 }

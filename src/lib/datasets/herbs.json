@@ -18,47 +18,75 @@
             "id": "herb-1",
             "species": "Basil (Ocimum basilicum)",
             "germinationNeeds": "Start seeds indoors or sow directly after the last frost. Needs warm soil (21°C) and light to germinate. Keep moist.",
-            "optimalConditions": "Full sun, hot weather. Rich, moist, but well-drained soil. Pinch tips to encourage bushy growth.",
-            "history": [
-                { "id": "h1", "status": "Wishlist", "date": "2024-04-15T12:00:00.000Z", "notes": "Genovese variety for pesto." }
-            ]
+            "optimalConditions": "Full sun, hot weather. Rich, moist, but well-drained soil. Pinch tips to encourage bushy growth."
         },
         {
             "id": "herb-2",
             "species": "Rosemary (Salvia rosmarinus)",
             "germinationNeeds": "Difficult from seed. Best propagated from cuttings. Needs well-drained soil and sun.",
-            "optimalConditions": "Full sun, well-drained, sandy soil. Drought-tolerant once established. Prefers slightly alkaline pH.",
-            "history": [
-                { "id": "h2", "status": "Growing", "date": "2023-09-01T12:00:00.000Z", "notes": "Established from a cutting." }
-            ]
+            "optimalConditions": "Full sun, well-drained, sandy soil. Drought-tolerant once established. Prefers slightly alkaline pH."
         },
         {
             "id": "herb-3",
             "species": "Thyme (Thymus vulgaris)",
             "germinationNeeds": "Can be started from seed indoors. Needs light to germinate. Sprinkle seeds on surface and press lightly.",
-            "optimalConditions": "Full sun. Light, well-drained soil. Drought-tolerant. Doesn't like wet feet.",
-            "history": [
-                { "id": "h3", "status": "Growing", "date": "2023-05-20T12:00:00.000Z", "notes": "Spreading well as ground cover." }
-            ]
+            "optimalConditions": "Full sun. Light, well-drained soil. Drought-tolerant. Doesn't like wet feet."
         },
         {
             "id": "herb-4",
             "species": "Oregano (Origanum vulgare)",
             "germinationNeeds": "Start from seeds indoors 6-10 weeks before last frost. Needs light to germinate. Surface sow.",
-            "optimalConditions": "Full sun. Well-drained soil. Thrives in moderate heat. Regular trimming encourages fuller growth.",
-            "history": [
-                { "id": "h4", "status": "Harvest", "date": "2024-07-10T12:00:00.000Z", "notes": "Dried for winter use." }
-            ]
+            "optimalConditions": "Full sun. Well-drained soil. Thrives in moderate heat. Regular trimming encourages fuller growth."
         },
         {
             "id": "herb-5",
             "species": "Parsley (Petroselinum crispum)",
             "germinationNeeds": "Seeds can be slow to germinate. Soak seeds overnight before planting. Sow in spring. Prefers soil temps of 21°C.",
-            "optimalConditions": "Full sun to partial shade. Rich, moist, well-drained soil. Benefits from consistent watering.",
-            "history": [
-                { "id": "h5", "status": "Planting", "date": "2024-03-05T12:00:00.000Z", "notes": "Flat-leaf Italian variety." }
-            ],
-            "seedsOnHand": 50
+            "optimalConditions": "Full sun to partial shade. Rich, moist, well-drained soil. Benefits from consistent watering."
+        }
+    ],
+    "plantings": [
+        {
+            "id": "herb-p-1",
+            "plantId": "herb-1",
+            "gardenId": "herbs-loc-1",
+            "name": "Pesto Basil",
+            "createdAt": "2024-04-15T12:00:00.000Z",
+            "history": [ { "id": "h1", "status": "Wishlist", "date": "2024-04-15T12:00:00.000Z", "notes": "Genovese variety for pesto." } ]
+        },
+        {
+            "id": "herb-p-2",
+            "plantId": "herb-2",
+            "gardenId": "herbs-loc-1",
+            "name": "Rosemary Bush",
+            "createdAt": "2023-09-01T12:00:00.000Z",
+            "history": [ { "id": "h2", "status": "Growing", "date": "2023-09-01T12:00:00.000Z", "notes": "Established from a cutting." } ]
+        },
+        {
+            "id": "herb-p-3",
+            "plantId": "herb-3",
+            "gardenId": "herbs-loc-1",
+            "name": "Thyme Ground Cover",
+            "createdAt": "2023-05-20T12:00:00.000Z",
+            "history": [ { "id": "h3", "status": "Growing", "date": "2023-05-20T12:00:00.000Z", "notes": "Spreading well." } ]
+        },
+        {
+            "id": "herb-p-4",
+            "plantId": "herb-4",
+            "gardenId": "herbs-loc-1",
+            "name": "Pizza Oregano",
+            "createdAt": "2024-07-10T12:00:00.000Z",
+            "history": [ { "id": "h4", "status": "Harvest", "date": "2024-07-10T12:00:00.000Z", "notes": "Dried for winter use." } ]
+        },
+        {
+            "id": "herb-p-5",
+            "plantId": "herb-5",
+            "gardenId": "herbs-loc-1",
+            "name": "Italian Parsley",
+            "createdAt": "2024-03-05T12:00:00.000Z",
+            "history": [ { "id": "h5", "status": "Planting", "date": "2024-03-05T12:00:00.000Z", "notes": "Flat-leaf variety." } ],
+            "seedsOnHand": 50,
+            "plannedQty": 100
         }
     ]
 }
