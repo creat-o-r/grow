@@ -25,6 +25,7 @@ type AiLogPanelProps = {
 const FLOW_DISPLAY_NAMES: { [key: string]: string } = {
     getEnvironmentalData: 'Environmental Analysis',
     aiSearchPlantData: 'Plant Data Search',
+    createDataset: 'AI Dataset Creation',
 };
 
 // Helper function to render result values
@@ -144,5 +145,3 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
     </Sheet>
   );
 }
-
-    

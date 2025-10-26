@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, KeyRound } from 'lucide-react';
+import { Upload, Download, KeyRound, Sparkles, Loader2 } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
@@ -16,28 +16,31 @@ type SettingsSheetProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onImport: (datasetKey: string) => void;
+  onAiCreate: (theme: string) => Promise<void>;
   onPublish: () => void;
   onApiKeysChange: (keys: { gemini: string }) => void;
+  apiKeys: { gemini: string };
 };
 
 export function SettingsSheet({
   isOpen,
   onOpenChange,
   onImport,
+  onAiCreate,
   onPublish,
   onApiKeysChange,
+  apiKeys,
 }: SettingsSheetProps) {
   const [datasetToImport, setDatasetToImport] = useState<string | null>(null);
   const [localApiKeys, setLocalApiKeys] = useState({ gemini: '' });
+  const [aiTheme, setAiTheme] = useState('');
+  const [isAiCreating, setIsAiCreating] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      const storedKeys = localStorage.getItem('verdantVerse_apiKeys');
-      if (storedKeys) {
-        setLocalApiKeys(JSON.parse(storedKeys));
-      }
+      setLocalApiKeys(apiKeys);
     }
-  }, [isOpen]);
+  }, [isOpen, apiKeys]);
 
   const handleImportClick = (datasetKey: string) => {
     setDatasetToImport(datasetKey);
@@ -52,6 +55,14 @@ export function SettingsSheet({
 
   const handleSaveApiKeys = () => {
     onApiKeysChange(localApiKeys);
+    onOpenChange(false);
+  }
+
+  const handleAiCreateClick = async () => {
+    if (!aiTheme.trim()) return;
+    setIsAiCreating(true);
+    await onAiCreate(aiTheme);
+    setIsAiCreating(false);
     onOpenChange(false);
   }
 
@@ -90,6 +101,30 @@ export function SettingsSheet({
                     />
                   </div>
                    <Button onClick={handleSaveApiKeys}>Save API Keys</Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-headline text-lg">AI Dataset Generator</CardTitle>
+                   <CardDescription>
+                     Describe the type of garden you want to create, and the AI will generate a starter dataset for you.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                   <div className="space-y-2">
+                    <Label htmlFor="ai-theme">Garden Theme</Label>
+                    <Input 
+                      id="ai-theme" 
+                      placeholder="e.g., A low-maintenance herb garden"
+                      value={aiTheme}
+                      onChange={(e) => setAiTheme(e.target.value)}
+                    />
+                  </div>
+                  <Button onClick={handleAiCreateClick} disabled={isAiCreating || !aiTheme.trim()}>
+                    {isAiCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                    Generate Dataset
+                  </Button>
                 </CardContent>
               </Card>
 
@@ -143,5 +178,3 @@ export function SettingsSheet({
     </>
   );
 }
-
-    

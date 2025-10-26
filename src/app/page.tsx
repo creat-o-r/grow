@@ -4,10 +4,11 @@
 import { useState, useEffect, useCallback, MouseEvent, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog } from '@/lib/types';
+import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog, AiDataset } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
+import { createDataset } from '@/ai/flows/create-dataset-flow';
 import { loadDataset } from '@/lib/datasets';
 import { analyzeViability, Viability } from '@/lib/viability';
 
@@ -200,28 +201,31 @@ export default function Home() {
     }
   };
 
+  const importData = async (data: AiDataset, name: string) => {
+    await db.transaction('rw', db.plants, db.locations, async () => {
+      await db.plants.clear();
+      await db.locations.clear();
+      if (data.plants) await db.plants.bulkAdd(data.plants);
+      if (data.locations) await db.locations.bulkAdd(data.locations);
+    });
+
+    const firstLocation = data.locations?.[0];
+    if (firstLocation) {
+      setActiveLocationId(firstLocation.id);
+    } else {
+      setActiveLocationId(null);
+    }
+    toast({
+        title: 'Data Imported',
+        description: `The "${name}" dataset has been loaded.`,
+    });
+    setIsSettingsSheetOpen(false);
+  }
+
   const handleImport = async (datasetKey: string) => {
     try {
         const dataset = await loadDataset(datasetKey);
-        await db.transaction('rw', db.plants, db.locations, async () => {
-            await db.plants.clear();
-            await db.locations.clear();
-            await db.plants.bulkAdd(dataset.plants);
-            await db.locations.bulkAdd(dataset.locations);
-        });
-
-        const firstLocation = dataset.locations[0];
-        if (firstLocation) {
-            setActiveLocationId(firstLocation.id);
-        } else {
-            setActiveLocationId(null);
-        }
-
-        toast({
-            title: 'Data Imported',
-            description: `The "${dataset.name}" dataset has been loaded.`,
-        });
-        setIsSettingsSheetOpen(false);
+        await importData(dataset, dataset.name);
     } catch (error) {
         console.error('Failed to import dataset:', error);
         toast({
@@ -229,6 +233,41 @@ export default function Home() {
             description: 'There was an error loading the dataset.',
             variant: 'destructive',
         });
+    }
+  };
+  
+  const handleAiCreate = async (theme: string) => {
+    if (!areApiKeysSet) {
+      toast({
+        title: 'API Key Required',
+        description: 'Please set your Gemini API key in the settings.',
+        variant: 'destructive',
+      });
+      setIsSettingsSheetOpen(true);
+      return;
+    }
+    try {
+      const promptData = { theme };
+      const result = await createDataset({ ...promptData, apiKeys });
+      
+      const newLog: AiLog = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        flow: 'createDataset',
+        prompt: promptData,
+        results: result,
+      };
+      await db.aiLogs.add(newLog);
+
+      await importData(result, `AI-Generated: ${theme}`);
+
+    } catch (error: any) {
+       console.error('AI dataset creation failed:', error);
+      toast({
+        title: 'AI Creation Failed',
+        description: error.message || 'Could not create the dataset. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -705,8 +744,10 @@ export default function Home() {
         isOpen={isSettingsSheetOpen}
         onOpenChange={setIsSettingsSheetOpen}
         onImport={handleImport}
-        onPublish={handlePublish}
+        onAiCreate={handleAiCreate}
+        onPublish={onPublish}
         onApiKeysChange={handleApiKeysChange}
+        apiKeys={apiKeys}
       />
 
 
@@ -727,5 +768,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

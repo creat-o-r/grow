@@ -1,11 +1,9 @@
 
-import type { Plant, GardenLocation } from '../types';
+import type { Plant, GardenLocation, AiDataset } from '../types';
 
-export interface Dataset {
+export interface Dataset extends AiDataset {
     name: string;
     description: string;
-    plants: Plant[];
-    locations: GardenLocation[];
 }
 
 export interface DatasetInfo {

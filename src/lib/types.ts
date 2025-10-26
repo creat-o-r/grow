@@ -36,4 +36,7 @@ export type AiLog = {
     results: any;
 }
 
-    
+export type AiDataset = {
+  plants: Plant[];
+  locations: GardenLocation[];
+}
