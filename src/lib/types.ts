@@ -39,7 +39,5 @@ export type AiLog = {
 
 export type ApiKeys = {
   gemini: string;
-  anthropic?: string;
-  openai?: string;
 };
     

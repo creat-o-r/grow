@@ -13,15 +13,12 @@ import { genkit } from 'genkit';
 import { z } from 'zod';
 import { googleAI } from '@genkit-ai/google-genai';
 
-
 const AISearchPlantDataInputSchema = z.object({
   searchTerm: z
     .string()
     .describe('The name or description of the plant to search for.'),
   apiKeys: z.object({
       gemini: z.string().optional(),
-      anthropic: z.string().optional(),
-      openai: z.string().optional(),
   }).optional(),
 });
 export type AISearchPlantDataInput = z.infer<typeof AISearchPlantDataInputSchema>;
@@ -37,11 +34,14 @@ export async function aiSearchPlantData(
   input: AISearchPlantDataInput,
 ): Promise<AISearchPlantDataOutput> {
   const plugins = [];
+  let model: any = undefined;
+
   if (input.apiKeys?.gemini) {
     plugins.push(googleAI({ apiKey: input.apiKeys.gemini }));
-  }
-  if (plugins.length === 0) {
+    model = 'gemini-1.5-pro-latest';
+  } else {
      plugins.push(googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY }));
+     model = 'gemini-1.5-pro-latest';
   }
 
   const ai = genkit({ plugins });
@@ -66,7 +66,7 @@ If there is no definitive answer based on the search term, make your best guess.
       outputSchema: AISearchPlantDataOutputSchema,
     },
     async (flowInput) => {
-      const {output} = await prompt(flowInput, { model: 'gemini-2.5-flash' });
+      const {output} = await prompt(flowInput, { model });
       return output!;
     }
   );

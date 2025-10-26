@@ -12,13 +12,10 @@ import { genkit } from 'genkit';
 import { z } from 'zod';
 import { googleAI } from '@genkit-ai/google-genai';
 
-
 const GetEnvironmentalDataInputSchema = z.object({
   location: z.string().describe('The city and country, e.g., "San Francisco, USA"'),
   apiKeys: z.object({
       gemini: z.string().optional(),
-      anthropic: z.string().optional(),
-      openai: z.string().optional(),
   }).optional(),
 });
 export type GetEnvironmentalDataInput = z.infer<typeof GetEnvironmentalDataInputSchema>;
@@ -37,11 +34,16 @@ export async function getEnvironmentalData(
 ): Promise<GetEnvironmentalDataOutput> {
 
   const plugins = [];
+  let model: any = undefined;
+
   if (input.apiKeys?.gemini) {
     plugins.push(googleAI({ apiKey: input.apiKeys.gemini }));
+    model = 'gemini-1.5-pro-latest';
   }
+  
    if (plugins.length === 0) {
      plugins.push(googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY }));
+     model = 'gemini-1.5-pro-latest';
   }
 
   const ai = genkit({ plugins });
@@ -70,7 +72,7 @@ Return your response in the structured format defined by the output schema.
       outputSchema: GetEnvironmentalDataOutputSchema,
     },
     async (flowInput) => {
-      const {output} = await prompt(flowInput, { model: 'gemini-2.5-flash' });
+      const {output} = await prompt(flowInput, { model });
       return output!;
     }
   );
