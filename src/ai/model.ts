@@ -30,6 +30,15 @@ export async function getModels(apiKeys?: ApiKeys): Promise<string[]> {
     models.push('googleai/gemini-1.5-flash');
   }
 
+  const openRouterApiKey =
+    apiKeys?.openrouter || process.env.OPENROUTER_API_KEY;
+  if (openRouterApiKey) {
+    models.push(
+      'openrouter/google/gemini-flash-1.5',
+      'openrouter/microsoft/phi-3-medium-128k-instruct',
+    );
+  }
+
   if (models.length === 0) {
     throw new Error('No API key is set.');
   }

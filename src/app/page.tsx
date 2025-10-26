@@ -32,7 +32,7 @@ type NominatimResult = {
   lat: string;
   lon: string;
 };
-type ApiKeyName = 'perplexity' | 'openai' | 'groq' | 'gemini';
+type ApiKeyName = 'perplexity' | 'openai' | 'groq' | 'gemini' | 'openrouter';
 
 
 export default function Home() {
@@ -63,6 +63,7 @@ export default function Home() {
     openai: '',
     groq: '',
     gemini: '',
+    openrouter: '',
   });
 
   const { toast } = useToast();
@@ -77,12 +78,14 @@ export default function Home() {
     const savedOpenAIKey = localStorage.getItem('grow_openaiApiKey') || '';
     const savedGroqKey = localStorage.getItem('grow_groqApiKey') || '';
     const savedGeminiKey = localStorage.getItem('grow_geminiApiKey') || '';
+    const savedOpenRouterKey = localStorage.getItem('grow_openrouterApiKey') || '';
 
     const currentApiKeys = {
       perplexity: savedPerplexityKey,
       openai: savedOpenAIKey,
       groq: savedGroqKey,
       gemini: savedGeminiKey,
+      openrouter: savedOpenRouterKey,
     };
 
     setApiKeys(currentApiKeys);
@@ -431,6 +434,7 @@ export default function Home() {
       openai: 'grow_openaiApiKey',
       groq: 'grow_groqApiKey',
       gemini: 'grow_geminiApiKey',
+      openrouter: 'grow_openrouterApiKey',
     };
     
     localStorage.setItem(keyMap[keyName], key);

@@ -12,7 +12,7 @@ import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
-type ApiKeyName = 'perplexity' | 'openai' | 'groq' | 'gemini';
+type ApiKeyName = 'perplexity' | 'openai' | 'groq' | 'gemini' | 'openrouter';
 
 type SettingsSheetProps = {
   isOpen: boolean;
@@ -34,12 +34,14 @@ export function SettingsSheet({
   const [perplexityKey, setPerplexityKey] = useState(apiKeys.perplexity);
   const [openAIKey, setOpenAIKey] = useState(apiKeys.openai);
   const [geminiKey, setGeminiKey] = useState(apiKeys.gemini);
+  const [openRouterKey, setOpenRouterKey] = useState(apiKeys.openrouter);
   const [datasetToImport, setDatasetToImport] = useState<string | null>(null);
 
   useEffect(() => {
     setPerplexityKey(apiKeys.perplexity);
     setOpenAIKey(apiKeys.openai);
     setGeminiKey(apiKeys.gemini);
+    setOpenRouterKey(apiKeys.openrouter);
   }, [apiKeys]);
 
   const handleSaveClick = (keyName: ApiKeyName, key: string) => {
@@ -141,6 +143,28 @@ export function SettingsSheet({
                       />
                     </div>
                     <Button onClick={() => handleSaveClick('perplexity', perplexityKey)} className="w-full">Save Key</Button>
+                  </div>
+                  {/* OpenRouter */}
+                  <div className="space-y-4 p-4 border rounded-lg">
+                    <h4 className="font-semibold">OpenRouter</h4>
+                    <Button
+                      onClick={() => window.open('https://openrouter.ai/keys', '_blank')}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Get OpenRouter API Key
+                    </Button>
+                    <div className="space-y-2">
+                      <Label htmlFor="openrouter-key">API Key</Label>
+                      <Input
+                        id="openrouter-key"
+                        placeholder="Paste your key here"
+                        value={openRouterKey}
+                        onChange={(e) => setOpenRouterKey(e.target.value)}
+                      />
+                    </div>
+                    <Button onClick={() => handleSaveClick('openrouter', openRouterKey)} className="w-full">Save Key</Button>
                   </div>
                 </CardContent>
               </Card>
