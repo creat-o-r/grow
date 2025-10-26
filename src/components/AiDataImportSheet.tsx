@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from '@/components/ui/textarea';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 import { Loader2, Sparkles, AlertTriangle, CheckCircle, Replace, PlusCircle, Wand2, RefreshCw, Trash2 } from 'lucide-react';
 import { createDataset } from '@/ai/flows/create-dataset-flow';
@@ -93,6 +94,13 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     } finally {
         setIsGenerating(false);
     }
+  };
+  
+  const handleLocationNameChange = (newName: string) => {
+    if (!generatedData) return;
+    const updatedLocations = [...generatedData.locations];
+    updatedLocations[0].name = newName;
+    setGeneratedData({ ...generatedData, locations: updatedLocations });
   };
 
   const handleRemovePlant = (plantId: string) => {
@@ -186,7 +194,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     <Sheet open={isOpen} onOpenChange={handleClose}>
       <SheetContent className="sm:max-w-2xl w-[90vw] flex flex-col">
         <SheetHeader>
-          <SheetTitle className="font-headline">Generate Plant Data</SheetTitle>
+          <SheetTitle className="font-headline">Generate Data Import list</SheetTitle>
           <SheetDescription>
             Describe a garden theme, and the AI will generate a dataset for you. You can then refine it conversationally.
           </SheetDescription>
@@ -245,7 +253,15 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                             <h3 className="font-semibold text-lg">Review Your New Garden</h3>
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="font-headline">{generatedData.locations[0].name}</CardTitle>
+                                     <div className="space-y-1">
+                                        <Label htmlFor="garden-name">Garden Name</Label>
+                                        <Input
+                                            id="garden-name"
+                                            value={generatedData.locations[0].name}
+                                            onChange={(e) => handleLocationNameChange(e.target.value)}
+                                            className="text-lg font-headline h-auto p-0 border-0 shadow-none focus-visible:ring-0"
+                                        />
+                                    </div>
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-sm text-muted-foreground">{generatedData.locations[0].location}</p>
@@ -256,36 +272,38 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                             </Card>
                              <div className="space-y-2">
                                 <h4 className="font-medium text-sm">Generated Plants ({generatedData.plants.length})</h4>
-                                <ScrollArea className="h-64 rounded-md border p-2">
-                                    <div className="space-y-2">
+                                <ScrollArea className="h-64 rounded-md border">
+                                    <Accordion type="single" collapsible className="w-full">
                                         {generatedData.plants.map(plant => (
-                                            <Card key={plant.id} className="p-4">
-                                                <div className="flex justify-between items-start">
-                                                    <h5 className="font-semibold pr-2">{plant.species}</h5>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive -mt-1 -mr-1" onClick={() => handleRemovePlant(plant.id)}>
-                                                        <Trash2 className="h-4 w-4"/>
-                                                        <span className="sr-only">Remove {plant.species}</span>
-                                                    </Button>
-                                                </div>
-                                                <div className="text-xs text-muted-foreground space-y-2 mt-2">
-                                                    <div>
-                                                        <p className="font-semibold text-foreground/80">Germination</p>
-                                                        <p>{plant.germinationNeeds}</p>
+                                            <AccordionItem value={plant.id} key={plant.id} className="border-x-0 border-t-0 px-4">
+                                                <AccordionTrigger className="py-3 hover:no-underline">
+                                                    <div className="flex-1 text-left font-semibold pr-2">{plant.species}</div>
+                                                </AccordionTrigger>
+                                                <AccordionContent className="pb-4 space-y-4">
+                                                    <div className="text-xs text-muted-foreground space-y-2 mt-2">
+                                                        <div>
+                                                            <p className="font-semibold text-foreground/80">Germination</p>
+                                                            <p>{plant.germinationNeeds}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-semibold text-foreground/80">Conditions</p>
+                                                            <p>{plant.optimalConditions}</p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="font-semibold text-foreground/80">Conditions</p>
-                                                        <p>{plant.optimalConditions}</p>
+                                                    <div className="mt-3 flex gap-2">
+                                                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleFetchMoreLikeThis(plant)} disabled={!!isFetchingMore}>
+                                                            {isFetchingMore === plant.id ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <RefreshCw className="mr-2 h-3 w-3"/>}
+                                                            More like this
+                                                        </Button>
+                                                        <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => handleRemovePlant(plant.id)}>
+                                                            <Trash2 className="mr-2 h-3 w-3"/>
+                                                            Remove
+                                                        </Button>
                                                     </div>
-                                                </div>
-                                                <div className="mt-3">
-                                                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleFetchMoreLikeThis(plant)} disabled={!!isFetchingMore}>
-                                                        {isFetchingMore === plant.id ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <RefreshCw className="mr-2 h-3 w-3"/>}
-                                                        More like this
-                                                    </Button>
-                                                </div>
-                                            </Card>
+                                                </AccordionContent>
+                                            </AccordionItem>
                                         ))}
-                                    </div>
+                                    </Accordion>
                                 </ScrollArea>
                             </div>
                         </div>
@@ -348,3 +366,5 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     </Sheet>
   );
 }
+
+    
