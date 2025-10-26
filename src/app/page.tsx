@@ -93,7 +93,7 @@ export default function Home() {
     if (storedKeys) {
       const parsedKeys = JSON.parse(storedKeys);
       setApiKeys(parsedKeys);
-      if (parsedKeys.gemini || parsedKeys.anthropic || parsedKeys.openai) {
+      if (parsedKeys.gemini) {
         setAreApiKeysSet(true);
       }
     }
@@ -111,7 +111,7 @@ export default function Home() {
   const handleApiKeysChange = (newKeys: ApiKeys) => {
     localStorage.setItem('verdantVerse_apiKeys', JSON.stringify(newKeys));
     setApiKeys(newKeys);
-    if (newKeys.gemini || newKeys.anthropic || newKeys.openai) {
+    if (newKeys.gemini) {
       setAreApiKeysSet(true);
       toast({
         title: 'API Keys Saved',
@@ -705,7 +705,7 @@ export default function Home() {
         isOpen={isSettingsSheetOpen}
         onOpenChange={setIsSettingsSheetOpen}
         onImport={handleImport}
-        onPublish={onPublish}
+        onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
       />
@@ -728,3 +728,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
