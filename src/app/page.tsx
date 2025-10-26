@@ -93,7 +93,7 @@ export default function Home() {
     if (storedKeys) {
       const parsedKeys = JSON.parse(storedKeys);
       setApiKeys(parsedKeys);
-      if (parsedKeys.gemini) {
+       if (parsedKeys.gemini) {
         setAreApiKeysSet(true);
       }
     }
