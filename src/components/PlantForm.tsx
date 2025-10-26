@@ -97,7 +97,7 @@ export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKe
       console.error('AI search failed:', error);
       toast({
         title: 'AI Search Failed',
-        description: 'Could not retrieve plant data. Please try again.',
+        description: error instanceof Error ? error.message : 'An unknown error occurred.',
         variant: 'destructive',
       });
     } finally {

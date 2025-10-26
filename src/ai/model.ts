@@ -9,24 +9,30 @@
 import { ApiKeys } from './genkit';
 
 /**
- * Gets the appropriate AI model based on the available API keys.
- * Prioritizes Groq, then OpenAI, and falls back to Google AI.
+ * Gets a prioritized list of AI models based on the available API keys.
+ * Prioritizes Groq, then OpenAI (with a fallback), and finally Google AI.
  */
-export async function getModel(apiKeys?: ApiKeys): Promise<string> {
+export async function getModels(apiKeys?: ApiKeys): Promise<string[]> {
+  const models: string[] = [];
+
   const groqApiKey = apiKeys?.groq || process.env.GROQ_API_KEY;
   if (groqApiKey) {
-    return 'groq/gemma-7b-it';
+    models.push('groq/gemma-7b-it');
   }
 
   const openaiApiKey = apiKeys?.openai || process.env.OPENAI_API_KEY;
   if (openaiApiKey) {
-    return 'openai/gpt-4o';
+    models.push('openai/gpt-4o', 'openai/gpt-3.5-turbo');
   }
 
   const geminiApiKey = apiKeys?.gemini || process.env.GEMINI_API_KEY;
   if (geminiApiKey) {
-    return 'googleai/gemini-pro';
+    models.push('googleai/gemini-1.5-flash');
   }
 
-  throw new Error('No API key is set.');
+  if (models.length === 0) {
+    throw new Error('No API key is set.');
+  }
+
+  return models;
 }

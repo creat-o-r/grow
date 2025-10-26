@@ -417,7 +417,7 @@ export default function Home() {
       console.error('AI analysis failed:', error);
       toast({
         title: 'AI Analysis Failed',
-        description: 'Could not retrieve environmental data. Please try again.',
+        description: error instanceof Error ? error.message : 'An unknown error occurred.',
         variant: 'destructive',
       });
     } finally {

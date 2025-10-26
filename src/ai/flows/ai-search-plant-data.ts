@@ -10,7 +10,7 @@
  */
 
 import { initializeGenkit, ApiKeys } from '@/ai/genkit';
-import { getModel } from '@/ai/model';
+import { getModels } from '@/ai/model';
 import { z } from 'zod';
 
 const AISearchPlantDataInputSchema = z.object({
@@ -40,9 +40,21 @@ export async function aiSearchPlantData(
       outputSchema: AISearchPlantDataOutputSchema,
     },
     async (flowInput) => {
-      const model = await getModel(flowInput.apiKeys);
-      const {output} = await ai.prompt('aiSearchPlantDataPrompt')(flowInput, { model });
-      return output!;
+      const models = await getModels(flowInput.apiKeys);
+      for (const model of models) {
+        try {
+          const { output } = await ai.prompt('aiSearchPlantDataPrompt')(flowInput, { model });
+          if (output) {
+            return output;
+          }
+        } catch (error) {
+          console.error(`Model ${model} failed:`, error);
+          if (error instanceof Error && error.message.includes('quota')) {
+            throw new Error('You have exceeded your API quota. Please check your plan and billing details.');
+          }
+        }
+      }
+      throw new Error('All available models failed to generate a response. Please check your API keys and try again.');
     }
   );
   return aiSearchPlantDataFlow(input);
