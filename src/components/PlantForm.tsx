@@ -70,7 +70,8 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
   });
   
   const speciesValue = form.watch('species');
-  const lastStatus = form.watch('history')?.slice(-1)[0]?.status;
+  const historyValue = form.watch('history');
+  const lastStatus = historyValue?.slice(-1)[0]?.status;
 
 
   useEffect(() => {

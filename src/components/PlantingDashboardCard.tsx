@@ -2,18 +2,44 @@
 'use client';
 import { useState } from 'react';
 import type { Plant } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/db';
 import { ExternalLink } from 'lucide-react';
+import { ToastAction } from '@/components/ui/toast';
 
 export function PlantingDashboardCard({ plant }: { plant: Plant }) {
     const [seedsOnHand, setSeedsOnHand] = useState<number | string>('');
     const [plannedQty, setPlannedQty] = useState('');
     const { toast } = useToast();
+    
+    const previousPlantState = {
+        history: plant.history,
+        seedsOnHand: plant.seedsOnHand,
+    };
+
+    const handleUndo = async () => {
+        try {
+            await db.plants.update(plant.id, {
+                history: previousPlantState.history,
+                seedsOnHand: previousPlantState.seedsOnHand,
+            });
+            toast({
+                title: 'Undo Successful',
+                description: `${plant.species} status has been reverted.`,
+            });
+        } catch (error) {
+            toast({
+                title: 'Undo Failed',
+                description: 'Could not revert the plant status.',
+                variant: 'destructive',
+            });
+        }
+    };
+
 
     const updatePlantStatus = async (status: 'Planting' | 'Growing', seeds?: number) => {
         const newHistoryEntry = {
@@ -23,14 +49,24 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
             notes: `Status changed from Planting Dashboard.`,
         };
         try {
-            await db.plants.update(plant.id, {
+            const updatePayload: Partial<Plant> = {
                 history: [...plant.history, newHistoryEntry],
-                ...(seeds !== undefined && { seedsOnHand: seeds }),
-            });
+            };
+            if (seeds !== undefined) {
+                updatePayload.seedsOnHand = seeds;
+            }
+
+            await db.plants.update(plant.id, updatePayload);
+            
             toast({
                 title: 'Plant Updated',
                 description: `${plant.species} has been marked as ${status}.`,
+                action: <ToastAction altText="Undo" onClick={handleUndo}>Undo</ToastAction>,
             });
+            
+            setSeedsOnHand('');
+            setPlannedQty('');
+
         } catch (error) {
             toast({
                 title: 'Error',
@@ -54,7 +90,7 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
     };
 
     return (
-        <Card className="flex flex-col">
+        <Card className="flex flex-col bg-muted/50">
             <CardHeader>
                 <div className="flex justify-between items-start">
                     <CardTitle className="font-headline text-lg leading-tight mb-1 pr-2">{plant.species}</CardTitle>
@@ -70,7 +106,7 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
-                <div className="space-y-2">
+                 <div className="space-y-2">
                     <Label htmlFor={`seeds-on-hand-${plant.id}`}>Seeds on Hand</Label>
                     <div className="flex gap-2">
                         <Input
@@ -94,12 +130,11 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
                         onChange={(e) => setPlannedQty(e.target.value)}
                     />
                 </div>
+                 <div className="flex gap-2">
+                    <Button variant="secondary" className="w-full" onClick={() => updatePlantStatus('Planting')}>Mark as Planting</Button>
+                    <Button variant="secondary" className="w-full" onClick={() => updatePlantStatus('Growing')}>Mark as Growing</Button>
+                </div>
             </CardContent>
-            <CardFooter className="flex gap-2">
-                <Button variant="outline" className="w-full" onClick={() => updatePlantStatus('Planting')}>Mark as Planting</Button>
-                <Button variant="outline" className="w-full" onClick={() => updatePlantStatus('Growing')}>Mark as Growing</Button>
-            </CardFooter>
         </Card>
     );
 }
-
