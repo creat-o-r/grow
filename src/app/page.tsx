@@ -745,7 +745,7 @@ export default function Home() {
         onOpenChange={setIsSettingsSheetOpen}
         onImport={handleImport}
         onAiCreate={handleAiCreate}
-        onPublish={onPublish}
+        onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
       />
@@ -768,3 +768,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
