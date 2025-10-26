@@ -34,8 +34,8 @@ export async function getModels(apiKeys?: ApiKeys): Promise<string[]> {
     apiKeys?.openrouter || process.env.OPENROUTER_API_KEY;
   if (openRouterApiKey) {
     models.push(
-      'openrouter/gemini-flash-1.5',
-      'openrouter/phi-3-medium-128k-instruct'
+      'openrouter/google-gemini-flash-1.5',
+      'openrouter/microsoft-phi-3-medium-128k-instruct'
     );
   }
 

@@ -38,22 +38,16 @@ export function initializeGenkit(apiKeys?: ApiKeys) {
         baseURL: 'https://openrouter.ai/api/v1',
         initializer: async (client) => {
           const models = [
-            {
-              id: 'google/gemini-flash-1.5',
-              name: 'gemini-flash-1.5',
-            },
-            {
-              id: 'microsoft/phi-3-medium-128k-instruct',
-              name: 'phi-3-medium-128k-instruct',
-            },
-          ].map((model) =>
+            'google/gemini-flash-1.5',
+            'microsoft/phi-3-medium-128k-instruct',
+          ].map((modelId) =>
             defineCompatOpenAIModel({
               client,
-              name: `openrouter/${model.name}`,
+              name: `openrouter/${modelId.replace('/', '-')}`,
               modelRef: compatOaiModelRef({
-                name: model.id,
+                name: modelId,
                 info: {
-                  label: `OpenRouter - ${model.id}`,
+                  label: `OpenRouter - ${modelId}`,
                   supports: {
                     media: false,
                     tools: false,
