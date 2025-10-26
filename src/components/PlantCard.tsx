@@ -48,7 +48,7 @@ export function PlantCard({
                 <div className="flex justify-between items-start">
                     <CardTitle className="font-headline text-xl leading-tight mb-1 pr-2">{plant.species}</CardTitle>
                     <div className="flex items-center -mt-1 -mr-2">
-                        <a href={`https://www.google.com/search?q=${encodeURIComponent(plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center">
+                        <a href={`https://www.google.com/search?q=${encodeURIComponent(plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
                                 <ExternalLink className="h-4 w-4" />
                                 <span className="sr-only">Search for {plant.species}</span>
@@ -56,11 +56,11 @@ export function PlantCard({
                         </a>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                     <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                 <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
                                 <DropdownMenuItem onClick={onMarkAsDuplicate}>
                                     <Copy className="mr-2 h-4 w-4" />
@@ -103,22 +103,33 @@ export function PlantCard({
 
     if (isSelectionMode) {
         return (
-             <button
-                onClick={onSelectDuplicate}
-                disabled={isDuplicateSource}
+             <div
+                role="button"
+                aria-disabled={isDuplicateSource}
+                onClick={isDuplicateSource ? undefined : onSelectDuplicate}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        if (!isDuplicateSource) {
+                            onSelectDuplicate();
+                        }
+                    }
+                }}
+                tabIndex={isDuplicateSource ? -1 : 0}
                 className={cn(
-                    "w-full h-full text-left rounded-lg transition-all",
-                    isDuplicateSource ? "opacity-50 cursor-not-allowed" : "hover:ring-2 hover:ring-primary focus:ring-2 focus:ring-primary"
+                    "w-full h-full text-left rounded-lg transition-all focus:outline-none",
+                    isDuplicateSource 
+                        ? "opacity-50 cursor-not-allowed" 
+                        : "cursor-pointer hover:ring-2 hover:ring-primary focus:ring-2 focus:ring-primary"
                 )}
             >
                 <Card className={cn(
-                    "flex flex-col h-full", 
+                    "flex flex-col h-full pointer-events-none", 
                     isDuplicateSource && "border-primary ring-2 ring-primary bg-primary/10",
-                    !isDuplicateSource && "hover:shadow-lg hover:-translate-y-1"
+                    !isDuplicateSource && "group-hover:shadow-lg group-hover:-translate-y-1"
                 )}>
                     {cardContent}
                 </Card>
-             </button>
+             </div>
         );
     }
     
