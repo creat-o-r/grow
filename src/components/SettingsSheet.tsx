@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -166,7 +167,13 @@ export function SettingsSheet({
                         </Card>
                     ))}
                     <div className="border-t pt-4">
-                      <Button onClick={onPublish} variant="outline" className="w-full">
+                      <Link href="/data-import" passHref>
+                        <Button variant="outline" className="w-full">
+                            <Upload className="mr-2 h-4 w-4" />
+                            AI-Assisted Data Import
+                        </Button>
+                      </Link>
+                      <Button onClick={onPublish} variant="outline" className="w-full mt-2">
                         <Upload className="mr-2 h-4 w-4" />
                         Publish All Data to Clipboard
                       </Button>

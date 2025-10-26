@@ -1,14 +1,14 @@
 
-import { genkit, GenkitPlugin } from 'genkit';
+import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 import { openAI } from 'genkitx-openai';
 import { groq } from 'genkitx-groq';
-import { ApiKeyName } from '@/lib/types';
 
+export type ApiKeyName = 'perplexity' | 'openai' | 'groq' | 'gemini';
 export type ApiKeys = Record<ApiKeyName, string>;
 
 export function initializeGenkit(apiKeys?: ApiKeys) {
-  const plugins: GenkitPlugin[] = [];
+  const plugins: any[] = [];
 
   const geminiApiKey = apiKeys?.gemini || process.env.GEMINI_API_KEY;
   if (geminiApiKey) {
