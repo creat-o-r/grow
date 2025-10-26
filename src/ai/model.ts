@@ -13,19 +13,19 @@ import { ApiKeys } from './genkit';
  * Prioritizes Groq, then OpenAI, and falls back to Google AI.
  */
 export async function getModel(apiKeys?: ApiKeys): Promise<string> {
-  const groqApiKey = apiKeys?.groq || process.env.GROQ_API_KEY;
-  if (groqApiKey) {
-    return 'groq/gemma-7b-it';
-  }
+  // const groqApiKey = apiKeys?.groq || process.env.GROQ_API_KEY;
+  // if (groqApiKey) {
+  //   return 'groq/gemma-7b-it';
+  // }
 
-  const openaiApiKey = apiKeys?.openai || process.env.OPENAI_API_KEY;
-  if (openaiApiKey) {
-    return 'openai/gpt-4o';
-  }
+  // const openaiApiKey = apiKeys?.openai || process.env.OPENAI_API_KEY;
+  // if (openaiApiKey) {
+  //   return 'openai/gpt-4o';
+  // }
 
   const geminiApiKey = apiKeys?.gemini || process.env.GEMINI_API_KEY;
   if (geminiApiKey) {
-    return 'googleai/gemini-pro';
+    return 'googleai/gemini-1.5-pro-latest';
   }
 
   throw new Error('No API key is set.');

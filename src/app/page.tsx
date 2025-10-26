@@ -32,7 +32,7 @@ type NominatimResult = {
   lat: string;
   lon: string;
 };
-type ApiKeyName = 'perplexity' | 'openai' | 'groq' | 'gemini';
+type ApiKeyName = 'gemini';
 
 
 export default function Home() {
@@ -59,9 +59,6 @@ export default function Home() {
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
   const [apiKeys, setApiKeys] = useState<Record<ApiKeyName, string>>({
-    perplexity: '',
-    openai: '',
-    groq: '',
     gemini: '',
   });
 
@@ -73,15 +70,9 @@ export default function Home() {
 
   useEffect(() => {
     setIsClient(true);
-    const savedPerplexityKey = localStorage.getItem('grow_perplexityApiKey') || '';
-    const savedOpenAIKey = localStorage.getItem('grow_openaiApiKey') || '';
-    const savedGroqKey = localStorage.getItem('grow_groqApiKey') || '';
     const savedGeminiKey = localStorage.getItem('grow_geminiApiKey') || '';
 
     const currentApiKeys = {
-      perplexity: savedPerplexityKey,
-      openai: savedOpenAIKey,
-      groq: savedGroqKey,
       gemini: savedGeminiKey,
     };
 
@@ -427,9 +418,6 @@ export default function Home() {
 
   const handleSaveApiKey = (keyName: ApiKeyName, key: string) => {
     const keyMap: Record<ApiKeyName, string> = {
-      perplexity: 'grow_perplexityApiKey',
-      openai: 'grow_openaiApiKey',
-      groq: 'grow_groqApiKey',
       gemini: 'grow_geminiApiKey',
     };
     
@@ -467,7 +455,7 @@ export default function Home() {
   const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
   const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
 
-  const areApiKeysSet = !!(apiKeys.openai || apiKeys.perplexity || apiKeys.gemini || apiKeys.groq);
+  const areApiKeysSet = !!(apiKeys.gemini);
 
   if (!isClient || !plants || !locations || !aiLogs) {
     return null;
