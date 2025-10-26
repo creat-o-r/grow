@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,6 +71,19 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange }: { isOpen: boolean
     setDuplicateGroups(foundDuplicates);
     setPlantsToDelete(initialDeletions);
   }, [allPlants, isOpen]);
+
+  const plantsToKeepCount = useMemo(() => {
+    return duplicateGroups.reduce((count, group) => {
+      const keptInGroup = group.plants.filter(p => !plantsToDelete.has(p.id)).length;
+      // We are interested in how many species will remain.
+      // If at least one plant in a group is kept, that species is kept.
+      if (keptInGroup > 0) {
+        return count + 1;
+      }
+      return count;
+    }, 0);
+  }, [duplicateGroups, plantsToDelete]);
+
 
   const handleToggleDelete = (plantId: string) => {
     setPlantsToDelete(prev => {
@@ -181,7 +194,11 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange }: { isOpen: boolean
 
         <SheetFooter className="p-6 border-t bg-background">
           <div className="flex justify-between w-full items-center">
-            <p className="text-sm text-muted-foreground">{plantsToDelete.size} plant(s) selected for deletion.</p>
+            <p className="text-sm text-muted-foreground">
+                <span className="font-bold">{plantsToDelete.size}</span> to be deleted
+                <span className="mx-2">|</span> 
+                <span className="font-bold">{plantsToKeepCount}</span> species to be kept
+            </p>
             <div className="flex gap-2">
                 <SheetClose asChild>
                     <Button variant="outline">Cancel</Button>
@@ -192,7 +209,7 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange }: { isOpen: boolean
                     disabled={isDeleting || plantsToDelete.size === 0}
                 >
                     {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}
-                    Delete Selected
+                    Delete {plantsToDelete.size} Plant(s)
                 </Button>
             </div>
           </div>
