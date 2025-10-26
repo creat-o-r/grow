@@ -8,8 +8,10 @@
  * - GetEnvironmentalDataOutput - The return type for the function.
  */
 
-import { genkit, z } from 'genkit';
+import { genkit } from 'genkit';
+import { z } from 'zod';
 import { googleAI } from '@genkit-ai/google-genai';
+
 
 const GetEnvironmentalDataInputSchema = z.object({
   location: z.string().describe('The city and country, e.g., "San Francisco, USA"'),
@@ -34,11 +36,15 @@ export async function getEnvironmentalData(
   input: GetEnvironmentalDataInput,
 ): Promise<GetEnvironmentalDataOutput> {
 
-  const ai = genkit({
-    plugins: [
-      googleAI({ apiKey: input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY }),
-    ],
-  });
+  const plugins = [];
+  if (input.apiKeys?.gemini) {
+    plugins.push(googleAI({ apiKey: input.apiKeys.gemini }));
+  }
+   if (plugins.length === 0) {
+     plugins.push(googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY }));
+  }
+
+  const ai = genkit({ plugins });
 
   const prompt = ai.definePrompt({
     name: 'getEnvironmentalDataPrompt',
@@ -64,12 +70,10 @@ Return your response in the structured format defined by the output schema.
       outputSchema: GetEnvironmentalDataOutputSchema,
     },
     async (flowInput) => {
-      const {output} = await prompt(flowInput, { model: 'googleai/gemini-2.5-flash' });
+      const {output} = await prompt(flowInput, { model: 'gemini-2.5-flash' });
       return output!;
     }
   );
 
   return getEnvironmentalDataFlow(input);
 }
-
-    
