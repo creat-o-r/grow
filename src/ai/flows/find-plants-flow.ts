@@ -22,7 +22,7 @@ const FindPlantsFlowInputSchema = z.object({
 export const findPlantsFlow = async (input: z.infer<typeof FindPlantsFlowInputSchema>) => {
     const model = await getModel();
     return ai.run('plantFinder', async () => {
-        return ai.generate({
+        const result = await ai.generate({
             prompt: `You are an expert botanist and garden planner. Your task is to help users find plants for their garden based on their descriptions.
 - Use the findPlantsTool to search for plants.
 - You can ask clarifying questions if the user's request is ambiguous.
@@ -33,5 +33,7 @@ export const findPlantsFlow = async (input: z.infer<typeof FindPlantsFlowInputSc
             tools: [findPlantsTool],
             model,
         } as GenerateOptions);
+
+        return result;
     });
 };

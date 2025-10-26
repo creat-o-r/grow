@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useChat, type Message } from 'ai/react';
+import { useState, FormEvent, ChangeEvent } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +18,13 @@ import type { Plant } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/db';
 import { useRouter } from 'next/navigation';
+
+type Message = {
+  id: string;
+  role: 'user' | 'assistant' | 'function';
+  content: string;
+  name?: string;
+};
 
 function PlantResultCard({ plant, onAdd, isAdded }: { plant: Plant; onAdd: (plant: Plant) => void; isAdded: boolean }) {
   return (
@@ -51,35 +57,86 @@ export default function DataImportPage() {
   const [dataset, setDataset] = useState<Plant[]>([]);
   const { toast } = useToast();
   const router = useRouter();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { messages, input, handleInputChange, handleSubmit, setMessages } = useChat({
-    api: '/api/find-plants',
-    experimental_onFunctionCall: async (chatMessages, functionCall) => {
-        if (functionCall.name !== 'findPlantsTool') {
-            return;
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+  };
+  
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    const newUserMessage: Message = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: input,
+    };
+    const newMessages = [...messages, newUserMessage];
+    setMessages(newMessages);
+    setInput('');
+    setIsLoading(true);
+
+    try {
+        const response = await fetch('/api/find-plants', {
+            method: 'POST',
+            body: JSON.stringify({ messages: newMessages }),
+        });
+
+        if (!response.body) {
+            throw new Error('No response body');
         }
-
-        const newMessages: Message[] = [...chatMessages];
-        const result = functionCall.arguments as { plants: Plant[] };
-
-        const functionResponse: Message = {
-            id: `function-response-${Date.now()}`,
-            name: 'findPlantsTool',
-            role: 'function',
-            content: JSON.stringify(result),
-        };
-        newMessages.push(functionResponse);
         
-        const assistantResponse: Message = {
-            id: `assistant-response-${Date.now()}`,
-            role: 'assistant',
-            content: `I found ${result.plants.length} plant(s) matching your description.`
-        };
-        newMessages.push(assistantResponse);
+        const isJson = response.headers.get('content-type')?.includes('application/json');
 
-        setMessages(newMessages);
-    },
-  });
+        if (isJson) {
+            const result = await response.json() as { plants: Plant[] };
+            const functionResponse: Message = {
+                id: `function-response-${Date.now()}`,
+                name: 'findPlantsTool',
+                role: 'function',
+                content: JSON.stringify(result),
+            };
+            const assistantResponse: Message = {
+                id: `assistant-response-${Date.now()}`,
+                role: 'assistant',
+                content: `I found ${result.plants.length} plant(s) matching your description.`
+            };
+            setMessages(prev => [...prev, functionResponse, assistantResponse]);
+
+        } else {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let done = false;
+            let fullResponse = '';
+    
+            setMessages(prev => [...prev, {id: `assistant-${Date.now()}`, role: 'assistant', content: ''}]);
+
+            while (!done) {
+                const { value, done: readerDone } = await reader.read();
+                done = readerDone;
+                const chunk = decoder.decode(value, { stream: true });
+                fullResponse += chunk;
+                setMessages(prev => {
+                    const lastMessage = prev[prev.length - 1];
+                    if (lastMessage.role === 'assistant') {
+                        lastMessage.content = fullResponse;
+                        return [...prev.slice(0, -1), lastMessage];
+                    }
+                    return prev;
+                })
+            }
+        }
+    } catch (error) {
+        console.error('API call failed:', error);
+        toast({ title: 'Error', description: 'Failed to get response from AI.', variant: 'destructive'});
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
 
   const handleAddToDataset = (plant: Plant) => {
     if (!dataset.find(p => p.species === plant.species)) {
@@ -192,6 +249,22 @@ export default function DataImportPage() {
                     )}
                 </div>
               ))}
+              {isLoading && (
+                  <div className="flex items-start gap-4 justify-start">
+                    <Avatar className="h-8 w-8 bg-secondary">
+                        <AvatarFallback>
+                            <Bot className="h-5 w-5 text-secondary-foreground" />
+                        </AvatarFallback>
+                    </Avatar>
+                    <div className="max-w-xl rounded-lg px-4 py-2 text-sm bg-card border">
+                        <div className="flex items-center space-x-2">
+                            <div className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse [animation-delay:-0.3s]"></div>
+                            <div className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse [animation-delay:-0.15s]"></div>
+                            <div className="h-2 w-2 bg-muted-foreground rounded-full animate-pulse"></div>
+                        </div>
+                    </div>
+                  </div>
+              )}
             </div>
           </ScrollArea>
         </CardContent>
@@ -220,8 +293,9 @@ export default function DataImportPage() {
               autoComplete="off"
               value={input}
               onChange={handleInputChange}
+              disabled={isLoading}
             />
-            <Button type="submit" size="icon" disabled={!input}>
+            <Button type="submit" size="icon" disabled={!input || isLoading}>
               <ArrowUp className="h-5 w-5" />
               <span className="sr-only">Send</span>
             </Button>
