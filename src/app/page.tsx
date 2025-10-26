@@ -17,6 +17,7 @@ import { PlantForm } from '@/components/PlantForm';
 import { AiLogPanel } from '@/components/AiLogPanel';
 import { SettingsSheet } from '@/components/SettingsSheet';
 import { AiDataImportSheet } from '@/components/AiDataImportSheet';
+import { DuplicateReviewSheet } from '@/components/DuplicateReviewSheet';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -59,6 +60,7 @@ export default function Home() {
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
   const [isAiImportSheetOpen, setIsAiImportSheetOpen] = useState(false);
+  const [isDuplicateReviewSheetOpen, setIsDuplicateReviewSheetOpen] = useState(false);
 
 
   const { toast } = useToast();
@@ -722,6 +724,10 @@ export default function Home() {
         onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
+        onDuplicateReviewOpen={() => {
+            setIsSettingsSheetOpen(false);
+            setIsDuplicateReviewSheetOpen(true);
+        }}
       />
 
       <AiDataImportSheet
@@ -734,6 +740,11 @@ export default function Home() {
             window.location.reload();
         }}
         activeLocation={activeLocation}
+      />
+
+      <DuplicateReviewSheet
+        isOpen={isDuplicateReviewSheetOpen}
+        onOpenChange={setIsDuplicateReviewSheetOpen}
       />
 
 

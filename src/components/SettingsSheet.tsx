@@ -7,12 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, KeyRound, Sparkles, AlertTriangle, Trash2 } from 'lucide-react';
+import { Upload, Download, KeyRound, Sparkles, AlertTriangle, SearchCheck } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { db } from '@/lib/db';
-import { useToast } from '@/hooks/use-toast';
 
 
 type SettingsSheetProps = {
@@ -23,10 +21,11 @@ type SettingsSheetProps = {
   onPublish: () => void;
   onApiKeysChange: (keys: { gemini: string }) => void;
   apiKeys: { gemini: string };
+  onDuplicateReviewOpen: () => void;
 };
 
 type ConfirmationState = {
-  type: 'import' | 'deleteDuplicates';
+  type: 'import';
   key?: string;
 } | null;
 
@@ -39,87 +38,26 @@ export function SettingsSheet({
   onPublish,
   onApiKeysChange,
   apiKeys,
+  onDuplicateReviewOpen,
 }: SettingsSheetProps) {
   const [confirmationState, setConfirmationState] = useState<ConfirmationState>(null);
   const [localApiKeys, setLocalApiKeys] = useState(apiKeys);
   const areApiKeysSet = !!apiKeys.gemini;
-  const { toast } = useToast();
 
   const handleImportClick = (datasetKey: string) => {
     setConfirmationState({type: 'import', key: datasetKey});
   }
-
-  const handleDeleteDuplicatesClick = () => {
-    setConfirmationState({ type: 'deleteDuplicates' });
-  };
   
   const handleConfirm = async () => {
     if (!confirmationState) return;
 
     if (confirmationState.type === 'import' && confirmationState.key) {
         onImport(confirmationState.key);
-    } else if (confirmationState.type === 'deleteDuplicates') {
-        await deleteDuplicatePlants();
     }
     
     setConfirmationState(null);
     onOpenChange(false); // Close sheet after action
   }
-
-  const deleteDuplicatePlants = async () => {
-    try {
-        const allPlants = await db.plants.toArray();
-        const plantsBySpecies = new Map<string, any[]>();
-
-        allPlants.forEach(plant => {
-            const species = plant.species.toLowerCase().trim();
-            if (!plantsBySpecies.has(species)) {
-                plantsBySpecies.set(species, []);
-            }
-            plantsBySpecies.get(species)!.push(plant);
-        });
-
-        const idsToDelete: string[] = [];
-        let duplicatesFound = 0;
-
-        plantsBySpecies.forEach((plants, species) => {
-            if (plants.length > 1) {
-                // Sort by the most recent history entry date
-                plants.sort((a, b) => {
-                    const dateA = a.history?.length ? new Date(a.history[a.history.length - 1].date).getTime() : 0;
-                    const dateB = b.history?.length ? new Date(b.history[b.history.length - 1].date).getTime() : 0;
-                    return dateB - dateA;
-                });
-                
-                // Keep the first one (most recent), delete the rest
-                const toDelete = plants.slice(1);
-                toDelete.forEach(p => idsToDelete.push(p.id));
-                duplicatesFound += toDelete.length;
-            }
-        });
-
-        if (idsToDelete.length > 0) {
-            await db.plants.bulkDelete(idsToDelete);
-            toast({
-                title: "Duplicates Removed",
-                description: `${duplicatesFound} duplicate plant(s) were found and removed.`,
-            });
-        } else {
-            toast({
-                title: "No Duplicates Found",
-                description: "Your plant collection is clean!",
-            });
-        }
-    } catch (error) {
-        console.error("Failed to delete duplicates:", error);
-        toast({
-            title: "Error",
-            description: "Could not remove duplicate plants. Please check the console.",
-            variant: "destructive",
-        });
-    }
-  };
-
 
   const handleSaveApiKeys = () => {
     onApiKeysChange(localApiKeys);
@@ -134,12 +72,6 @@ export function SettingsSheet({
           title: 'Are you sure?',
           description: 'This action will overwrite all your existing garden data, including all plants and locations. This cannot be undone.',
           action: 'Overwrite'
-        };
-      case 'deleteDuplicates':
-        return {
-          title: 'Delete Duplicate Plants?',
-          description: 'This will scan for plants with the same species name and remove older entries, keeping only the most recently updated one for each species. This action cannot be undone.',
-          action: 'Delete Duplicates'
         };
       default:
         return { title: '', description: '', action: '' };
@@ -234,9 +166,9 @@ export function SettingsSheet({
                     </div>
                     <div className="border-t pt-4 space-y-2">
                        <h4 className="font-medium text-sm text-muted-foreground">Maintenance</h4>
-                       <Button onClick={handleDeleteDuplicatesClick} variant="outline" className="w-full">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Duplicate Plants
+                       <Button onClick={onDuplicateReviewOpen} variant="outline" className="w-full">
+                            <SearchCheck className="mr-2 h-4 w-4" />
+                            Review & Merge Duplicates
                         </Button>
                       <Button onClick={onPublish} variant="outline" className="w-full">
                         <Upload className="mr-2 h-4 w-4" />
