@@ -32,7 +32,7 @@ type NominatimResult = {
   lat: string;
   lon: string;
 };
-type ApiKeyName = 'perplexity' | 'openai' | 'groq' | 'gemini';
+type ApiKeyName = 'gemini';
 
 
 export default function Home() {
@@ -59,9 +59,6 @@ export default function Home() {
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
   const [apiKeys, setApiKeys] = useState<Record<ApiKeyName, string>>({
-    perplexity: '',
-    openai: '',
-    groq: '',
     gemini: '',
   });
 
@@ -73,27 +70,17 @@ export default function Home() {
 
   useEffect(() => {
     setIsClient(true);
-    const savedPerplexityKey = localStorage.getItem('verdantVerse_perplexityApiKey') || '';
-    const savedOpenAIKey = localStorage.getItem('verdantVerse_openaiApiKey') || '';
-    const savedGroqKey = localStorage.getItem('verdantVerse_groqApiKey') || '';
     const savedGeminiKey = localStorage.getItem('verdantVerse_geminiApiKey') || '';
     
     setApiKeys({
-      perplexity: savedPerplexityKey,
-      openai: savedOpenAIKey,
-      groq: savedGroqKey,
       gemini: savedGeminiKey,
     });
 
-    const envPayload: { [key: string]: string } = {};
-    if (savedOpenAIKey) envPayload.OPENAI_API_KEY = savedOpenAIKey;
-    if (savedGeminiKey) envPayload.GEMINI_API_KEY = savedGeminiKey;
-
-    if (Object.keys(envPayload).length > 0) {
+    if (savedGeminiKey) {
         fetch('/api/genkit/env', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(envPayload),
+          body: JSON.stringify({ GOOGLE_GENAI_API_KEY: savedGeminiKey }),
         });
     }
     
@@ -434,21 +421,14 @@ export default function Home() {
 
   const handleSaveApiKey = (keyName: ApiKeyName, key: string) => {
     const keyMap: Record<ApiKeyName, string> = {
-      perplexity: 'verdantVerse_perplexityApiKey',
-      openai: 'verdantVerse_openaiApiKey',
-      groq: 'verdantVerse_groqApiKey',
       gemini: 'verdantVerse_geminiApiKey',
     };
     
-    const envPayload: { [key: string]: string } = {};
-    if (keyName === 'openai') envPayload.OPENAI_API_KEY = key;
-    if (keyName === 'gemini') envPayload.GEMINI_API_KEY = key;
-
-    if (Object.keys(envPayload).length > 0) {
+    if (keyName === 'gemini') {
         fetch('/api/genkit/env', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(envPayload),
+          body: JSON.stringify({ GOOGLE_GENAI_API_KEY: key }),
         });
     }
 
@@ -485,7 +465,7 @@ export default function Home() {
   const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
   const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
 
-  const areApiKeysSet = !!(apiKeys.openai || apiKeys.perplexity || apiKeys.gemini);
+  const areApiKeysSet = !!apiKeys.gemini;
 
   if (!isClient || !plants || !locations || !aiLogs) {
     return null;
@@ -757,3 +737,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
