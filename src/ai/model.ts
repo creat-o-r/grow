@@ -22,5 +22,3 @@ export async function getModel(): Promise<string> {
   // Use the correct, fully-qualified model name to avoid 404 errors.
   return 'googleAI/gemini-1.5-pro-latest';
 }
-
-    

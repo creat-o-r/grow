@@ -5,7 +5,7 @@ import type { AiLog } from '@/lib/types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, parseISO } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription as ShadcnCardDescription } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Settings } from 'lucide-react';
 
@@ -14,7 +14,6 @@ type AiLogPanelProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onOpenSettings: () => void;
-  areApiKeysSet: boolean;
 };
 
 const FLOW_DISPLAY_NAMES: { [key: string]: string } = {
@@ -37,7 +36,7 @@ const toTitleCase = (str: string) => {
         .replace(/^./, (s) => s.toUpperCase());
 }
 
-export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiKeysSet }: AiLogPanelProps) {
+export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings }: AiLogPanelProps) {
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-2xl w-[90vw] flex flex-col">
@@ -58,22 +57,6 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
         <div className="flex-1 overflow-hidden">
           <ScrollArea className="h-full w-full">
             <div className="space-y-6 pr-6 py-4">
-              {!areApiKeysSet && (
-                  <Card className="p-4 text-center">
-                      <CardHeader>
-                          <CardTitle>API Key Required</CardTitle>
-                          <ShadcnCardDescription>Please set an API key in the settings to enable AI features.</ShadcnCardDescription>
-                      </CardHeader>
-                      <CardContent>
-                          <Button onClick={() => {
-                              onOpenChange(false);
-                              onOpenSettings();
-                          }}>
-                              Go to Settings
-                          </Button>
-                      </CardContent>
-                  </Card>
-              )}
               {logs.length > 0 ? logs.map(log => {
                   const reasoning = (log.results as any)?.reasoning;
                   const references = (log.results as any)?.references;
@@ -136,9 +119,9 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                       </CardContent>
                     </Card>
                   )
-                }) : areApiKeysSet ? (
+                }) : (
                   <p className="text-sm text-muted-foreground italic text-center py-8">No AI analyses have been performed yet.</p>
-                ) : null}
+                )}
             </div>
           </ScrollArea>
         </div>

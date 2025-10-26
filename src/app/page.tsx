@@ -21,7 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronRight, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, KeyRound } from 'lucide-react';
+import { PlusCircle, ChevronRight, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
@@ -32,7 +32,6 @@ type NominatimResult = {
   lat: string;
   lon: string;
 };
-type ApiKeyName = 'gemini';
 
 
 export default function Home() {
@@ -58,9 +57,6 @@ export default function Home() {
 
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
-  const [apiKeys, setApiKeys] = useState<Record<ApiKeyName, string>>({
-    gemini: '',
-  });
 
   const { toast } = useToast();
 
@@ -70,19 +66,6 @@ export default function Home() {
 
   useEffect(() => {
     setIsClient(true);
-    const savedGeminiKey = localStorage.getItem('verdantVerse_geminiApiKey') || '';
-    
-    setApiKeys({
-      gemini: savedGeminiKey,
-    });
-
-    if (savedGeminiKey) {
-        fetch('/api/genkit/env', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ GOOGLE_GENAI_API_KEY: savedGeminiKey }),
-        });
-    }
     
     const initDb = async () => {
         const locationCount = await db.locations.count();
@@ -407,39 +390,16 @@ export default function Home() {
         title: 'AI Analysis Complete',
         description: `Conditions for ${activeLocation.location} have been populated.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('AI analysis failed:', error);
       toast({
         title: 'AI Analysis Failed',
-        description: 'Could not retrieve environmental data. Please try again.',
+        description: error.message || 'Could not retrieve environmental data. Please try again.',
         variant: 'destructive',
       });
     } finally {
       setIsAnalyzing(false);
     }
-  };
-
-  const handleSaveApiKey = (keyName: ApiKeyName, key: string) => {
-    const keyMap: Record<ApiKeyName, string> = {
-      gemini: 'verdantVerse_geminiApiKey',
-    };
-    
-    if (keyName === 'gemini') {
-        fetch('/api/genkit/env', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ GOOGLE_GENAI_API_KEY: key }),
-        });
-    }
-
-    localStorage.setItem(keyMap[keyName], key);
-    setApiKeys(prev => ({...prev, [keyName]: key}));
-
-    toast({
-      title: 'API Key Saved',
-      description: `Your ${keyName.charAt(0).toUpperCase() + keyName.slice(1)} API key has been securely saved in your browser.`,
-    });
-    setIsSettingsSheetOpen(false);
   };
   
   const sortedAndFilteredPlants = useMemo(() => {
@@ -465,7 +425,6 @@ export default function Home() {
   const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
   const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
 
-  const areApiKeysSet = !!apiKeys.gemini;
 
   if (!isClient || !plants || !locations || !aiLogs) {
     return null;
@@ -579,12 +538,7 @@ export default function Home() {
                                       <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
                                       <Input id="soil" value={activeLocation?.conditions.soil || ''} onChange={(e) => handleConditionChange('soil', e.target.value)} />
                                   </div>
-                                  {!areApiKeysSet && (
-                                    <Button size="icon" variant="outline" onClick={() => setIsSettingsSheetOpen(true)}>
-                                      <KeyRound className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                  <Button size="icon" variant="outline" onClick={handleAnalyzeConditions} disabled={isAnalyzing || !areApiKeysSet}>
+                                  <Button size="icon" variant="outline" onClick={handleAnalyzeConditions} disabled={isAnalyzing}>
                                       {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                   </Button>
                               </div>
@@ -674,7 +628,7 @@ export default function Home() {
         </div>
       </main>
 
-      {(aiLogs.length > 0 || !areApiKeysSet) && (
+      {(aiLogs.length > 0) && (
         <div className="fixed bottom-4 right-4 z-20">
           <Button
             size="icon"
@@ -708,14 +662,11 @@ export default function Home() {
         isOpen={isLogPanelOpen}
         onOpenChange={setIsLogPanelOpen}
         onOpenSettings={() => setIsSettingsSheetOpen(true)}
-        areApiKeysSet={areApiKeysSet}
       />
 
       <SettingsSheet 
         isOpen={isSettingsSheetOpen}
         onOpenChange={setIsSettingsSheetOpen}
-        onSaveApiKey={handleSaveApiKey}
-        apiKeys={apiKeys}
         onImport={handleImport}
         onPublish={handlePublish}
       />
@@ -729,7 +680,6 @@ export default function Home() {
           <PlantForm 
             plantToEdit={plantToEdit} 
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
-            isApiKeySet={areApiKeysSet}
             onConfigureApiKey={() => setIsSettingsSheetOpen(true)}
           />
         </SheetContent>
@@ -737,5 +687,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

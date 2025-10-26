@@ -1,24 +1,18 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Upload, KeyRound, Download } from 'lucide-react';
+import { Upload, Download } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
-type ApiKeyName = 'gemini';
-
 type SettingsSheetProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onSaveApiKey: (keyName: ApiKeyName, key: string) => void;
-  apiKeys: Record<ApiKeyName, string>;
   onImport: (datasetKey: string) => void;
   onPublish: () => void;
 };
@@ -26,21 +20,10 @@ type SettingsSheetProps = {
 export function SettingsSheet({
   isOpen,
   onOpenChange,
-  onSaveApiKey,
-  apiKeys,
   onImport,
   onPublish,
 }: SettingsSheetProps) {
-  const [geminiKey, setGeminiKey] = useState(apiKeys.gemini);
   const [datasetToImport, setDatasetToImport] = useState<string | null>(null);
-
-  useEffect(() => {
-    setGeminiKey(apiKeys.gemini);
-  }, [apiKeys]);
-
-  const handleSaveClick = (keyName: ApiKeyName, key: string) => {
-    onSaveApiKey(keyName, key);
-  };
 
   const handleImportClick = (datasetKey: string) => {
     setDatasetToImport(datasetKey);
@@ -60,41 +43,10 @@ export function SettingsSheet({
           <SheetHeader>
             <SheetTitle className="font-headline">Settings</SheetTitle>
             <SheetDescription>
-              Manage application settings, API keys, and data.
+              Manage application settings and data.
             </SheetDescription>
           </SheetHeader>
           <div className="py-6 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-headline text-lg">API Keys</CardTitle>
-                  <CardDescription>Manage API keys for AI model providers.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Gemini */}
-                  <div className="space-y-4 p-4 border rounded-lg">
-                    <h4 className="font-semibold">Google Gemini</h4>
-                    <Button 
-                      onClick={() => window.open('https://aistudio.google.com/app/apikey', '_blank')} 
-                      variant="outline" 
-                      className="w-full"
-                    >
-                      <KeyRound className="mr-2 h-4 w-4" />
-                      Get Gemini API Key
-                    </Button>
-                    <div className="space-y-2">
-                      <Label htmlFor="gemini-key">API Key</Label>
-                      <Input 
-                        id="gemini-key" 
-                        placeholder="Paste your key here"
-                        value={geminiKey}
-                        onChange={(e) => setGeminiKey(e.target.value)}
-                      />
-                    </div>
-                    <Button onClick={() => handleSaveClick('gemini', geminiKey)} className="w-full">Save Key</Button>
-                  </div>
-                </CardContent>
-              </Card>
-
               <Card>
                 <CardHeader>
                   <CardTitle className="font-headline text-lg">Data Management</CardTitle>
@@ -145,5 +97,3 @@ export function SettingsSheet({
     </>
   );
 }
-
-    

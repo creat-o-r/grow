@@ -58,5 +58,3 @@ const aiSearchPlantDataFlow = ai.defineFlow(
     return output!;
   }
 );
-
-    

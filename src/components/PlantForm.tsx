@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, Trash2, CalendarIcon, KeyRound } from 'lucide-react';
+import { Search, Loader2, Plus, Trash2, CalendarIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -41,11 +41,10 @@ type PlantFormValues = z.infer<typeof formSchema>;
 type PlantFormProps = {
   plantToEdit?: Plant | null;
   onSubmit: (data: PlantFormValues | Plant) => void;
-  isApiKeySet: boolean;
   onConfigureApiKey: () => void;
 };
 
-export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKey }: PlantFormProps) {
+export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const { toast } = useToast();
@@ -90,11 +89,11 @@ export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKe
         title: 'AI Search Successful',
         description: `Data for ${result.species} has been populated.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('AI search failed:', error);
       toast({
         title: 'AI Search Failed',
-        description: 'Could not retrieve plant data. Please try again.',
+        description: error.message || 'Could not retrieve plant data. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -136,12 +135,7 @@ export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKe
               onChange={(e) => setAiSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAiSearch()}
             />
-            {!isApiKeySet && (
-              <Button type="button" size="icon" variant="outline" onClick={onConfigureApiKey}>
-                <KeyRound className="h-4 w-4" />
-              </Button>
-            )}
-            <Button type="button" onClick={handleAiSearch} disabled={isAiSearching || !isApiKeySet}>
+            <Button type="button" onClick={handleAiSearch} disabled={isAiSearching}>
               {isAiSearching ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
