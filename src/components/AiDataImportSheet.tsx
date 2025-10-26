@@ -163,15 +163,15 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                 });
             } else if (importMode === 'add') {
                 const existingPlants = await db.plants.toArray();
-                const existingSpecies = new Set(existingPlants.map(p => p.species.toLowerCase()));
-                const newPlants = plantsWithNewIds.filter(p => !existingSpecies.has(p.species.toLowerCase()));
+                const existingSpecies = new Set(existingPlants.map(p => p.species.toLowerCase().trim()));
+                const newPlantsToAdd = plantsWithNewIds.filter(p => !existingSpecies.has(p.species.toLowerCase().trim()));
 
-                if (newPlants.length > 0) {
-                    await db.plants.bulkAdd(newPlants);
+                if (newPlantsToAdd.length > 0) {
+                    await db.plants.bulkAdd(newPlantsToAdd);
                 }
                 toast({
                     title: 'Import Successful',
-                    description: `${newPlants.length} new plants added to your active garden. ${generatedData.plants.length - newPlants.length} duplicates were skipped.`,
+                    description: `${newPlantsToAdd.length} new plants added to your active garden. ${plantsWithNewIds.length - newPlantsToAdd.length} duplicates were skipped.`,
                 });
             } else if (importMode === 'new') {
                  const locationWithNewId = {
@@ -391,5 +391,3 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     </Sheet>
   );
 }
-
-    
