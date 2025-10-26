@@ -1,0 +1,47 @@
+
+{
+    "locations": [
+        {
+            "id": "fungi-loc-1",
+            "name": "Shaded Loggery",
+            "location": "Forest of Dean, UK",
+            "temperatureUnit": "C",
+            "conditions": {
+                "temperature": "15°C",
+                "sunlight": "Shade / Indirect light",
+                "soil": "Hardwood Logs & Sawdust"
+            }
+        }
+    ],
+    "plants": [
+        {
+            "id": "fungi-1",
+            "species": "Shiitake Mushroom (Lentinula edodes)",
+            "germinationNeeds": "Inoculate hardwood logs (oak, beech) with plug spawn. Mycelium takes 6-18 months to colonize the log (spawn run).",
+            "optimalConditions": "Fruiting triggered by soaking logs in cool water after full colonization. Prefers shaded, humid environments. Temp: 10-24°C.",
+            "history": [
+                { "id": "h1", "status": "Growing", "date": "2023-09-15T12:00:00.000Z", "notes": "Logs are colonizing well." }
+            ]
+        },
+        {
+            "id": "fungi-2",
+            "species": "Oyster Mushroom (Pleurotus ostreatus)",
+            "germinationNeeds": "Can be grown on various substrates like straw, coffee grounds, or sawdust. Quick colonization (2-4 weeks).",
+            "optimalConditions": "High humidity (85-95%) and fresh air exchange needed for fruiting. Tolerates a wide temperature range depending on the strain.",
+            "history": [
+                { "id": "h2", "status": "Harvested", "date": "2024-06-01T12:00:00.000Z", "notes": "Harvested first flush from straw bags." }
+            ]
+        },
+        {
+            "id": "fungi-3",
+            "species": "Lion's Mane Mushroom (Hericium erinaceus)",
+            "germinationNeeds": "Typically grown on supplemented hardwood sawdust blocks. Colonization takes about 2-3 weeks.",
+            "optimalConditions": "Fruiting requires high humidity and cooler temperatures (15-21°C). Grows 'teeth' instead of caps.",
+            "history": [
+                { "id": "h3", "status": "Planning", "date": "2024-08-01T12:00:00.000Z", "notes": "Ordered a ready-to-fruit block." }
+            ]
+        }
+    ]
+}
+
+    

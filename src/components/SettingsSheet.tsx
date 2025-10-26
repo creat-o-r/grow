@@ -109,33 +109,6 @@ export function SettingsSheet({
           <div className="py-6 space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-headline text-lg">API Keys</CardTitle>
-                  <CardDescription>
-                    Provide your API keys to enable AI-powered features. Your keys are stored securely in your browser's local storage and are never shared.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="gemini-key">
-                      <div className="flex items-center gap-2">
-                        <KeyRound className="h-4 w-4" />
-                        <span>Google Gemini API Key</span>
-                      </div>
-                    </Label>
-                    <Input 
-                      id="gemini-key" 
-                      type="password" 
-                      placeholder="Enter your Gemini API key" 
-                      value={localApiKeys.gemini}
-                      onChange={(e) => setLocalApiKeys(prev => ({...prev, gemini: e.target.value}))}
-                    />
-                  </div>
-                   <Button onClick={handleSaveApiKeys}>Save API Keys</Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
                   <CardTitle className="font-headline text-lg">Data Management</CardTitle>
                   <CardDescription>Import a sample dataset, generate a new one with AI, or manage your current data.</CardDescription>
                 </CardHeader>
@@ -184,6 +157,33 @@ export function SettingsSheet({
                         Publish All Data to Clipboard
                       </Button>
                     </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-headline text-lg">API Keys</CardTitle>
+                  <CardDescription>
+                    Provide your API keys to enable AI-powered features. Your keys are stored securely in your browser's local storage and are never shared.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="gemini-key">
+                      <div className="flex items-center gap-2">
+                        <KeyRound className="h-4 w-4" />
+                        <span>Google Gemini API Key</span>
+                      </div>
+                    </Label>
+                    <Input 
+                      id="gemini-key" 
+                      type="password" 
+                      placeholder="Enter your Gemini API key" 
+                      value={localApiKeys.gemini}
+                      onChange={(e) => setLocalApiKeys(prev => ({...prev, gemini: e.target.value}))}
+                    />
+                  </div>
+                   <Button onClick={handleSaveApiKeys}>Save API Keys</Button>
                 </CardContent>
               </Card>
 
@@ -246,3 +246,5 @@ export function SettingsSheet({
     </>
   );
 }
+
+    

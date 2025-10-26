@@ -1,0 +1,65 @@
+
+{
+    "locations": [
+        {
+            "id": "med-loc-1",
+            "name": "Apothecary's Garden",
+            "location": "Kyoto, Japan",
+            "temperatureUnit": "C",
+            "conditions": {
+                "temperature": "20°C",
+                "sunlight": "4-6 hours (Partial Shade)",
+                "soil": "Well-drained with organic matter"
+            }
+        }
+    ],
+    "plants": [
+        {
+            "id": "med-1",
+            "species": "Echinacea (Echinacea purpurea)",
+            "germinationNeeds": "Seeds require cold stratification for 1-2 months. Start indoors or direct sow in autumn or early spring.",
+            "optimalConditions": "Full to partial sun. Tolerates poor soil but prefers well-drained loam. Drought-tolerant once established.",
+            "history": [
+                { "id": "h1", "status": "Growing", "date": "2024-05-01T12:00:00.000Z", "notes": "Known for immune-boosting properties." }
+            ]
+        },
+        {
+            "id": "med-2",
+            "species": "Chamomile (Matricaria recutita)",
+            "germinationNeeds": "Surface sow seeds as they need light to germinate. Sow in spring. Self-seeds readily.",
+            "optimalConditions": "Full sun. Well-drained, sandy soil. Doesn't require rich soil. Harvest flowers when fully open.",
+            "history": [
+                { "id": "h2", "status": "Harvested", "date": "2024-06-20T12:00:00.000Z", "notes": "Flowers harvested for tea." }
+            ]
+        },
+        {
+            "id": "med-3",
+            "species": "Lavender (Lavandula angustifolia)",
+            "germinationNeeds": "Difficult from seed, requires cold stratification. Best propagated from cuttings in summer.",
+            "optimalConditions": "Full sun. Well-drained, alkaline soil. Excellent drainage is crucial. Drought-tolerant.",
+            "history": [
+                { "id": "h3", "status": "Growing", "date": "2023-04-15T12:00:00.000Z", "notes": "English Lavender variety for calming aroma." }
+            ]
+        },
+        {
+            "id": "med-4",
+            "species": "Calendula (Calendula officinalis)",
+            "germinationNeeds": "Easy to grow from seed. Direct sow in spring after the last frost. Germinates quickly.",
+            "optimalConditions": "Full sun. Tolerates most soils but prefers well-drained, fertile soil. Deadhead to prolong blooming.",
+            "history": [
+                { "id": "h4", "status": "Planting", "date": "2024-04-25T12:00:00.000Z", "notes": "Used for skin-soothing oils and salves." }
+            ]
+        },
+        {
+            "id": "med-5",
+            "species": "Ginseng (Panax ginseng)",
+            "germinationNeeds": "Extremely slow from seed, requires multiple years of stratification. Best to plant rootlets.",
+            "optimalConditions": "Deep shade (70-80%). Moist, well-drained, humus-rich soil. Simulates a mature forest floor.",
+            "history": [
+                { "id": "h5", "status": "Planning", "date": "2024-09-10T12:00:00.000Z", "notes": "Planning to create a shade structure." }
+            ]
+        }
+    ]
+}
+
+    

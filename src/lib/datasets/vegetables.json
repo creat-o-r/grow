@@ -1,0 +1,65 @@
+
+{
+    "locations": [
+        {
+            "id": "veg-loc-1",
+            "name": "Community Allotment",
+            "location": "Kent, UK",
+            "temperatureUnit": "C",
+            "conditions": {
+                "temperature": "16°C",
+                "sunlight": "5-7 hours",
+                "soil": "Clay loam, improved with compost"
+            }
+        }
+    ],
+    "plants": [
+        {
+            "id": "veg-1",
+            "species": "Carrot (Daucus carota)",
+            "germinationNeeds": "Sow seeds directly in loose, stone-free soil from spring to mid-summer. Keep soil consistently moist. Germination takes 14-21 days.",
+            "optimalConditions": "Full sun. Deep, sandy loam is ideal. pH 6.0-6.8. Thin seedlings to prevent misshapen roots.",
+            "history": [
+                { "id": "h1", "status": "Planting", "date": "2024-04-20T12:00:00.000Z", "notes": "Amsterdam Forcing variety." }
+            ]
+        },
+        {
+            "id": "veg-2",
+            "species": "Broccoli (Brassica oleracea var. italica)",
+            "germinationNeeds": "Start seeds indoors 5-7 weeks before transplanting, or direct sow in mid-summer for a fall crop. Prefers cool soil.",
+            "optimalConditions": "Full sun. Fertile, well-drained, moisture-retentive soil. Cool weather crop.",
+            "history": [
+                { "id": "h2", "status": "Growing", "date": "2024-05-15T12:00:00.000Z", "notes": "Heads are starting to form." }
+            ]
+        },
+        {
+            "id": "veg-3",
+            "species": "Potato (Solanum tuberosum)",
+            "germinationNeeds": "Plant seed potatoes (tubers) after the last frost. 'Chitting' (pre-sprouting) can speed up growth.",
+            "optimalConditions": "Full sun. Well-drained, loose, acidic soil (pH 5.0-6.0). 'Hill up' soil around the stems as they grow.",
+            "history": [
+                { "id": "h3", "status": "Growing", "date": "2024-04-10T12:00:00.000Z", "notes": "First Early variety." }
+            ]
+        },
+        {
+            "id": "veg-4",
+            "species": "Onion (Allium cepa)",
+            "germinationNeeds": "Can be grown from seeds, sets (small bulbs), or transplants. Plant sets in early spring. Seeds need a long growing season.",
+            "optimalConditions": "Full sun. Fertile, well-drained soil. Consistent watering is important for large bulbs.",
+            "history": [
+                { "id": "h4", "status": "Harvested", "date": "2024-08-25T12:00:00.000Z", "notes": "Curing for storage." }
+            ]
+        },
+        {
+            "id": "veg-5",
+            "species": "Lettuce (Lactuca sativa)",
+            "germinationNeeds": "Sow seeds in cool soil. Light is required for germination. Can be sown in succession for a continuous harvest.",
+            "optimalConditions": "Partial shade to full sun. Moist, well-drained soil. A cool-weather crop that can bolt in heat.",
+            "history": [
+                { "id": "h5", "status": "Planning", "date": "2025-03-01T12:00:00.000Z", "notes": "Planning to sow 'Tom Thumb' variety." }
+            ]
+        }
+    ]
+}
+
+    

@@ -15,16 +15,34 @@ export interface DatasetInfo {
 
 export const availableDatasets: DatasetInfo[] = [
     {
-        key: 'default-us',
-        name: 'Default US Starter Kit',
-        description: 'A collection of common plants for North American gardens.',
-        loader: async () => (await import('./default-us.json')).default as unknown as Dataset,
+        key: 'herbs',
+        name: 'Herb Garden',
+        description: 'A starter kit for a culinary herb garden.',
+        loader: async () => (await import('./herbs.json')).default as unknown as Dataset,
     },
     {
-        key: 'new-zealand',
-        name: 'New Zealand Edibles',
-        description: 'Native and common edible plants found in New Zealand.',
-        loader: async () => (await import('./new-zealand.json')).default as unknown as Dataset,
+        key: 'vegetables',
+        name: 'Vegetable Patch',
+        description: 'A selection of common vegetables for your plot.',
+        loader: async () => (await import('./vegetables.json')).default as unknown as Dataset,
+    },
+    {
+        key: 'fruit',
+        name: 'Fruit Orchard',
+        description: 'A variety of fruit-bearing plants and trees.',
+        loader: async () => (await import('./fruit.json')).default as unknown as Dataset,
+    },
+    {
+        key: 'fungi',
+        name: 'Fungi Cultivation',
+        description: 'A collection of popular edible mushrooms.',
+        loader: async () => (await import('./fungi.json')).default as unknown as Dataset,
+    },
+    {
+        key: 'medicinal',
+        name: 'Medicinal Garden',
+        description: 'Plants known for their medicinal properties.',
+        loader: async () => (await import('./medicinal.json')).default as unknown as Dataset,
     }
 ];
 
@@ -40,3 +58,5 @@ export async function loadDataset(key: string): Promise<Dataset> {
         ...data
     };
 }
+
+    

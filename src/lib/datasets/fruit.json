@@ -1,0 +1,65 @@
+
+{
+    "locations": [
+        {
+            "id": "fruit-loc-1",
+            "name": "Orchard Corner",
+            "location": "Washington, USA",
+            "temperatureUnit": "F",
+            "conditions": {
+                "temperature": "65°F",
+                "sunlight": "8+ hours",
+                "soil": "Well-drained sandy loam, pH 6.5"
+            }
+        }
+    ],
+    "plants": [
+        {
+            "id": "fruit-1",
+            "species": "Apple (Malus domestica)",
+            "germinationNeeds": "Best grown from grafted rootstock, not seed. Plant bare-root trees in spring. Requires a chilling period to set fruit.",
+            "optimalConditions": "Full sun. Well-drained, fertile loam. Needs cross-pollination from another compatible apple variety.",
+            "history": [
+                { "id": "h1", "status": "Growing", "date": "2022-03-20T12:00:00.000Z", "notes": "Honeycrisp dwarf variety." }
+            ]
+        },
+        {
+            "id": "fruit-2",
+            "species": "Strawberry (Fragaria × ananassa)",
+            "germinationNeeds": "Best grown from bare-root runners or small plants in spring or autumn. Seeds are difficult and slow.",
+            "optimalConditions": "Full sun. Well-drained, sandy soil rich in organic matter. Keep beds weed-free and mulch to protect fruit.",
+            "history": [
+                { "id": "h2", "status": "Harvested", "date": "2024-06-15T12:00:00.000Z", "notes": "June-bearing variety, huge harvest." }
+            ]
+        },
+        {
+            "id": "fruit-3",
+            "species": "Blueberry (Vaccinium corymbosum)",
+            "germinationNeeds": "Plant young bushes in spring. Requires acidic soil (pH 4.5-5.5). Two different varieties are needed for good pollination.",
+            "optimalConditions": "Full sun. Acidic, moist, well-drained, organic-rich soil. Mulch with pine needles or peat moss.",
+            "history": [
+                { "id": "h3", "status": "Growing", "date": "2023-04-10T12:00:00.000Z", "notes": "Two varieties planted: 'Bluecrop' and 'Duke'." }
+            ]
+        },
+        {
+            "id": "fruit-4",
+            "species": "Raspberry (Rubus idaeus)",
+            "germinationNeeds": "Best grown from canes. Plant in early spring. Spreads via underground runners.",
+            "optimalConditions": "Full sun. Rich, well-drained soil. Provide support like a trellis or wires. Prune annually.",
+            "history": [
+                { "id": "h4", "status": "Dormant", "date": "2024-01-15T12:00:00.000Z", "notes": "Pruned floricanes after last harvest." }
+            ]
+        },
+        {
+            "id": "fruit-5",
+            "species": "Cherry (Prunus avium)",
+            "germinationNeeds": "Best grown from a grafted tree from a nursery. Requires a chilling period. Plant in spring.",
+            "optimalConditions": "Full sun. Deep, fertile, well-drained soil. Good air circulation is important to prevent disease.",
+            "history": [
+                { "id": "h5", "status": "Planning", "date": "2024-09-01T12:00:00.000Z", "notes": "Planning to plant a 'Bing' cherry tree." }
+            ]
+        }
+    ]
+}
+
+    
