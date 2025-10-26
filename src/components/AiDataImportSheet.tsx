@@ -11,10 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from '@/components/ui/textarea';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-
-import { Loader2, Sparkles, AlertTriangle, CheckCircle, Replace, PlusCircle, Wand2, RefreshCw, X, MoreHorizontal } from 'lucide-react';
+import { Loader2, Sparkles, AlertTriangle, CheckCircle, Replace, PlusCircle, Wand2, RefreshCw, Trash2 } from 'lucide-react';
 import { createDataset } from '@/ai/flows/create-dataset-flow';
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
 import type { AiDataset, AiLog, Plant, GardenLocation } from '@/lib/types';
@@ -216,7 +214,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                             disabled={isGenerating}
                         />
                         <Button onClick={() => handleGenerate()} disabled={!theme.trim() || isGenerating}>
-                            {isGenerating && !refinement ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                            {isGenerating && !generatedData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                             Generate
                         </Button>
                     </div>
@@ -247,50 +245,49 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                             <h3 className="font-semibold text-lg">Review Your New Garden</h3>
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>{generatedData.locations[0].name}</CardTitle>
-                                    <CardContent className="pt-4 px-0 pb-0">
-                                        <p className="text-sm text-muted-foreground">{generatedData.locations[0].location}</p>
-                                        <p className='text-sm text-muted-foreground'>
-                                            {generatedData.locations[0].conditions.temperature || 'Temp'}, {generatedData.locations[0].conditions.sunlight || 'Sunlight'}, {generatedData.locations[0].conditions.soil || 'Soil'}
-                                        </p>
-                                    </CardContent>
+                                    <CardTitle className="font-headline">{generatedData.locations[0].name}</CardTitle>
                                 </CardHeader>
-                                
                                 <CardContent>
-                                    <h4 className="font-medium text-sm mb-2">Generated Plants ({generatedData.plants.length})</h4>
-                                    <ScrollArea className="h-64 rounded-md border">
-                                       <Accordion type="multiple" className="w-full">
-                                            {generatedData.plants.map(plant => (
-                                                <AccordionItem value={plant.id} key={plant.id}>
-                                                    <div className="flex items-center w-full pr-4">
-                                                        <AccordionTrigger className="flex-1 px-4 py-2 text-sm hover:bg-muted rounded-md">
-                                                            {plant.species}
-                                                        </AccordionTrigger>
-                                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleFetchMoreLikeThis(plant)} disabled={isFetchingMore === plant.id}>
-                                                            {isFetchingMore === plant.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <MoreHorizontal className="h-4 w-4"/>}
-                                                        </Button>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleRemovePlant(plant.id)}>
-                                                            <X className="h-4 w-4"/>
-                                                        </Button>
-                                                    </div>
-                                                    <AccordionContent className="px-4 pb-3">
-                                                        <div className="text-xs text-muted-foreground space-y-2">
-                                                             <div>
-                                                                <p className="font-semibold">Germination Needs</p>
-                                                                <p>{plant.germinationNeeds}</p>
-                                                             </div>
-                                                              <div>
-                                                                <p className="font-semibold">Optimal Conditions</p>
-                                                                <p>{plant.optimalConditions}</p>
-                                                             </div>
-                                                        </div>
-                                                    </AccordionContent>
-                                                </AccordionItem>
-                                            ))}
-                                        </Accordion>
-                                    </ScrollArea>
+                                    <p className="text-sm text-muted-foreground">{generatedData.locations[0].location}</p>
+                                    <p className='text-sm text-muted-foreground'>
+                                        {generatedData.locations[0].conditions.temperature || 'Temp'}, {generatedData.locations[0].conditions.sunlight || 'Sunlight'}, {generatedData.locations[0].conditions.soil || 'Soil'}
+                                    </p>
                                 </CardContent>
                             </Card>
+                             <div className="space-y-2">
+                                <h4 className="font-medium text-sm">Generated Plants ({generatedData.plants.length})</h4>
+                                <ScrollArea className="h-64 rounded-md border p-2">
+                                    <div className="space-y-2">
+                                        {generatedData.plants.map(plant => (
+                                            <Card key={plant.id} className="p-4">
+                                                <div className="flex justify-between items-start">
+                                                    <h5 className="font-semibold pr-2">{plant.species}</h5>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive -mt-1 -mr-1" onClick={() => handleRemovePlant(plant.id)}>
+                                                        <Trash2 className="h-4 w-4"/>
+                                                        <span className="sr-only">Remove {plant.species}</span>
+                                                    </Button>
+                                                </div>
+                                                <div className="text-xs text-muted-foreground space-y-2 mt-2">
+                                                    <div>
+                                                        <p className="font-semibold text-foreground/80">Germination</p>
+                                                        <p>{plant.germinationNeeds}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-semibold text-foreground/80">Conditions</p>
+                                                        <p>{plant.optimalConditions}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-3">
+                                                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleFetchMoreLikeThis(plant)} disabled={!!isFetchingMore}>
+                                                        {isFetchingMore === plant.id ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <RefreshCw className="mr-2 h-3 w-3"/>}
+                                                        More like this
+                                                    </Button>
+                                                </div>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </ScrollArea>
+                            </div>
                         </div>
 
                         <div className="space-y-4">

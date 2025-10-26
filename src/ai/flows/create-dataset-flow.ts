@@ -73,13 +73,14 @@ Theme: {{{theme}}}
 {{#if activeLocation}}
 Your primary goal is to generate a list of 5-8 plant objects that are perfectly suited to the provided active garden location and the theme.
 The provided location already exists, so you MUST return it as the single item in the 'locations' array in your output. Do not create a new location.
+For the 'name' field of the location, generate a NEW, creative name for the garden that fits the theme and location (e.g., "Balcony Bounty," "Shady Oasis," "Urban Jungle"). Do not just use the existing name.
 Active Location:
 - Name: {{{activeLocation.name}}}
 - Location: {{{activeLocation.location}}}
 - Conditions: Temp: {{{activeLocation.conditions.temperature}}}, Sunlight: {{{activeLocation.conditions.sunlight}}}, Soil: {{{activeLocation.conditions.soil}}}
 {{else}}
 Your task is to generate a dataset containing:
-1.  A single garden location object that fits the theme. It must have a creative name, a plausible real-world city/country, and realistic environmental conditions. Use Fahrenheit for US locations and Celsius otherwise.
+1.  A single garden location object that fits the theme. It must have a creative name (e.g., "Balcony Bounty," "Shady Oasis," "Urban Jungle"), a plausible real-world city/country, and realistic environmental conditions. Use Fahrenheit for US locations and Celsius otherwise.
 2.  A list of 5-8 plant objects that are well-suited to the theme and the location you created.
 {{/if}}
 
