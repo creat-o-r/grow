@@ -16,31 +16,31 @@ export interface DatasetInfo {
 export const availableDatasets: DatasetInfo[] = [
     {
         key: 'herbs',
-        name: 'Herb Garden',
+        name: 'Herbs',
         description: 'A starter kit for a culinary herb garden.',
         loader: async () => (await import('./herbs.json')).default as unknown as Dataset,
     },
     {
         key: 'vegetables',
-        name: 'Vegetable Patch',
+        name: 'Vegetables',
         description: 'A selection of common vegetables for your plot.',
         loader: async () => (await import('./vegetables.json')).default as unknown as Dataset,
     },
     {
         key: 'fruit',
-        name: 'Fruit Orchard',
+        name: 'Fruit',
         description: 'A variety of fruit-bearing plants and trees.',
         loader: async () => (await import('./fruit.json')).default as unknown as Dataset,
     },
     {
         key: 'fungi',
-        name: 'Fungi Cultivation',
+        name: 'Fungi',
         description: 'A collection of popular edible mushrooms.',
         loader: async () => (await import('./fungi.json')).default as unknown as Dataset,
     },
     {
         key: 'medicinal',
-        name: 'Medicinal Garden',
+        name: 'Medicinal',
         description: 'Plants known for their medicinal properties.',
         loader: async () => (await import('./medicinal.json')).default as unknown as Dataset,
     }
