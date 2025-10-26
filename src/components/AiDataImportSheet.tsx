@@ -142,60 +142,61 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     setError(null);
 
     try {
-      await db.transaction('rw', db.plants, db.locations, async () => {
-        if (importMode === 'replace') {
-            await db.plants.clear();
-            await db.locations.clear();
-            if (generatedData.plants) await db.plants.bulkAdd(generatedData.plants);
-            if (generatedData.locations) await db.locations.bulkAdd(generatedData.locations);
-            toast({
-              title: 'Import Successful',
-              description: `Your garden has been replaced with the new dataset.`,
-            });
-        } else if (importMode === 'add') {
-             // Add plants to current garden, ignore generated location
-            if (generatedData.plants) {
+        await db.transaction('rw', db.plants, db.locations, async () => {
+            const plantsWithNewIds = generatedData.plants.map(p => ({
+                ...p,
+                id: `plant-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+            }));
+
+            if (importMode === 'replace') {
+                const locationWithNewId = {
+                    ...generatedData.locations[0],
+                    id: `loc-${Date.now()}`
+                };
+                await db.plants.clear();
+                await db.locations.clear();
+                await db.plants.bulkAdd(plantsWithNewIds);
+                await db.locations.add(locationWithNewId);
+                toast({
+                    title: 'Import Successful',
+                    description: 'Your garden has been replaced with the new dataset.',
+                });
+            } else if (importMode === 'add') {
                 const existingPlants = await db.plants.toArray();
                 const existingSpecies = new Set(existingPlants.map(p => p.species.toLowerCase()));
-                const newPlants = generatedData.plants.filter(p => !existingSpecies.has(p.species.toLowerCase()));
-                
+                const newPlants = plantsWithNewIds.filter(p => !existingSpecies.has(p.species.toLowerCase()));
+
                 if (newPlants.length > 0) {
                     await db.plants.bulkAdd(newPlants);
                 }
-                
                 toast({
                     title: 'Import Successful',
                     description: `${newPlants.length} new plants added to your active garden. ${generatedData.plants.length - newPlants.length} duplicates were skipped.`,
                 });
+            } else if (importMode === 'new') {
+                 const locationWithNewId = {
+                    ...generatedData.locations[0],
+                    id: `loc-${Date.now()}`
+                };
+                await db.locations.add(locationWithNewId);
+                await db.plants.bulkAdd(plantsWithNewIds);
+                toast({
+                    title: 'Import Successful',
+                    description: 'The new garden and its plants have been added.',
+                });
             }
-        } else if (importMode === 'new') {
-            // Add the new garden location and plants, checking for duplicate species
-            const existingPlants = await db.plants.toArray();
-            const existingSpecies = new Set(existingPlants.map(p => p.species.toLowerCase()));
-            
-            const plantsToAdd = generatedData.plants.map(p => {
-              if (existingSpecies.has(p.species.toLowerCase())) {
-                // If it's a duplicate species, create a new object with a new ID
-                return { ...p, id: `plant-${Date.now()}-${Math.random()}` };
-              }
-              return p;
-            });
-            
-            if (generatedData.locations) await db.locations.bulkAdd(generatedData.locations);
-            if (plantsToAdd.length > 0) await db.plants.bulkAdd(plantsToAdd);
-             toast({
-              title: 'Import Successful',
-              description: `The new garden and plants have been added.`,
-            });
-        }
-      });
+        });
 
-      onComplete();
-      handleClose();
-
+        onComplete();
+        handleClose();
     } catch (err: any) {
-      console.error('Data import failed:', err);
-      setError(err.message || 'An unexpected error occurred during import.');
+        console.error('Data import failed:', err);
+        setError(err.message || 'An unexpected error occurred during import.');
+        toast({
+            title: 'Import Failed',
+            description: 'Could not import the data. Please check the console for details.',
+            variant: 'destructive',
+        });
     } finally {
         setIsImporting(false);
     }
