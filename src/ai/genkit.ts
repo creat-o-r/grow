@@ -1,33 +1,9 @@
 
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-// import { openAI } from 'genkitx-openai';
-// import { groq } from 'genkitx-groq';
 
-export type ApiKeyName = 'perplexity' | 'openai' | 'groq' | 'gemini';
-export type ApiKeys = Record<ApiKeyName, string>;
-
-export function initializeGenkit(apiKeys?: ApiKeys) {
-  const plugins: any[] = [];
-
-  const geminiApiKey = apiKeys?.gemini || process.env.GEMINI_API_KEY;
-  if (geminiApiKey) {
-    plugins.push(googleAI({ apiKey: geminiApiKey }));
-  }
-
-  // const openaiApiKey = apiKeys?.openai || process.env.OPENAI_API_KEY;
-  // if (openaiApiKey) {
-  //   plugins.push(openAI({ apiKey: openaiApiKey }));
-  // }
-
-  // const groqApiKey = apiKeys?.groq || process.env.GROQ_API_KEY;
-  // if (groqApiKey) {
-  //   plugins.push(groq({ apiKey: groqApiKey }));
-  // }
-
-  return genkit({
-    plugins,
-  });
-}
-
-export const ai = initializeGenkit();
+export const ai = genkit({
+  plugins: [
+    googleAI(),
+  ],
+});

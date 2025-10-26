@@ -6,24 +6,13 @@
  * the available API keys in the environment.
  */
 
-import { ApiKeys } from './genkit';
 
 /**
  * Gets the appropriate AI model based on the available API keys.
  * Prioritizes Groq, then OpenAI, and falls back to Google AI.
  */
-export async function getModel(apiKeys?: ApiKeys): Promise<string> {
-  // const groqApiKey = apiKeys?.groq || process.env.GROQ_API_KEY;
-  // if (groqApiKey) {
-  //   return 'groq/gemma-7b-it';
-  // }
-
-  // const openaiApiKey = apiKeys?.openai || process.env.OPENAI_API_KEY;
-  // if (openaiApiKey) {
-  //   return 'openai/gpt-4o';
-  // }
-
-  const geminiApiKey = apiKeys?.gemini || process.env.GEMINI_API_KEY;
+export async function getModel(): Promise<string> {
+  const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
   if (geminiApiKey) {
     return 'googleai/gemini-1.5-pro-latest';
   }

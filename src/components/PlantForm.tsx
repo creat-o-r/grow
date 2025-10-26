@@ -38,17 +38,14 @@ const formSchema = z.object({
 
 type PlantFormValues = z.infer<typeof formSchema>;
 
-import { ApiKeys } from '@/ai/genkit';
-
 type PlantFormProps = {
   plantToEdit?: Plant | null;
   onSubmit: (data: PlantFormValues | Plant) => void;
   isApiKeySet: boolean;
   onConfigureApiKey: () => void;
-  apiKeys: ApiKeys;
 };
 
-export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKey, apiKeys }: PlantFormProps) {
+export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKey }: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const { toast } = useToast();
@@ -85,7 +82,7 @@ export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKe
     if (!aiSearchTerm) return;
     setIsAiSearching(true);
     try {
-      const result = await aiSearchPlantData({ searchTerm: aiSearchTerm, apiKeys });
+      const result = await aiSearchPlantData({ searchTerm: aiSearchTerm });
       form.setValue('species', result.species, { shouldValidate: true });
       form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
       form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });

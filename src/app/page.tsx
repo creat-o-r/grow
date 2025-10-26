@@ -378,7 +378,6 @@ export default function Home() {
     setIsAnalyzing(true);
     const promptData = {
       location: activeLocation.location,
-      apiKeys,
     };
     try {
       const result = await getEnvironmentalData(promptData);
@@ -455,7 +454,7 @@ export default function Home() {
   const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
   const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
 
-  const areApiKeysSet = !!(apiKeys.gemini);
+  const areApiKeysSet = !!(apiKeys.gemini || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY);
 
   if (!isClient || !plants || !locations || !aiLogs) {
     return null;
@@ -721,7 +720,6 @@ export default function Home() {
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
             isApiKeySet={areApiKeysSet}
             onConfigureApiKey={() => setIsSettingsSheetOpen(true)}
-            apiKeys={apiKeys}
           />
         </SheetContent>
       </Sheet>

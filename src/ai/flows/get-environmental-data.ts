@@ -8,13 +8,12 @@
  * - GetEnvironmentalDataOutput - The return type for the function.
  */
 
-import { initializeGenkit, ApiKeys } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { getModel } from '@/ai/model';
 import { z } from 'zod';
 
 const GetEnvironmentalDataInputSchema = z.object({
   location: z.string().describe('The city and country, e.g., "San Francisco, USA"'),
-  apiKeys: z.custom<ApiKeys>().optional(),
 });
 export type GetEnvironmentalDataInput = z.infer<typeof GetEnvironmentalDataInputSchema>;
 
@@ -27,27 +26,8 @@ const GetEnvironmentalDataOutputSchema = z.object({
 });
 export type GetEnvironmentalDataOutput = z.infer<typeof GetEnvironmentalDataOutputSchema>;
 
-export async function getEnvironmentalData(
-  input: GetEnvironmentalDataInput
-): Promise<GetEnvironmentalDataOutput> {
-  const ai = initializeGenkit(input.apiKeys);
-  ai.definePrompt(getEnvironmentalDataPrompt);
-  const getEnvironmentalDataFlow = ai.defineFlow(
-    {
-      name: 'getEnvironmentalDataFlow',
-      inputSchema: GetEnvironmentalDataInputSchema,
-      outputSchema: GetEnvironmentalDataOutputSchema,
-    },
-    async (flowInput) => {
-      const model = await getModel(flowInput.apiKeys);
-      const {output} = await ai.prompt('getEnvironmentalDataPrompt')(flowInput, { model });
-      return output!;
-    }
-  );
-  return getEnvironmentalDataFlow(input);
-}
 
-const getEnvironmentalDataPrompt = {
+const getEnvironmentalDataPrompt = ai.definePrompt({
   name: 'getEnvironmentalDataPrompt',
   input: {schema: GetEnvironmentalDataInputSchema},
   output: {schema: GetEnvironmentalDataOutputSchema},
@@ -62,4 +42,23 @@ const getEnvironmentalDataPrompt = {
   In the references field, cite the full list of any general sources or knowledge bases you are using.
   Return your response in the structured format defined by the output schema.
   `,
-};
+});
+
+const getEnvironmentalDataFlow = ai.defineFlow(
+  {
+    name: 'getEnvironmentalDataFlow',
+    inputSchema: GetEnvironmentalDataInputSchema,
+    outputSchema: GetEnvironmentalDataOutputSchema,
+  },
+  async (flowInput) => {
+    const model = await getModel();
+    const {output} = await getEnvironmentalDataPrompt(flowInput, { model });
+    return output!;
+  }
+);
+
+export async function getEnvironmentalData(
+  input: GetEnvironmentalDataInput
+): Promise<GetEnvironmentalDataOutput> {
+  return getEnvironmentalDataFlow(input);
+}

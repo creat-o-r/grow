@@ -9,7 +9,7 @@
  * - AISearchPlantDataOutput - The return type for the aiSearchPlantData function.
  */
 
-import { initializeGenkit, ApiKeys } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { getModel } from '@/ai/model';
 import { z } from 'zod';
 
@@ -17,7 +17,6 @@ const AISearchPlantDataInputSchema = z.object({
   searchTerm: z
     .string()
     .describe('The name or description of the plant to search for.'),
-  apiKeys: z.custom<ApiKeys>().optional(),
 });
 export type AISearchPlantDataInput = z.infer<typeof AISearchPlantDataInputSchema>;
 
@@ -28,27 +27,7 @@ const AISearchPlantDataOutputSchema = z.object({
 });
 export type AISearchPlantDataOutput = z.infer<typeof AISearchPlantDataOutputSchema>;
 
-export async function aiSearchPlantData(
-  input: AISearchPlantDataInput
-): Promise<AISearchPlantDataOutput> {
-  const ai = initializeGenkit(input.apiKeys);
-  ai.definePrompt(aiSearchPlantDataPrompt);
-  const aiSearchPlantDataFlow = ai.defineFlow(
-    {
-      name: 'aiSearchPlantDataFlow',
-      inputSchema: AISearchPlantDataInputSchema,
-      outputSchema: AISearchPlantDataOutputSchema,
-    },
-    async (flowInput) => {
-      const model = await getModel(flowInput.apiKeys);
-      const {output} = await ai.prompt('aiSearchPlantDataPrompt')(flowInput, { model });
-      return output!;
-    }
-  );
-  return aiSearchPlantDataFlow(input);
-}
-
-const aiSearchPlantDataPrompt = {
+const aiSearchPlantDataPrompt = ai.definePrompt({
   name: 'aiSearchPlantDataPrompt',
   input: {schema: AISearchPlantDataInputSchema},
   output: {schema: AISearchPlantDataOutputSchema},
@@ -59,4 +38,24 @@ const aiSearchPlantDataPrompt = {
   Return the plant's species, germination needs, and optimal conditions.
   Ensure the output is structured according to the provided output schema, with the Zod descriptions.
   If there is no definitive answer based on the search term, make your best guess.`,
-};
+});
+
+
+const aiSearchPlantDataFlow = ai.defineFlow(
+  {
+    name: 'aiSearchPlantDataFlow',
+    inputSchema: AISearchPlantDataInputSchema,
+    outputSchema: AISearchPlantDataOutputSchema,
+  },
+  async (flowInput) => {
+    const model = await getModel();
+    const {output} = await aiSearchPlantDataPrompt(flowInput, { model });
+    return output!;
+  }
+);
+
+export async function aiSearchPlantData(
+  input: AISearchPlantDataInput
+): Promise<AISearchPlantDataOutput> {
+  return aiSearchPlantDataFlow(input);
+}
