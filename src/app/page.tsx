@@ -16,7 +16,7 @@ import { PlantCard } from '@/components/PlantCard';
 import { PlantForm } from '@/components/PlantForm';
 import { AiLogPanel } from '@/components/AiLogPanel';
 import { SettingsSheet } from '@/components/SettingsSheet';
-import { AiDataWizard } from '@/components/AiDataWizard';
+import { AiDataImportSheet } from '@/components/AiDataImportSheet';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -58,7 +58,7 @@ export default function Home() {
 
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
-  const [isAiWizardOpen, setIsAiWizardOpen] = useState(false);
+  const [isAiImportSheetOpen, setIsAiImportSheetOpen] = useState(false);
 
 
   const { toast } = useToast();
@@ -715,9 +715,9 @@ export default function Home() {
         isOpen={isSettingsSheetOpen}
         onOpenChange={setIsSettingsSheetOpen}
         onImport={handleImport}
-        onAiWizardOpen={() => {
+        onAiImportOpen={() => {
             setIsSettingsSheetOpen(false);
-            setIsAiWizardOpen(true);
+            setIsAiImportSheetOpen(true);
         }}
         onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
@@ -725,9 +725,9 @@ export default function Home() {
         areApiKeysSet={areApiKeysSet}
       />
 
-      <AiDataWizard
-        isOpen={isAiWizardOpen}
-        onOpenChange={setIsAiWizardOpen}
+      <AiDataImportSheet
+        isOpen={isAiImportSheetOpen}
+        onOpenChange={setIsAiImportSheetOpen}
         apiKeys={apiKeys}
         areApiKeysSet={areApiKeysSet}
         activeLocationId={activeLocationId}
@@ -758,4 +758,3 @@ export default function Home() {
     </div>
   );
 }
-
