@@ -10,9 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Upload, KeyRound, Download } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-
-
-type ApiKeyName = 'perplexity' | 'openai' | 'groq' | 'gemini' | 'openrouter';
+import type { ApiKeyName } from '@/lib/types';
 
 type SettingsSheetProps = {
   isOpen: boolean;

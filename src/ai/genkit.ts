@@ -1,13 +1,14 @@
 
-import { genkit, GenkitPlugin } from 'genkit';
+import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 import { openAI } from 'genkitx-openai';
 import { groq } from 'genkitx-groq';
+import openAICompatible from '@genkit-ai/compat-oai';
 
 export type ApiKeys = Record<string, string>;
 
 export function initializeGenkit(apiKeys?: ApiKeys) {
-  const plugins: GenkitPlugin[] = [];
+  const plugins = [];
 
   const geminiApiKey = apiKeys?.gemini || process.env.GEMINI_API_KEY;
   if (geminiApiKey) {
@@ -27,7 +28,8 @@ export function initializeGenkit(apiKeys?: ApiKeys) {
   const openRouterApiKey = apiKeys?.openrouter || process.env.OPENROUTER_API_KEY;
   if (openRouterApiKey) {
     plugins.push(
-      openAI({
+      openAICompatible({
+        name: 'openrouter',
         apiKey: openRouterApiKey,
         baseURL: 'https://openrouter.ai/api/v1',
       }),

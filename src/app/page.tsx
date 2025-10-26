@@ -4,16 +4,17 @@
 import { useState, useEffect, useCallback, MouseEvent, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog } from '@/lib/types';
+import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog, ApiKeyName } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
+import { getAvailableModels } from '@/ai/flows/get-available-models';
 import { loadDataset } from '@/lib/datasets';
 import { analyzeViability, Viability } from '@/lib/viability';
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
-import { PlantForm } from '@/components/PlantForm';
+import { PlantForm, PlantFormValues } from '@/components/PlantForm';
 import { AiLogPanel } from '@/components/AiLogPanel';
 import { SettingsSheet } from '@/components/SettingsSheet';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,6 @@ type NominatimResult = {
   lat: string;
   lon: string;
 };
-type ApiKeyName = 'perplexity' | 'openai' | 'groq' | 'gemini' | 'openrouter';
 
 
 export default function Home() {
@@ -65,6 +65,8 @@ export default function Home() {
     gemini: '',
     openrouter: '',
   });
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('');
 
   const { toast } = useToast();
 
@@ -118,6 +120,22 @@ export default function Home() {
     }
   }, [activeLocationId]);
 
+  useEffect(() => {
+    const fetchModels = async () => {
+      if (areApiKeysSet) {
+        const { models } = await getAvailableModels({ apiKeys });
+        setAvailableModels(models);
+        if (models.length > 0) {
+          setSelectedModel(models[0]);
+        }
+      } else {
+        setAvailableModels([]);
+        setSelectedModel('');
+      }
+    };
+    fetchModels();
+  }, [apiKeys]);
+
   const activeLocation = locations?.find(loc => loc.id === activeLocationId);
 
   // Effect for location search
@@ -149,9 +167,9 @@ export default function Home() {
     }
   }, [activeLocation, locations]);
 
-  const handleAddPlant = async (plant: Omit<Plant, 'id'>) => {
+  const handleAddPlant = async (plant: PlantFormValues) => {
     const newPlant = { ...plant, id: Date.now().toString(), history: plant.history || [] };
-    await db.plants.add(newPlant);
+    await db.plants.add(newPlant as Plant);
     setIsSheetOpen(false);
     toast({
       title: 'Plant Added',
@@ -159,8 +177,9 @@ export default function Home() {
     });
   };
 
-  const handleUpdatePlant = async (updatedPlant: Plant) => {
-    await db.plants.put(updatedPlant);
+  const handleUpdatePlant = async (updatedPlant: PlantFormValues) => {
+    if (!plantToEdit) return;
+    await db.plants.put({ ...plantToEdit, ...updatedPlant });
     setPlantToEdit(null);
     setIsSheetOpen(false);
      toast({
@@ -245,7 +264,7 @@ export default function Home() {
 
   const handleConditionChange = async (field: keyof Conditions, value: string) => {
     if (!activeLocationId) return;
-    await db.locations.update(activeLocationId, { conditions: { ...activeLocation?.conditions, [field]: value } });
+    await db.locations.update(activeLocationId, { conditions: { ...activeLocation?.conditions, [field]: value } as Conditions });
   };
   
   const handleLocationFieldChange = useCallback(async (field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
@@ -391,6 +410,7 @@ export default function Home() {
     const promptData = {
       location: activeLocation.location,
       apiKeys,
+      model: selectedModel,
     };
     try {
       const result = await getEnvironmentalData(promptData);
@@ -471,7 +491,7 @@ export default function Home() {
   const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
   const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
 
-  const areApiKeysSet = !!(apiKeys.openai || apiKeys.perplexity || apiKeys.gemini || apiKeys.groq);
+  const areApiKeysSet = !!(apiKeys.openai || apiKeys.perplexity || apiKeys.gemini || apiKeys.groq || apiKeys.openrouter);
 
   if (!isClient || !plants || !locations || !aiLogs) {
     return null;
@@ -738,6 +758,9 @@ export default function Home() {
             isApiKeySet={areApiKeysSet}
             onConfigureApiKey={() => setIsSettingsSheetOpen(true)}
             apiKeys={apiKeys}
+            availableModels={availableModels}
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
           />
         </SheetContent>
       </Sheet>

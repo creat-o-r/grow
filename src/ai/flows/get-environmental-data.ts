@@ -15,6 +15,7 @@ import { z } from 'zod';
 const GetEnvironmentalDataInputSchema = z.object({
   location: z.string().describe('The city and country, e.g., "San Francisco, USA"'),
   apiKeys: z.custom<ApiKeys>().optional(),
+  model: z.string().optional(),
 });
 export type GetEnvironmentalDataInput = z.infer<typeof GetEnvironmentalDataInputSchema>;
 
@@ -39,17 +40,24 @@ export async function getEnvironmentalData(
       outputSchema: GetEnvironmentalDataOutputSchema,
     },
     async (flowInput) => {
-      const models = await getModels(flowInput.apiKeys);
-      for (const model of models) {
-        try {
-          const { output } = await ai.prompt('getEnvironmentalDataPrompt')(flowInput, { model });
-          if (output) {
-            return output;
-          }
-        } catch (error) {
-          console.error(`Model ${model} failed:`, error);
-          if (error instanceof Error && error.message.includes('quota')) {
-            throw new Error('You have exceeded your API quota. Please check your plan and billing details.');
+      if (flowInput.model) {
+        const { output } = await ai.prompt('getEnvironmentalDataPrompt')(flowInput, { model: flowInput.model });
+        if (output) {
+          return output;
+        }
+      } else {
+        const models = await getModels(flowInput.apiKeys);
+        for (const model of models) {
+          try {
+            const { output } = await ai.prompt('getEnvironmentalDataPrompt')(flowInput, { model });
+            if (output) {
+              return output;
+            }
+          } catch (error) {
+            console.error(`Model ${model} failed:`, error);
+            if (error instanceof Error && error.message.includes('quota')) {
+              throw new Error('You have exceeded your API quota. Please check your plan and billing details.');
+            }
           }
         }
       }
