@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload } from 'lucide-react';
+import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -66,6 +66,8 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
     control: form.control,
     name: "history",
   });
+  
+  const speciesValue = form.watch('species');
 
   useEffect(() => {
     if (plantToEdit) {
@@ -187,7 +189,16 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
               <FormItem>
                 <FormLabel>Species</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Solanum lycopersicum" {...field} />
+                  <div className="relative">
+                    <Input placeholder="e.g., Solanum lycopersicum" {...field} />
+                     {speciesValue && (
+                       <a href={`https://www.google.com/search?q=${encodeURIComponent(speciesValue)}`} target="_blank" rel="noopener noreferrer" className="absolute right-2 top-1/2 -translate-y-1/2">
+                          <Button variant="ghost" size="icon" type="button" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                              <ExternalLink className="h-4 w-4" />
+                          </Button>
+                      </a>
+                    )}
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>

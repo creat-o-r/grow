@@ -4,7 +4,7 @@
 import type { Plant, Conditions } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, ExternalLink } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ViabilityIndicator } from './ViabilityIndicator';
 import { Badge } from '@/components/ui/badge';
@@ -34,17 +34,25 @@ export function PlantCard({ plant, gardenConditions, onEdit, onDelete }: PlantCa
         <CardHeader>
             <div className="flex justify-between items-start">
                 <CardTitle className="font-headline text-xl leading-tight mb-1 pr-2">{plant.species}</CardTitle>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0 -mt-1 -mr-2">
-                            <MoreHorizontal className="h-4 w-4" />
+                <div className="flex items-center -mt-1 -mr-2">
+                     <a href={`https://www.google.com/search?q=${encodeURIComponent(plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                            <ExternalLink className="h-4 w-4" />
+                            <span className="sr-only">Search for {plant.species}</span>
                         </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
-                        <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">Delete</DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                    </a>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </div>
             <div className="flex flex-wrap gap-2 items-center">
                 {gardenConditions && <ViabilityIndicator plant={plant} gardenConditions={gardenConditions} />}
