@@ -65,10 +65,10 @@ export async function createDataset(
 
   if (input.apiKeys?.gemini) {
     plugins.push(googleAI({ apiKey: input.apiKeys.gemini }));
-    model = 'gemini-1.5-pro-latest';
+    model = 'gemini-1.5-flash-latest';
   } else {
      plugins.push(googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY }));
-     model = 'gemini-1.5-pro-latest';
+     model = 'gemini-1.5-flash-latest';
   }
 
   const ai = genkit({ plugins });

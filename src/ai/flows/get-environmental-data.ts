@@ -38,12 +38,12 @@ export async function getEnvironmentalData(
 
   if (input.apiKeys?.gemini) {
     plugins.push(googleAI({ apiKey: input.apiKeys.gemini }));
-    model = 'gemini-1.5-pro-latest';
+    model = 'gemini-1.5-flash-latest';
   }
   
    if (plugins.length === 0) {
      plugins.push(googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY }));
-     model = 'gemini-1.5-pro-latest';
+     model = 'gemini-1.5-flash-latest';
   }
 
   const ai = genkit({ plugins });
