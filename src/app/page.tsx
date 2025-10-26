@@ -668,20 +668,29 @@ export default function Home() {
                 </Accordion>
                 
                 <div className="flex items-center gap-2 mb-6">
-                  {allFilters.map(status => (
-                      <Button 
-                          key={status}
-                          variant={statusFilter === status ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setStatusFilter(status)}
-                          className="h-8"
-                      >
-                          {status}
-                          <span className="ml-2 bg-primary-foreground/20 text-primary-foreground rounded-full px-1.5 py-0.5 text-xs font-mono">
-                            {statusCounts[status]}
-                          </span>
-                      </Button>
-                  ))}
+                    {allFilters.map(status => {
+                        const count = statusCounts[status];
+                        let displayCount: string | number = count;
+
+                        if (status === 'Planting' && plantingDashboardPlants.length > 0) {
+                            displayCount = `${count}+${plantingDashboardPlants.length}`;
+                        }
+
+                        return (
+                            <Button
+                                key={status}
+                                variant={statusFilter === status ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setStatusFilter(status)}
+                                className="h-8"
+                            >
+                                {status}
+                                <span className="ml-2 bg-primary-foreground/20 text-primary-foreground rounded-full px-1.5 py-0.5 text-xs font-mono">
+                                    {displayCount}
+                                </span>
+                            </Button>
+                        );
+                    })}
                 </div>
                 
                 {plants && plants.length > 0 ? (
