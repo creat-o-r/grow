@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, KeyRound, Sparkles, AlertTriangle, SearchCheck, Rocket, MessageSquare, GitBranch } from 'lucide-react';
+import { Upload, Download, KeyRound, Sparkles, AlertTriangle, SearchCheck, Rocket, MessageSquare, GitBranch, ExternalLink } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -114,15 +114,14 @@ export function SettingsSheet({
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
                         <h4 className="font-medium text-sm text-muted-foreground">Import a sample dataset</h4>
-                        {availableDatasets.map((dataset) => (
-                            <div key={dataset.key} className="flex justify-between items-center p-2 -m-2 rounded-md hover:bg-accent/50">
-                                <span className="font-semibold pl-2">{dataset.name}</span>
-                                <Button onClick={() => handleImportClick(dataset.key)} variant="ghost" size="sm">
+                         <div className="grid grid-cols-2 gap-2">
+                            {availableDatasets.map((dataset) => (
+                                <Button key={dataset.key} onClick={() => handleImportClick(dataset.key)} variant="outline" size="sm">
                                     <Download className="mr-2 h-4 w-4" />
-                                    Import
+                                    {dataset.name}
                                 </Button>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                     <div className="border-t pt-4 space-y-2">
                          <h4 className="font-medium text-sm text-muted-foreground">Generate a new dataset with AI</h4>
@@ -163,12 +162,19 @@ export function SettingsSheet({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="gemini-key">
-                      <div className="flex items-center gap-2">
-                        <KeyRound className="h-4 w-4" />
-                        <span>Google Gemini API Key</span>
-                      </div>
-                    </Label>
+                    <div className="flex justify-between items-center">
+                        <Label htmlFor="gemini-key">
+                          <div className="flex items-center gap-2">
+                            <KeyRound className="h-4 w-4" />
+                            <span>Google Gemini API Key</span>
+                          </div>
+                        </Label>
+                        {!localApiKeys.gemini && (
+                            <a href="https://ai.google.dev/gemini-api/docs/api-key" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                                Get API Key <ExternalLink className="h-3 w-3" />
+                            </a>
+                        )}
+                    </div>
                     <Input 
                       id="gemini-key" 
                       type="password" 
@@ -240,5 +246,3 @@ export function SettingsSheet({
     </>
   );
 }
-
-    
