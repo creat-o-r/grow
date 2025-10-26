@@ -15,12 +15,13 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, Trash2, CalendarIcon } from 'lucide-react';
+import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const statusHistorySchema = z.object({
   id: z.string(),
@@ -42,9 +43,11 @@ type PlantFormProps = {
   plantToEdit?: Plant | null;
   onSubmit: (data: PlantFormValues | Plant) => void;
   onConfigureApiKey: () => void;
+  areApiKeysSet: boolean;
+  apiKeys: { gemini: string };
 };
 
-export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
+export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeysSet, apiKeys }: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const { toast } = useToast();
@@ -78,10 +81,19 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
   }, [plantToEdit, form]);
 
   const handleAiSearch = async () => {
+    if (!areApiKeysSet) {
+      toast({
+        title: 'API Key Required',
+        description: 'Please configure your Gemini API key in the settings to use this feature.',
+        variant: 'destructive',
+      });
+      onConfigureApiKey();
+      return;
+    }
     if (!aiSearchTerm) return;
     setIsAiSearching(true);
     try {
-      const result = await aiSearchPlantData({ searchTerm: aiSearchTerm });
+      const result = await aiSearchPlantData({ searchTerm: aiSearchTerm }, apiKeys.gemini);
       form.setValue('species', result.species, { shouldValidate: true });
       form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
       form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });
@@ -128,6 +140,15 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
           <CardDescription>Enter a plant name to automatically fill the form.</CardDescription>
         </CardHeader>
         <CardContent>
+          {!areApiKeysSet && (
+             <Alert variant="destructive" className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>API Key Not Set</AlertTitle>
+              <AlertDescription>
+                <Button variant="link" className="p-0 h-auto" onClick={onConfigureApiKey}>Configure your Gemini API key</Button> to enable AI search.
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="flex space-x-2">
             <Input
               placeholder="e.g., 'Sunflower'"
@@ -135,7 +156,7 @@ export function PlantForm({ plantToEdit, onSubmit }: PlantFormProps) {
               onChange={(e) => setAiSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAiSearch()}
             />
-            <Button type="button" onClick={handleAiSearch} disabled={isAiSearching}>
+            <Button type="button" onClick={handleAiSearch} disabled={isAiSearching || !areApiKeysSet}>
               {isAiSearching ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (

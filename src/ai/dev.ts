@@ -3,4 +3,4 @@ config();
 
 import '@/ai/flows/ai-search-plant-data.ts';
 import '@/ai/flows/get-environmental-data.ts';
-import '@/ai/model.ts';
+import '@/ai/genkit.ts';

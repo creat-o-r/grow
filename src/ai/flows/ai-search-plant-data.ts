@@ -9,7 +9,7 @@
  * - AISearchPlantDataOutput - The return type for the aiSearchPlantData function.
  */
 
-import {ai} from '@/ai/genkit';
+import { initializeGenkit } from '@/ai/genkit';
 import { getModel } from '@/ai/model';
 import { z } from 'zod';
 
@@ -28,33 +28,36 @@ const AISearchPlantDataOutputSchema = z.object({
 export type AISearchPlantDataOutput = z.infer<typeof AISearchPlantDataOutputSchema>;
 
 export async function aiSearchPlantData(
-  input: AISearchPlantDataInput
+  input: AISearchPlantDataInput,
+  apiKey: string,
 ): Promise<AISearchPlantDataOutput> {
-  return aiSearchPlantDataFlow(input);
-}
+  const ai = initializeGenkit(apiKey);
 
-const prompt = ai.definePrompt({
-  name: 'aiSearchPlantDataPrompt',
-  input: {schema: AISearchPlantDataInputSchema},
-  output: {schema: AISearchPlantDataOutputSchema},
-  prompt: `You are an expert botanist. Extract plant data based on the search term provided.
+  const prompt = ai.definePrompt({
+    name: 'aiSearchPlantDataPrompt',
+    input: {schema: AISearchPlantDataInputSchema},
+    output: {schema: AISearchPlantDataOutputSchema},
+    prompt: `You are an expert botanist. Extract plant data based on the search term provided.
 
   Search Term: {{{searchTerm}}}
 
   Return the plant's species, germination needs, and optimal conditions.
   Ensure the output is structured according to the provided output schema, with the Zod descriptions.
   If there is no definitive answer based on the search term, make your best guess.`,
-});
+  });
 
-const aiSearchPlantDataFlow = ai.defineFlow(
-  {
-    name: 'aiSearchPlantDataFlow',
-    inputSchema: AISearchPlantDataInputSchema,
-    outputSchema: AISearchPlantDataOutputSchema,
-  },
-  async input => {
-    const model = await getModel();
-    const {output} = await prompt(input, { model });
-    return output!;
-  }
-);
+  const aiSearchPlantDataFlow = ai.defineFlow(
+    {
+      name: 'aiSearchPlantDataFlow',
+      inputSchema: AISearchPlantDataInputSchema,
+      outputSchema: AISearchPlantDataOutputSchema,
+    },
+    async input => {
+      const model = await getModel();
+      const {output} = await prompt(input, { model });
+      return output!;
+    }
+  );
+
+  return aiSearchPlantDataFlow(input);
+}

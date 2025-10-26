@@ -63,6 +63,9 @@ export default function Home() {
   const plants = useLiveQuery(() => db.plants.orderBy('species').toArray(), []);
   const locations = useLiveQuery(() => db.locations.toArray(), []);
   const aiLogs = useLiveQuery(() => db.aiLogs.orderBy('timestamp').reverse().limit(10).toArray(), []);
+  
+  const [apiKeys, setApiKeys] = useState<{gemini: string}>({gemini: ''});
+  const [areApiKeysSet, setAreApiKeysSet] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -85,6 +88,16 @@ export default function Home() {
         }
     }
     initDb();
+
+    const storedKeys = localStorage.getItem('verdantVerse_apiKeys');
+    if (storedKeys) {
+      const parsedKeys = JSON.parse(storedKeys);
+      setApiKeys(parsedKeys);
+      if (parsedKeys.gemini) {
+        setAreApiKeysSet(true);
+      }
+    }
+
   }, []);
 
   useEffect(() => {
@@ -94,6 +107,20 @@ export default function Home() {
         localStorage.removeItem('verdantVerse_activeLocation');
     }
   }, [activeLocationId]);
+  
+  const handleApiKeysChange = (newKeys: {gemini: string}) => {
+    setApiKeys(newKeys);
+    localStorage.setItem('verdantVerse_apiKeys', JSON.stringify(newKeys));
+    if (newKeys.gemini) {
+      setAreApiKeysSet(true);
+      toast({
+        title: 'API Key Saved',
+        description: 'Your Gemini API key has been saved.',
+      });
+    } else {
+      setAreApiKeysSet(false);
+    }
+  };
 
   const activeLocation = locations?.find(loc => loc.id === activeLocationId);
 
@@ -355,6 +382,15 @@ export default function Home() {
   }
 
   const handleAnalyzeConditions = async () => {
+    if (!areApiKeysSet) {
+      toast({
+        title: 'API Key Required',
+        description: 'Please set your Gemini API key in the settings.',
+        variant: 'destructive',
+      });
+      setIsSettingsSheetOpen(true);
+      return;
+    }
     if (!activeLocation || !activeLocation.location.trim()) {
       toast({
         title: 'Location Required',
@@ -367,7 +403,7 @@ export default function Home() {
     setIsAnalyzing(true);
     const promptData = { location: activeLocation.location };
     try {
-      const result = await getEnvironmentalData(promptData);
+      const result = await getEnvironmentalData(promptData, apiKeys.gemini);
       await db.locations.update(activeLocation.id, {
         conditions: {
             temperature: result.soilTemperature,
@@ -669,6 +705,8 @@ export default function Home() {
         onOpenChange={setIsSettingsSheetOpen}
         onImport={handleImport}
         onPublish={handlePublish}
+        apiKeys={apiKeys}
+        onApiKeysChange={handleApiKeysChange}
       />
 
 
@@ -681,6 +719,8 @@ export default function Home() {
             plantToEdit={plantToEdit} 
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
             onConfigureApiKey={() => setIsSettingsSheetOpen(true)}
+            areApiKeysSet={areApiKeysSet}
+            apiKeys={apiKeys}
           />
         </SheetContent>
       </Sheet>

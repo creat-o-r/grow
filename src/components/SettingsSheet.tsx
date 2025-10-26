@@ -5,7 +5,9 @@ import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Upload, Download } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Upload, Download, KeyRound } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
@@ -15,6 +17,8 @@ type SettingsSheetProps = {
   onOpenChange: (isOpen: boolean) => void;
   onImport: (datasetKey: string) => void;
   onPublish: () => void;
+  apiKeys: { gemini: string };
+  onApiKeysChange: (keys: { gemini: string }) => void;
 };
 
 export function SettingsSheet({
@@ -22,8 +26,11 @@ export function SettingsSheet({
   onOpenChange,
   onImport,
   onPublish,
+  apiKeys,
+  onApiKeysChange,
 }: SettingsSheetProps) {
   const [datasetToImport, setDatasetToImport] = useState<string | null>(null);
+  const [localApiKeys, setLocalApiKeys] = useState(apiKeys);
 
   const handleImportClick = (datasetKey: string) => {
     setDatasetToImport(datasetKey);
@@ -36,9 +43,19 @@ export function SettingsSheet({
     }
   }
 
+  const handleSaveApiKeys = () => {
+    onApiKeysChange(localApiKeys);
+    onOpenChange(false);
+  }
+
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={onOpenChange}>
+      <Sheet open={isOpen} onOpenChange={(open) => {
+        onOpenChange(open);
+        if(open) {
+          setLocalApiKeys(apiKeys);
+        }
+      }}>
         <SheetContent className="sm:max-w-lg w-[90vw] overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="font-headline">Settings</SheetTitle>
@@ -47,6 +64,33 @@ export function SettingsSheet({
             </SheetDescription>
           </SheetHeader>
           <div className="py-6 space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-headline text-lg">API Keys</CardTitle>
+                  <CardDescription>
+                    Provide your API keys to enable AI-powered features. Your keys are stored securely in your browser's local storage and are never shared.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="gemini-key">
+                      <div className="flex items-center gap-2">
+                        <KeyRound className="h-4 w-4" />
+                        <span>Google Gemini API Key</span>
+                      </div>
+                    </Label>
+                    <Input 
+                      id="gemini-key" 
+                      type="password" 
+                      placeholder="Enter your Gemini API key" 
+                      value={localApiKeys.gemini}
+                      onChange={(e) => setLocalApiKeys(prev => ({...prev, gemini: e.target.value}))}
+                    />
+                  </div>
+                   <Button onClick={handleSaveApiKeys}>Save API Keys</Button>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle className="font-headline text-lg">Data Management</CardTitle>

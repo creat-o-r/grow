@@ -7,13 +7,19 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Settings } from 'lucide-react';
+import { Settings, AlertTriangle } from 'lucide-react';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"
 
 type AiLogPanelProps = {
   logs: AiLog[];
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onOpenSettings: () => void;
+  areApiKeysSet?: boolean;
 };
 
 const FLOW_DISPLAY_NAMES: { [key: string]: string } = {
@@ -36,7 +42,7 @@ const toTitleCase = (str: string) => {
         .replace(/^./, (s) => s.toUpperCase());
 }
 
-export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings }: AiLogPanelProps) {
+export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiKeysSet }: AiLogPanelProps) {
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-2xl w-[90vw] flex flex-col">
@@ -57,6 +63,15 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings }: AiLog
         <div className="flex-1 overflow-hidden">
           <ScrollArea className="h-full w-full">
             <div className="space-y-6 pr-6 py-4">
+              { !areApiKeysSet &&
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>API Key Not Set</AlertTitle>
+                  <AlertDescription>
+                    The AI features are disabled. Please set your Gemini API key in the settings.
+                  </AlertDescription>
+                </Alert>
+              }
               {logs.length > 0 ? logs.map(log => {
                   const reasoning = (log.results as any)?.reasoning;
                   const references = (log.results as any)?.references;
