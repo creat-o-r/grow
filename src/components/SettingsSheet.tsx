@@ -118,10 +118,7 @@ export function SettingsSheet({
                         {availableDatasets.map((dataset) => (
                             <Card key={dataset.key} className="p-4">
                                 <div className="flex justify-between items-center">
-                                    <div>
-                                        <h4 className="font-semibold">{dataset.name}</h4>
-                                        <p className="text-sm text-muted-foreground">{dataset.description}</p>
-                                    </div>
+                                    <h4 className="font-semibold">{dataset.name}</h4>
                                     <Button onClick={() => handleImportClick(dataset.key)} variant="secondary" size="sm">
                                         <Download className="mr-2 h-4 w-4" />
                                         Import
@@ -246,5 +243,3 @@ export function SettingsSheet({
     </>
   );
 }
-
-    
