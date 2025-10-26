@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, KeyRound, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
+import { Upload, Download, KeyRound, Sparkles, AlertTriangle } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -21,7 +21,6 @@ type SettingsSheetProps = {
   onPublish: () => void;
   onApiKeysChange: (keys: { gemini: string }) => void;
   apiKeys: { gemini: string };
-  areApiKeysSet: boolean;
 };
 
 type ConfirmationState = {
@@ -38,16 +37,10 @@ export function SettingsSheet({
   onPublish,
   onApiKeysChange,
   apiKeys,
-  areApiKeysSet,
 }: SettingsSheetProps) {
   const [confirmationState, setConfirmationState] = useState<ConfirmationState>(null);
-  const [localApiKeys, setLocalApiKeys] = useState({ gemini: '' });
-
-  useEffect(() => {
-    if (isOpen) {
-      setLocalApiKeys(apiKeys);
-    }
-  }, [isOpen, apiKeys]);
+  const [localApiKeys, setLocalApiKeys] = useState(apiKeys);
+  const areApiKeysSet = !!apiKeys.gemini;
 
   const handleImportClick = (datasetKey: string) => {
     setConfirmationState({type: 'import', key: datasetKey});
@@ -69,19 +62,13 @@ export function SettingsSheet({
     onOpenChange(false);
   }
 
-  const handleAiWizardClick = () => {
-    if (!areApiKeysSet) {
-        // The wizard itself will show a stronger message, but this is a good first check.
-        onAiImportOpen();
-        return;
-    }
-    onAiImportOpen();
-  }
-
   return (
     <>
       <Sheet open={isOpen} onOpenChange={(open) => {
-        if (!open) setConfirmationState(null);
+        if (!open) {
+          setConfirmationState(null);
+          setLocalApiKeys(apiKeys); // Reset local keys on close
+        }
         onOpenChange(open);
       }}>
         <SheetContent className="sm:max-w-lg w-[90vw] overflow-y-auto">
@@ -123,7 +110,7 @@ export function SettingsSheet({
                 <CardHeader>
                   <CardTitle className="font-headline text-lg">AI Data Import</CardTitle>
                    <CardDescription>
-                     Use an AI assistant to generate a new garden dataset based on a theme, review the results, and choose how to import it.
+                     Use an AI assistant to generate a new garden dataset based on a theme.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -136,7 +123,7 @@ export function SettingsSheet({
                       </AlertDescription>
                     </Alert>
                   )}
-                  <Button onClick={handleAiWizardClick} disabled={!areApiKeysSet} className="w-full">
+                  <Button onClick={onAiImportOpen} disabled={!areApiKeysSet} className="w-full">
                     <Sparkles className="mr-2 h-4 w-4" />
                     Generate Plant Data
                   </Button>

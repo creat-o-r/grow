@@ -722,7 +722,6 @@ export default function Home() {
         onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
-        areApiKeysSet={areApiKeysSet}
       />
 
       <AiDataImportSheet
@@ -730,7 +729,6 @@ export default function Home() {
         onOpenChange={setIsAiImportSheetOpen}
         apiKeys={apiKeys}
         areApiKeysSet={areApiKeysSet}
-        activeLocationId={activeLocationId}
         onComplete={() => {
             // This could be more specific to refresh only what's needed
             window.location.reload();
@@ -758,3 +756,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
