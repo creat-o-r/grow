@@ -78,8 +78,7 @@ export function PlantingDashboard({ plants, gardenConditions, onOpenAddSheet, on
                 ) : (
                     <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed mt-6">
                         <CardHeader>
-                            <CardTitle className="font-headline">No more Plants to Plan</CardTitle>
-                            <CardDescription>Add new plants to your wishlist to see them here.</CardDescription>
+                            <CardTitle className="font-headline">Add more plants to plan</CardTitle>
                         </CardHeader>
                         <CardContent className="flex gap-4">
                             <Button onClick={onOpenAddSheet}>
