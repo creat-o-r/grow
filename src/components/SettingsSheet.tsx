@@ -31,7 +31,7 @@ type ConfirmationState = {
 
 const CURRENT_VERSION = '1.0.0';
 const LATEST_VERSION = '1.1.0'; // Simulate a newer version being available
-const REPO_URL = 'https://github.com/firebase/studio-prototypers-community/tree/main/grow-app';
+const REPO_URL = 'https://github.com/creat-o-r/grow';
 
 
 export function SettingsSheet({

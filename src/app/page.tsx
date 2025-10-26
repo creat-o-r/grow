@@ -35,7 +35,7 @@ type NominatimResult = {
   lon: string;
 };
 
-const REPO_URL = 'https://github.com/firebase/studio-prototypers-community/tree/main/grow-app';
+const REPO_URL = 'https://github.com/creat-o-r/grow';
 
 
 export default function Home() {
