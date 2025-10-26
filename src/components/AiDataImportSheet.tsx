@@ -276,21 +276,21 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                     <Accordion type="single" collapsible className="w-full">
                                         {generatedData.plants.map(plant => (
                                             <AccordionItem value={plant.id} key={plant.id} className="border-x-0 border-t-0 px-4">
-                                                <AccordionTrigger className="py-3 hover:no-underline [&[data-state=open]>svg]:hidden">
-                                                    <div className="flex items-center justify-between w-full">
-                                                        <div className="flex-1 text-left font-semibold pr-2">{plant.species}</div>
-                                                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                                             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleFetchMoreLikeThis(plant)} disabled={!!isFetchingMore}>
-                                                                {isFetchingMore === plant.id ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <RefreshCw className="mr-2 h-3 w-3"/>}
-                                                                More like this
-                                                            </Button>
-                                                            <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => handleRemovePlant(plant.id)}>
-                                                                <Trash2 className="mr-2 h-3 w-3"/>
-                                                                Remove
-                                                            </Button>
-                                                        </div>
+                                                <div className="flex items-center w-full py-3">
+                                                    <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start">
+                                                        <span className="font-semibold pr-2">{plant.species}</span>
+                                                    </AccordionTrigger>
+                                                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleFetchMoreLikeThis(plant)} disabled={!!isFetchingMore}>
+                                                            {isFetchingMore === plant.id ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <RefreshCw className="mr-2 h-3 w-3"/>}
+                                                            More like this
+                                                        </Button>
+                                                        <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => handleRemovePlant(plant.id)}>
+                                                            <Trash2 className="mr-2 h-3 w-3"/>
+                                                            Remove
+                                                        </Button>
                                                     </div>
-                                                </AccordionTrigger>
+                                                </div>
                                                 <AccordionContent className="pb-4 space-y-4">
                                                     <div className="text-xs text-muted-foreground space-y-2 mt-2">
                                                         <div>
@@ -368,5 +368,3 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     </Sheet>
   );
 }
-
-    
