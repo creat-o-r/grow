@@ -1,24 +1,25 @@
 
-import { dataImportFlow } from '../../../../ai/flows/data-import';
+import { NextRequest, NextResponse } from 'next/server';
+import { dataImportFlow } from '@/ai/flows/data-import';
 import { Message, StreamingTextResponse } from 'ai';
-import { NextRequest } from 'next/server';
-
-export const runtime = 'edge';
 
 export async function POST(req: NextRequest) {
-  const { messages }: { messages: Message[] } = await req.json();
+  try {
+    const { messages } = await req.json();
+    const response = await dataImportFlow({ history: messages });
 
-  const flowResponse = await dataImportFlow({ history: messages });
-  const aiMessage = flowResponse.output?.content || "Sorry, I couldn't process that.";
+    // In a real implementation, you would stream the response.
+    // For now, we'll return the full response as a stream of one.
+    const stream = new ReadableStream({
+        start(controller) {
+            controller.enqueue(response);
+            controller.close();
+        },
+    });
 
-  // In a real implementation, you would stream the response.
-  // For now, we'll return the full response as a stream of one.
-  const stream = new ReadableStream({
-    start(controller) {
-      controller.enqueue(aiMessage);
-      controller.close();
-    },
-  });
-
-  return new StreamingTextResponse(stream);
+    return new StreamingTextResponse(stream);
+  } catch (error) {
+    console.error('Error in data import API route:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
 }
