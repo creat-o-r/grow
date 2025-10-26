@@ -93,7 +93,7 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
         };
         try {
             const updatePayload: Partial<Plant> = {
-                history: [...plant.history, newHistoryEntry],
+                history: [...(plant.history || []), newHistoryEntry],
             };
             if (seeds !== undefined) {
                 updatePayload.seedsOnHand = seeds;
@@ -130,6 +130,8 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
             });
         }
     };
+
+    const seedsRequired = Math.max(0, (plant.plannedQty || 0) - (plant.seedsOnHand || 0));
 
     return (
         <Card className="flex flex-col bg-muted/50">
@@ -169,7 +171,7 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
                 </div>
                  <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                        <Label htmlFor={`planned-qty-${plant.id}`}>Planned Planting Qty (Seeds Required)</Label>
+                        <Label htmlFor={`planned-qty-${plant.id}`}>Planned Planting Qty</Label>
                         {isSavingPlannedQty && <CheckCircle className="h-4 w-4 text-green-500 animate-in fade-in" />}
                     </div>
                     <Input
@@ -179,9 +181,17 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
                         value={plannedQty}
                         onChange={(e) => setPlannedQty(e.target.value)}
                     />
-                     {plant.plannedQty !== undefined && plant.plannedQty > 0 && !plannedQty && (
-                         <p className="text-xs text-muted-foreground">Currently planned: {plant.plannedQty}</p>
-                     )}
+                     {plant.plannedQty !== undefined && plant.plannedQty > 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                            Currently planned: {plant.plannedQty}. Seeds on hand: {plant.seedsOnHand || 0}. 
+                            <span className="font-bold"> Seeds required: {seedsRequired}</span>
+                        </p>
+                     ) : (
+                        <p className="text-xs text-muted-foreground">
+                             Seeds on hand: {plant.seedsOnHand || 0}.
+                        </p>
+                     )
+                    }
                 </div>
                  <div className="flex gap-2">
                     <Button variant="secondary" className="w-full" onClick={() => updatePlantStatus('Planting')}>Mark as Planting</Button>
