@@ -15,6 +15,8 @@ const GetEnvironmentalDataInputSchema = z.object({
   location: z.string().describe('The city and country, e.g., "San Francisco, USA"'),
   apiKeys: z.object({
       gemini: z.string().optional(),
+      anthropic: z.string().optional(),
+      openai: z.string().optional(),
   }).optional(),
 });
 export type GetEnvironmentalDataInput = z.infer<typeof GetEnvironmentalDataInputSchema>;

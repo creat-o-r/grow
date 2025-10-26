@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { Plant, StatusHistory } from '@/lib/types';
+import type { Plant, StatusHistory, ApiKeys } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
@@ -44,7 +44,7 @@ type PlantFormProps = {
   onSubmit: (data: PlantFormValues | Plant) => void;
   onConfigureApiKey: () => void;
   areApiKeysSet: boolean;
-  apiKeys: { gemini: string };
+  apiKeys: ApiKeys;
 };
 
 export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeysSet, apiKeys }: PlantFormProps) {

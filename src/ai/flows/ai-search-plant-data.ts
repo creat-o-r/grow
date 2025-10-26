@@ -18,6 +18,8 @@ const AISearchPlantDataInputSchema = z.object({
     .describe('The name or description of the plant to search for.'),
   apiKeys: z.object({
       gemini: z.string().optional(),
+      anthropic: z.string().optional(),
+      openai: z.string().optional(),
   }).optional(),
 });
 export type AISearchPlantDataInput = z.infer<typeof AISearchPlantDataInputSchema>;

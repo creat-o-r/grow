@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, MouseEvent, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog } from '@/lib/types';
+import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog, ApiKeys } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
@@ -64,7 +64,7 @@ export default function Home() {
   const locations = useLiveQuery(() => db.locations.toArray(), []);
   const aiLogs = useLiveQuery(() => db.aiLogs.orderBy('timestamp').reverse().limit(10).toArray(), []);
   
-  const [apiKeys, setApiKeys] = useState({ gemini: '' });
+  const [apiKeys, setApiKeys] = useState<ApiKeys>({ gemini: '' });
   const [areApiKeysSet, setAreApiKeysSet] = useState(false);
 
   useEffect(() => {
@@ -108,7 +108,7 @@ export default function Home() {
     }
   }, [activeLocationId]);
   
-  const handleApiKeysChange = (newKeys: {gemini: string}) => {
+  const handleApiKeysChange = (newKeys: ApiKeys) => {
     localStorage.setItem('verdantVerse_apiKeys', JSON.stringify(newKeys));
     setApiKeys(newKeys);
     if (newKeys.gemini) {
@@ -707,6 +707,7 @@ export default function Home() {
         onImport={handleImport}
         onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
+        apiKeys={apiKeys}
       />
 
 

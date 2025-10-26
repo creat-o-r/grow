@@ -7,9 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, KeyRound } from 'lucide-react';
+import { Upload, Download, KeyRound, BrainCircuit, Bot } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import type { ApiKeys } from '@/lib/types';
 
 
 type SettingsSheetProps = {
@@ -17,7 +18,8 @@ type SettingsSheetProps = {
   onOpenChange: (isOpen: boolean) => void;
   onImport: (datasetKey: string) => void;
   onPublish: () => void;
-  onApiKeysChange: (keys: { gemini: string }) => void;
+  onApiKeysChange: (keys: ApiKeys) => void;
+  apiKeys: ApiKeys;
 };
 
 export function SettingsSheet({
@@ -26,18 +28,16 @@ export function SettingsSheet({
   onImport,
   onPublish,
   onApiKeysChange,
+  apiKeys,
 }: SettingsSheetProps) {
   const [datasetToImport, setDatasetToImport] = useState<string | null>(null);
-  const [localApiKeys, setLocalApiKeys] = useState({ gemini: '' });
+  const [localApiKeys, setLocalApiKeys] = useState<ApiKeys>({ gemini: '' });
 
   useEffect(() => {
     if (isOpen) {
-      const storedKeys = localStorage.getItem('verdantVerse_apiKeys');
-      if (storedKeys) {
-        setLocalApiKeys(JSON.parse(storedKeys));
-      }
+      setLocalApiKeys(apiKeys);
     }
-  }, [isOpen]);
+  }, [isOpen, apiKeys]);
 
   const handleImportClick = (datasetKey: string) => {
     setDatasetToImport(datasetKey);
@@ -85,8 +85,38 @@ export function SettingsSheet({
                       id="gemini-key" 
                       type="password" 
                       placeholder="Enter your Gemini API key" 
-                      value={localApiKeys.gemini}
+                      value={localApiKeys.gemini || ''}
                       onChange={(e) => setLocalApiKeys(prev => ({...prev, gemini: e.target.value}))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="anthropic-key">
+                      <div className="flex items-center gap-2">
+                        <Bot className="h-4 w-4" />
+                        <span>Anthropic API Key</span>
+                      </div>
+                    </Label>
+                    <Input 
+                      id="anthropic-key" 
+                      type="password" 
+                      placeholder="Enter your Anthropic API key" 
+                      value={localApiKeys.anthropic || ''}
+                      onChange={(e) => setLocalApiKeys(prev => ({...prev, anthropic: e.target.value}))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="openai-key">
+                      <div className="flex items-center gap-2">
+                        <BrainCircuit className="h-4 w-4" />
+                        <span>OpenAI API Key</span>
+                      </div>
+                    </Label>
+                    <Input 
+                      id="openai-key" 
+                      type="password" 
+                      placeholder="Enter your OpenAI API key" 
+                      value={localApiKeys.openai || ''}
+                      onChange={(e) => setLocalApiKeys(prev => ({...prev, openai: e.target.value}))}
                     />
                   </div>
                    <Button onClick={handleSaveApiKeys}>Save API Keys</Button>

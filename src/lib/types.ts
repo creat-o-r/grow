@@ -1,4 +1,5 @@
 
+
 export type StatusHistory = {
   id: string;
   status: 'Planning' | 'Planting' | 'Growing' | 'Harvested' | 'Dormant';
@@ -36,4 +37,9 @@ export type AiLog = {
     results: any;
 }
 
+export type ApiKeys = {
+  gemini: string;
+  anthropic?: string;
+  openai?: string;
+};
     
