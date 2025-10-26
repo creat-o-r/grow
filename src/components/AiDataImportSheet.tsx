@@ -119,7 +119,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
       const newPlant: Plant = {
         ...result,
         id: `ai-plant-${Date.now()}`,
-        history: [{ id: 'new-1', status: 'Planning', date: new Date().toISOString(), notes: `Suggested as similar to ${plant.species}` }],
+        history: [{ id: 'new-1', status: 'Wishlist', date: new Date().toISOString(), notes: `Suggested as similar to ${plant.species}` }],
       };
 
       if (generatedData) {

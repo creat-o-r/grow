@@ -498,8 +498,8 @@ export default function Home() {
     return filtered;
   }, [plants, statusFilter, activeLocation?.conditions]);
 
-  const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
-  const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
+  const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting'];
+  const secondaryFilters: PlantStatus[] = ['Growing', 'Harvest'];
 
 
   if (!isClient || !plants || !locations || !aiLogs) {
@@ -643,7 +643,6 @@ export default function Home() {
                 </Accordion>
                 
                 <div className="flex items-center gap-2 mb-6">
-                  <span className="text-sm font-medium text-muted-foreground">Filter by:</span>
                   {primaryFilters.map(status => (
                       <Button 
                           key={status}
@@ -828,5 +827,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

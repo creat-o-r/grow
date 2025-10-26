@@ -18,7 +18,7 @@ const PlantSchema = z.object({
   optimalConditions: z.string(),
   history: z.array(z.object({
     id: z.string(),
-    status: z.enum(['Planning', 'Planting', 'Growing', 'Harvested', 'Dormant']),
+    status: z.enum(['Wishlist', 'Planting', 'Growing', 'Harvest']),
     date: z.string(),
     notes: z.string().optional(),
   })),
@@ -89,7 +89,7 @@ For each plant, you must provide:
 - The species name.
 - A description of its germination needs.
 - A description of its optimal growing conditions.
-- A history array with a single entry where the status is 'Planning'.
+- A history array with a single entry where the status is 'Wishlist'.
 
 IMPORTANT: The list of plants MUST contain distinct and unique plant species. Do not generate duplicate plants, even with minor name variations (e.g., 'Tomato' and 'Tomato (Solanum lycopersicum)').
 

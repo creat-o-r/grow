@@ -29,7 +29,7 @@
             "germinationNeeds": "Best grown from bare-root runners or small plants in spring or autumn. Seeds are difficult and slow.",
             "optimalConditions": "Full sun. Well-drained, sandy soil rich in organic matter. Keep beds weed-free and mulch to protect fruit.",
             "history": [
-                { "id": "h2", "status": "Harvested", "date": "2024-06-15T12:00:00.000Z", "notes": "June-bearing variety, huge harvest." }
+                { "id": "h2", "status": "Harvest", "date": "2024-06-15T12:00:00.000Z", "notes": "June-bearing variety, huge harvest." }
             ]
         },
         {
@@ -47,7 +47,7 @@
             "germinationNeeds": "Best grown from canes. Plant in early spring. Spreads via underground runners.",
             "optimalConditions": "Full sun. Rich, well-drained soil. Provide support like a trellis or wires. Prune annually.",
             "history": [
-                { "id": "h4", "status": "Dormant", "date": "2024-01-15T12:00:00.000Z", "notes": "Pruned floricanes after last harvest." }
+                { "id": "h4", "status": "Growing", "date": "2024-01-15T12:00:00.000Z", "notes": "Pruned floricanes after last harvest." }
             ]
         },
         {
@@ -56,10 +56,8 @@
             "germinationNeeds": "Best grown from a grafted tree from a nursery. Requires a chilling period. Plant in spring.",
             "optimalConditions": "Full sun. Deep, fertile, well-drained soil. Good air circulation is important to prevent disease.",
             "history": [
-                { "id": "h5", "status": "Planning", "date": "2024-09-01T12:00:00.000Z", "notes": "Planning to plant a 'Bing' cherry tree." }
+                { "id": "h5", "status": "Wishlist", "date": "2024-09-01T12:00:00.000Z", "notes": "Planning to plant a 'Bing' cherry tree." }
             ]
         }
     ]
 }
-
-    

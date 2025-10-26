@@ -29,7 +29,7 @@
             "germinationNeeds": "Surface sow seeds as they need light to germinate. Sow in spring. Self-seeds readily.",
             "optimalConditions": "Full sun. Well-drained, sandy soil. Doesn't require rich soil. Harvest flowers when fully open.",
             "history": [
-                { "id": "h2", "status": "Harvested", "date": "2024-06-20T12:00:00.000Z", "notes": "Flowers harvested for tea." }
+                { "id": "h2", "status": "Harvest", "date": "2024-06-20T12:00:00.000Z", "notes": "Flowers harvested for tea." }
             ]
         },
         {
@@ -56,10 +56,8 @@
             "germinationNeeds": "Extremely slow from seed, requires multiple years of stratification. Best to plant rootlets.",
             "optimalConditions": "Deep shade (70-80%). Moist, well-drained, humus-rich soil. Simulates a mature forest floor.",
             "history": [
-                { "id": "h5", "status": "Planning", "date": "2024-09-10T12:00:00.000Z", "notes": "Planning to create a shade structure." }
+                { "id": "h5", "status": "Wishlist", "date": "2024-09-10T12:00:00.000Z", "notes": "Planning to create a shade structure." }
             ]
         }
     ]
 }
-
-    

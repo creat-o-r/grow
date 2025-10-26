@@ -1,7 +1,7 @@
 
 export type StatusHistory = {
   id: string;
-  status: 'Planning' | 'Planting' | 'Growing' | 'Harvested' | 'Dormant';
+  status: 'Wishlist' | 'Planting' | 'Growing' | 'Harvest';
   date: string; // ISO String
   notes?: string;
 };

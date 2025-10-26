@@ -47,7 +47,7 @@
             "germinationNeeds": "Can be grown from seeds, sets (small bulbs), or transplants. Plant sets in early spring. Seeds need a long growing season.",
             "optimalConditions": "Full sun. Fertile, well-drained soil. Consistent watering is important for large bulbs.",
             "history": [
-                { "id": "h4", "status": "Harvested", "date": "2024-08-25T12:00:00.000Z", "notes": "Curing for storage." }
+                { "id": "h4", "status": "Harvest", "date": "2024-08-25T12:00:00.000Z", "notes": "Curing for storage." }
             ]
         },
         {
@@ -56,10 +56,8 @@
             "germinationNeeds": "Sow seeds in cool soil. Light is required for germination. Can be sown in succession for a continuous harvest.",
             "optimalConditions": "Partial shade to full sun. Moist, well-drained soil. A cool-weather crop that can bolt in heat.",
             "history": [
-                { "id": "h5", "status": "Planning", "date": "2025-03-01T12:00:00.000Z", "notes": "Planning to sow 'Tom Thumb' variety." }
+                { "id": "h5", "status": "Wishlist", "date": "2025-03-01T12:00:00.000Z", "notes": "Planning to sow 'Tom Thumb' variety." }
             ]
         }
     ]
 }
-
-    

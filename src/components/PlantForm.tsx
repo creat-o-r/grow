@@ -25,7 +25,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const statusHistorySchema = z.object({
   id: z.string(),
-  status: z.enum(['Planning', 'Planting', 'Growing', 'Harvested', 'Dormant']),
+  status: z.enum(['Wishlist', 'Planting', 'Growing', 'Harvest']),
   date: z.string(),
   notes: z.string().optional(),
 });
@@ -77,7 +77,7 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
         species: '',
         germinationNeeds: '',
         optimalConditions: '',
-        history: [{ id: 'new-1', status: 'Planning', date: new Date().toISOString(), notes: '' }],
+        history: [{ id: 'new-1', status: 'Wishlist', date: new Date().toISOString(), notes: '' }],
       });
     }
   }, [plantToEdit, form]);
@@ -255,11 +255,10 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
                                 </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="Planning">Planning</SelectItem>
+                                <SelectItem value="Wishlist">Wishlist</SelectItem>
                                 <SelectItem value="Planting">Planting</SelectItem>
                                 <SelectItem value="Growing">Growing</SelectItem>
-                                <SelectItem value="Harvested">Harvested</SelectItem>
-                                <SelectItem value="Dormant">Dormant</SelectItem>
+                                <SelectItem value="Harvest">Harvest</SelectItem>
                             </SelectContent>
                             </Select>
                             <FormMessage />
