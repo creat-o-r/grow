@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'VerdantVerse',
+  title: 'grow',
   description: 'Your personal digital garden assistant.',
 };
 

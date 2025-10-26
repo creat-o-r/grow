@@ -80,7 +80,7 @@ export default function Home() {
     const initDb = async () => {
         const locationCount = await db.locations.count();
         if (locationCount > 0) {
-             const savedActiveLocation = localStorage.getItem('verdantVerse_activeLocation');
+             const savedActiveLocation = localStorage.getItem('grow_activeLocation');
              if (savedActiveLocation) {
                 const doesLocationExist = await db.locations.get(savedActiveLocation);
                 if (doesLocationExist) {
@@ -96,7 +96,7 @@ export default function Home() {
     }
     initDb();
 
-    const storedKeys = localStorage.getItem('verdantVerse_apiKeys');
+    const storedKeys = localStorage.getItem('grow_apiKeys');
     if (storedKeys) {
       const parsedKeys = JSON.parse(storedKeys);
       setApiKeys(parsedKeys);
@@ -109,14 +109,14 @@ export default function Home() {
 
   useEffect(() => {
     if (activeLocationId) {
-        localStorage.setItem('verdantVerse_activeLocation', activeLocationId);
+        localStorage.setItem('grow_activeLocation', activeLocationId);
     } else {
-        localStorage.removeItem('verdantVerse_activeLocation');
+        localStorage.removeItem('grow_activeLocation');
     }
   }, [activeLocationId]);
   
   const handleApiKeysChange = (newKeys: {gemini: string}) => {
-    localStorage.setItem('verdantVerse_apiKeys', JSON.stringify(newKeys));
+    localStorage.setItem('grow_apiKeys', JSON.stringify(newKeys));
     setApiKeys(newKeys);
     if (newKeys.gemini) {
       setAreApiKeysSet(true);
@@ -526,7 +526,7 @@ export default function Home() {
             {!activeLocation ? (
               <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                 <CardHeader>
-                  <CardTitle className="font-headline">Welcome to VerdantVerse</CardTitle>
+                  <CardTitle className="font-headline">Welcome to grow</CardTitle>
                   <CardDescription>
                     Create a garden to start tracking your plants.
                   </CardDescription>
