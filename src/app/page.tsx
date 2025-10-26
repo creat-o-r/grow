@@ -23,7 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronRight, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, Settings, Info } from 'lucide-react';
+import { PlusCircle, ChevronRight, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, Settings, Info, Rocket } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
@@ -34,6 +34,8 @@ type NominatimResult = {
   lat: string;
   lon: string;
 };
+
+const REPO_URL = 'https://github.com/firebase/studio-prototypers-community/tree/main/grow-app';
 
 
 export default function Home() {
@@ -130,6 +132,7 @@ export default function Home() {
   };
 
   const activeLocation = locations?.find(loc => loc.id === activeLocationId);
+  const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(REPO_URL)}`;
 
   // Effect for location search
   useEffect(() => {
@@ -724,6 +727,15 @@ export default function Home() {
         </div>
       </main>
 
+       <footer className="w-full py-6">
+          <div className="container mx-auto text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+            <Rocket className="h-4 w-4" />
+            <a href={vercelDeployUrl} target="_blank" rel="noopener noreferrer" className="hover:text-foreground hover:underline">
+              Host your own copy of this software for free
+            </a>
+          </div>
+        </footer>
+
       {(aiLogs.length > 0 || areApiKeysSet) && (
         <div className="fixed bottom-4 right-4 z-20">
           <Button
@@ -816,3 +828,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
