@@ -40,11 +40,11 @@ export function initializeGenkit(apiKeys?: ApiKeys) {
         initializer: async (client) => [
           defineCompatOpenAIModel({
             client,
-            name: 'openrouter-google/gemini-flash-1.5',
+            name: 'openrouter-google/gemma-2-9b-it:free',
             modelRef: compatOaiModelRef({
-              name: 'google/gemini-flash-1.5',
+              name: 'google/gemma-2-9b-it:free',
               info: {
-                label: 'OpenRouter - google/gemini-flash-1.5',
+                label: 'OpenRouter - google/gemma-2-9b-it:free',
                 supports: { media: false, tools: false, systemRole: true },
               },
             }),
@@ -52,17 +52,17 @@ export function initializeGenkit(apiKeys?: ApiKeys) {
         ],
       }),
       openAICompatible({
-        name: 'openrouter-microsoft',
+        name: 'openrouter-mistralai',
         apiKey: openRouterApiKey,
         baseURL: 'https://openrouter.ai/api/v1',
         initializer: async (client) => [
           defineCompatOpenAIModel({
             client,
-            name: 'openrouter-microsoft/phi-3-medium-128k-instruct',
+            name: 'openrouter-mistralai/mistral-7b-instruct:free',
             modelRef: compatOaiModelRef({
-              name: 'microsoft/phi-3-medium-128k-instruct',
+              name: 'mistralai/mistral-7b-instruct:free',
               info: {
-                label: 'OpenRouter - microsoft/phi-3-medium-128k-instruct',
+                label: 'OpenRouter - mistralai/mistral-7b-instruct:free',
                 supports: { media: false, tools: false, systemRole: true },
               },
             }),

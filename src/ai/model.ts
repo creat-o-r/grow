@@ -1,16 +1,10 @@
+
 'use server';
-/**
- * @fileOverview A model selector for the Genkit AI flows.
- *
- * This file provides a function to dynamically select the AI model based on
- * the available API keys in the environment.
- */
 
 import { ApiKeys } from './genkit';
 
 /**
  * Gets a prioritized list of AI models based on the available API keys.
- * Prioritizes Groq, then OpenAI (with a fallback), and finally Google AI.
  */
 export async function getModels(apiKeys?: ApiKeys): Promise<string[]> {
   const models: string[] = [];
@@ -34,8 +28,8 @@ export async function getModels(apiKeys?: ApiKeys): Promise<string[]> {
     apiKeys?.openrouter || process.env.OPENROUTER_API_KEY;
   if (openRouterApiKey) {
     models.push(
-      'openrouter-google/gemini-flash-1.5',
-      'openrouter-microsoft/phi-3-medium-128k-instruct'
+      'openrouter-google/gemma-2-9b-it:free',
+      'openrouter-mistralai/mistral-7b-instruct:free'
     );
   }
 
