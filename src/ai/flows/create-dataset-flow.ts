@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview An AI agent that creates a garden dataset based on a theme.
+ * @fileOverview An AI agent that creates a garden dataset based on a theme and optionally an existing location.
  *
  * - createDataset - A function that initiates the dataset creation.
  * - CreateDatasetInput - The input type for the function.
@@ -10,15 +10,6 @@
 
 import { genkit, z } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-import type { AiDataset } from '@/lib/types';
-
-const CreateDatasetInputSchema = z.object({
-  theme: z.string().describe('The theme for the dataset, e.g., "A beginner-friendly herb garden for a sunny balcony."'),
-  apiKeys: z.object({
-      gemini: z.string().optional(),
-  }).optional(),
-});
-export type CreateDatasetInput = z.infer<typeof CreateDatasetInputSchema>;
 
 const PlantSchema = z.object({
   id: z.string(),
@@ -45,11 +36,20 @@ const GardenLocationSchema = z.object({
   }),
 });
 
+const CreateDatasetInputSchema = z.object({
+  theme: z.string().describe('The theme for the dataset, e.g., "A beginner-friendly herb garden for a sunny balcony."'),
+  activeLocation: GardenLocationSchema.optional().describe('The user\'s currently active garden location. If provided, generate plants for this location.'),
+  apiKeys: z.object({
+      gemini: z.string().optional(),
+  }).optional(),
+});
+type CreateDatasetInput = z.infer<typeof CreateDatasetInputSchema>;
+
 const CreateDatasetOutputSchema = z.object({
   locations: z.array(GardenLocationSchema),
   plants: z.array(PlantSchema),
 });
-export type CreateDatasetOutput = z.infer<typeof CreateDatasetOutputSchema>;
+type CreateDatasetOutput = z.infer<typeof CreateDatasetOutputSchema>;
 
 
 export async function createDataset(
@@ -66,16 +66,31 @@ export async function createDataset(
     name: 'createDatasetPrompt',
     input: {schema: CreateDatasetInputSchema},
     output: {schema: CreateDatasetOutputSchema},
-    prompt: `You are a world-class horticulturist and garden designer. Based on the theme provided, create a dataset for a garden.
+    prompt: `You are a world-class horticulturist and garden designer. Your task is to generate a dataset based on the provided theme.
 
 Theme: {{{theme}}}
 
+{{#if activeLocation}}
+Your primary goal is to generate a list of 5-8 plant objects that are perfectly suited to the provided active garden location and the theme.
+The provided location already exists, so you MUST return it as the single item in the 'locations' array in your output. Do not create a new location.
+Active Location:
+- Name: {{{activeLocation.name}}}
+- Location: {{{activeLocation.location}}}
+- Conditions: Temp: {{{activeLocation.conditions.temperature}}}, Sunlight: {{{activeLocation.conditions.sunlight}}}, Soil: {{{activeLocation.conditions.soil}}}
+{{else}}
 Your task is to generate a dataset containing:
 1.  A single garden location object that fits the theme. It must have a creative name, a plausible real-world city/country, and realistic environmental conditions. Use Fahrenheit for US locations and Celsius otherwise.
 2.  A list of 5-8 plant objects that are well-suited to the theme and the location you created.
-3.  Each plant must have a unique ID (e.g., "ai-plant-1"), a species name, germination needs, optimal conditions, and a history array with a single entry (status: 'Planning').
+{{/if}}
 
-Ensure the output is structured exactly according to the provided Zod output schema. The generated JSON should be valid and parseable.
+For each plant, you must provide:
+- A unique ID (e.g., "ai-plant-1").
+- The species name.
+- A description of its germination needs.
+- A description of its optimal growing conditions.
+- A history array with a single entry where the status is 'Planning'.
+
+Ensure the output is structured exactly according to the provided Zod output schema. The generated JSON must be valid and parseable.
 `,
   });
 

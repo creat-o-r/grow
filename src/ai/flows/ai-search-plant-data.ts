@@ -20,14 +20,14 @@ const AISearchPlantDataInputSchema = z.object({
       gemini: z.string().optional(),
   }).optional(),
 });
-export type AISearchPlantDataInput = z.infer<typeof AISearchPlantDataInputSchema>;
+type AISearchPlantDataInput = z.infer<typeof AISearchPlantDataInputSchema>;
 
 const AISearchPlantDataOutputSchema = z.object({
   species: z.string().describe('The species of the plant.'),
   germinationNeeds: z.string().describe('The germination needs of the plant.'),
   optimalConditions: z.string().describe('The optimal growing conditions for the plant.'),
 });
-export type AISearchPlantDataOutput = z.infer<typeof AISearchPlantDataOutputSchema>;
+type AISearchPlantDataOutput = z.infer<typeof AISearchPlantDataOutputSchema>;
 
 export async function aiSearchPlantData(
   input: AISearchPlantDataInput,
@@ -66,5 +66,3 @@ If there is no definitive answer based on the search term, make your best guess.
 
   return aiSearchPlantDataFlow(input);
 }
-
-    

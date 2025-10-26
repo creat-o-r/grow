@@ -733,6 +733,7 @@ export default function Home() {
             // This could be more specific to refresh only what's needed
             window.location.reload();
         }}
+        activeLocation={activeLocation}
       />
 
 
@@ -756,5 +757,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

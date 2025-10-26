@@ -7,14 +7,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from '@/components/ui/textarea';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-import { Loader2, Sparkles, AlertTriangle, CheckCircle, Replace, PlusCircle, Wand2, RefreshCw } from 'lucide-react';
+
+import { Loader2, Sparkles, AlertTriangle, CheckCircle, Replace, PlusCircle, Wand2, RefreshCw, X, MoreHorizontal } from 'lucide-react';
 import { createDataset } from '@/ai/flows/create-dataset-flow';
-import type { AiDataset, AiLog } from '@/lib/types';
+import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
+import type { AiDataset, AiLog, Plant, GardenLocation } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/db';
 
@@ -26,16 +29,18 @@ type AiDataImportSheetProps = {
   apiKeys: { gemini: string };
   areApiKeysSet: boolean;
   onComplete: () => void;
+  activeLocation?: GardenLocation | null;
 };
 
-export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet, onComplete }: AiDataImportSheetProps) {
+export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet, onComplete, activeLocation }: AiDataImportSheetProps) {
   const [theme, setTheme] = useState('');
   const [refinement, setRefinement] = useState('');
   const [generatedData, setGeneratedData] = useState<AiDataset | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [importMode, setImportMode] = useState<ImportMode>('replace');
+  const [importMode, setImportMode] = useState<ImportMode>('add');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState<string | null>(null);
   
   const { toast } = useToast();
 
@@ -46,7 +51,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
       setRefinement('');
       setGeneratedData(null);
       setError(null);
-      setImportMode('replace');
+      setImportMode('add');
       setIsGenerating(false);
       setIsImporting(false);
     }, 300);
@@ -56,17 +61,24 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     if (!theme.trim() || !areApiKeysSet) return;
     
     setIsGenerating(true);
-    setGeneratedData(null);
+    if(!isRefinement) {
+        setGeneratedData(null);
+    }
     setError(null);
 
     const fullTheme = isRefinement && refinement.trim() 
         ? `${theme} - REFINEMENT INSTRUCTIONS: ${refinement}`
         : theme;
 
-    const promptData = { theme: fullTheme };
+    const promptData = { 
+        theme: fullTheme,
+        ...(activeLocation && { activeLocation }) // Add active location to prompt if it exists
+    };
+
     try {
       const result = await createDataset({ ...promptData, apiKeys });
       setGeneratedData(result);
+      setRefinement('');
       
       const newLog: AiLog = {
         id: Date.now().toString(),
@@ -82,6 +94,38 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
       setError(err.message || 'Could not create the dataset. Please try again.');
     } finally {
         setIsGenerating(false);
+    }
+  };
+
+  const handleRemovePlant = (plantId: string) => {
+    if (!generatedData) return;
+    const updatedPlants = generatedData.plants.filter(p => p.id !== plantId);
+    setGeneratedData({ ...generatedData, plants: updatedPlants });
+  };
+
+  const handleFetchMoreLikeThis = async (plant: Plant) => {
+    setIsFetchingMore(plant.id);
+    try {
+      const result = await aiSearchPlantData({ searchTerm: `A plant similar to ${plant.species} that fits in a garden with ${theme}`, apiKeys });
+      
+      const newPlant: Plant = {
+        ...result,
+        id: `ai-plant-${Date.now()}`,
+        history: [{ id: 'new-1', status: 'Planning', date: new Date().toISOString(), notes: `Suggested as similar to ${plant.species}` }],
+      };
+
+      if (generatedData) {
+         const plantIndex = generatedData.plants.findIndex(p => p.id === plant.id);
+         const newPlants = [...generatedData.plants];
+         newPlants.splice(plantIndex + 1, 0, newPlant);
+         setGeneratedData({ ...generatedData, plants: newPlants });
+      }
+
+    } catch (err: any) {
+      console.error('Fetch more failed:', err);
+      toast({ title: 'Error', description: 'Could not fetch a similar plant.', variant: 'destructive' });
+    } finally {
+      setIsFetchingMore(null);
     }
   };
 
@@ -115,7 +159,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                 
                 toast({
                     title: 'Import Successful',
-                    description: `${newPlants.length} new plants added to your garden. ${generatedData.plants.length - newPlants.length} duplicates were skipped.`,
+                    description: `${newPlants.length} new plants added to your active garden. ${generatedData.plants.length - newPlants.length} duplicates were skipped.`,
                 });
             }
         } else if (importMode === 'new') {
@@ -172,10 +216,13 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                             disabled={isGenerating}
                         />
                         <Button onClick={() => handleGenerate()} disabled={!theme.trim() || isGenerating}>
-                            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                            {isGenerating && !refinement ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                             Generate
                         </Button>
                     </div>
+                     {activeLocation && (
+                        <p className="text-xs text-muted-foreground">Using your active garden "{activeLocation.name}" as context.</p>
+                     )}
                     </div>
                 )}
 
@@ -187,7 +234,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                     </Alert>
                 )}
 
-                {isGenerating && (
+                {(isGenerating && !generatedData) && (
                     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-20 gap-4">
                         <Loader2 className="h-12 w-12 animate-spin text-primary" />
                         <p className="text-muted-foreground">Generating your garden...</p>
@@ -201,18 +248,46 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                             <Card>
                                 <CardHeader>
                                     <CardTitle>{generatedData.locations[0].name}</CardTitle>
-                                    <CardDescription>{generatedData.locations[0].location}</CardDescription>
+                                    <CardContent className="pt-4 px-0 pb-0">
+                                        <p className="text-sm text-muted-foreground">{generatedData.locations[0].location}</p>
+                                        <p className='text-sm text-muted-foreground'>
+                                            {generatedData.locations[0].conditions.temperature || 'Temp'}, {generatedData.locations[0].conditions.sunlight || 'Sunlight'}, {generatedData.locations[0].conditions.soil || 'Soil'}
+                                        </p>
+                                    </CardContent>
                                 </CardHeader>
+                                
                                 <CardContent>
                                     <h4 className="font-medium text-sm mb-2">Generated Plants ({generatedData.plants.length})</h4>
-                                    <ScrollArea className="h-48 rounded-md border p-2">
-                                        <ul className="space-y-1">
+                                    <ScrollArea className="h-64 rounded-md border">
+                                       <Accordion type="multiple" className="w-full">
                                             {generatedData.plants.map(plant => (
-                                                <li key={plant.id} className="text-sm p-1 rounded-md hover:bg-muted">
-                                                   {plant.species}
-                                                </li>
+                                                <AccordionItem value={plant.id} key={plant.id}>
+                                                    <div className="flex items-center w-full pr-4">
+                                                        <AccordionTrigger className="flex-1 px-4 py-2 text-sm hover:bg-muted rounded-md">
+                                                            {plant.species}
+                                                        </AccordionTrigger>
+                                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleFetchMoreLikeThis(plant)} disabled={isFetchingMore === plant.id}>
+                                                            {isFetchingMore === plant.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <MoreHorizontal className="h-4 w-4"/>}
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleRemovePlant(plant.id)}>
+                                                            <X className="h-4 w-4"/>
+                                                        </Button>
+                                                    </div>
+                                                    <AccordionContent className="px-4 pb-3">
+                                                        <div className="text-xs text-muted-foreground space-y-2">
+                                                             <div>
+                                                                <p className="font-semibold">Germination Needs</p>
+                                                                <p>{plant.germinationNeeds}</p>
+                                                             </div>
+                                                              <div>
+                                                                <p className="font-semibold">Optimal Conditions</p>
+                                                                <p>{plant.optimalConditions}</p>
+                                                             </div>
+                                                        </div>
+                                                    </AccordionContent>
+                                                </AccordionItem>
                                             ))}
-                                        </ul>
+                                        </Accordion>
                                     </ScrollArea>
                                 </CardContent>
                             </Card>
@@ -240,7 +315,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
 
                         <div className="space-y-4">
                             <h3 className="font-semibold text-lg">Import Options</h3>
-                            <RadioGroup value={importMode} onValueChange={(value) => setImportMode(value as ImportMode)}>
+                            <RadioGroup value={importMode} onValueChange={(value) => setImportMode(value as ImportMode)} defaultValue="add">
                                 <Label htmlFor="r1" className="flex items-start space-x-3 space-y-0 rounded-md border p-4 cursor-pointer hover:bg-accent has-[[data-state=checked]]:border-primary">
                                     <RadioGroupItem value="replace" id="r1" />
                                     <div className="flex flex-col">

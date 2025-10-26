@@ -17,7 +17,7 @@ const GetEnvironmentalDataInputSchema = z.object({
       gemini: z.string().optional(),
   }).optional(),
 });
-export type GetEnvironmentalDataInput = z.infer<typeof GetEnvironmentalDataInputSchema>;
+type GetEnvironmentalDataInput = z.infer<typeof GetEnvironmentalDataInputSchema>;
 
 const GetEnvironmentalDataOutputSchema = z.object({
   soilTemperature: z.string().describe('The current soil temperature.'),
@@ -26,7 +26,7 @@ const GetEnvironmentalDataOutputSchema = z.object({
   reasoning: z.string().describe('A detailed explanation of how the data was determined based on the location.'),
   references: z.any().describe('A full list of references or sources used to determine the data.'),
 });
-export type GetEnvironmentalDataOutput = z.infer<typeof GetEnvironmentalDataOutputSchema>;
+type GetEnvironmentalDataOutput = z.infer<typeof GetEnvironmentalDataOutputSchema>;
 
 export async function getEnvironmentalData(
   input: GetEnvironmentalDataInput,
@@ -69,5 +69,3 @@ Return your response in the structured format defined by the output schema.
 
   return getEnvironmentalDataFlow(input);
 }
-
-    
