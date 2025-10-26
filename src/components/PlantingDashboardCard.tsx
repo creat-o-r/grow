@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/db';
 import { ExternalLink, CheckCircle } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
-import { useDebounce } from '@/hooks/use-debounce';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -18,7 +17,6 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
     const [seedsOnHand, setSeedsOnHand] = useState<number | string>('');
     const [plannedQty, setPlannedQty] = useState<number | string>(plant.plannedQty || '');
     const [isSavingPlannedQty, setIsSavingPlannedQty] = useState(false);
-    const debouncedPlannedQty = useDebounce(plannedQty, 500);
 
     const { toast } = useToast();
     
@@ -32,20 +30,6 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
         });
     }, [plant.history, plant.seedsOnHand, plant.plannedQty]);
 
-    useEffect(() => {
-        const updatePlannedQty = async () => {
-             const qty = Number(debouncedPlannedQty);
-             if (debouncedPlannedQty !== '' && !isNaN(qty) && qty >= 0 && qty !== plant.plannedQty) {
-                setIsSavingPlannedQty(true);
-                await db.plants.update(plant.id, { plannedQty: qty });
-                setTimeout(() => setIsSavingPlannedQty(false), 500); // Show checkmark briefly
-             } else if (debouncedPlannedQty === '' && plant.plannedQty !== undefined) {
-                 await db.plants.update(plant.id, { plannedQty: undefined });
-             }
-        };
-        updatePlannedQty();
-
-    }, [debouncedPlannedQty, plant.id, plant.plannedQty]);
     
     const latestStatus = plant.history && plant.history.length > 0 ? plant.history[plant.history.length - 1] : null;
     const statusConfig: { [key: string]: string } = {
@@ -131,6 +115,23 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
         }
     };
 
+    const handleSetPlannedQty = async () => {
+        const qty = Number(plannedQty);
+        if (plannedQty !== '' && !isNaN(qty) && qty >= 0 && qty !== plant.plannedQty) {
+            setIsSavingPlannedQty(true);
+            await db.plants.update(plant.id, { plannedQty: qty });
+            setTimeout(() => setIsSavingPlannedQty(false), 1000); // Show checkmark briefly
+        } else if (plannedQty === '' && plant.plannedQty !== undefined) {
+            await db.plants.update(plant.id, { plannedQty: undefined });
+        } else {
+             toast({
+                title: 'Invalid Quantity',
+                description: 'Please enter a valid number for planned quantity.',
+                variant: 'destructive',
+            });
+        }
+    };
+
     const seedsRequired = Math.max(0, (plant.plannedQty || 0) - (plant.seedsOnHand || 0));
 
     return (
@@ -174,13 +175,16 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
                         <Label htmlFor={`planned-qty-${plant.id}`}>Planned Planting Qty</Label>
                         {isSavingPlannedQty && <CheckCircle className="h-4 w-4 text-green-500 animate-in fade-in" />}
                     </div>
-                    <Input
-                        id={`planned-qty-${plant.id}`}
-                        type="number"
-                        placeholder="e.g., 20"
-                        value={plannedQty}
-                        onChange={(e) => setPlannedQty(e.target.value)}
-                    />
+                    <div className="flex gap-2">
+                        <Input
+                            id={`planned-qty-${plant.id}`}
+                            type="number"
+                            placeholder="e.g., 20"
+                            value={plannedQty}
+                            onChange={(e) => setPlannedQty(e.target.value)}
+                        />
+                        <Button onClick={handleSetPlannedQty} disabled={plannedQty === ''}>Set</Button>
+                    </div>
                      {plant.plannedQty !== undefined && plant.plannedQty > 0 ? (
                         <p className="text-xs text-muted-foreground">
                             Currently planned: {plant.plannedQty}. Seeds on hand: {plant.seedsOnHand || 0}. 
