@@ -13,7 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-import { Loader2, Sparkles, AlertTriangle, CheckCircle, Replace, PlusCircle, Wand2, RefreshCw, Trash2 } from 'lucide-react';
+import { Loader2, Sparkles, AlertTriangle, CheckCircle, Replace, PlusCircle, Wand2, RefreshCw, Trash2, ExternalLink } from 'lucide-react';
 import { createDataset } from '@/ai/flows/create-dataset-flow';
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
 import type { AiDataset, AiLog, Plant, GardenLocation } from '@/lib/types';
@@ -276,11 +276,22 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                     <Accordion type="single" collapsible className="w-full">
                                         {generatedData.plants.map(plant => (
                                             <AccordionItem value={plant.id} key={plant.id} className="border-x-0 border-t-0 px-4">
-                                                <div className="flex items-center w-full py-3">
-                                                    <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start">
-                                                        <span className="font-semibold pr-2">{plant.species}</span>
+                                                <div className="flex items-center w-full">
+                                                    <AccordionTrigger className="py-3 hover:no-underline flex-1 justify-start">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-semibold">{plant.species}</span>
+                                                            <a 
+                                                                href={`https://www.google.com/search?q=${encodeURIComponent(plant.species)}`} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer" 
+                                                                className="text-muted-foreground hover:text-foreground"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <ExternalLink className="h-4 w-4" />
+                                                            </a>
+                                                        </div>
                                                     </AccordionTrigger>
-                                                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                                    <div className="flex items-center gap-2 pl-4" onClick={(e) => e.stopPropagation()}>
                                                         <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleFetchMoreLikeThis(plant)} disabled={!!isFetchingMore}>
                                                             {isFetchingMore === plant.id ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <RefreshCw className="mr-2 h-3 w-3"/>}
                                                             More like this
@@ -368,3 +379,5 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     </Sheet>
   );
 }
+
+    
