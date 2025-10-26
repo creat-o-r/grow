@@ -11,6 +11,8 @@ import { db } from '@/lib/db';
 import { ExternalLink, CheckCircle } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
 import { useDebounce } from '@/hooks/use-debounce';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 export function PlantingDashboardCard({ plant }: { plant: Plant }) {
     const [seedsOnHand, setSeedsOnHand] = useState<number | string>('');
@@ -44,6 +46,14 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
         updatePlannedQty();
 
     }, [debouncedPlannedQty, plant.id, plant.plannedQty]);
+    
+    const latestStatus = plant.history && plant.history.length > 0 ? plant.history[plant.history.length - 1] : null;
+    const statusConfig: { [key: string]: string } = {
+        Wishlist: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800',
+        Planting: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-800',
+        Growing: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-800',
+        Harvest: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-800',
+    };
 
     const handleUndo = async () => {
         if (!previousPlantState) return;
@@ -133,7 +143,12 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
                         </Button>
                     </a>
                 </div>
-                <CardDescription className="text-xs text-muted-foreground line-clamp-2">
+                {latestStatus && (
+                    <Badge variant="outline" className={cn("font-normal w-fit", statusConfig[latestStatus.status])}>
+                        {latestStatus.status}
+                    </Badge>
+                )}
+                <CardDescription className="text-xs text-muted-foreground line-clamp-2 pt-1">
                     {plant.optimalConditions}
                 </CardDescription>
             </CardHeader>
