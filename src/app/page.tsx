@@ -531,7 +531,7 @@ export default function Home() {
                 <CardHeader>
                   <CardTitle className="font-headline">Welcome to grow</CardTitle>
                   <CardDescription>
-                    Create a garden to start tracking your plants.
+                    Create a garden to find more plants you can grow
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
