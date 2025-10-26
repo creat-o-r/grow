@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, MouseEvent, useMemo } from 'react';
+import { useStore } from '@/lib/store';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog, ApiKeyName } from '@/lib/types';
@@ -36,6 +37,16 @@ type NominatimResult = {
 
 
 export default function Home() {
+  const {
+    apiKeys,
+    setApiKey,
+    setAvailableModels,
+    selectedModel,
+    setSelectedModel,
+    isSettingsSheetOpen,
+    setIsSettingsSheetOpen,
+  } = useStore();
+
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [plantToEdit, setPlantToEdit] = useState<Plant | null>(null);
   const [isClient, setIsClient] = useState(false);
@@ -57,16 +68,6 @@ export default function Home() {
   const [locationToDelete, setLocationToDelete] = useState<GardenLocation | null>(null);
 
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
-  const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
-  const [apiKeys, setApiKeys] = useState<Record<ApiKeyName, string>>({
-    perplexity: '',
-    openai: '',
-    groq: '',
-    gemini: '',
-    openrouter: '',
-  });
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>('');
 
   const { toast } = useToast();
 
@@ -82,15 +83,11 @@ export default function Home() {
     const savedGeminiKey = localStorage.getItem('grow_geminiApiKey') || '';
     const savedOpenRouterKey = localStorage.getItem('grow_openrouterApiKey') || '';
 
-    const currentApiKeys = {
-      perplexity: savedPerplexityKey,
-      openai: savedOpenAIKey,
-      groq: savedGroqKey,
-      gemini: savedGeminiKey,
-      openrouter: savedOpenRouterKey,
-    };
-
-    setApiKeys(currentApiKeys);
+    setApiKey('perplexity', savedPerplexityKey);
+    setApiKey('openai', savedOpenAIKey);
+    setApiKey('groq', savedGroqKey);
+    setApiKey('gemini', savedGeminiKey);
+    setApiKey('openrouter', savedOpenRouterKey);
     
     const initDb = async () => {
         const locationCount = await db.locations.count();
@@ -110,7 +107,7 @@ export default function Home() {
         }
     }
     initDb();
-  }, []);
+  }, [setApiKey]);
 
   useEffect(() => {
     if (activeLocationId) {
@@ -120,12 +117,14 @@ export default function Home() {
     }
   }, [activeLocationId]);
 
+  const areApiKeysSet = !!(apiKeys.openai || apiKeys.perplexity || apiKeys.gemini || apiKeys.groq || apiKeys.openrouter);
+
   useEffect(() => {
     const fetchModels = async () => {
       if (areApiKeysSet) {
         const { models } = await getAvailableModels({ apiKeys });
         setAvailableModels(models);
-        if (models.length > 0) {
+        if (models.length > 0 && !models.includes(selectedModel)) {
           setSelectedModel(models[0]);
         }
       } else {
@@ -134,7 +133,7 @@ export default function Home() {
       }
     };
     fetchModels();
-  }, [apiKeys]);
+  }, [apiKeys, setAvailableModels, setSelectedModel, areApiKeysSet, selectedModel]);
 
   const activeLocation = locations?.find(loc => loc.id === activeLocationId);
 
@@ -458,8 +457,7 @@ export default function Home() {
     };
     
     localStorage.setItem(keyMap[keyName], key);
-    const newApiKeys = {...apiKeys, [keyName]: key};
-    setApiKeys(newApiKeys);
+    setApiKey(keyName, key);
 
     toast({
       title: 'API Key Saved',
@@ -490,8 +488,6 @@ export default function Home() {
 
   const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
   const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
-
-  const areApiKeysSet = !!(apiKeys.openai || apiKeys.perplexity || apiKeys.gemini || apiKeys.groq || apiKeys.openrouter);
 
   if (!isClient || !plants || !locations || !aiLogs) {
     return null;
@@ -579,7 +575,7 @@ export default function Home() {
                                       <Card className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto">
                                           <CardContent className="p-2">
                                               {isSearchingLocation && <div className="p-2 text-sm text-muted-foreground">Searching...</div>}
-                                              {!isSearchingLocation && locationSuggestions.map((suggestion, index) => (
+                                              {!isSearchingLocation && locationSuggestions.map((suggestion: NominatimResult, index) => (
                                                   <button
                                                       key={`${suggestion.lat}-${suggestion.lon}-${index}`}
                                                       className="block w-full text-left p-2 text-sm rounded-md hover:bg-accent"
@@ -741,7 +737,6 @@ export default function Home() {
         isOpen={isSettingsSheetOpen}
         onOpenChange={setIsSettingsSheetOpen}
         onSaveApiKey={handleSaveApiKey}
-        apiKeys={apiKeys}
         onImport={handleImport}
         onPublish={handlePublish}
       />
@@ -757,10 +752,6 @@ export default function Home() {
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
             isApiKeySet={areApiKeysSet}
             onConfigureApiKey={() => setIsSettingsSheetOpen(true)}
-            apiKeys={apiKeys}
-            availableModels={availableModels}
-            selectedModel={selectedModel}
-            onModelChange={setSelectedModel}
           />
         </SheetContent>
       </Sheet>

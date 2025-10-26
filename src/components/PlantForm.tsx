@@ -10,11 +10,11 @@ import { format, parseISO } from 'date-fns';
 
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
 import { useToast } from '@/hooks/use-toast';
+import { useStore } from '@/lib/store';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Search, Loader2, Plus, Trash2, CalendarIcon, KeyRound } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,20 +39,15 @@ const formSchema = z.object({
 
 export type PlantFormValues = z.infer<typeof formSchema>;
 
-import { ApiKeys } from '@/ai/genkit';
-
 type PlantFormProps = {
   plantToEdit?: Plant | null;
   onSubmit: (data: PlantFormValues) => void;
   isApiKeySet: boolean;
   onConfigureApiKey: () => void;
-  apiKeys: ApiKeys;
-  availableModels: string[];
-  selectedModel: string;
-  onModelChange: (model: string) => void;
 };
 
-export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKey, apiKeys, availableModels, selectedModel, onModelChange }: PlantFormProps) {
+export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKey }: PlantFormProps) {
+  const { apiKeys, selectedModel } = useStore();
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const { toast } = useToast();
@@ -132,45 +127,26 @@ export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKe
           <CardDescription>Enter a plant name to automatically fill the form.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex space-x-2">
-              <Input
-                placeholder="e.g., 'Sunflower'"
-                value={aiSearchTerm}
-                onChange={(e) => setAiSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAiSearch()}
-              />
-              {!isApiKeySet && (
-                <Button type="button" size="icon" variant="outline" onClick={onConfigureApiKey}>
-                  <KeyRound className="h-4 w-4" />
-                </Button>
-              )}
-              <Button type="button" onClick={handleAiSearch} disabled={isAiSearching || !isApiKeySet}>
-                {isAiSearching ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Search className="h-4 w-4" />
-                )}
-                <span className="sr-only">Search</span>
+          <div className="flex space-x-2">
+            <Input
+              placeholder="e.g., 'Sunflower'"
+              value={aiSearchTerm}
+              onChange={(e) => setAiSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAiSearch()}
+            />
+            {!isApiKeySet && (
+              <Button type="button" size="icon" variant="outline" onClick={onConfigureApiKey}>
+                <KeyRound className="h-4 w-4" />
               </Button>
-            </div>
-            {isApiKeySet && availableModels.length > 0 && (
-              <div className="space-y-2">
-                <Label>Select a model</Label>
-                <Select value={selectedModel} onValueChange={onModelChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableModels.map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             )}
+            <Button type="button" onClick={handleAiSearch} disabled={isAiSearching || !isApiKeySet}>
+              {isAiSearching ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
+              <span className="sr-only">Search</span>
+            </Button>
           </div>
         </CardContent>
       </Card>

@@ -2,11 +2,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useStore } from '@/lib/store';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, KeyRound, Download } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -16,7 +18,6 @@ type SettingsSheetProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onSaveApiKey: (keyName: ApiKeyName, key: string) => void;
-  apiKeys: Record<ApiKeyName, string>;
   onImport: (datasetKey: string) => void;
   onPublish: () => void;
 };
@@ -25,10 +26,11 @@ export function SettingsSheet({
   isOpen,
   onOpenChange,
   onSaveApiKey,
-  apiKeys,
   onImport,
   onPublish,
 }: SettingsSheetProps) {
+  const { apiKeys, availableModels, selectedModel, setSelectedModel } = useStore();
+
   const [perplexityKey, setPerplexityKey] = useState(apiKeys.perplexity);
   const [openAIKey, setOpenAIKey] = useState(apiKeys.openai);
   const [geminiKey, setGeminiKey] = useState(apiKeys.gemini);
@@ -70,10 +72,27 @@ export function SettingsSheet({
           <div className="py-6 space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-headline text-lg">API Keys</CardTitle>
-                  <CardDescription>Manage API keys for third-party AI model providers.</CardDescription>
+                  <CardTitle className="font-headline text-lg">AI Model Settings</CardTitle>
+                  <CardDescription>Manage API keys and select your preferred model for AI tasks.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {availableModels.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Preferred AI Model</Label>
+                      <Select value={selectedModel} onValueChange={setSelectedModel}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableModels.map((model) => (
+                            <SelectItem key={model} value={model}>
+                              {model}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   {/* Gemini */}
                   <div className="space-y-4 p-4 border rounded-lg">
                     <h4 className="font-semibold">Google Gemini</h4>

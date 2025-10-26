@@ -35,5 +35,10 @@ export async function loadDataset(key: string): Promise<Dataset> {
     if (!datasetInfo) {
         throw new Error(`Dataset with key "${key}" not found.`);
     }
-    return await datasetInfo.loader();
+    const data = await datasetInfo.loader();
+    return {
+        name: datasetInfo.name,
+        description: datasetInfo.description,
+        ...data
+    };
 }
