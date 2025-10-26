@@ -11,7 +11,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import type { Plant } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
-import { Trash2, Loader2 } from 'lucide-react';
+import { Trash2, Loader2, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type DuplicateGroup = {
@@ -37,16 +37,14 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange }: { isOpen: boolean
 
     allPlants.forEach(plant => {
       const speciesKey = plant.species.toLowerCase().trim();
-      if (!plantsBySpecies.has(speciesKey)) {
-        plantsBySpecies.set(speciesKey, []);
-      }
-      plantsBySpecies.get(speciesKey)!.push(plant);
+      const existing = plantsBySpecies.get(speciesKey) || [];
+      plantsBySpecies.set(speciesKey, [...existing, plant]);
     });
 
     const foundDuplicates: DuplicateGroup[] = [];
     const initialDeletions = new Set<string>();
 
-    plantsBySpecies.forEach((plants, species) => {
+    plantsBySpecies.forEach((plants, speciesKey) => {
       if (plants.length > 1) {
         // Sort by the most recent history entry date, newest first
         plants.sort((a, b) => {
@@ -54,8 +52,10 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange }: { isOpen: boolean
           const dateB = b.history?.length ? new Date(b.history[b.history.length - 1].date).getTime() : 0;
           return dateB - dateA;
         });
-
-        foundDuplicates.push({ species, plants });
+        
+        // Use the species name from the first (most recent) plant for display
+        const displaySpecies = plants[0].species;
+        foundDuplicates.push({ species: displaySpecies, plants });
         
         // Pre-select all but the first (most recent) for deletion
         const toDelete = plants.slice(1);
@@ -108,7 +108,7 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange }: { isOpen: boolean
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-full h-full flex flex-col p-0">
+      <SheetContent className="w-full sm:max-w-2xl h-full flex flex-col p-0">
         <div className="flex items-center justify-between p-6 border-b">
           <SheetHeader className="text-left">
             <SheetTitle className="font-headline">Review & Merge Duplicates</SheetTitle>
@@ -119,7 +119,7 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange }: { isOpen: boolean
           <SheetClose asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <span className="sr-only">Close</span>
-              <Trash2 className="h-4 w-4" />
+              <X className="h-4 w-4" />
             </Button>
           </SheetClose>
         </div>
@@ -131,7 +131,7 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange }: { isOpen: boolean
                     duplicateGroups.map(group => (
                         <Card key={group.species}>
                             <CardHeader>
-                                <CardTitle>{group.plants[0].species}</CardTitle>
+                                <CardTitle>{group.species}</CardTitle>
                                 <CardDescription>Found {group.plants.length} potential duplicates.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
