@@ -8,7 +8,6 @@ import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog, AiDataset
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
-import { createDataset } from '@/ai/flows/create-dataset-flow';
 import { loadDataset } from '@/lib/datasets';
 import { analyzeViability, Viability } from '@/lib/viability';
 
@@ -17,6 +16,7 @@ import { PlantCard } from '@/components/PlantCard';
 import { PlantForm } from '@/components/PlantForm';
 import { AiLogPanel } from '@/components/AiLogPanel';
 import { SettingsSheet } from '@/components/SettingsSheet';
+import { AiDataWizard } from '@/components/AiDataWizard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,8 @@ export default function Home() {
 
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
+  const [isAiWizardOpen, setIsAiWizardOpen] = useState(false);
+
 
   const { toast } = useToast();
 
@@ -233,41 +235,6 @@ export default function Home() {
             description: 'There was an error loading the dataset.',
             variant: 'destructive',
         });
-    }
-  };
-  
-  const handleAiCreate = async (theme: string) => {
-    if (!areApiKeysSet) {
-      toast({
-        title: 'API Key Required',
-        description: 'Please set your Gemini API key in the settings.',
-        variant: 'destructive',
-      });
-      setIsSettingsSheetOpen(true);
-      return;
-    }
-    try {
-      const promptData = { theme };
-      const result = await createDataset({ ...promptData, apiKeys });
-      
-      const newLog: AiLog = {
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        flow: 'createDataset',
-        prompt: promptData,
-        results: result,
-      };
-      await db.aiLogs.add(newLog);
-
-      await importData(result, `AI-Generated: ${theme}`);
-
-    } catch (error: any) {
-       console.error('AI dataset creation failed:', error);
-      toast({
-        title: 'AI Creation Failed',
-        description: error.message || 'Could not create the dataset. Please try again.',
-        variant: 'destructive',
-      });
     }
   };
 
@@ -748,10 +715,26 @@ export default function Home() {
         isOpen={isSettingsSheetOpen}
         onOpenChange={setIsSettingsSheetOpen}
         onImport={handleImport}
-        onAiCreate={handleAiCreate}
+        onAiWizardOpen={() => {
+            setIsSettingsSheetOpen(false);
+            setIsAiWizardOpen(true);
+        }}
         onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
+        areApiKeysSet={areApiKeysSet}
+      />
+
+      <AiDataWizard
+        isOpen={isAiWizardOpen}
+        onOpenChange={setIsAiWizardOpen}
+        apiKeys={apiKeys}
+        areApiKeysSet={areApiKeysSet}
+        activeLocationId={activeLocationId}
+        onComplete={() => {
+            // This could be more specific to refresh only what's needed
+            window.location.reload();
+        }}
       />
 
 

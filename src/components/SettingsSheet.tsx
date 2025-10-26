@@ -7,23 +7,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, KeyRound, Sparkles, Loader2 } from 'lucide-react';
+import { Upload, Download, KeyRound, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 type SettingsSheetProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onImport: (datasetKey: string) => void;
-  onAiCreate: (theme: string) => Promise<void>;
+  onAiWizardOpen: () => void;
   onPublish: () => void;
   onApiKeysChange: (keys: { gemini: string }) => void;
   apiKeys: { gemini: string };
+  areApiKeysSet: boolean;
 };
 
 type ConfirmationState = {
-  type: 'import' | 'ai';
+  type: 'import';
   key: string;
 } | null;
 
@@ -32,15 +34,14 @@ export function SettingsSheet({
   isOpen,
   onOpenChange,
   onImport,
-  onAiCreate,
+  onAiWizardOpen,
   onPublish,
   onApiKeysChange,
   apiKeys,
+  areApiKeysSet,
 }: SettingsSheetProps) {
   const [confirmationState, setConfirmationState] = useState<ConfirmationState>(null);
   const [localApiKeys, setLocalApiKeys] = useState({ gemini: '' });
-  const [aiTheme, setAiTheme] = useState('');
-  const [isAiCreating, setIsAiCreating] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -57,10 +58,6 @@ export function SettingsSheet({
 
     if (confirmationState.type === 'import') {
         onImport(confirmationState.key);
-    } else if (confirmationState.type === 'ai') {
-        setIsAiCreating(true);
-        await onAiCreate(confirmationState.key);
-        setIsAiCreating(false);
     }
     
     setConfirmationState(null);
@@ -72,9 +69,13 @@ export function SettingsSheet({
     onOpenChange(false);
   }
 
-  const handleAiCreateClick = async () => {
-    if (!aiTheme.trim()) return;
-    setConfirmationState({type: 'ai', key: aiTheme});
+  const handleAiWizardClick = () => {
+    if (!areApiKeysSet) {
+        // The wizard itself will show a stronger message, but this is a good first check.
+        onAiWizardOpen();
+        return;
+    }
+    onAiWizardOpen();
   }
 
   return (
@@ -120,24 +121,24 @@ export function SettingsSheet({
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-headline text-lg">AI Dataset Generator</CardTitle>
+                  <CardTitle className="font-headline text-lg">AI Data Wizard</CardTitle>
                    <CardDescription>
-                     Describe the type of garden you want to create, and the AI will generate a starter dataset for you. This will overwrite your current data.
+                     Use an AI assistant to generate a new garden dataset based on a theme, review the results, and choose how to import it.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                   <div className="space-y-2">
-                    <Label htmlFor="ai-theme">Garden Theme</Label>
-                    <Input 
-                      id="ai-theme" 
-                      placeholder="e.g., A low-maintenance herb garden"
-                      value={aiTheme}
-                      onChange={(e) => setAiTheme(e.target.value)}
-                    />
-                  </div>
-                  <Button onClick={handleAiCreateClick} disabled={isAiCreating || !aiTheme.trim()}>
-                    {isAiCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                    Generate Dataset
+                  {!areApiKeysSet && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>API Key Required</AlertTitle>
+                      <AlertDescription>
+                        You must save a Gemini API key to use the AI Data Wizard.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <Button onClick={handleAiWizardClick} disabled={!areApiKeysSet} className="w-full">
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Launch AI Data Wizard
                   </Button>
                 </CardContent>
               </Card>
@@ -184,8 +185,7 @@ export function SettingsSheet({
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setConfirmationState(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirm}>
-              {isAiCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {isAiCreating ? 'Generating...' : 'Overwrite'}
+              Overwrite
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
