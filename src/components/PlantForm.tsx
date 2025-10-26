@@ -35,6 +35,7 @@ const formSchema = z.object({
   germinationNeeds: z.string().min(10, 'Germination needs are required.'),
   optimalConditions: z.string().min(10, 'Optimal conditions are required.'),
   history: z.array(statusHistorySchema),
+  seedsOnHand: z.coerce.number().optional(),
 });
 
 type PlantFormValues = z.infer<typeof formSchema>;
@@ -59,6 +60,7 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
       germinationNeeds: '',
       optimalConditions: '',
       history: [],
+      seedsOnHand: 0,
     },
   });
   
@@ -68,16 +70,22 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
   });
   
   const speciesValue = form.watch('species');
+  const lastStatus = form.watch('history')?.slice(-1)[0]?.status;
+
 
   useEffect(() => {
     if (plantToEdit) {
-      form.reset(plantToEdit);
+      form.reset({
+        ...plantToEdit,
+        seedsOnHand: plantToEdit.seedsOnHand || 0,
+      });
     } else {
       form.reset({
         species: '',
         germinationNeeds: '',
         optimalConditions: '',
         history: [{ id: 'new-1', status: 'Wishlist', date: new Date().toISOString(), notes: '' }],
+        seedsOnHand: 0,
       });
     }
   }, [plantToEdit, form]);
@@ -204,6 +212,21 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
               </FormItem>
             )}
           />
+           {lastStatus === 'Planting' && (
+              <FormField
+                control={form.control}
+                name="seedsOnHand"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Seeds on Hand</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="e.g., 25" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
           <FormField
             control={form.control}
             name="germinationNeeds"

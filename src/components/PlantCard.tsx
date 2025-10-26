@@ -4,7 +4,7 @@
 import type { Plant, Conditions } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, ExternalLink, Copy } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Copy, Package } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { ViabilityIndicator } from './ViabilityIndicator';
 import { Badge } from '@/components/ui/badge';
@@ -78,6 +78,12 @@ export function PlantCard({
                             {latestStatus.status}
                         </Badge>
                     )}
+                     {latestStatus?.status === 'Planting' && plant.seedsOnHand && plant.seedsOnHand > 0 && (
+                        <Badge variant="secondary" className="flex items-center gap-1.5">
+                            <Package className="h-3 w-3" />
+                            {plant.seedsOnHand} seeds on hand
+                        </Badge>
+                     )}
                 </div>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">

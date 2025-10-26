@@ -12,6 +12,7 @@ export type Plant = {
   germinationNeeds: string;
   optimalConditions: string;
   history: StatusHistory[];
+  seedsOnHand?: number;
 };
 
 export type Conditions = {

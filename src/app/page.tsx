@@ -18,6 +18,7 @@ import { AiLogPanel } from '@/components/AiLogPanel';
 import { SettingsSheet } from '@/components/SettingsSheet';
 import { AiDataImportSheet } from '@/components/AiDataImportSheet';
 import { DuplicateReviewSheet } from '@/components/DuplicateReviewSheet';
+import { PlantingDashboard } from '@/components/PlantingDashboard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -496,6 +497,12 @@ export default function Home() {
     
     return filtered;
   }, [plants, statusFilter, activeLocation?.conditions]);
+  
+  const plantingDashboardPlants = useMemo(() => {
+    if (!plants) return [];
+    return plants.filter(p => p.history && p.history.length > 0 && ['Wishlist', 'Harvest'].includes(p.history[p.history.length-1].status));
+  }, [plants]);
+
 
   const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
 
@@ -529,7 +536,7 @@ export default function Home() {
                 <CardHeader>
                   <CardTitle className="font-headline">Welcome to grow</CardTitle>
                   <CardDescription>
-                    Create a garden to find more plants you can grow
+                    Create a garden to find more plants you can grow.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -655,7 +662,7 @@ export default function Home() {
                 </div>
                 
                 {plants && plants.length > 0 ? (
-                  sortedAndFilteredPlants.length > 0 ? (
+                    sortedAndFilteredPlants.length > 0 ? (
                       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {sortedAndFilteredPlants.map(plant => (
                           <PlantCard 
@@ -671,16 +678,25 @@ export default function Home() {
                           />
                       ))}
                       </div>
-                  ) : (
-                      <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
-                      <CardHeader>
-                          <CardTitle className="font-headline">No Plants Found</CardTitle>
-                          <CardDescription>
-                          No plants with the status "{statusFilter}".
-                          </CardDescription>
-                      </CardHeader>
-                      </Card>
-                  )
+                    ) : (
+                        statusFilter === 'Planting' ? (
+                            <PlantingDashboard
+                                plants={plantingDashboardPlants}
+                                gardenConditions={activeLocation.conditions}
+                                onOpenAddSheet={handleOpenAddSheet}
+                                onOpenSettings={() => setIsSettingsSheetOpen(true)}
+                            />
+                        ) : (
+                          <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
+                          <CardHeader>
+                              <CardTitle className="font-headline">No Plants Found</CardTitle>
+                              <CardDescription>
+                              No plants with the status "{statusFilter}".
+                              </CardDescription>
+                          </CardHeader>
+                          </Card>
+                        )
+                    )
                 ) : (
                   <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                     <CardHeader>
