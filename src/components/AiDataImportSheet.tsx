@@ -19,6 +19,8 @@ import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
 import type { AiDataset, AiLog, Plant, GardenLocation } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/db';
+import { ToastAction } from '@/components/ui/toast';
+
 
 type ImportMode = 'replace' | 'add' | 'new';
 
@@ -135,6 +137,22 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     }
   };
 
+  const handleUndoImport = async (importedIds: string[]) => {
+    try {
+      await db.plants.bulkDelete(importedIds);
+      toast({
+        title: 'Undo Successful',
+        description: 'The imported plants have been removed.',
+      });
+    } catch (e) {
+      toast({
+        title: 'Undo Failed',
+        description: 'Could not remove the imported plants.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleImport = async () => {
     if (!generatedData) return;
 
@@ -142,12 +160,12 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     setError(null);
 
     try {
-        await db.transaction('rw', db.plants, db.locations, async () => {
-            const plantsWithNewIds = generatedData.plants.map(p => ({
-                ...p,
-                id: `plant-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-            }));
+        const plantsWithNewIds = generatedData.plants.map(p => ({
+            ...p,
+            id: `plant-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+        }));
 
+        await db.transaction('rw', db.plants, db.locations, async () => {
             if (importMode === 'replace') {
                 const locationWithNewId = {
                     ...generatedData.locations[0],
@@ -165,13 +183,21 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                 const existingPlants = await db.plants.toArray();
                 const existingSpecies = new Set(existingPlants.map(p => p.species.toLowerCase().trim()));
                 const newPlantsToAdd = plantsWithNewIds.filter(p => !existingSpecies.has(p.species.toLowerCase().trim()));
+                const addedIds: string[] = [];
 
                 if (newPlantsToAdd.length > 0) {
                     await db.plants.bulkAdd(newPlantsToAdd);
+                    newPlantsToAdd.forEach(p => addedIds.push(p.id));
                 }
+                
                 toast({
                     title: 'Import Successful',
                     description: `${newPlantsToAdd.length} new plants added to your active garden. ${plantsWithNewIds.length - newPlantsToAdd.length} duplicates were skipped.`,
+                    action: newPlantsToAdd.length > 0 ? (
+                        <ToastAction altText="Undo" onClick={() => handleUndoImport(addedIds)}>
+                          Undo
+                        </ToastAction>
+                    ) : undefined,
                 });
             } else if (importMode === 'new') {
                  const locationWithNewId = {
@@ -180,9 +206,19 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                 };
                 await db.locations.add(locationWithNewId);
                 await db.plants.bulkAdd(plantsWithNewIds);
+                
+                const addedIds = plantsWithNewIds.map(p => p.id);
                 toast({
                     title: 'Import Successful',
                     description: 'The new garden and its plants have been added.',
+                     action: (
+                        <ToastAction altText="Undo" onClick={() => {
+                            db.locations.delete(locationWithNewId.id);
+                            handleUndoImport(addedIds);
+                        }}>
+                          Undo
+                        </ToastAction>
+                    )
                 });
             }
         });
@@ -288,8 +324,8 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                     <Accordion type="single" collapsible className="w-full">
                                         {generatedData.plants.map(plant => (
                                             <AccordionItem value={plant.id} key={plant.id} className="border-x-0 border-t-0 px-4">
-                                                <div className="flex items-center w-full">
-                                                    <AccordionTrigger className="py-3 hover:no-underline flex-1 justify-start text-left">
+                                                <div className="flex items-center w-full py-3">
+                                                    <AccordionTrigger className="p-0 hover:no-underline flex-1 justify-start text-left">
                                                         <div className="flex items-center gap-2">
                                                             <span className="font-semibold">{plant.species}</span>
                                                             <a 
