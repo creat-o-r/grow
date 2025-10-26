@@ -36,3 +36,4 @@ export type AiLog = {
     results: any;
 }
 
+export type ApiKeyName = 'gemini' | 'openai' | 'perplexity' | 'openrouter' | 'groq';

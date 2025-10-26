@@ -29,7 +29,7 @@ export function SettingsSheet({
   onImport,
   onPublish,
 }: SettingsSheetProps) {
-  const { apiKeys, availableModels, selectedModel, setSelectedModel } = useStore();
+  const { apiKeys, availableModels, selectedModel, setSelectedModel, envKeys } = useStore();
 
   const [perplexityKey, setPerplexityKey] = useState(apiKeys.perplexity);
   const [openAIKey, setOpenAIKey] = useState(apiKeys.openai);
@@ -96,9 +96,9 @@ export function SettingsSheet({
                   {/* Gemini */}
                   <div className="space-y-4 p-4 border rounded-lg">
                     <h4 className="font-semibold">Google Gemini</h4>
-                    <Button 
-                      onClick={() => window.open('https://aistudio.google.com/app/apikey', '_blank')} 
-                      variant="outline" 
+                    <Button
+                      onClick={() => window.open('https://aistudio.google.com/app/apikey', '_blank')}
+                      variant="outline"
                       className="w-full"
                     >
                       <KeyRound className="mr-2 h-4 w-4" />
@@ -106,22 +106,28 @@ export function SettingsSheet({
                     </Button>
                     <div className="space-y-2">
                       <Label htmlFor="gemini-key">API Key</Label>
-                      <Input 
-                        id="gemini-key" 
-                        placeholder="Paste your key here"
-                        value={geminiKey}
-                        onChange={(e) => setGeminiKey(e.target.value)}
-                      />
+                      {envKeys.gemini ? (
+                        <p className="text-sm text-muted-foreground p-2 bg-muted rounded-md">
+                          Already set by environment variable.
+                        </p>
+                      ) : (
+                        <Input
+                          id="gemini-key"
+                          placeholder="Paste your key here"
+                          value={geminiKey}
+                          onChange={(e) => setGeminiKey(e.target.value)}
+                        />
+                      )}
                     </div>
-                    <Button onClick={() => handleSaveClick('gemini', geminiKey)} className="w-full">Save Key</Button>
+                    <Button onClick={() => handleSaveClick('gemini', geminiKey)} className="w-full" disabled={envKeys.gemini}>Save Key</Button>
                   </div>
 
                   {/* OpenAI */}
                   <div className="space-y-4 p-4 border rounded-lg">
                     <h4 className="font-semibold">OpenAI</h4>
-                    <Button 
-                      onClick={() => window.open('https://platform.openai.com/api-keys', '_blank')} 
-                      variant="outline" 
+                    <Button
+                      onClick={() => window.open('https://platform.openai.com/api-keys', '_blank')}
+                      variant="outline"
                       className="w-full"
                     >
                       <KeyRound className="mr-2 h-4 w-4" />
@@ -129,22 +135,28 @@ export function SettingsSheet({
                     </Button>
                     <div className="space-y-2">
                       <Label htmlFor="openai-key">API Key</Label>
-                      <Input 
-                        id="openai-key" 
-                        placeholder="Paste your key here"
-                        value={openAIKey}
-                        onChange={(e) => setOpenAIKey(e.target.value)}
-                      />
+                      {envKeys.openai ? (
+                        <p className="text-sm text-muted-foreground p-2 bg-muted rounded-md">
+                          Already set by environment variable.
+                        </p>
+                      ) : (
+                        <Input
+                          id="openai-key"
+                          placeholder="Paste your key here"
+                          value={openAIKey}
+                          onChange={(e) => setOpenAIKey(e.target.value)}
+                        />
+                      )}
                     </div>
-                    <Button onClick={() => handleSaveClick('openai', openAIKey)} className="w-full">Save Key</Button>
+                    <Button onClick={() => handleSaveClick('openai', openAIKey)} className="w-full" disabled={envKeys.openai}>Save Key</Button>
                   </div>
                   
                   {/* Perplexity */}
                   <div className="space-y-4 p-4 border rounded-lg">
                     <h4 className="font-semibold">Perplexity AI</h4>
-                    <Button 
-                      onClick={() => window.open('https://www.perplexity.ai/pplx-api', '_blank')} 
-                      variant="outline" 
+                    <Button
+                      onClick={() => window.open('https://www.perplexity.ai/pplx-api', '_blank')}
+                      variant="outline"
                       className="w-full"
                     >
                       <KeyRound className="mr-2 h-4 w-4" />
@@ -152,14 +164,20 @@ export function SettingsSheet({
                     </Button>
                     <div className="space-y-2">
                       <Label htmlFor="perplexity-key">API Key</Label>
-                      <Input 
-                        id="perplexity-key" 
-                        placeholder="Paste your key here"
-                        value={perplexityKey}
-                        onChange={(e) => setPerplexityKey(e.target.value)}
-                      />
+                      {envKeys.perplexity ? (
+                        <p className="text-sm text-muted-foreground p-2 bg-muted rounded-md">
+                          Already set by environment variable.
+                        </p>
+                      ) : (
+                        <Input
+                          id="perplexity-key"
+                          placeholder="Paste your key here"
+                          value={perplexityKey}
+                          onChange={(e) => setPerplexityKey(e.target.value)}
+                        />
+                      )}
                     </div>
-                    <Button onClick={() => handleSaveClick('perplexity', perplexityKey)} className="w-full">Save Key</Button>
+                    <Button onClick={() => handleSaveClick('perplexity', perplexityKey)} className="w-full" disabled={envKeys.perplexity}>Save Key</Button>
                   </div>
                   {/* OpenRouter */}
                   <div className="space-y-4 p-4 border rounded-lg">
@@ -174,14 +192,20 @@ export function SettingsSheet({
                     </Button>
                     <div className="space-y-2">
                       <Label htmlFor="openrouter-key">API Key</Label>
-                      <Input
-                        id="openrouter-key"
-                        placeholder="Paste your key here"
-                        value={openRouterKey}
-                        onChange={(e) => setOpenRouterKey(e.target.value)}
-                      />
+                      {envKeys.openrouter ? (
+                        <p className="text-sm text-muted-foreground p-2 bg-muted rounded-md">
+                          Already set by environment variable.
+                        </p>
+                      ) : (
+                        <Input
+                          id="openrouter-key"
+                          placeholder="Paste your key here"
+                          value={openRouterKey}
+                          onChange={(e) => setOpenRouterKey(e.target.value)}
+                        />
+                      )}
                     </div>
-                    <Button onClick={() => handleSaveClick('openrouter', openRouterKey)} className="w-full">Save Key</Button>
+                    <Button onClick={() => handleSaveClick('openrouter', openRouterKey)} className="w-full" disabled={envKeys.openrouter}>Save Key</Button>
                   </div>
                 </CardContent>
               </Card>
