@@ -8,11 +8,14 @@
  * - GetEnvironmentalDataOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'zod';
+import { genkit, z } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const GetEnvironmentalDataInputSchema = z.object({
   location: z.string().describe('The city and country, e.g., "San Francisco, USA"'),
+  apiKeys: z.object({
+      gemini: z.string().optional(),
+  }).optional(),
 });
 export type GetEnvironmentalDataInput = z.infer<typeof GetEnvironmentalDataInputSchema>;
 
@@ -25,12 +28,21 @@ const GetEnvironmentalDataOutputSchema = z.object({
 });
 export type GetEnvironmentalDataOutput = z.infer<typeof GetEnvironmentalDataOutputSchema>;
 
+export async function getEnvironmentalData(
+  input: GetEnvironmentalDataInput,
+): Promise<GetEnvironmentalDataOutput> {
 
-const prompt = ai.definePrompt({
-  name: 'getEnvironmentalDataPrompt',
-  input: {schema: GetEnvironmentalDataInputSchema},
-  output: {schema: GetEnvironmentalDataOutputSchema},
-  prompt: `You are a world-class agricultural and environmental data specialist.
+  const ai = genkit({
+    plugins: [
+      googleAI({ apiKey: input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY }),
+    ],
+  });
+
+  const prompt = ai.definePrompt({
+    name: 'getEnvironmentalDataPrompt',
+    input: {schema: GetEnvironmentalDataInputSchema},
+    output: {schema: GetEnvironmentalDataOutputSchema},
+    prompt: `You are a world-class agricultural and environmental data specialist.
 Based on general knowledge for the provided location, provide the current environmental conditions.
 
 Location: {{{location}}}
@@ -41,23 +53,21 @@ In the reasoning field, provide a detailed explanation for why you chose the val
 In the references field, cite the full list of any general sources or knowledge bases you are using.
 Return your response in the structured format defined by the output schema.
 `,
-});
+  });
 
-const getEnvironmentalDataFlow = ai.defineFlow(
-  {
-    name: 'getEnvironmentalDataFlow',
-    inputSchema: GetEnvironmentalDataInputSchema,
-    outputSchema: GetEnvironmentalDataOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input, { model: 'googleai/gemini-2.5-flash' });
-    return output!;
-  }
-);
+  const getEnvironmentalDataFlow = ai.defineFlow(
+    {
+      name: 'getEnvironmentalDataFlow',
+      inputSchema: GetEnvironmentalDataInputSchema,
+      outputSchema: GetEnvironmentalDataOutputSchema,
+    },
+    async (flowInput) => {
+      const {output} = await prompt(flowInput, { model: 'googleai/gemini-2.5-flash' });
+      return output!;
+    }
+  );
 
-
-export async function getEnvironmentalData(
-  input: GetEnvironmentalDataInput,
-): Promise<GetEnvironmentalDataOutput> {
   return getEnvironmentalDataFlow(input);
 }
+
+    

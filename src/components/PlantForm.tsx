@@ -44,9 +44,10 @@ type PlantFormProps = {
   onSubmit: (data: PlantFormValues | Plant) => void;
   onConfigureApiKey: () => void;
   areApiKeysSet: boolean;
+  apiKeys: { gemini: string };
 };
 
-export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeysSet }: PlantFormProps) {
+export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeysSet, apiKeys }: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const { toast } = useToast();
@@ -92,7 +93,7 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
     if (!aiSearchTerm) return;
     setIsAiSearching(true);
     try {
-      const result = await aiSearchPlantData({ searchTerm: aiSearchTerm });
+      const result = await aiSearchPlantData({ searchTerm: aiSearchTerm, apiKeys });
       form.setValue('species', result.species, { shouldValidate: true });
       form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
       form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });
@@ -312,3 +313,5 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
     </div>
   );
 }
+
+    

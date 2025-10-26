@@ -9,13 +9,16 @@
  * - AISearchPlantDataOutput - The return type for the aiSearchPlantData function.
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'zod';
+import { genkit, z } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const AISearchPlantDataInputSchema = z.object({
   searchTerm: z
     .string()
     .describe('The name or description of the plant to search for.'),
+  apiKeys: z.object({
+      gemini: z.string().optional(),
+  }).optional(),
 });
 export type AISearchPlantDataInput = z.infer<typeof AISearchPlantDataInputSchema>;
 
@@ -26,34 +29,42 @@ const AISearchPlantDataOutputSchema = z.object({
 });
 export type AISearchPlantDataOutput = z.infer<typeof AISearchPlantDataOutputSchema>;
 
-const prompt = ai.definePrompt({
-  name: 'aiSearchPlantDataPrompt',
-  input: {schema: AISearchPlantDataInputSchema},
-  output: {schema: AISearchPlantDataOutputSchema},
-  prompt: `You are an expert botanist. Extract plant data based on the search term provided.
+export async function aiSearchPlantData(
+  input: AISearchPlantDataInput,
+): Promise<AISearchPlantDataOutput> {
+
+  const ai = genkit({
+    plugins: [
+      googleAI({ apiKey: input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY }),
+    ],
+  });
+
+  const prompt = ai.definePrompt({
+    name: 'aiSearchPlantDataPrompt',
+    input: {schema: AISearchPlantDataInputSchema},
+    output: {schema: AISearchPlantDataOutputSchema},
+    prompt: `You are an expert botanist. Extract plant data based on the search term provided.
 
 Search Term: {{{searchTerm}}}
 
 Return the plant's species, germination needs, and optimal conditions.
 Ensure the output is structured according to the provided output schema, with the Zod descriptions.
 If there is no definitive answer based on the search term, make your best guess.`,
-});
+  });
 
-const aiSearchPlantDataFlow = ai.defineFlow(
-  {
-    name: 'aiSearchPlantDataFlow',
-    inputSchema: AISearchPlantDataInputSchema,
-    outputSchema: AISearchPlantDataOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input, { model: 'googleai/gemini-2.5-flash' });
-    return output!;
-  }
-);
+  const aiSearchPlantDataFlow = ai.defineFlow(
+    {
+      name: 'aiSearchPlantDataFlow',
+      inputSchema: AISearchPlantDataInputSchema,
+      outputSchema: AISearchPlantDataOutputSchema,
+    },
+    async (flowInput) => {
+      const {output} = await prompt(flowInput, { model: 'googleai/gemini-2.5-flash' });
+      return output!;
+    }
+  );
 
-
-export async function aiSearchPlantData(
-  input: AISearchPlantDataInput,
-): Promise<AISearchPlantDataOutput> {
   return aiSearchPlantDataFlow(input);
 }
+
+    

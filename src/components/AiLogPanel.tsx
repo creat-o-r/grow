@@ -19,7 +19,7 @@ type AiLogPanelProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onOpenSettings: () => void;
-  areApiKeysSet?: boolean;
+  areApiKeysSet: boolean;
 };
 
 const FLOW_DISPLAY_NAMES: { [key: string]: string } = {
@@ -144,3 +144,5 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
     </Sheet>
   );
 }
+
+    

@@ -64,6 +64,7 @@ export default function Home() {
   const locations = useLiveQuery(() => db.locations.toArray(), []);
   const aiLogs = useLiveQuery(() => db.aiLogs.orderBy('timestamp').reverse().limit(10).toArray(), []);
   
+  const [apiKeys, setApiKeys] = useState({ gemini: '' });
   const [areApiKeysSet, setAreApiKeysSet] = useState(false);
 
   useEffect(() => {
@@ -91,6 +92,7 @@ export default function Home() {
     const storedKeys = localStorage.getItem('verdantVerse_apiKeys');
     if (storedKeys) {
       const parsedKeys = JSON.parse(storedKeys);
+      setApiKeys(parsedKeys);
       if (parsedKeys.gemini) {
         setAreApiKeysSet(true);
       }
@@ -108,6 +110,7 @@ export default function Home() {
   
   const handleApiKeysChange = (newKeys: {gemini: string}) => {
     localStorage.setItem('verdantVerse_apiKeys', JSON.stringify(newKeys));
+    setApiKeys(newKeys);
     if (newKeys.gemini) {
       setAreApiKeysSet(true);
       toast({
@@ -400,7 +403,7 @@ export default function Home() {
     setIsAnalyzing(true);
     const promptData = { location: activeLocation.location };
     try {
-      const result = await getEnvironmentalData(promptData);
+      const result = await getEnvironmentalData({ ...promptData, apiKeys });
       await db.locations.update(activeLocation.id, {
         conditions: {
             temperature: result.soilTemperature,
@@ -661,7 +664,7 @@ export default function Home() {
         </div>
       </main>
 
-      {(aiLogs.length > 0) && (
+      {(aiLogs.length > 0 || areApiKeysSet) && (
         <div className="fixed bottom-4 right-4 z-20">
           <Button
             size="icon"
@@ -695,6 +698,7 @@ export default function Home() {
         isOpen={isLogPanelOpen}
         onOpenChange={setIsLogPanelOpen}
         onOpenSettings={() => setIsSettingsSheetOpen(true)}
+        areApiKeysSet={areApiKeysSet}
       />
 
       <SettingsSheet 
@@ -716,9 +720,12 @@ export default function Home() {
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
             onConfigureApiKey={() => setIsSettingsSheetOpen(true)}
             areApiKeysSet={areApiKeysSet}
+            apiKeys={apiKeys}
           />
         </SheetContent>
       </Sheet>
     </div>
   );
 }
+
+    
