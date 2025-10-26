@@ -23,7 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronRight, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, Settings } from 'lucide-react';
+import { PlusCircle, ChevronRight, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, Settings, Info } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
@@ -61,6 +61,8 @@ export default function Home() {
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
   const [isAiImportSheetOpen, setIsAiImportSheetOpen] = useState(false);
   const [isDuplicateReviewSheetOpen, setIsDuplicateReviewSheetOpen] = useState(false);
+
+  const [duplicateSelectionMode, setDuplicateSelectionMode] = useState<Plant | null>(null);
 
 
   const { toast } = useToast();
@@ -446,6 +448,33 @@ export default function Home() {
     }
   };
   
+  const handleMarkAsDuplicate = (plant: Plant) => {
+    setDuplicateSelectionMode(plant);
+  };
+
+  const handleDuplicateSelection = async (plantToModify: Plant) => {
+    if (!duplicateSelectionMode) return;
+
+    try {
+      await db.plants.update(plantToModify.id, { species: duplicateSelectionMode.species });
+      toast({
+        title: 'Duplicate Marked',
+        description: `"${plantToModify.species}" is now marked as a duplicate of "${duplicateSelectionMode.species}".`,
+      });
+      setDuplicateSelectionMode(null);
+      setIsDuplicateReviewSheetOpen(true);
+    } catch (error) {
+      console.error('Failed to mark as duplicate:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not mark plant as duplicate. See console for details.',
+        variant: 'destructive',
+      });
+      setDuplicateSelectionMode(null);
+    }
+  };
+
+
   const sortedAndFilteredPlants = useMemo(() => {
     if (!plants) return [];
 
@@ -478,6 +507,21 @@ export default function Home() {
     <div className="flex min-h-screen w-full flex-col bg-background">
       <main className="flex-1">
         <div className="container mx-auto p-4 md:p-8">
+            {duplicateSelectionMode && (
+                 <Card className="mb-6 bg-blue-900/20 border-blue-500">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Info className="h-5 w-5 text-blue-400" />
+                            <p className="text-sm font-medium">
+                                Select a plant to mark as a duplicate of <span className="font-bold text-white">{duplicateSelectionMode.species}</span>.
+                            </p>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => setDuplicateSelectionMode(null)}>
+                            <X className="h-5 w-5" />
+                        </Button>
+                    </CardContent>
+                </Card>
+            )}
           <div>
             {!activeLocation ? (
               <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
@@ -634,11 +678,15 @@ export default function Home() {
                       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {sortedAndFilteredPlants.map(plant => (
                           <PlantCard 
-                          key={plant.id} 
-                          plant={plant} 
-                          gardenConditions={activeLocation?.conditions}
-                          onEdit={() => handleEditPlant(plant)}
-                          onDelete={() => handleDeletePlant(plant.id)}
+                              key={plant.id} 
+                              plant={plant} 
+                              gardenConditions={activeLocation?.conditions}
+                              onEdit={() => handleEditPlant(plant)}
+                              onDelete={() => handleDeletePlant(plant.id)}
+                              onMarkAsDuplicate={() => handleMarkAsDuplicate(plant)}
+                              isDuplicateSource={duplicateSelectionMode?.id === plant.id}
+                              isSelectionMode={!!duplicateSelectionMode}
+                              onSelectDuplicate={() => handleDuplicateSelection(plant)}
                           />
                       ))}
                       </div>
