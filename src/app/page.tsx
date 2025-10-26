@@ -22,7 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronRight, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus } from 'lucide-react';
+import { PlusCircle, ChevronRight, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, Settings } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
@@ -546,10 +546,14 @@ export default function Home() {
                               </AccordionTrigger>
                           </div>
                           
-                          <div className="flex items-center gap-4 pl-4">
+                          <div className="flex items-center gap-2 pl-4">
                              <Button onClick={handleOpenAddSheet}>
                                   <PlusCircle className="mr-2 h-4 w-4" />
                                   Add Plant
+                              </Button>
+                              <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10">
+                                <Settings className="h-4 w-4" />
+                                <span className="sr-only">Settings</span>
                               </Button>
                           </div>
                       </div>
@@ -759,7 +763,10 @@ export default function Home() {
           <PlantForm 
             plantToEdit={plantToEdit} 
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
-            onConfigureApiKey={() => setIsSettingsSheetOpen(true)}
+            onConfigureApiKey={() => {
+              handleSheetOpenChange(false);
+              setIsSettingsSheetOpen(true);
+            }}
             areApiKeysSet={areApiKeysSet}
             apiKeys={apiKeys}
           />
@@ -769,4 +776,3 @@ export default function Home() {
   );
 }
 
-    

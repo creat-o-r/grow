@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle } from 'lucide-react';
+import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -167,6 +167,16 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
           </div>
         </CardContent>
       </Card>
+      
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t"></span>
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">Or</span>
+        </div>
+      </div>
+
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -310,8 +320,20 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
           </Button>
         </form>
       </Form>
+      
+       <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t"></span>
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">Or</span>
+        </div>
+      </div>
+      
+      <Button type="button" variant="secondary" className="w-full" onClick={onConfigureApiKey}>
+          <Upload className="mr-2 h-4 w-4"/> Import a Dataset
+      </Button>
+
     </div>
   );
 }
-
-    
