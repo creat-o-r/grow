@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, KeyRound, Sparkles, AlertTriangle, SearchCheck } from 'lucide-react';
+import { Upload, Download, KeyRound, Sparkles, AlertTriangle, SearchCheck, Rocket, MessageSquare, GitBranch } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -29,6 +29,10 @@ type ConfirmationState = {
   key?: string;
 } | null;
 
+const CURRENT_VERSION = '1.0.0';
+const LATEST_VERSION = '1.1.0'; // Simulate a newer version being available
+const REPO_URL = 'https://github.com/firebase/studio-prototypers-community/tree/main/grow-app';
+
 
 export function SettingsSheet({
   isOpen,
@@ -43,6 +47,11 @@ export function SettingsSheet({
   const [confirmationState, setConfirmationState] = useState<ConfirmationState>(null);
   const [localApiKeys, setLocalApiKeys] = useState(apiKeys);
   const areApiKeysSet = !!apiKeys.gemini;
+
+  const isUpdateAvailable = CURRENT_VERSION !== LATEST_VERSION;
+  const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(REPO_URL)}`;
+  const feedbackMailto = `mailto:?subject=${encodeURIComponent('Feedback for grow App')}&body=${encodeURIComponent('Hi team, I have some feedback:\n\n')}`;
+
 
   const handleImportClick = (datasetKey: string) => {
     setConfirmationState({type: 'import', key: datasetKey});
@@ -175,6 +184,44 @@ export function SettingsSheet({
                         Publish All Data to Clipboard
                       </Button>
                     </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-headline text-lg">Software & Support</CardTitle>
+                  <CardDescription>Version information and support channels.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm text-muted-foreground">Version</h4>
+                    <div className="flex items-center justify-between text-sm p-3 bg-muted rounded-md">
+                      <span>You are running version <strong>{CURRENT_VERSION}</strong>.</span>
+                       {isUpdateAvailable && (
+                        <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-semibold">
+                          Update to {LATEST_VERSION}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                   <div className="border-t pt-4 space-y-2">
+                      <h4 className="font-medium text-sm text-muted-foreground">Support</h4>
+                        <a href={feedbackMailto} className="w-full">
+                          <Button variant="outline" className="w-full">
+                              <MessageSquare className="mr-2 h-4 w-4" />
+                              Send Feedback / Bug Report
+                          </Button>
+                        </a>
+                   </div>
+                   <div className="border-t pt-4 space-y-2">
+                      <h4 className="font-medium text-sm text-muted-foreground">Deploy Your Own</h4>
+                       <a href={vercelDeployUrl} target="_blank" rel="noopener noreferrer" className="w-full">
+                          <Button variant="outline" className="w-full">
+                              <Rocket className="mr-2 h-4 w-4" />
+                              Deploy a Copy on Vercel
+                          </Button>
+                       </a>
+                   </div>
                 </CardContent>
               </Card>
           </div>
