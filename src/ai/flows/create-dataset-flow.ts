@@ -91,6 +91,8 @@ For each plant, you must provide:
 - A description of its optimal growing conditions.
 - A history array with a single entry where the status is 'Planning'.
 
+IMPORTANT: The list of plants MUST contain distinct and unique plant species. Do not generate duplicate plants, even with minor name variations (e.g., 'Tomato' and 'Tomato (Solanum lycopersicum)').
+
 Ensure the output is structured exactly according to the provided Zod output schema. The generated JSON must be valid and parseable.
 `,
   });
