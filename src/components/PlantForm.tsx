@@ -43,9 +43,10 @@ type PlantFormProps = {
   onSubmit: (data: PlantFormValues | Plant) => void;
   isApiKeySet: boolean;
   onConfigureApiKey: () => void;
+  apiKey?: string;
 };
 
-export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKey }: PlantFormProps) {
+export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKey, apiKey }: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const { toast } = useToast();
@@ -80,9 +81,21 @@ export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKe
 
   const handleAiSearch = async () => {
     if (!aiSearchTerm) return;
+    if (!isApiKeySet) {
+      toast({
+        title: 'API Key Required',
+        description: 'Please configure your API key in the settings.',
+        variant: 'destructive'
+      });
+      onConfigureApiKey();
+      return;
+    }
     setIsAiSearching(true);
     try {
-      const result = await aiSearchPlantData({ searchTerm: aiSearchTerm });
+      const result = await aiSearchPlantData({ 
+        searchTerm: aiSearchTerm,
+        apiKey: apiKey 
+      });
       form.setValue('species', result.species, { shouldValidate: true });
       form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
       form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });

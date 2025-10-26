@@ -58,6 +58,7 @@ export default function Home() {
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
   const [isApiKeySet, setIsApiKeySet] = useState(false);
+  const [geminiApiKey, setGeminiApiKey] = useState('');
 
   const { toast } = useToast();
 
@@ -67,8 +68,9 @@ export default function Home() {
 
   useEffect(() => {
     setIsClient(true);
-    const geminiKey = localStorage.getItem('grow_geminiApiKey') || '';
-    setIsApiKeySet(!!(geminiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY));
+    const savedGeminiKey = localStorage.getItem('grow_geminiApiKey') || '';
+    setGeminiApiKey(savedGeminiKey);
+    setIsApiKeySet(!!(savedGeminiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY));
     
     const initDb = async () => {
         const locationCount = await db.locations.count();
@@ -366,10 +368,19 @@ export default function Home() {
       });
       return;
     }
+    if (!isApiKeySet) {
+      toast({
+        title: 'API Key Required',
+        description: 'Please set your Gemini API key in the settings.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setIsAnalyzing(true);
     const promptData = {
       location: activeLocation.location,
+      apiKey: geminiApiKey,
     };
     try {
       const result = await getEnvironmentalData(promptData);
@@ -385,7 +396,7 @@ export default function Home() {
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
         flow: 'getEnvironmentalData',
-        prompt: promptData,
+        prompt: { location: promptData.location },
         results: result,
       };
       
@@ -409,6 +420,7 @@ export default function Home() {
 
   const handleSaveApiKey = (key: string) => {
     localStorage.setItem('grow_geminiApiKey', key);
+    setGeminiApiKey(key);
     setIsApiKeySet(!!key);
 
     toast({
@@ -705,6 +717,7 @@ export default function Home() {
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
             isApiKeySet={isApiKeySet}
             onConfigureApiKey={() => setIsSettingsSheetOpen(true)}
+            apiKey={geminiApiKey}
           />
         </SheetContent>
       </Sheet>

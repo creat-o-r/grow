@@ -9,7 +9,7 @@
  * - AISearchPlantDataOutput - The return type for the aiSearchPlantData function.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, initializeGenkit } from '@/ai/genkit';
 import { getModel } from '@/ai/model';
 import { z } from 'zod';
 
@@ -17,6 +17,7 @@ const AISearchPlantDataInputSchema = z.object({
   searchTerm: z
     .string()
     .describe('The name or description of the plant to search for.'),
+  apiKey: z.string().optional().describe('The API key for the AI model.'),
 });
 export type AISearchPlantDataInput = z.infer<typeof AISearchPlantDataInputSchema>;
 
@@ -48,6 +49,9 @@ const aiSearchPlantDataFlow = ai.defineFlow(
     outputSchema: AISearchPlantDataOutputSchema,
   },
   async (flowInput) => {
+    if (flowInput.apiKey) {
+      initializeGenkit({ gemini: flowInput.apiKey });
+    }
     const model = await getModel();
     const {output} = await aiSearchPlantDataPrompt(flowInput, { model });
     return output!;

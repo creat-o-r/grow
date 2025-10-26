@@ -12,10 +12,5 @@
  * Prioritizes Groq, then OpenAI, and falls back to Google AI.
  */
 export async function getModel(): Promise<string> {
-  const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
-  if (geminiApiKey) {
-    return 'googleai/gemini-1.5-pro-latest';
-  }
-
-  throw new Error('No API key is set.');
+  return 'googleai/gemini-1.5-pro-latest';
 }
