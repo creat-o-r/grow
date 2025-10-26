@@ -23,7 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, ChevronRight, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, Settings, Info, Rocket } from 'lucide-react';
+import { PlusCircle, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, Settings, Info, Rocket } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
@@ -44,7 +44,6 @@ export default function Home() {
   const [isClient, setIsClient] = useState(false);
   const [accordionValue, setAccordionValue] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
-  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
@@ -498,8 +497,7 @@ export default function Home() {
     return filtered;
   }, [plants, statusFilter, activeLocation?.conditions]);
 
-  const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting'];
-  const secondaryFilters: PlantStatus[] = ['Growing', 'Harvest'];
+  const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
 
 
   if (!isClient || !plants || !locations || !aiLogs) {
@@ -643,26 +641,7 @@ export default function Home() {
                 </Accordion>
                 
                 <div className="flex items-center gap-2 mb-6">
-                  {primaryFilters.map(status => (
-                      <Button 
-                          key={status}
-                          variant={statusFilter === status ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setStatusFilter(status)}
-                          className="h-8"
-                      >
-                          {status}
-                      </Button>
-                  ))}
-                   <Button 
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setShowMoreFilters(!showMoreFilters)}
-                      className="h-8 w-8"
-                  >
-                      <ChevronRight className={`h-4 w-4 transition-transform ${showMoreFilters ? 'rotate-90' : ''}`} />
-                  </Button>
-                  {showMoreFilters && secondaryFilters.map(status => (
+                  {allFilters.map(status => (
                       <Button 
                           key={status}
                           variant={statusFilter === status ? 'default' : 'outline'}
