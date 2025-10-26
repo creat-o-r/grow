@@ -27,7 +27,7 @@ export async function getModels(apiKeys?: ApiKeys): Promise<string[]> {
 
   const geminiApiKey = apiKeys?.gemini || process.env.GEMINI_API_KEY;
   if (geminiApiKey) {
-    models.push('googleai/gemini-1.5-flash');
+    models.push('googleai/gemini-pro');
   }
 
   if (models.length === 0) {
