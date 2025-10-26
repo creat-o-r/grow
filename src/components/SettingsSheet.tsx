@@ -13,13 +13,10 @@ import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
-type ApiKeyName = 'gemini';
-
 type SettingsSheetProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onSaveApiKey: (keyName: ApiKeyName, key: string) => void;
-  apiKeys: Record<ApiKeyName, string>;
+  onSaveApiKey: (key: string) => void;
   onImport: (datasetKey: string) => void;
   onPublish: () => void;
 };
@@ -28,19 +25,21 @@ export function SettingsSheet({
   isOpen,
   onOpenChange,
   onSaveApiKey,
-  apiKeys,
   onImport,
   onPublish,
 }: SettingsSheetProps) {
-  const [geminiKey, setGeminiKey] = useState(apiKeys.gemini);
+  const [geminiKey, setGeminiKey] = useState('');
   const [datasetToImport, setDatasetToImport] = useState<string | null>(null);
 
   useEffect(() => {
-    setGeminiKey(apiKeys.gemini);
-  }, [apiKeys]);
+    if (isOpen) {
+      const savedKey = localStorage.getItem('grow_geminiApiKey') || '';
+      setGeminiKey(savedKey);
+    }
+  }, [isOpen]);
 
-  const handleSaveClick = (keyName: ApiKeyName, key: string) => {
-    onSaveApiKey(keyName, key);
+  const handleSaveClick = () => {
+    onSaveApiKey(geminiKey);
   };
 
   const handleImportClick = (datasetKey: string) => {
@@ -91,7 +90,7 @@ export function SettingsSheet({
                         onChange={(e) => setGeminiKey(e.target.value)}
                       />
                     </div>
-                    <Button onClick={() => handleSaveClick('gemini', geminiKey)} className="w-full">Save Key</Button>
+                    <Button onClick={handleSaveClick} className="w-full">Save Key</Button>
                   </div>
                 </CardContent>
               </Card>

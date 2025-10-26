@@ -32,7 +32,6 @@ type NominatimResult = {
   lat: string;
   lon: string;
 };
-type ApiKeyName = 'gemini';
 
 
 export default function Home() {
@@ -58,9 +57,7 @@ export default function Home() {
 
   const [isLogPanelOpen, setIsLogPanelOpen] = useState(false);
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
-  const [apiKeys, setApiKeys] = useState<Record<ApiKeyName, string>>({
-    gemini: '',
-  });
+  const [isApiKeySet, setIsApiKeySet] = useState(false);
 
   const { toast } = useToast();
 
@@ -70,13 +67,8 @@ export default function Home() {
 
   useEffect(() => {
     setIsClient(true);
-    const savedGeminiKey = localStorage.getItem('grow_geminiApiKey') || '';
-
-    const currentApiKeys = {
-      gemini: savedGeminiKey,
-    };
-
-    setApiKeys(currentApiKeys);
+    const geminiKey = localStorage.getItem('grow_geminiApiKey') || '';
+    setIsApiKeySet(!!(geminiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY));
     
     const initDb = async () => {
         const locationCount = await db.locations.count();
@@ -415,18 +407,13 @@ export default function Home() {
     }
   };
 
-  const handleSaveApiKey = (keyName: ApiKeyName, key: string) => {
-    const keyMap: Record<ApiKeyName, string> = {
-      gemini: 'grow_geminiApiKey',
-    };
-    
-    localStorage.setItem(keyMap[keyName], key);
-    const newApiKeys = {...apiKeys, [keyName]: key};
-    setApiKeys(newApiKeys);
+  const handleSaveApiKey = (key: string) => {
+    localStorage.setItem('grow_geminiApiKey', key);
+    setIsApiKeySet(!!key);
 
     toast({
       title: 'API Key Saved',
-      description: `Your ${keyName.charAt(0).toUpperCase() + keyName.slice(1)} API key has been securely saved in your browser.`,
+      description: `Your Gemini API key has been securely saved in your browser.`,
     });
     setIsSettingsSheetOpen(false);
   };
@@ -454,7 +441,6 @@ export default function Home() {
   const primaryFilters: (PlantStatus | 'All')[] = ['All', 'Planning', 'Planting'];
   const secondaryFilters: PlantStatus[] = ['Growing', 'Harvested', 'Dormant'];
 
-  const areApiKeysSet = !!(apiKeys.gemini || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY);
 
   if (!isClient || !plants || !locations || !aiLogs) {
     return null;
@@ -568,12 +554,12 @@ export default function Home() {
                                       <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
                                       <Input id="soil" value={activeLocation?.conditions.soil || ''} onChange={(e) => handleConditionChange('soil', e.target.value)} />
                                   </div>
-                                  {!areApiKeysSet && (
+                                  {!isApiKeySet && (
                                     <Button size="icon" variant="outline" onClick={() => setIsSettingsSheetOpen(true)}>
                                       <KeyRound className="h-4 w-4" />
                                     </Button>
                                   )}
-                                  <Button size="icon" variant="outline" onClick={handleAnalyzeConditions} disabled={isAnalyzing || !areApiKeysSet}>
+                                  <Button size="icon" variant="outline" onClick={handleAnalyzeConditions} disabled={isAnalyzing || !isApiKeySet}>
                                       {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                   </Button>
                               </div>
@@ -663,7 +649,7 @@ export default function Home() {
         </div>
       </main>
 
-      {(aiLogs.length > 0 || !areApiKeysSet) && (
+      {(aiLogs.length > 0 || !isApiKeySet) && (
         <div className="fixed bottom-4 right-4 z-20">
           <Button
             size="icon"
@@ -697,14 +683,13 @@ export default function Home() {
         isOpen={isLogPanelOpen}
         onOpenChange={setIsLogPanelOpen}
         onOpenSettings={() => setIsSettingsSheetOpen(true)}
-        areApiKeysSet={areApiKeysSet}
+        areApiKeysSet={isApiKeySet}
       />
 
       <SettingsSheet 
         isOpen={isSettingsSheetOpen}
         onOpenChange={setIsSettingsSheetOpen}
         onSaveApiKey={handleSaveApiKey}
-        apiKeys={apiKeys}
         onImport={handleImport}
         onPublish={handlePublish}
       />
@@ -718,7 +703,7 @@ export default function Home() {
           <PlantForm 
             plantToEdit={plantToEdit} 
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
-            isApiKeySet={areApiKeysSet}
+            isApiKeySet={isApiKeySet}
             onConfigureApiKey={() => setIsSettingsSheetOpen(true)}
           />
         </SheetContent>
