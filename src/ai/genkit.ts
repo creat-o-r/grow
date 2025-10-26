@@ -3,7 +3,10 @@ import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 import { openAI } from 'genkitx-openai';
 import { groq } from 'genkitx-groq';
-import openAICompatible from '@genkit-ai/compat-oai';
+import openAICompatible, {
+  defineCompatOpenAIModel,
+  compatOaiModelRef,
+} from '@genkit-ai/compat-oai';
 import { ApiKeyName } from '@/lib/types';
 
 export type ApiKeys = Record<ApiKeyName, string>;
@@ -33,20 +36,30 @@ export function initializeGenkit(apiKeys?: ApiKeys) {
         name: 'openrouter',
         apiKey: openRouterApiKey,
         baseURL: 'https://openrouter.ai/api/v1',
-        resolver: ((client: any, actionType: any, actionName: string) => {
-          if (actionType === 'model') {
-            return {
-              name: `openrouter/${actionName}`,
-              run: async (input: any, options: any) => {
-                return await client.chat.completions.create({
-                  ...input,
-                  model: actionName,
-                }, options);
-              },
-            };
-          }
-        }) as any,
-      }),
+        initializer: async (client) => {
+          const models = [
+            'google/gemini-flash-1.5',
+            'microsoft/phi-3-medium-128k-instruct',
+          ].map((model) =>
+            defineCompatOpenAIModel({
+              client,
+              name: `openrouter/${model}`,
+              modelRef: compatOaiModelRef({
+                name: model,
+                info: {
+                  label: `OpenRouter - ${model}`,
+                  supports: {
+                    media: false,
+                    tools: false,
+                    systemRole: true,
+                  },
+                },
+              }),
+            })
+          );
+          return models;
+        },
+      })
     );
   }
 
