@@ -31,36 +31,39 @@ export function initializeGenkit(apiKeys?: ApiKeys) {
 
   const openRouterApiKey = apiKeys?.openrouter || process.env.OPENROUTER_API_KEY;
   if (openRouterApiKey) {
-    plugins.push(
-      openAICompatible({
-        name: 'openrouter',
-        apiKey: openRouterApiKey,
-        baseURL: 'https://openrouter.ai/api/v1',
-        initializer: async (client) => {
-          const models = [
-            'google/gemini-flash-1.5',
-            'microsoft/phi-3-medium-128k-instruct',
-          ].map((modelId) =>
-            defineCompatOpenAIModel({
-              client,
-              name: `openrouter/${modelId.replace('/', '-')}`,
-              modelRef: compatOaiModelRef({
-                name: modelId,
-                info: {
-                  label: `OpenRouter - ${modelId}`,
-                  supports: {
-                    media: false,
-                    tools: false,
-                    systemRole: true,
+    const openRouterVendors = {
+      google: ['gemini-flash-1.5'],
+      microsoft: ['phi-3-medium-128k-instruct'],
+    };
+
+    for (const [vendor, modelNames] of Object.entries(openRouterVendors)) {
+      plugins.push(
+        openAICompatible({
+          name: `openrouter-${vendor}`,
+          apiKey: openRouterApiKey,
+          baseURL: 'https://openrouter.ai/api/v1',
+          initializer: async (client) => {
+            return modelNames.map((modelName) =>
+              defineCompatOpenAIModel({
+                client,
+                name: `openrouter-${vendor}/${modelName}`,
+                modelRef: compatOaiModelRef({
+                  name: `${vendor}/${modelName}`,
+                  info: {
+                    label: `OpenRouter - ${vendor}/${modelName}`,
+                    supports: {
+                      media: false,
+                      tools: false,
+                      systemRole: true,
+                    },
                   },
-                },
-              }),
-            })
-          );
-          return models;
-        },
-      })
-    );
+                }),
+              })
+            );
+          },
+        })
+      );
+    }
   }
 
   return genkit({
