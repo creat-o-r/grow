@@ -509,6 +509,21 @@ export default function Home() {
   }, [plants]);
 
 
+  const statusCounts = useMemo(() => {
+    const counts: { [key in PlantStatus | 'All']: number } = {
+        All: 0, Wishlist: 0, Planting: 0, Growing: 0, Harvest: 0
+    };
+    if (!plants) return counts;
+    counts.All = plants.length;
+    plants.forEach(p => {
+        if (p.history && p.history.length > 0) {
+            const lastStatus = p.history[p.history.length - 1].status;
+            counts[lastStatus]++;
+        }
+    });
+    return counts;
+  }, [plants]);
+
   const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
 
 
@@ -662,6 +677,9 @@ export default function Home() {
                           className="h-8"
                       >
                           {status}
+                          <span className="ml-2 bg-primary-foreground/20 text-primary-foreground rounded-full px-1.5 py-0.5 text-xs font-mono">
+                            {statusCounts[status]}
+                          </span>
                       </Button>
                   ))}
                 </div>

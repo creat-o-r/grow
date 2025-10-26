@@ -8,33 +8,45 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/db';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, CheckCircle } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
 import { useDebounce } from '@/hooks/use-debounce';
 
 export function PlantingDashboardCard({ plant }: { plant: Plant }) {
     const [seedsOnHand, setSeedsOnHand] = useState<number | string>('');
     const [plannedQty, setPlannedQty] = useState<number | string>(plant.plannedQty || '');
+    const [isSavingPlannedQty, setIsSavingPlannedQty] = useState(false);
     const debouncedPlannedQty = useDebounce(plannedQty, 500);
 
     const { toast } = useToast();
     
-    const previousPlantState = {
-        history: plant.history,
-        seedsOnHand: plant.seedsOnHand,
-        plannedQty: plant.plannedQty,
-    };
+    // Store initial state for undo
+    const [previousPlantState, setPreviousPlantState] = useState<Partial<Plant> | null>(null);
+    useEffect(() => {
+        setPreviousPlantState({
+            history: plant.history,
+            seedsOnHand: plant.seedsOnHand,
+            plannedQty: plant.plannedQty,
+        });
+    }, [plant.history, plant.seedsOnHand, plant.plannedQty]);
 
     useEffect(() => {
-        if (debouncedPlannedQty !== plant.plannedQty) {
-            const qty = Number(debouncedPlannedQty);
-             if (!isNaN(qty) && qty >= 0) {
-                db.plants.update(plant.id, { plannedQty: qty });
+        const updatePlannedQty = async () => {
+             const qty = Number(debouncedPlannedQty);
+             if (debouncedPlannedQty !== '' && !isNaN(qty) && qty >= 0 && qty !== plant.plannedQty) {
+                setIsSavingPlannedQty(true);
+                await db.plants.update(plant.id, { plannedQty: qty });
+                setTimeout(() => setIsSavingPlannedQty(false), 500); // Show checkmark briefly
+             } else if (debouncedPlannedQty === '' && plant.plannedQty !== undefined) {
+                 await db.plants.update(plant.id, { plannedQty: undefined });
              }
-        }
+        };
+        updatePlannedQty();
+
     }, [debouncedPlannedQty, plant.id, plant.plannedQty]);
 
     const handleUndo = async () => {
+        if (!previousPlantState) return;
         try {
             await db.plants.update(plant.id, {
                 history: previousPlantState.history,
@@ -56,6 +68,13 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
 
 
     const updatePlantStatus = async (status: 'Planting' | 'Growing', seeds?: number) => {
+        // Capture current state before changing it
+        setPreviousPlantState({
+            history: plant.history,
+            seedsOnHand: plant.seedsOnHand,
+            plannedQty: plant.plannedQty,
+        });
+
         const newHistoryEntry = {
             id: `hist-${Date.now()}`,
             status,
@@ -79,7 +98,6 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
             });
             
             setSeedsOnHand('');
-            setPlannedQty('');
 
         } catch (error) {
             toast({
@@ -135,7 +153,10 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
                     <p className="text-xs text-muted-foreground">Entering a quantity will mark this plant as "Planting".</p>
                 </div>
                  <div className="space-y-2">
-                    <Label htmlFor={`planned-qty-${plant.id}`}>Planned Planting Qty (Seeds Required)</Label>
+                    <div className="flex justify-between items-center">
+                        <Label htmlFor={`planned-qty-${plant.id}`}>Planned Planting Qty (Seeds Required)</Label>
+                        {isSavingPlannedQty && <CheckCircle className="h-4 w-4 text-green-500 animate-in fade-in" />}
+                    </div>
                     <Input
                         id={`planned-qty-${plant.id}`}
                         type="number"
@@ -143,6 +164,9 @@ export function PlantingDashboardCard({ plant }: { plant: Plant }) {
                         value={plannedQty}
                         onChange={(e) => setPlannedQty(e.target.value)}
                     />
+                     {plant.plannedQty !== undefined && plant.plannedQty > 0 && !plannedQty && (
+                         <p className="text-xs text-muted-foreground">Currently planned: {plant.plannedQty}</p>
+                     )}
                 </div>
                  <div className="flex gap-2">
                     <Button variant="secondary" className="w-full" onClick={() => updatePlantStatus('Planting')}>Mark as Planting</Button>
