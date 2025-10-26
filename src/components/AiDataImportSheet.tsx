@@ -237,7 +237,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                 {(isGenerating && !generatedData) && (
                     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-20 gap-4">
                         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                        <p className="text-muted-foreground">Generating your garden...</p>
+                        <p className="text-muted-foreground">generating plant list</p>
                     </div>
                 )}
             
