@@ -110,21 +110,18 @@ export function SettingsSheet({
               <Card>
                 <CardHeader>
                   <CardTitle className="font-headline text-lg">Data Management</CardTitle>
-                  <CardDescription>Import a sample dataset, generate a new one with AI, or manage your current data.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
                         <h4 className="font-medium text-sm text-muted-foreground">Import a sample dataset</h4>
                         {availableDatasets.map((dataset) => (
-                            <Card key={dataset.key} className="p-4">
-                                <div className="flex justify-between items-center">
-                                    <h4 className="font-semibold">{dataset.name}</h4>
-                                    <Button onClick={() => handleImportClick(dataset.key)} variant="secondary" size="sm">
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Import
-                                    </Button>
-                                </div>
-                            </Card>
+                            <div key={dataset.key} className="flex justify-between items-center p-2 -m-2 rounded-md hover:bg-accent/50">
+                                <span className="font-semibold pl-2">{dataset.name}</span>
+                                <Button onClick={() => handleImportClick(dataset.key)} variant="ghost" size="sm">
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Import
+                                </Button>
+                            </div>
                         ))}
                     </div>
                     <div className="border-t pt-4 space-y-2">
@@ -243,3 +240,5 @@ export function SettingsSheet({
     </>
   );
 }
+
+    
