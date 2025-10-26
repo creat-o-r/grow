@@ -49,9 +49,6 @@ export async function aiSearchPlantData(
           }
         } catch (error) {
           console.error(`Model ${model} failed:`, error);
-          if (error instanceof Error && error.message.includes('quota')) {
-            throw new Error('You have exceeded your API quota. Please check your plan and billing details.');
-          }
         }
       }
       throw new Error('All available models failed to generate a response. Please check your API keys and try again.');
