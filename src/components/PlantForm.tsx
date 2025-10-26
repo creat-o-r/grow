@@ -36,6 +36,7 @@ const formSchema = z.object({
   optimalConditions: z.string().min(10, 'Optimal conditions are required.'),
   history: z.array(statusHistorySchema),
   seedsOnHand: z.coerce.number().optional(),
+  plannedQty: z.coerce.number().optional(),
 });
 
 type PlantFormValues = z.infer<typeof formSchema>;
@@ -61,6 +62,7 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
       optimalConditions: '',
       history: [],
       seedsOnHand: 0,
+      plannedQty: 0,
     },
   });
   
@@ -79,6 +81,7 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
       form.reset({
         ...plantToEdit,
         seedsOnHand: plantToEdit.seedsOnHand || 0,
+        plannedQty: plantToEdit.plannedQty || 0,
       });
     } else {
       form.reset({
@@ -87,6 +90,7 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
         optimalConditions: '',
         history: [{ id: 'new-1', status: 'Wishlist', date: new Date().toISOString(), notes: '' }],
         seedsOnHand: 0,
+        plannedQty: 0,
       });
     }
   }, [plantToEdit, form]);
@@ -213,20 +217,35 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
               </FormItem>
             )}
           />
-           {lastStatus === 'Planting' && (
-              <FormField
-                control={form.control}
-                name="seedsOnHand"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Seeds on Hand</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="e.g., 25" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+           {(lastStatus === 'Planting' || lastStatus === 'Growing' || plantToEdit?.seedsOnHand) && (
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="seedsOnHand"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Seeds on Hand</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="e.g., 25" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="plannedQty"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Planned Qty</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="e.g., 20" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             )}
           <FormField
             control={form.control}

@@ -13,6 +13,7 @@ export type Plant = {
   optimalConditions: string;
   history: StatusHistory[];
   seedsOnHand?: number;
+  plannedQty?: number;
 };
 
 export type Conditions = {

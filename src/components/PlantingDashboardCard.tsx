@@ -1,6 +1,6 @@
 
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Plant } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,26 +10,40 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/db';
 import { ExternalLink } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
+import { useDebounce } from '@/hooks/use-debounce';
 
 export function PlantingDashboardCard({ plant }: { plant: Plant }) {
     const [seedsOnHand, setSeedsOnHand] = useState<number | string>('');
-    const [plannedQty, setPlannedQty] = useState('');
+    const [plannedQty, setPlannedQty] = useState<number | string>(plant.plannedQty || '');
+    const debouncedPlannedQty = useDebounce(plannedQty, 500);
+
     const { toast } = useToast();
     
     const previousPlantState = {
         history: plant.history,
         seedsOnHand: plant.seedsOnHand,
+        plannedQty: plant.plannedQty,
     };
+
+    useEffect(() => {
+        if (debouncedPlannedQty !== plant.plannedQty) {
+            const qty = Number(debouncedPlannedQty);
+             if (!isNaN(qty) && qty >= 0) {
+                db.plants.update(plant.id, { plannedQty: qty });
+             }
+        }
+    }, [debouncedPlannedQty, plant.id, plant.plannedQty]);
 
     const handleUndo = async () => {
         try {
             await db.plants.update(plant.id, {
                 history: previousPlantState.history,
                 seedsOnHand: previousPlantState.seedsOnHand,
+                plannedQty: previousPlantState.plannedQty,
             });
             toast({
                 title: 'Undo Successful',
-                description: `${plant.species} status has been reverted.`,
+                description: `${plant.species} has been reverted.`,
             });
         } catch (error) {
             toast({

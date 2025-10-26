@@ -57,7 +57,8 @@
             "optimalConditions": "Full sun to partial shade. Rich, moist, well-drained soil. Benefits from consistent watering.",
             "history": [
                 { "id": "h5", "status": "Planting", "date": "2024-03-05T12:00:00.000Z", "notes": "Flat-leaf Italian variety." }
-            ]
+            ],
+            "seedsOnHand": 50
         }
     ]
 }
