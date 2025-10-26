@@ -8,8 +8,7 @@
  * - GetEnvironmentalDataOutput - The return type for the function.
  */
 
-import { initializeGenkit } from '@/ai/genkit';
-import { getModel } from '@/ai/model';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const GetEnvironmentalDataInputSchema = z.object({
@@ -26,41 +25,39 @@ const GetEnvironmentalDataOutputSchema = z.object({
 });
 export type GetEnvironmentalDataOutput = z.infer<typeof GetEnvironmentalDataOutputSchema>;
 
+
+const prompt = ai.definePrompt({
+  name: 'getEnvironmentalDataPrompt',
+  input: {schema: GetEnvironmentalDataInputSchema},
+  output: {schema: GetEnvironmentalDataOutputSchema},
+  prompt: `You are a world-class agricultural and environmental data specialist.
+Based on general knowledge for the provided location, provide the current environmental conditions.
+
+Location: {{{location}}}
+
+Provide the current soil temperature, average daily sunlight hours, and a description of the typical soil composition.
+For the soilDescription, return only the key characteristics of the soil type (e.g., "Well-drained, sandy loam, pH 6.5"). Do not include any descriptive words, location information, or the word "soil".
+In the reasoning field, provide a detailed explanation for why you chose the values based on the location's geography and current season.
+In the references field, cite the full list of any general sources or knowledge bases you are using.
+Return your response in the structured format defined by the output schema.
+`,
+});
+
+const getEnvironmentalDataFlow = ai.defineFlow(
+  {
+    name: 'getEnvironmentalDataFlow',
+    inputSchema: GetEnvironmentalDataInputSchema,
+    outputSchema: GetEnvironmentalDataOutputSchema,
+  },
+  async input => {
+    const {output} = await prompt(input, { model: 'googleai/gemini-1.5-pro-latest' });
+    return output!;
+  }
+);
+
+
 export async function getEnvironmentalData(
   input: GetEnvironmentalDataInput,
-  apiKey: string,
 ): Promise<GetEnvironmentalDataOutput> {
-  const ai = initializeGenkit(apiKey);
-
-  const prompt = ai.definePrompt({
-    name: 'getEnvironmentalDataPrompt',
-    input: {schema: GetEnvironmentalDataInputSchema},
-    output: {schema: GetEnvironmentalDataOutputSchema},
-    prompt: `You are a world-class agricultural and environmental data specialist.
-  Based on general knowledge for the provided location, provide the current environmental conditions.
-
-  Location: {{{location}}}
-
-  Provide the current soil temperature, average daily sunlight hours, and a description of the typical soil composition.
-  For the soilDescription, return only the key characteristics of the soil type (e.g., "Well-drained, sandy loam, pH 6.5"). Do not include any descriptive words, location information, or the word "soil".
-  In the reasoning field, provide a detailed explanation for why you chose the values based on the location's geography and current season.
-  In the references field, cite the full list of any general sources or knowledge bases you are using.
-  Return your response in the structured format defined by the output schema.
-  `,
-  });
-
-  const getEnvironmentalDataFlow = ai.defineFlow(
-    {
-      name: 'getEnvironmentalDataFlow',
-      inputSchema: GetEnvironmentalDataInputSchema,
-      outputSchema: GetEnvironmentalDataOutputSchema,
-    },
-    async input => {
-      const model = await getModel();
-      const {output} = await prompt(input, { model });
-      return output!;
-    }
-  );
-
   return getEnvironmentalDataFlow(input);
 }

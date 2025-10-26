@@ -9,8 +9,7 @@
  * - AISearchPlantDataOutput - The return type for the aiSearchPlantData function.
  */
 
-import { initializeGenkit } from '@/ai/genkit';
-import { getModel } from '@/ai/model';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const AISearchPlantDataInputSchema = z.object({
@@ -27,37 +26,34 @@ const AISearchPlantDataOutputSchema = z.object({
 });
 export type AISearchPlantDataOutput = z.infer<typeof AISearchPlantDataOutputSchema>;
 
+const prompt = ai.definePrompt({
+  name: 'aiSearchPlantDataPrompt',
+  input: {schema: AISearchPlantDataInputSchema},
+  output: {schema: AISearchPlantDataOutputSchema},
+  prompt: `You are an expert botanist. Extract plant data based on the search term provided.
+
+Search Term: {{{searchTerm}}}
+
+Return the plant's species, germination needs, and optimal conditions.
+Ensure the output is structured according to the provided output schema, with the Zod descriptions.
+If there is no definitive answer based on the search term, make your best guess.`,
+});
+
+const aiSearchPlantDataFlow = ai.defineFlow(
+  {
+    name: 'aiSearchPlantDataFlow',
+    inputSchema: AISearchPlantDataInputSchema,
+    outputSchema: AISearchPlantDataOutputSchema,
+  },
+  async input => {
+    const {output} = await prompt(input, { model: 'googleai/gemini-1.5-pro-latest' });
+    return output!;
+  }
+);
+
+
 export async function aiSearchPlantData(
   input: AISearchPlantDataInput,
-  apiKey: string,
 ): Promise<AISearchPlantDataOutput> {
-  const ai = initializeGenkit(apiKey);
-
-  const prompt = ai.definePrompt({
-    name: 'aiSearchPlantDataPrompt',
-    input: {schema: AISearchPlantDataInputSchema},
-    output: {schema: AISearchPlantDataOutputSchema},
-    prompt: `You are an expert botanist. Extract plant data based on the search term provided.
-
-  Search Term: {{{searchTerm}}}
-
-  Return the plant's species, germination needs, and optimal conditions.
-  Ensure the output is structured according to the provided output schema, with the Zod descriptions.
-  If there is no definitive answer based on the search term, make your best guess.`,
-  });
-
-  const aiSearchPlantDataFlow = ai.defineFlow(
-    {
-      name: 'aiSearchPlantDataFlow',
-      inputSchema: AISearchPlantDataInputSchema,
-      outputSchema: AISearchPlantDataOutputSchema,
-    },
-    async input => {
-      const model = await getModel();
-      const {output} = await prompt(input, { model });
-      return output!;
-    }
-  );
-
   return aiSearchPlantDataFlow(input);
 }

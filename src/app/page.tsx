@@ -64,7 +64,6 @@ export default function Home() {
   const locations = useLiveQuery(() => db.locations.toArray(), []);
   const aiLogs = useLiveQuery(() => db.aiLogs.orderBy('timestamp').reverse().limit(10).toArray(), []);
   
-  const [apiKeys, setApiKeys] = useState<{gemini: string}>({gemini: ''});
   const [areApiKeysSet, setAreApiKeysSet] = useState(false);
 
   useEffect(() => {
@@ -92,7 +91,6 @@ export default function Home() {
     const storedKeys = localStorage.getItem('verdantVerse_apiKeys');
     if (storedKeys) {
       const parsedKeys = JSON.parse(storedKeys);
-      setApiKeys(parsedKeys);
       if (parsedKeys.gemini) {
         setAreApiKeysSet(true);
       }
@@ -109,7 +107,6 @@ export default function Home() {
   }, [activeLocationId]);
   
   const handleApiKeysChange = (newKeys: {gemini: string}) => {
-    setApiKeys(newKeys);
     localStorage.setItem('verdantVerse_apiKeys', JSON.stringify(newKeys));
     if (newKeys.gemini) {
       setAreApiKeysSet(true);
@@ -403,7 +400,7 @@ export default function Home() {
     setIsAnalyzing(true);
     const promptData = { location: activeLocation.location };
     try {
-      const result = await getEnvironmentalData(promptData, apiKeys.gemini);
+      const result = await getEnvironmentalData(promptData);
       await db.locations.update(activeLocation.id, {
         conditions: {
             temperature: result.soilTemperature,
@@ -705,7 +702,6 @@ export default function Home() {
         onOpenChange={setIsSettingsSheetOpen}
         onImport={handleImport}
         onPublish={handlePublish}
-        apiKeys={apiKeys}
         onApiKeysChange={handleApiKeysChange}
       />
 
@@ -720,7 +716,6 @@ export default function Home() {
             onSubmit={plantToEdit ? handleUpdatePlant : handleAddPlant}
             onConfigureApiKey={() => setIsSettingsSheetOpen(true)}
             areApiKeysSet={areApiKeysSet}
-            apiKeys={apiKeys}
           />
         </SheetContent>
       </Sheet>

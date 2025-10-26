@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,6 @@ type SettingsSheetProps = {
   onOpenChange: (isOpen: boolean) => void;
   onImport: (datasetKey: string) => void;
   onPublish: () => void;
-  apiKeys: { gemini: string };
   onApiKeysChange: (keys: { gemini: string }) => void;
 };
 
@@ -26,11 +25,19 @@ export function SettingsSheet({
   onOpenChange,
   onImport,
   onPublish,
-  apiKeys,
   onApiKeysChange,
 }: SettingsSheetProps) {
   const [datasetToImport, setDatasetToImport] = useState<string | null>(null);
-  const [localApiKeys, setLocalApiKeys] = useState(apiKeys);
+  const [localApiKeys, setLocalApiKeys] = useState({ gemini: '' });
+
+  useEffect(() => {
+    if (isOpen) {
+      const storedKeys = localStorage.getItem('verdantVerse_apiKeys');
+      if (storedKeys) {
+        setLocalApiKeys(JSON.parse(storedKeys));
+      }
+    }
+  }, [isOpen]);
 
   const handleImportClick = (datasetKey: string) => {
     setDatasetToImport(datasetKey);
@@ -50,12 +57,7 @@ export function SettingsSheet({
 
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={(open) => {
-        onOpenChange(open);
-        if(open) {
-          setLocalApiKeys(apiKeys);
-        }
-      }}>
+      <Sheet open={isOpen} onOpenChange={onOpenChange}>
         <SheetContent className="sm:max-w-lg w-[90vw] overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="font-headline">Settings</SheetTitle>
