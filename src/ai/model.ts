@@ -25,7 +25,7 @@ export async function getModel(apiKeys?: ApiKeys): Promise<string> {
 
   const geminiApiKey = apiKeys?.gemini || process.env.GEMINI_API_KEY;
   if (geminiApiKey) {
-    return 'googleai/gemini-1.5-pro';
+    return 'googleai/gemini-pro';
   }
 
   throw new Error('No API key is set.');
