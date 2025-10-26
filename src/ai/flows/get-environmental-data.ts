@@ -15,7 +15,6 @@ import { z } from 'zod';
 const GetEnvironmentalDataInputSchema = z.object({
   location: z.string().describe('The city and country, e.g., "San Francisco, USA"'),
   apiKeys: z.custom<ApiKeys>().optional(),
-  model: z.string().optional(),
 });
 export type GetEnvironmentalDataInput = z.infer<typeof GetEnvironmentalDataInputSchema>;
 

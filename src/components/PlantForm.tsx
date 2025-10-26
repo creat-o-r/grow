@@ -84,7 +84,7 @@ export function PlantForm({ plantToEdit, onSubmit, isApiKeySet, onConfigureApiKe
     if (!aiSearchTerm) return;
     setIsAiSearching(true);
     try {
-      const result = await aiSearchPlantData({ searchTerm: aiSearchTerm, apiKeys, model: selectedModel });
+      const result = await aiSearchPlantData({ searchTerm: aiSearchTerm, apiKeys });
       form.setValue('species', result.species, { shouldValidate: true });
       form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
       form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });

@@ -41,6 +41,7 @@ export default function Home() {
     apiKeys,
     setApiKey,
     setEnvKeys,
+    availableModels,
     setAvailableModels,
     selectedModel,
     setSelectedModel,
@@ -122,20 +123,17 @@ export default function Home() {
 
   useEffect(() => {
     const fetchModels = async () => {
-      if (areApiKeysSet) {
-        const { models, envKeys } = await getAvailableModels({ apiKeys });
-        setAvailableModels(models);
-        setEnvKeys(envKeys);
-        if (models.length > 0 && !models.includes(selectedModel)) {
-          setSelectedModel(models[0]);
-        }
-      } else {
-        setAvailableModels([]);
+      const { models, envKeys } = await getAvailableModels({ apiKeys });
+      setAvailableModels(models);
+      setEnvKeys(envKeys);
+      if (models.length > 0 && !models.includes(selectedModel)) {
+        setSelectedModel(models[0]);
+      } else if (models.length === 0) {
         setSelectedModel('');
       }
     };
     fetchModels();
-  }, [apiKeys, setAvailableModels, setSelectedModel, areApiKeysSet, selectedModel, setEnvKeys]);
+  }, [apiKeys, setAvailableModels, setSelectedModel, setEnvKeys, selectedModel]);
 
   const activeLocation = locations?.find(loc => loc.id === activeLocationId);
 
