@@ -313,5 +313,3 @@ export function PlantForm({ plantToEdit, onSubmit, onConfigureApiKey, areApiKeys
     </div>
   );
 }
-
-    
