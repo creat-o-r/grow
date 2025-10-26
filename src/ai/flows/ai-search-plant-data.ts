@@ -46,7 +46,7 @@ const aiSearchPlantDataFlow = ai.defineFlow(
     outputSchema: AISearchPlantDataOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input, { model: 'googleai/gemini-1.5-pro-latest' });
+    const {output} = await prompt(input, { model: 'googleai/gemini-2.5-flash' });
     return output!;
   }
 );
