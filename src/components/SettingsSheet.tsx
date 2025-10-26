@@ -22,6 +22,12 @@ type SettingsSheetProps = {
   apiKeys: { gemini: string };
 };
 
+type ConfirmationState = {
+  type: 'import' | 'ai';
+  key: string;
+} | null;
+
+
 export function SettingsSheet({
   isOpen,
   onOpenChange,
@@ -31,7 +37,7 @@ export function SettingsSheet({
   onApiKeysChange,
   apiKeys,
 }: SettingsSheetProps) {
-  const [datasetToImport, setDatasetToImport] = useState<string | null>(null);
+  const [confirmationState, setConfirmationState] = useState<ConfirmationState>(null);
   const [localApiKeys, setLocalApiKeys] = useState({ gemini: '' });
   const [aiTheme, setAiTheme] = useState('');
   const [isAiCreating, setIsAiCreating] = useState(false);
@@ -43,14 +49,22 @@ export function SettingsSheet({
   }, [isOpen, apiKeys]);
 
   const handleImportClick = (datasetKey: string) => {
-    setDatasetToImport(datasetKey);
+    setConfirmationState({type: 'import', key: datasetKey});
   }
   
-  const handleConfirmImport = () => {
-    if (datasetToImport) {
-        onImport(datasetToImport);
-        setDatasetToImport(null);
+  const handleConfirm = async () => {
+    if (!confirmationState) return;
+
+    if (confirmationState.type === 'import') {
+        onImport(confirmationState.key);
+    } else if (confirmationState.type === 'ai') {
+        setIsAiCreating(true);
+        await onAiCreate(confirmationState.key);
+        setIsAiCreating(false);
     }
+    
+    setConfirmationState(null);
+    onOpenChange(false); // Close sheet after action
   }
 
   const handleSaveApiKeys = () => {
@@ -60,15 +74,15 @@ export function SettingsSheet({
 
   const handleAiCreateClick = async () => {
     if (!aiTheme.trim()) return;
-    setIsAiCreating(true);
-    await onAiCreate(aiTheme);
-    setIsAiCreating(false);
-    onOpenChange(false);
+    setConfirmationState({type: 'ai', key: aiTheme});
   }
 
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={onOpenChange}>
+      <Sheet open={isOpen} onOpenChange={(open) => {
+        if (!open) setConfirmationState(null);
+        onOpenChange(open);
+      }}>
         <SheetContent className="sm:max-w-lg w-[90vw] overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="font-headline">Settings</SheetTitle>
@@ -108,7 +122,7 @@ export function SettingsSheet({
                 <CardHeader>
                   <CardTitle className="font-headline text-lg">AI Dataset Generator</CardTitle>
                    <CardDescription>
-                     Describe the type of garden you want to create, and the AI will generate a starter dataset for you.
+                     Describe the type of garden you want to create, and the AI will generate a starter dataset for you. This will overwrite your current data.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -131,7 +145,7 @@ export function SettingsSheet({
               <Card>
                 <CardHeader>
                   <CardTitle className="font-headline text-lg">Data Management</CardTitle>
-                  <CardDescription>Import a sample dataset or publish your current data.</CardDescription>
+                  <CardDescription>Import a sample dataset or publish your current data. Importing will overwrite your current data.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {availableDatasets.map((dataset) => (
@@ -159,18 +173,19 @@ export function SettingsSheet({
           </div>
         </SheetContent>
       </Sheet>
-      <AlertDialog open={!!datasetToImport} onOpenChange={(open) => !open && setDatasetToImport(null)}>
+      <AlertDialog open={!!confirmationState} onOpenChange={(open) => !open && setConfirmationState(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Importing a new dataset will overwrite all your existing gardens and plants. This action cannot be undone.
+              This action will overwrite all your existing garden data, including all plants and locations. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDatasetToImport(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmImport}>
-              Import
+            <AlertDialogCancel onClick={() => setConfirmationState(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirm}>
+              {isAiCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isAiCreating ? 'Generating...' : 'Overwrite'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
