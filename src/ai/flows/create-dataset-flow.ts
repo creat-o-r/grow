@@ -12,6 +12,7 @@ import { genkit } from 'genkit';
 import { z } from 'zod';
 import { googleAI } from '@genkit-ai/google-genai';
 
+
 const StatusHistorySchema = z.object({
   id: z.string(),
   status: z.enum(['Planning', 'Planting', 'Growing', 'Harvested', 'Dormant']),

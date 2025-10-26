@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, KeyRound, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
+import { Upload, Download, KeyRound, Sparkles, Loader2, AlertTriangle, Router } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import type { ApiKeys, Dataset } from '@/lib/types';
