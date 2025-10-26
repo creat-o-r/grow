@@ -7,16 +7,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, KeyRound } from 'lucide-react';
+import { Upload, Download, KeyRound, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import type { ApiKeys } from '@/lib/types';
+import type { ApiKeys, Dataset } from '@/lib/types';
+import { createDataset } from '@/ai/flows/create-dataset-flow';
+import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 type SettingsSheetProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onImport: (datasetKey: string) => void;
+  onAiCreate: (dataset: Dataset, theme: string) => void;
   onPublish: () => void;
   onApiKeysChange: (keys: ApiKeys) => void;
   apiKeys: ApiKeys;
@@ -26,12 +30,16 @@ export function SettingsSheet({
   isOpen,
   onOpenChange,
   onImport,
+  onAiCreate,
   onPublish,
   onApiKeysChange,
   apiKeys,
 }: SettingsSheetProps) {
   const [datasetToImport, setDatasetToImport] = useState<string | null>(null);
   const [localApiKeys, setLocalApiKeys] = useState<ApiKeys>({ gemini: '' });
+  const [aiTheme, setAiTheme] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen) {
@@ -52,7 +60,28 @@ export function SettingsSheet({
 
   const handleSaveApiKeys = () => {
     onApiKeysChange(localApiKeys);
-    onOpenChange(false);
+    // Do not close sheet on save, let user see confirmation
+  }
+
+  const handleGenerateDataset = async () => {
+    if (!aiTheme.trim()) {
+        toast({ title: 'Theme Required', description: 'Please enter a theme for the dataset.', variant: 'destructive' });
+        return;
+    }
+    setIsGenerating(true);
+    try {
+        const result = await createDataset({ theme: aiTheme, apiKeys });
+        onAiCreate(result, aiTheme);
+    } catch (error: any) {
+        console.error('AI dataset generation failed:', error);
+        toast({
+            title: 'Generation Failed',
+            description: error.message || 'Could not generate the dataset.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsGenerating(false);
+    }
   }
 
   return (
@@ -94,9 +123,41 @@ export function SettingsSheet({
               </Card>
 
               <Card>
+                  <CardHeader>
+                      <CardTitle className="font-headline text-lg">AI Dataset Generator</CardTitle>
+                      <CardDescription>Create a new garden plan from a theme.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                     {!apiKeys.gemini && (
+                        <Alert variant="destructive">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>API Key Required</AlertTitle>
+                            <AlertDescription>
+                                An API key is required to use the AI Dataset Generator.
+                            </AlertDescription>
+                        </Alert>
+                     )}
+                      <div className="space-y-2">
+                          <Label htmlFor="ai-theme">Garden Theme</Label>
+                          <Input
+                              id="ai-theme"
+                              placeholder="e.g., A small herb garden in London"
+                              value={aiTheme}
+                              onChange={(e) => setAiTheme(e.target.value)}
+                              disabled={!apiKeys.gemini}
+                          />
+                      </div>
+                      <Button onClick={handleGenerateDataset} disabled={isGenerating || !apiKeys.gemini} className="w-full">
+                          {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                          Generate & Import
+                      </Button>
+                  </CardContent>
+              </Card>
+
+              <Card>
                 <CardHeader>
-                  <CardTitle className="font-headline text-lg">Data Management</CardTitle>
-                  <CardDescription>Import a sample dataset or publish your current data.</CardDescription>
+                  <CardTitle className="font-headline text-lg">Sample Datasets</CardTitle>
+                  <CardDescription>Import a sample dataset to get started.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {availableDatasets.map((dataset) => (

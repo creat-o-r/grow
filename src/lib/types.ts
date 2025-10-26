@@ -40,4 +40,9 @@ export type AiLog = {
 export type ApiKeys = {
   gemini: string;
 };
+
+export interface Dataset {
+    plants: Plant[];
+    locations: GardenLocation[];
+}
     

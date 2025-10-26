@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, MouseEvent, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog, ApiKeys } from '@/lib/types';
+import type { Plant, GardenLocation, Conditions, StatusHistory, AiLog, ApiKeys, Dataset } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
@@ -200,9 +200,8 @@ export default function Home() {
     }
   };
 
-  const handleImport = async (datasetKey: string) => {
-    try {
-        const dataset = await loadDataset(datasetKey);
+  const importData = async (dataset: Dataset, datasetName: string) => {
+     try {
         await db.transaction('rw', db.plants, db.locations, async () => {
             await db.plants.clear();
             await db.locations.clear();
@@ -219,7 +218,7 @@ export default function Home() {
 
         toast({
             title: 'Data Imported',
-            description: `The "${dataset.name}" dataset has been loaded.`,
+            description: `The "${datasetName}" dataset has been loaded.`,
         });
         setIsSettingsSheetOpen(false);
     } catch (error) {
@@ -230,7 +229,29 @@ export default function Home() {
             variant: 'destructive',
         });
     }
+  }
+
+  const handleImport = async (datasetKey: string) => {
+    const dataset = await loadDataset(datasetKey);
+    await importData(dataset, dataset.name);
   };
+
+  const handleAiCreate = async (dataset: Dataset, theme: string) => {
+    await importData(dataset, `AI-Generated: ${theme}`);
+    
+    const newLog: AiLog = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        flow: 'createDataset',
+        prompt: { theme },
+        results: {
+            locations: dataset.locations.length,
+            plants: dataset.plants.length,
+        },
+      };
+      
+      await db.aiLogs.add(newLog);
+  }
 
   const handlePublish = async () => {
     const plantsData = await db.plants.toArray();
@@ -705,6 +726,7 @@ export default function Home() {
         isOpen={isSettingsSheetOpen}
         onOpenChange={setIsSettingsSheetOpen}
         onImport={handleImport}
+        onAiCreate={handleAiCreate}
         onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
