@@ -295,12 +295,15 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
   
   const handleLocationFieldChange = useCallback(async (field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
     if (!activeLocationId) return;
-    await db.locations.update(activeLocationId, { [field]: value });
+    const trimmedValue = value.trim();
+    if (trimmedValue === activeLocation?.location) return;
+
+    await db.locations.update(activeLocationId, { [field]: trimmedValue });
     // After changing the location, automatically re-analyze conditions
-    if (field === 'location' && value.trim()) {
-      handleAnalyzeConditions(value.trim());
+    if (field === 'location' && trimmedValue) {
+      handleAnalyzeConditions(trimmedValue);
     }
-  }, [activeLocationId]);
+  }, [activeLocationId, activeLocation?.location]);
 
   
   const handleAddLocation = async (name: string) => {
@@ -381,7 +384,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
           // Using a free, open-source reverse geocoding API
           const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await response.json();
-          const locationName = data.display_name || 'Unknown Location';
+          const locationName = data.address?.city || data.address?.town || data.display_name || 'Unknown Location';
           
           setLocationSearchQuery(locationName); // Update search query as well
           handleLocationFieldChange('location', locationName);
@@ -560,24 +563,28 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     if (!plantingsWithPlants || !activeLocation?.conditions) return null;
 
     const getBestPlantSeason = (plant: Plant): string => {
-        const seasons = getSuitableSeasons(plant);
-        if (seasons.length === 0) return 'Year-Round';
+        const suitableSeasons = getSuitableSeasons(plant);
+        if (suitableSeasons.length === 4 && activeLocation.conditions.currentSeason) {
+            // If it's year-round, show it under the current season
+            return activeLocation.conditions.currentSeason;
+        }
+        if (suitableSeasons.length === 0) return 'Year-Round';
 
         const seasonOrder = ['Spring', 'Summer', 'Autumn', 'Winter'];
         const currentSeason = activeLocation.conditions.currentSeason;
         const currentSeasonIndex = currentSeason ? seasonOrder.indexOf(currentSeason) : -1;
 
-        if (currentSeasonIndex === -1) return seasons[0];
+        if (currentSeasonIndex === -1) return suitableSeasons[0];
 
         // Find the next best season, starting from the current one
         for (let i = 0; i < seasonOrder.length; i++) {
             const seasonIndex = (currentSeasonIndex + i) % seasonOrder.length;
             const season = seasonOrder[seasonIndex];
-            if (seasons.includes(season)) {
+            if (suitableSeasons.includes(season)) {
                 return season;
             }
         }
-        return seasons[0]; // Fallback to the first suitable season if no match is found
+        return suitableSeasons[0]; // Fallback to the first suitable season if no match is found
     };
 
     const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
@@ -587,7 +594,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
 
     const getSeasonScore = (season: string) => {
         const seasonIndex = seasonOrder.indexOf(season);
-        if (seasonIndex === -1) return 4; // 'Year-Round' or others at the end
+        if (seasonIndex === -1 || season === 'Year-Round') return 4; // 'Year-Round' or others at the end
         return (seasonIndex - currentSeasonIndex + seasonOrder.length) % seasonOrder.length;
     };
     

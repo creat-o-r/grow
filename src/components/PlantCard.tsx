@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { PlantingWithPlant, Conditions } from '@/lib/types';
@@ -91,9 +92,13 @@ export function PlantCard({
                             {planting.seedsOnHand} seeds on hand
                         </Badge>
                      )}
-                     {suitableSeasons.length > 0 && suitableSeasons.map(season => (
-                        <Badge key={season} variant="outline" className="font-normal">{season}</Badge>
-                     ))}
+                     {suitableSeasons.length === 4 ? (
+                        <Badge variant="outline" className="font-normal">Year-Round</Badge>
+                     ) : (
+                        suitableSeasons.map(season => (
+                            <Badge key={season} variant="outline" className="font-normal">{season}</Badge>
+                        ))
+                     )}
                 </div>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
