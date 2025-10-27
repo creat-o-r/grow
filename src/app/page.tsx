@@ -897,7 +897,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                           wishlistPlantings.length > 0 ? (
                             wishlistSortOrder === 'viability' ? (
                                 <div>
-                                    <div className="flex justify-end items-center mb-4 sticky top-0 bg-background py-2 z-10">
+                                    <div className="flex justify-end items-center mb-4">
                                         <div className="flex items-center gap-4">
                                             {unspecifiedSeasonCount > 0 && (
                                                 <Button
@@ -1172,7 +1172,7 @@ const unspecifiedSeasonCount = useMemo(() => {
             setIsSettingsSheetOpen(false);
             setIsAiImportSheetOpen(true);
         }}
-        onPublish={onPublish}
+        onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
         onDuplicateReviewOpen={() => {
