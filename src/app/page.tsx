@@ -6,7 +6,6 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, GardenViewMode } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { useDebounce } from '@/hooks/use-debounce';
 import { usePrevious } from '@/hooks/use-previous';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
@@ -352,7 +351,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             await db.plants.bulkAdd(data.plants);
         }
         if (data.plantings && data.plantings.length > 0) {
-            // Use the first location from the dataset as the gardenId for all plantings
             const gardenId = data.locations?.[0]?.id;
             if (gardenId) {
                 const plantingsWithGardenId = data.plantings.map(p => ({
@@ -361,7 +359,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
                 }));
                 await db.plantings.bulkAdd(plantingsWithGardenId);
             } else {
-                // If no location, add plantings without gardenId (or handle as error)
                 await db.plantings.bulkAdd(data.plantings);
             }
         }
@@ -415,103 +412,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     });
   };
 
-  const handleConditionChange = useCallback((value: string, field: keyof Conditions, locationId: string) => {
-    db.locations.get(locationId).then(location => {
-      if (location) {
-          const newConditions = { ...location.conditions, [field]: value };
-          db.locations.update(locationId, { conditions: newConditions });
-      }
-    });
-  }, []);
-  
-  const handleLocationFieldChange = useCallback((e: React.FocusEvent<HTMLInputElement> | React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.type === 'keydown' && (e as React.KeyboardEvent).key !== 'Enter') {
-      return;
-    }
-    const target = e.currentTarget;
-    const locationId = target.id.replace(/^(location|temperature|sunlight|soil)-/, '');
-    const field = target.name as keyof GardenLocation | keyof Conditions;
-    const value = target.value;
-  
-    db.locations.get(locationId).then(location => {
-      if (!location) return;
-
-      if (field === 'location') {
-        const trimmedValue = value.trim();
-        if (trimmedValue !== location.location) {
-          db.locations.update(locationId, { [field]: trimmedValue });
-        }
-      } else {
-        const newConditions = { ...location.conditions, [field]: value };
-        db.locations.update(locationId, { conditions: newConditions });
-      }
-    });
-  }, []);
-
-  
-  const handleAddLocation = async (name: string) => {
-    const newLocation: GardenLocation = {
-      id: Date.now().toString(),
-      name,
-      location: '',
-      temperatureUnit: 'F',
-      conditions: {
-        temperature: '',
-        sunlight: '',
-        soil: '',
-      }
-    };
-    const newId = await db.locations.add(newLocation);
-    setActiveLocationId(newId.toString());
-    setAccordionValue('item-1');
-    setTimeout(() => {
-      const locationInput = document.getElementById(`location-${newId}`);
-      if (locationInput) {
-        locationInput.focus();
-      }
-    }, 100);
-  };
-  
-  const promptDelete = (item: GardenLocation | PlantingWithPlant) => {
-    if ('conditions' in item) { // It's a GardenLocation
-        setLocationToDelete(item);
-    } else { // It's a PlantingWithPlant
-        setPlantingToDelete(item);
-    }
-    setIsDeleteAlertOpen(true);
-  };
-
-  const handleDeleteLocation = async () => {
-    if (!locationToDelete || !locations) return;
-
-    const locationIdToDelete = locationToDelete.id;
-    const locationName = locationToDelete.name;
-
-    await db.locations.delete(locationIdToDelete);
-
-    // If the deleted location was the active one, pick a new active one
-    if (activeLocationId === locationIdToDelete) {
-      const remainingLocations = locations.filter(loc => loc.id !== locationIdToDelete);
-      if (remainingLocations.length > 0) {
-        setActiveLocationId(remainingLocations[0].id);
-      } else {
-        setActiveLocationId(null);
-      }
-    }
-    
-    // Also remove from multi-select
-    setSelectedGardenIds(ids => ids.filter(id => id !== locationIdToDelete));
-
-    toast({
-      title: 'Garden Deleted',
-      description: `${locationName} has been deleted.`,
-      variant: 'destructive',
-    });
-
-    setLocationToDelete(null);
-    setIsDeleteAlertOpen(false);
-  };
-
   const handleAnalyzeConditions = useCallback(async (locationId: string, locationOverride?: string) => {
     if (!areApiKeysSet) {
       toast({
@@ -522,7 +422,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       setIsSettingsSheetOpen(true);
       return;
     }
-    
+
     const locationToAnalyze = locationOverride || locations?.find(l => l.id === locationId)?.location;
 
     if (!locationToAnalyze || !locationToAnalyze.trim()) {
@@ -625,6 +525,100 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     );
   }, [handleAnalyzeConditions, toast]);
 
+  const handleConditionChange = useCallback((value: string, field: keyof Conditions, locationId: string) => {
+    db.locations.get(locationId).then(location => {
+      if (location) {
+          const newConditions = { ...location.conditions, [field]: value };
+          db.locations.update(locationId, { conditions: newConditions });
+      }
+    });
+  }, []);
+  
+  const handleLocationFieldChange = useCallback((e: React.FocusEvent<HTMLInputElement> | React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.type === 'keydown' && (e as React.KeyboardEvent).key !== 'Enter') {
+      return;
+    }
+    const target = e.currentTarget;
+    const locationId = target.id.replace(/^(location|temperature|sunlight|soil)-/, '');
+    const field = target.name as keyof GardenLocation | keyof Conditions;
+    const value = target.value;
+  
+    db.locations.get(locationId).then(location => {
+      if (!location) return;
+
+      if (field === 'location') {
+        const trimmedValue = value.trim();
+        if (trimmedValue !== location.location) {
+          db.locations.update(locationId, { [field]: trimmedValue });
+        }
+      } else {
+        const newConditions = { ...location.conditions, [field]: value };
+        db.locations.update(locationId, { conditions: newConditions });
+      }
+    });
+  }, []);
+  
+  const handleAddLocation = async (name: string) => {
+    const newLocation: GardenLocation = {
+      id: Date.now().toString(),
+      name,
+      location: '',
+      temperatureUnit: 'F',
+      conditions: {
+        temperature: '',
+        sunlight: '',
+        soil: '',
+      }
+    };
+    const newId = await db.locations.add(newLocation);
+    setActiveLocationId(newId.toString());
+    setAccordionValue('item-1');
+    setTimeout(() => {
+      const locationInput = document.getElementById(`location-${newId}`);
+      if (locationInput) {
+        locationInput.focus();
+      }
+    }, 100);
+  };
+  
+  const promptDelete = (item: GardenLocation | PlantingWithPlant) => {
+    if ('conditions' in item) { // It's a GardenLocation
+        setLocationToDelete(item);
+    } else { // It's a PlantingWithPlant
+        setPlantingToDelete(item);
+    }
+    setIsDeleteAlertOpen(true);
+  };
+
+  const handleDeleteLocation = async () => {
+    if (!locationToDelete || !locations) return;
+
+    const locationIdToDelete = locationToDelete.id;
+    const locationName = locationToDelete.name;
+
+    await db.locations.delete(locationIdToDelete);
+
+    if (activeLocationId === locationIdToDelete) {
+      const remainingLocations = locations.filter(loc => loc.id !== locationIdToDelete);
+      if (remainingLocations.length > 0) {
+        setActiveLocationId(remainingLocations[0].id);
+      } else {
+        setActiveLocationId(null);
+      }
+    }
+    
+    setSelectedGardenIds(ids => ids.filter(id => id !== locationIdToDelete));
+
+    toast({
+      title: 'Garden Deleted',
+      description: `${locationName} has been deleted.`,
+      variant: 'destructive',
+    });
+
+    setLocationToDelete(null);
+    setIsDeleteAlertOpen(false);
+  };
+  
   const handleGetViability = async (planting: PlantingWithPlant) => {
     if (viabilityMechanism === 'ai' && !areApiKeysSet) {
       toast({
@@ -663,7 +657,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         logData = { flow: 'getAiViability', prompt: promptData, results: result, viabilityType: 'ai' };
         finalViability = result.viability;
       } else {
-        // Local reasoning
         const viability = analyzeViability(planting.plant, activeLocation.conditions);
         const reasoning = generateLocalViabilityReasoning(planting.plant, activeLocation.conditions);
         const result = { viability, reasoning };
@@ -679,7 +672,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       
       await db.aiLogs.add(newLog);
 
-      // Update the viability state for this specific plant
       if (finalViability) {
         setViabilityData(prev => ({...prev, [planting.id]: finalViability}));
       }
@@ -708,7 +700,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     if (!duplicateSelectionMode) return;
 
     try {
-      // Re-assign the planting to the same plantId as the source
       await db.plantings.update(plantingToModify.id, { plantId: duplicateSelectionMode.plantId });
       toast({
         title: 'Duplicate Marked',
@@ -790,11 +781,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     } else if (gardenViewMode === 'selected') {
         plantingsToDisplay = plantings.filter(p => selectedGardenIds.includes(p.gardenId));
     }
-    // 'all' mode uses all plantings
 
     return plantingsToDisplay
       .map(p => ({ ...p, plant: plantMap.get(p.plantId)!, garden: locations?.find(l => l.id === p.gardenId) }))
-      .filter(p => p.plant); // Filter out plantings with no matching plant
+      .filter(p => p.plant);
   }, [plantings, plants, locations, gardenViewMode, selectedGardenIds, activeLocationId, effectivelySingleGardenView]);
   
   const wishlistPlantings = useMemo(() => {
@@ -888,8 +878,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     }, [activeLocation?.conditions, apiKeys, areApiKeysSet, toast, dismiss]);
 
-
-    // Consolidated effect for viability calculation and batch analysis
     useEffect(() => {
         const justSwitchedToAi = previousViabilityMechanism === 'local' && viabilityMechanism === 'ai';
         const conditionsChangedInAiMode = viabilityMechanism === 'ai' && (
@@ -921,10 +909,9 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         previousActiveConditions,
         areApiKeysSet,
         handleBatchAiViabilityAnalysis,
-        plantings,
+        plantings, // Keep plantings/plants here to recalculate for local on data change
         plants
     ]);
-
 
   const sortedAndFilteredPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
@@ -952,7 +939,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   const organizedWishlist = useMemo(() => {
     if (!wishlistPlantings || !activeLocation?.conditions) return null;
 
-    // Default to 'season' sort
     const getBestPlantSeason = (plant: Plant): string => {
         const suitableSeasons = getSuitableSeasons(plant);
         if (suitableSeasons.length === 4 && activeLocation.conditions.currentSeason) {
@@ -966,7 +952,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
         if (currentSeasonIndex === -1) return suitableSeasons[0];
 
-        // Find the next best season, starting from the current one
         for (let i = 0; i < seasonOrder.length; i++) {
             const seasonIndex = (currentSeasonIndex + i) % seasonOrder.length;
             const season = seasonOrder[seasonIndex];
@@ -1048,7 +1033,6 @@ const unspecifiedSeasonCount = useMemo(() => {
     return unspecifiedGroup ? unspecifiedGroup.plantings.length : 0;
 }, [organizedWishlist, wishlistSortOrder]);
 
-
   const plantingsInPlantingStatus = useMemo(() => {
       if (!plantingsWithPlants) return [];
       return plantingsWithPlants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length-1].status === 'Planting');
@@ -1058,7 +1042,6 @@ const unspecifiedSeasonCount = useMemo(() => {
     if (!plantingsWithPlants) return [];
     return plantingsWithPlants.filter(p => p.history && p.history.length > 0 && ['Wishlist', 'Harvest'].includes(p.history[p.history.length-1].status));
   }, [plantingsWithPlants]);
-
 
   const statusCounts = useMemo(() => {
     const counts: { [key in PlantStatus | 'All']: number } = {
@@ -1087,9 +1070,7 @@ const unspecifiedSeasonCount = useMemo(() => {
         return counts;
     }, [viabilityData]);
 
-
   const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
-
 
   const selectedLocations = useMemo(() => {
       if (!locations) return [];
@@ -1182,10 +1163,13 @@ const unspecifiedSeasonCount = useMemo(() => {
                                     </span>
                                 ) : (
                                     <div className="flex flex-col items-start text-sm text-muted-foreground font-normal">
-                                        {selectedLocations.map((loc) => (
-                                            <div key={loc.id} className="truncate">
-                                                <span className="font-semibold">{loc.name}:</span> {loc.conditions.temperature || 'N/A'}
-                                            </div>
+                                        {selectedLocations.map((loc, index) => (
+                                            <React.Fragment key={loc.id}>
+                                                <div className="truncate">
+                                                    <span className="font-semibold">{loc.name}:</span> {loc.conditions.temperature || 'N/A'}
+                                                </div>
+                                                {index < selectedLocations.length - 1 && <hr className="w-full border-t border-border my-1" />}
+                                            </React.Fragment>
                                         ))}
                                     </div>
                                 )}
@@ -1527,7 +1511,6 @@ const unspecifiedSeasonCount = useMemo(() => {
         apiKeys={apiKeys}
         areApiKeysSet={areApiKeysSet}
         onComplete={() => {
-            // This could be more specific to refresh only what's needed
             window.location.reload();
         }}
         activeLocation={activeLocation}
@@ -1561,3 +1544,4 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
