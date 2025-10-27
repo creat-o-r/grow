@@ -895,27 +895,38 @@ const unspecifiedSeasonCount = useMemo(() => {
                                             </h2>
                                             {index === 0 && (
                                               <div className="flex items-center gap-4">
-                                                  {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
-                                                      <Button
-                                                          variant="ghost"
-                                                          size="sm"
-                                                          className="h-8 gap-2 text-muted-foreground"
-                                                          onClick={() => unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                                                      >
-                                                          <AlertCircle className="h-4 w-4" />
-                                                          <span className="font-mono">{unspecifiedSeasonCount}</span>
-                                                      </Button>
-                                                  )}
-                                                  <div className="flex items-center space-x-2">
-                                                      <Label htmlFor="sort-order" className='text-sm font-medium text-muted-foreground'>
-                                                          Sort by {wishlistSortOrder}
-                                                      </Label>
-                                                      <Switch
-                                                          id="sort-order"
-                                                          checked={wishlistSortOrder === 'viability'}
-                                                          onCheckedChange={(checked) => setWishlistSortOrder(checked ? 'viability' : 'season')}
-                                                      />
-                                                  </div>
+                                                <Label className='text-sm font-medium text-muted-foreground'>
+                                                    Sort by
+                                                </Label>
+                                                {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 gap-2 text-muted-foreground"
+                                                        onClick={() => unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                                                    >
+                                                        <AlertCircle className="h-4 w-4" />
+                                                        <span className="font-mono">{unspecifiedSeasonCount}</span>
+                                                    </Button>
+                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant={wishlistSortOrder === 'season' ? 'default' : 'outline'}
+                                                        onClick={() => setWishlistSortOrder('season')}
+                                                        className="h-8"
+                                                    >
+                                                        Season
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant={wishlistSortOrder === 'viability' ? 'default' : 'outline'}
+                                                        onClick={() => setWishlistSortOrder('viability')}
+                                                        className="h-8"
+                                                    >
+                                                        Viability
+                                                    </Button>
+                                                </div>
                                               </div>
                                             )}
                                           </div>
