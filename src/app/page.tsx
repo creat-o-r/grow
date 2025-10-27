@@ -43,6 +43,7 @@ type NominatimResult = {
   lat: string;
   lon: string;
 };
+type GardenSelectionMode = 'single' | 'multiple';
 
 const REPO_URL = 'https://github.com/creat-o-r/grow';
 
@@ -64,6 +65,9 @@ export default function Home() {
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(true);
 
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
+  const [selectedGardenIds, setSelectedGardenIds] = useState<string[]>([]);
+  const [gardenSelectionMode, setGardenSelectionMode] = useState<GardenSelectionMode>('single');
+
 
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [locationToDelete, setLocationToDelete] = useState<GardenLocation | null>(null);
@@ -109,12 +113,14 @@ export default function Home() {
                 const doesLocationExist = await db.locations.get(savedActiveLocation);
                 if (doesLocationExist) {
                     setActiveLocationId(savedActiveLocation);
+                    setSelectedGardenIds([savedActiveLocation]);
                     return;
                 }
              }
             const firstLocation = await db.locations.toCollection().first();
             if (firstLocation) {
                 setActiveLocationId(firstLocation.id);
+                setSelectedGardenIds([firstLocation.id]);
             }
         }
     }
@@ -139,10 +145,13 @@ export default function Home() {
   useEffect(() => {
     if (activeLocationId) {
         localStorage.setItem('grow_activeLocation', activeLocationId);
+        if (gardenSelectionMode === 'single') {
+            setSelectedGardenIds([activeLocationId]);
+        }
     } else {
         localStorage.removeItem('grow_activeLocation');
     }
-  }, [activeLocationId]);
+  }, [activeLocationId, gardenSelectionMode]);
   
   const handleApiKeysChange = (newKeys: {gemini: string}) => {
     localStorage.setItem('grow_apiKeys', JSON.stringify(newKeys));
@@ -392,6 +401,9 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         setActiveLocationId(null);
       }
     }
+    
+    // Also remove from multi-select
+    setSelectedGardenIds(ids => ids.filter(id => id !== locationIdToDelete));
 
     toast({
       title: 'Garden Deleted',
@@ -690,10 +702,12 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   const plantingsWithPlants = useMemo((): PlantingWithPlant[] => {
     if (!plantings || !plants) return [];
     const plantMap = new Map(plants.map(p => [p.id, p]));
-    return plantings
+    const plantingsToDisplay = plantings.filter(p => gardenSelectionMode === 'multiple' ? selectedGardenIds.includes(p.gardenId) : p.gardenId === activeLocationId);
+
+    return plantingsToDisplay
       .map(p => ({ ...p, plant: plantMap.get(p.plantId)! }))
       .filter(p => p.plant); // Filter out plantings with no matching plant
-  }, [plantings, plants]);
+  }, [plantings, plants, gardenSelectionMode, selectedGardenIds, activeLocationId]);
   
   const wishlistPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
@@ -964,16 +978,16 @@ const unspecifiedSeasonCount = useMemo(() => {
     const counts: { [key in PlantStatus | 'All']: number } = {
         All: 0, Wishlist: 0, Planting: 0, Growing: 0, Harvest: 0
     };
-    if (!plantings) return counts;
-    counts.All = plantings.length;
-    plantings.forEach(p => {
+    if (!plantingsWithPlants) return counts;
+    counts.All = plantingsWithPlants.length;
+    plantingsWithPlants.forEach(p => {
         if (p.history && p.history.length > 0) {
             const lastStatus = p.history[p.history.length - 1].status;
             counts[lastStatus]++;
         }
     });
     return counts;
-  }, [plantings]);
+  }, [plantingsWithPlants]);
 
     const viabilityCounts = useMemo(() => {
         const counts: Record<Viability, number> = { High: 0, Medium: 0, Low: 0 };
@@ -1015,7 +1029,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                 </Card>
             )}
           <div>
-            {!activeLocation ? (
+            {(!activeLocation && locations && locations.length === 0) ? (
               <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                 <CardHeader>
                   <CardTitle className="font-headline">Welcome to grow</CardTitle>
@@ -1037,16 +1051,20 @@ const unspecifiedSeasonCount = useMemo(() => {
                           <div className="flex items-center gap-4 flex-1 min-w-0">
                                <div onClick={(e) => e.stopPropagation()}>
                                   <LocationSwitcher 
-                                    locations={locations}
+                                    locations={locations || []}
                                     activeLocationId={activeLocationId}
                                     onLocationChange={setActiveLocationId}
                                     onAddLocation={handleAddLocation}
                                     onDeleteLocation={(loc) => promptDelete(loc)}
+                                    selectionMode={gardenSelectionMode}
+                                    onSelectionModeChange={setGardenSelectionMode}
+                                    selectedGardenIds={selectedGardenIds}
+                                    onSelectedGardenIdsChange={setSelectedGardenIds}
                                   />
                               </div>
                               <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
                                   <span className='text-sm text-muted-foreground font-normal truncate'>
-                                      {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
+                                      {activeLocation?.conditions.temperature || 'Temp'}, {activeLocation?.conditions.sunlight || 'Sunlight'}, {activeLocation?.conditions.soil || 'Soil'}
                                   </span>
                               </AccordionTrigger>
                           </div>
@@ -1304,7 +1322,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                               )}
                               <PlantingDashboard
                                   plantings={plantingDashboardPlantings}
-                                  gardenConditions={activeLocation.conditions}
+                                  gardenConditions={activeLocation?.conditions}
                                   onOpenAddSheet={handleOpenAddSheet}
                                   onOpenSettings={() => setIsSettingsSheetOpen(true)}
                                   onQuickStatusChange={handleQuickStatusChange}
@@ -1481,8 +1499,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
-    
-
-    
