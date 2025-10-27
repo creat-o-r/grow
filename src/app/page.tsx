@@ -283,23 +283,40 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       await db.plants.clear();
       await db.plantings.clear();
       await db.locations.clear();
-      if (data.plants) await db.plants.bulkAdd(data.plants);
-      if (data.plantings) await db.plantings.bulkAdd(data.plantings);
-      if (data.locations) await db.locations.bulkAdd(data.locations);
+
+      if (data.locations && data.locations.length > 0) {
+        const newLocationId = data.locations[0].id;
+        await db.locations.bulkAdd(data.locations);
+
+        if (data.plants) {
+          await db.plants.bulkAdd(data.plants);
+        }
+        if (data.plantings) {
+          const plantingsWithGardenId = data.plantings.map(p => ({
+            ...p,
+            gardenId: newLocationId
+          }));
+          await db.plantings.bulkAdd(plantingsWithGardenId);
+        }
+      }
     });
 
     const firstLocation = data.locations?.[0];
     if (firstLocation) {
       setActiveLocationId(firstLocation.id);
+      setSelectedGardenIds([firstLocation.id]);
+      setGardenViewMode('one');
     } else {
       setActiveLocationId(null);
+      setSelectedGardenIds([]);
     }
+
     toast({
-        title: 'Data Imported',
-        description: `The "${name}" dataset has been loaded.`,
+      title: 'Data Imported',
+      description: `The "${name}" dataset has been loaded.`,
     });
     setIsSettingsSheetOpen(false);
-  }
+  };
 
   const handleImport = async (datasetKey: string) => {
     try {

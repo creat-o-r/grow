@@ -38,7 +38,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
   const [refinement, setRefinement] = useState('');
   const [generatedData, setGeneratedData] = useState<AiDataset | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [importMode, setImportMode] = useState<ImportMode>('add');
+  const [importMode, setImportMode] = useState<ImportMode>(activeLocation ? 'add' : 'new');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState<string | null>(null);
@@ -52,7 +52,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
       setRefinement('');
       setGeneratedData(null);
       setError(null);
-      setImportMode('add');
+      setImportMode(activeLocation ? 'add' : 'new');
       setIsGenerating(false);
       setIsImporting(false);
     }, 300);
@@ -165,77 +165,100 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
 
   const handleImport = async () => {
     if (!generatedData) return;
-
+  
     setIsImporting(true);
     setError(null);
-
+  
     try {
-        const newPlantsWithNewIds = generatedData.plants.map(p => ({ ...p, id: `plant-${Date.now()}-${Math.random().toString(36).substring(2, 9)}` }));
-        const newPlantIdMap = new Map(generatedData.plants.map((p, i) => [p.id, newPlantsWithNewIds[i].id]));
-        const newPlantingsWithNewIds = generatedData.plantings.map(p => ({
-            ...p,
-            id: `planting-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-            plantId: newPlantIdMap.get(p.plantId) || '',
-        }));
-
-        await db.transaction('rw', db.plants, db.plantings, db.locations, async () => {
-            if (importMode === 'replace') {
-                const locationWithNewId = { ...generatedData.locations[0], id: `loc-${Date.now()}` };
-                await db.plants.clear();
-                await db.plantings.clear();
-                await db.locations.clear();
-
-                await db.plants.bulkAdd(newPlantsWithNewIds);
-                await db.plantings.bulkAdd(newPlantingsWithNewIds);
-                await db.locations.add(locationWithNewId);
-                toast({
-                    title: 'Import Successful',
-                    description: 'Your garden has been replaced with the new dataset.',
-                });
-            } else if (importMode === 'add' || importMode === 'new') {
-                const existingPlants = await db.plants.toArray();
-                const existingSpecies = new Set(existingPlants.map(p => p.species.toLowerCase().trim()));
-                
-                const plantsToAdd = newPlantsWithNewIds.filter(p => !existingSpecies.has(p.species.toLowerCase().trim()));
-                const plantingsToAdd = newPlantingsWithNewIds.filter(p => {
-                    const plant = newPlantsWithNewIds.find(pl => pl.id === p.plantId);
-                    return plant && !existingSpecies.has(plant.species.toLowerCase().trim());
-                });
-
-                if (plantsToAdd.length > 0) {
-                    await db.plants.bulkAdd(plantsToAdd);
-                }
-                if (plantingsToAdd.length > 0) {
-                    await db.plantings.bulkAdd(plantingsToAdd);
-                }
-
-                if (importMode === 'new') {
-                    const locationWithNewId = { ...generatedData.locations[0], id: `loc-${Date.now()}` };
-                    await db.locations.add(locationWithNewId);
-                }
-                
-                toast({
-                    title: 'Import Successful',
-                    description: `${plantingsToAdd.length} new plants added.`,
-                });
+      await db.transaction('rw', db.plants, db.plantings, db.locations, async () => {
+        if (importMode === 'replace') {
+          // Clear all existing data
+          await db.plants.clear();
+          await db.plantings.clear();
+          await db.locations.clear();
+  
+          // Add the new data
+          await db.locations.bulkAdd(generatedData.locations);
+          await db.plants.bulkAdd(generatedData.plants);
+          await db.plantings.bulkAdd(generatedData.plantings);
+  
+          toast({
+            title: 'Import Successful',
+            description: 'Your garden has been replaced with the new dataset.',
+          });
+  
+        } else if (importMode === 'new') {
+          // Add a new location and its associated plants/plantings
+          await db.locations.bulkAdd(generatedData.locations);
+          await db.plants.bulkAdd(generatedData.plants);
+          await db.plantings.bulkAdd(generatedData.plantings);
+          toast({
+            title: 'Import Successful',
+            description: 'A new garden has been created with the generated plants.',
+          });
+  
+        } else if (importMode === 'add' && activeLocation) {
+          const existingPlants = await db.plants.toArray();
+          const existingSpecies = new Set(existingPlants.map(p => p.species.toLowerCase().trim()));
+  
+          const plantsToAdd: Plant[] = [];
+          const plantingsToAdd: Planting[] = [];
+          const plantIdMap = new Map<string, string>(); // Maps old AI-generated plantId to new DB plantId
+  
+          // Find or create plants and build map
+          for (const newPlant of generatedData.plants) {
+            const existingPlant = existingPlants.find(p => p.species.toLowerCase().trim() === newPlant.species.toLowerCase().trim());
+            if (existingPlant) {
+              plantIdMap.set(newPlant.id, existingPlant.id);
+            } else {
+              const newDbPlantId = `plant-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+              plantIdMap.set(newPlant.id, newDbPlantId);
+              plantsToAdd.push({ ...newPlant, id: newDbPlantId });
             }
-        });
-
-        onComplete();
-        handleClose();
+          }
+  
+          // Create plantings with correct plantId and gardenId
+          for (const newPlanting of generatedData.plantings) {
+            const newPlantId = plantIdMap.get(newPlanting.plantId);
+            if (newPlantId) {
+              plantingsToAdd.push({
+                ...newPlanting,
+                id: `planting-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                plantId: newPlantId,
+                gardenId: activeLocation.id, // Add to active garden
+              });
+            }
+          }
+          
+          if (plantsToAdd.length > 0) {
+            await db.plants.bulkAdd(plantsToAdd);
+          }
+          if (plantingsToAdd.length > 0) {
+            await db.plantings.bulkAdd(plantingsToAdd);
+          }
+          
+          toast({
+            title: 'Import Successful',
+            description: `${plantingsToAdd.length} new plants added to "${activeLocation.name}".`,
+          });
+        }
+      });
+  
+      onComplete();
+      handleClose();
     } catch (err: any) {
-        console.error('Data import failed:', err);
-        setError(err.message || 'An unexpected error occurred during import.');
-        toast({
-            title: 'Import Failed',
-            description: 'Could not import the data. Please check the console for details.',
-            variant: 'destructive',
-        });
+      console.error('Data import failed:', err);
+      setError(err.message || 'An unexpected error occurred during import.');
+      toast({
+        title: 'Import Failed',
+        description: 'Could not import the data. Please check the console for details.',
+        variant: 'destructive',
+      });
     } finally {
-        setIsImporting(false);
+      setIsImporting(false);
     }
   };
-  
+
   const generatedPlantMap = useMemo(() => {
     if (!generatedData) return new Map();
     return new Map(generatedData.plants.map(p => [p.id, p]));
@@ -391,7 +414,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
 
                         <div className="space-y-4">
                             <h3 className="font-semibold text-lg">Import Options</h3>
-                            <RadioGroup value={importMode} onValueChange={(value) => setImportMode(value as ImportMode)} defaultValue="add">
+                            <RadioGroup value={importMode} onValueChange={(value) => setImportMode(value as ImportMode)} defaultValue={activeLocation ? 'add' : 'new'}>
                                 <Label htmlFor="r1" className="flex items-start space-x-3 space-y-0 rounded-md border p-4 cursor-pointer hover:bg-accent has-[[data-state=checked]]:border-primary">
                                     <RadioGroupItem value="replace" id="r1" />
                                     <div className="flex flex-col">
@@ -406,11 +429,11 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                         <span className="text-sm text-muted-foreground">Adds the new location and plants without affecting existing data.</span>
                                     </div>
                                 </Label>
-                                <Label htmlFor="r2" className="flex items-start space-x-3 space-y-0 rounded-md border p-4 cursor-pointer hover:bg-accent has-[[data-state=checked]]:border-primary">
-                                    <RadioGroupItem value="add" id="r2" />
+                                <Label htmlFor="r2" className="flex items-start space-x-3 space-y-0 rounded-md border p-4 cursor-pointer hover:bg-accent has-[[data-state=checked]]:border-primary" hidden={!activeLocation}>
+                                    <RadioGroupItem value="add" id="r2" disabled={!activeLocation}/>
                                     <div className="flex flex-col">
                                         <span className="font-bold flex items-center gap-2"><PlusCircle/> Add Plants to Active Garden</span>
-                                        <span className="text-sm text-muted-foreground">Adds new plants to your active garden. Skips duplicates and ignores the new location.</span>
+                                        <span className="text-sm text-muted-foreground">Adds new plants to your active garden "{activeLocation?.name}". Skips species that already exist.</span>
                                     </div>
                                 </Label>
                             </RadioGroup>
