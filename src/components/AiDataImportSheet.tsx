@@ -92,11 +92,19 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
 
     } catch (err: any) {
       console.error('AI dataset creation failed:', err);
-      setError(err.message || 'Could not create the dataset. Please try again.');
+      const errorMessage = err.message || 'Could not create the dataset. Please try again.';
+      setError(errorMessage);
       toast({
-        title: 'AI Generation Failed',
-        description: `An error occurred: ${err.message}`,
-        variant: 'destructive',
+          title: 'AI Generation Failed',
+          description: (
+              <div className="flex flex-col gap-2">
+                  <p>An error occurred:</p>
+                  <pre className="text-xs whitespace-pre-wrap p-2 bg-destructive/20 rounded-md">
+                      {errorMessage}
+                  </pre>
+              </div>
+          ),
+          variant: 'destructive',
       });
     } finally {
         setIsGenerating(false);
@@ -191,9 +199,33 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
           });
   
         } else if (importMode === 'new') {
-          await db.locations.bulkAdd(generatedData.locations);
-          await db.plants.bulkAdd(generatedData.plants);
-          await db.plantings.bulkAdd(generatedData.plantings);
+            const now = Date.now();
+            const newGardenId = `garden-${now}`;
+            const idSuffix = `-${now}-${Math.random().toString(36).substring(2, 6)}`;
+
+            const plantIdMap = new Map<string, string>();
+            const newPlants: Plant[] = generatedData.plants.map((p, i) => {
+              const newId = `plant${idSuffix}-${i}`;
+              plantIdMap.set(p.id, newId);
+              return { ...p, id: newId };
+            });
+
+            const newPlantings: Planting[] = generatedData.plantings.map((p, i) => ({
+              ...p,
+              id: `planting${idSuffix}-${i}`,
+              plantId: plantIdMap.get(p.plantId) || `unknown-plant${idSuffix}-${i}`,
+              gardenId: newGardenId,
+            }));
+            
+            const newLocation: GardenLocation = {
+                ...generatedData.locations[0],
+                id: newGardenId,
+            };
+
+          await db.locations.add(newLocation);
+          await db.plants.bulkAdd(newPlants);
+          await db.plantings.bulkAdd(newPlantings);
+
           toast({
             title: 'Import Successful',
             description: 'A new garden has been created with the generated plants.',
@@ -403,7 +435,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                         disabled={isGenerating}
                                     />
                                     <Button onClick={() => handleGenerate(true)} disabled={!refinement.trim() || isGenerating} variant="outline" size="icon">
-                                        {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                        {isGenerating && generatedData ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                                         <span className="sr-only">Refine</span>
                                     </Button>
                                 </div>
@@ -449,5 +481,6 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
   );
 }
 
+    
     
     
