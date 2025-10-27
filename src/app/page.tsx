@@ -1493,7 +1493,7 @@ const unspecifiedSeasonCount = useMemo(() => {
             setIsSettingsSheetOpen(false);
             setIsAiImportSheetOpen(true);
         }}
-        onPublish={onPublish}
+        onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
         viabilityMechanism={viabilityMechanism}
