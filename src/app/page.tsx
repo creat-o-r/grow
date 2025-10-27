@@ -878,45 +878,47 @@ const unspecifiedSeasonCount = useMemo(() => {
                     </div>
                 </div>
 
-                {statusFilter === 'Wishlist' && (
-                    <div className="flex items-center gap-4 mb-6">
-                        {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 gap-2 text-muted-foreground"
-                                onClick={() => unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                            >
-                                <AlertCircle className="h-4 w-4" />
-                                <span className="font-mono">{unspecifiedSeasonCount}</span>
-                            </Button>
-                        )}
-                        <div className="flex items-center space-x-2 ml-auto">
-                            <Label htmlFor="sort-order" className='text-sm font-medium text-muted-foreground'>
-                                Sort by {wishlistSortOrder}
-                            </Label>
-                            <Switch
-                                id="sort-order"
-                                checked={wishlistSortOrder === 'viability'}
-                                onCheckedChange={(checked) => setWishlistSortOrder(checked ? 'viability' : 'season')}
-                            />
-                        </div>
-                    </div>
-                )}
                 
                 {plantings && plantings.length > 0 ? (
                     <>
                       {statusFilter === 'Wishlist' ? (
                           organizedWishlist && organizedWishlist.length > 0 ? (
                               <div className="space-y-8">
-                                  {organizedWishlist.map(group => (
+                                  {organizedWishlist.map((group, index) => (
                                       <section 
                                         key={group.groupTitle}
                                         ref={group.groupTitle === 'Season Not Specified' ? unspecifiedSeasonSectionRef : null}
                                       >
-                                          <h2 className="text-2xl font-headline mb-4 capitalize">
-                                              {group.groupTitle.toLowerCase()}
-                                          </h2>
+                                          <div className="flex justify-between items-center mb-4">
+                                            <h2 className="text-2xl font-headline capitalize">
+                                                {group.groupTitle.toLowerCase()}
+                                            </h2>
+                                            {index === 0 && (
+                                              <div className="flex items-center gap-4">
+                                                  {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
+                                                      <Button
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          className="h-8 gap-2 text-muted-foreground"
+                                                          onClick={() => unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                                                      >
+                                                          <AlertCircle className="h-4 w-4" />
+                                                          <span className="font-mono">{unspecifiedSeasonCount}</span>
+                                                      </Button>
+                                                  )}
+                                                  <div className="flex items-center space-x-2">
+                                                      <Label htmlFor="sort-order" className='text-sm font-medium text-muted-foreground'>
+                                                          Sort by {wishlistSortOrder}
+                                                      </Label>
+                                                      <Switch
+                                                          id="sort-order"
+                                                          checked={wishlistSortOrder === 'viability'}
+                                                          onCheckedChange={(checked) => setWishlistSortOrder(checked ? 'viability' : 'season')}
+                                                      />
+                                                  </div>
+                                              </div>
+                                            )}
+                                          </div>
                                           <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                               {group.plantings.map(p => (
                                                   <PlantCard
