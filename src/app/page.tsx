@@ -159,6 +159,7 @@ export default function Home() {
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
   const [isAiImportSheetOpen, setIsAiImportSheetOpen] = useState(false);
   const [isDuplicateReviewSheetOpen, setIsDuplicateReviewSheetOpen] = useState(false);
+  const [hasDuplicates, setHasDuplicates] = useState(false);
 
   const [duplicateSelectionMode, setDuplicateSelectionMode] = useState<PlantingWithPlant | null>(null);
   
@@ -390,7 +391,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         console.error('Failed to import dataset:', error);
         toast({
             title: 'Import Failed',
-            description: 'There was an error loading the dataset.',
+            description: `There was an error loading the dataset: ${error.message}`,
             variant: 'destructive',
         });
     }
@@ -789,6 +790,25 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       .map(p => ({ ...p, plant: plantMap.get(p.plantId)!, garden: locations?.find(l => l.id === p.gardenId) }))
       .filter(p => p.plant);
   }, [plantings, plants, locations, gardenViewMode, selectedGardenIds, activeLocationId, effectivelySingleGardenView]);
+
+  useEffect(() => {
+    if (!plantingsWithPlants) return;
+
+    const plantingsByPlantId = new Map<string, PlantingWithPlant[]>();
+    plantingsWithPlants.forEach(p => {
+        const existing = plantingsByPlantId.get(p.plantId) || [];
+        plantingsByPlantId.set(p.plantId, [...existing, p]);
+    });
+
+    let found = false;
+    for (const group of plantingsByPlantId.values()) {
+        if (group.length > 1) {
+            found = true;
+            break;
+        }
+    }
+    setHasDuplicates(found);
+  }, [plantingsWithPlants]);
   
   const wishlistPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
@@ -1224,6 +1244,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                 {status}
                                 {status === 'All' ? (
                                     <div className="flex items-center gap-1.5 ml-2">
+                                        {hasDuplicates && <span className="text-destructive font-bold text-lg">!</span>}
                                         <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
                                         <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
                                         <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
@@ -1550,5 +1571,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
