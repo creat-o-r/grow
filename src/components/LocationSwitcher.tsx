@@ -49,8 +49,6 @@ export function LocationSwitcher({
   const [editingName, setEditingName] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
-  const activeLocation = locations.find(loc => loc.id === activeLocationId);
-
   useEffect(() => {
     if (editingLocationId) {
       const locationToEdit = locations.find(loc => loc.id === editingLocationId);
@@ -129,14 +127,17 @@ export function LocationSwitcher({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64" align="start">
-          {locations.map(location => (
+          {locations.map(location => {
+            const isSelected = selectedGardenIds.includes(location.id);
+            return (
               <DropdownMenuItem 
                 key={location.id} 
                 onSelect={(e) => {
+                    // Prevent closing menu in multi-select mode
                     if (gardenViewMode === 'selected') {
                         e.preventDefault();
                     } else {
-                        onLocationChange(location.id);
+                       onLocationChange(location.id);
                     }
                 }}
                 className="p-0"
@@ -155,15 +156,23 @@ export function LocationSwitcher({
                       </div>
                     ) : (
                       <div className="flex items-center w-full justify-between px-2 py-1.5">
-                          <label className={cn("flex items-center gap-3 flex-1", gardenViewMode !== 'selected' ? 'cursor-pointer' : '')}>
+                          <label className={cn("flex items-center gap-3 flex-1", gardenViewMode !== 'selected' ? 'cursor-pointer' : '')} onClick={(e) => {
+                            if (gardenViewMode === 'selected') {
+                              handleCheckboxChange(location.id);
+                            } else {
+                                onLocationChange(location.id)
+                            }
+                          }}>
                              {gardenViewMode === 'selected' && (
-                               <Checkbox
-                                checked={selectedGardenIds.includes(location.id)}
-                                onCheckedChange={() => handleCheckboxChange(location.id)}
-                                onClick={(e) => e.stopPropagation()}
-                              />
+                                <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={(checked) => {
+                                        handleCheckboxChange(location.id);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()} // Prevent label's onClick from firing
+                                />
                              )}
-                              <span onClick={() => onLocationChange(location.id)} className="flex-1">{location.name}</span>
+                              <span className="flex-1">{location.name}</span>
                           </label>
 
                         <div className="flex items-center">
@@ -189,7 +198,7 @@ export function LocationSwitcher({
                       </div>
                   )}
               </DropdownMenuItem>
-          ))}
+          )})}
 
         <DropdownMenuSeparator />
         <div className="p-2 space-y-2">
@@ -242,3 +251,5 @@ export function LocationSwitcher({
     </DropdownMenu>
   );
 }
+
+    
