@@ -692,23 +692,20 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
   // Update viability data when dependencies change
   useEffect(() => {
+    // If local mode, always calculate fresh.
     if (viabilityMechanism === 'local' && activeLocation?.conditions && plantingsWithPlants) {
       const newViabilityData: Record<string, Viability> = {};
       plantingsWithPlants.forEach(p => {
         newViabilityData[p.id] = analyzeViability(p.plant, activeLocation.conditions!);
       });
       setViabilityData(newViabilityData);
-    } else if (viabilityMechanism === 'ai') {
-        // For AI, we don't calculate upfront. Scores are added to viabilityData on demand.
-        // We can choose to clear old local scores or keep them as fallbacks.
-        // Let's keep them as a fallback until the AI score is fetched.
-        const newViabilityData: Record<string, Viability | undefined> = { ...viabilityData };
-        plantingsWithPlants.forEach(p => {
-            if (!newViabilityData[p.id]) { // If no AI score yet
-                newViabilityData[p.id] = activeLocation?.conditions ? analyzeViability(p.plant, activeLocation.conditions) : undefined;
-            }
-        });
-        setViabilityData(newViabilityData);
+      return;
+    }
+    
+    // If AI mode, clear the data. It will be populated on-demand.
+    // This prevents showing stale local data when in AI mode.
+    if (viabilityMechanism === 'ai') {
+        setViabilityData({});
     }
   }, [plantingsWithPlants, activeLocation?.conditions, viabilityMechanism]);
 
@@ -871,8 +868,10 @@ const unspecifiedSeasonCount = useMemo(() => {
         if (!plantingsWithPlants) return counts;
 
         plantingsWithPlants.forEach(p => {
-            const viability = viabilityData[p.id] || 'Low';
-            counts[viability]++;
+            const viability = viabilityData[p.id];
+            if (viability) {
+              counts[viability]++;
+            }
         });
 
         return counts;
@@ -1372,3 +1371,5 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    
