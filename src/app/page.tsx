@@ -876,9 +876,9 @@ const unspecifiedSeasonCount = useMemo(() => {
                                 {status}
                                 {status === 'All' ? (
                                     <div className="flex items-center gap-1.5 ml-2">
-                                        <Badge className="bg-green-600 text-green-50 dark:bg-green-500/20 dark:text-green-300 px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
-                                        <Badge className="bg-yellow-500 text-yellow-50 dark:bg-yellow-500/20 dark:text-yellow-300 px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
-                                        <Badge className="bg-red-600 text-red-50 dark:bg-red-500/20 dark:text-red-300 px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
+                                        <Badge className="bg-green-600 dark:bg-green-500 text-white dark:text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
+                                        <Badge className="bg-yellow-500 dark:bg-yellow-400 text-white dark:text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
+                                        <Badge className="bg-red-600 dark:bg-red-500 text-white dark:text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
                                     </div>
                                 ) : (
                                     <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
@@ -918,7 +918,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                             <div className="flex items-center gap-2">
                                                 <Button
                                                     size="sm"
-                                                    variant={wishlistSortOrder === 'season' ? 'default' : 'outline'}
+                                                    variant={wishlistSortOrder === 'season' ? 'outline' : 'default'}
                                                     onClick={() => setWishlistSortOrder('season')}
                                                     className="h-8"
                                                 >
