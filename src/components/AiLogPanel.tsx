@@ -26,6 +26,7 @@ const FLOW_DISPLAY_NAMES: { [key: string]: string } = {
     getEnvironmentalData: 'Environmental Analysis',
     aiSearchPlantData: 'Plant Data Search',
     createDataset: 'AI Dataset Creation',
+    getViabilityReasoning: 'Viability Reasoning',
 };
 
 // Helper function to render result values
@@ -101,7 +102,7 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                                 {Object.entries(log.prompt).map(([key, value]) => (
                                     <div key={key}>
                                         <span className='font-semibold text-muted-foreground'>{toTitleCase(key)}: </span>
-                                        <span>{String(value)}</span>
+                                        <span>{renderResultValue(value)}</span>
                                     </div>
                                 ))}
                             </div>

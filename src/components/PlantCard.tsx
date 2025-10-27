@@ -22,6 +22,7 @@ type PlantCardProps = {
   isDuplicateSource: boolean;
   isSelectionMode: boolean;
   onSelectDuplicate: () => void;
+  onGetViabilityReasoning: () => void;
 };
 
 export function PlantCard({
@@ -33,6 +34,7 @@ export function PlantCard({
     isDuplicateSource,
     isSelectionMode,
     onSelectDuplicate,
+    onGetViabilityReasoning,
 }: PlantCardProps) {
     const { plant } = planting;
     const latestStatus = planting.history && planting.history.length > 0 ? planting.history[planting.history.length - 1] : null;
@@ -69,6 +71,10 @@ export function PlantCard({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                 <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={onGetViabilityReasoning}>
+                                    <Sparkles className="mr-2 h-4 w-4" />
+                                    Viability Reasoning
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={onMarkAsDuplicate}>
                                     <Copy className="mr-2 h-4 w-4" />
                                     Mark as Duplicate...

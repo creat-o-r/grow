@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useCallback, MouseEvent, useMemo, useRef } from 'react';
@@ -9,6 +7,7 @@ import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, St
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
+import { getViabilityReasoning } from '@/ai/flows/get-viability-reasoning';
 import { loadDataset } from '@/lib/datasets';
 import { analyzeViability, Viability, getSuitableSeasons } from '@/lib/viability';
 
@@ -503,6 +502,68 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
       setIsAnalyzing(false);
     }
   };
+
+  const handleGetViabilityReasoning = async (planting: PlantingWithPlant) => {
+    if (!areApiKeysSet) {
+      toast({
+        title: 'API Key Required',
+        description: 'Please set your Gemini API key in the settings.',
+        variant: 'destructive',
+      });
+      setIsSettingsSheetOpen(true);
+      return;
+    }
+
+    if (!activeLocation?.conditions) return;
+
+    toast({
+      title: 'Generating Viability Reasoning...',
+      description: `Analyzing ${planting.name} for your garden.`,
+    });
+
+    try {
+        const viabilityScore = analyzeViability(planting.plant, activeLocation.conditions);
+        const promptData = {
+            plant: {
+                species: planting.plant.species,
+                germinationNeeds: planting.plant.germinationNeeds,
+                optimalConditions: planting.plant.optimalConditions,
+            },
+            gardenConditions: {
+                ...activeLocation.conditions,
+                currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
+            },
+            viabilityScore,
+            apiKeys,
+        };
+
+      const result = await getViabilityReasoning(promptData);
+      
+      const newLog: AiLog = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        flow: 'getViabilityReasoning',
+        prompt: promptData,
+        results: result,
+      };
+      
+      await db.aiLogs.add(newLog);
+
+      toast({
+        title: 'Analysis Complete',
+        description: `Reasoning for ${planting.name} has been added to the AI Log.`,
+      });
+      setIsLogPanelOpen(true);
+
+    } catch (error: any) {
+      console.error('AI viability reasoning failed:', error);
+      toast({
+        title: 'AI Analysis Failed',
+        description: error.message || 'Could not retrieve reasoning. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
   
   const handleMarkAsDuplicate = (planting: PlantingWithPlant) => {
     setDuplicateSelectionMode(planting);
@@ -876,9 +937,9 @@ const unspecifiedSeasonCount = useMemo(() => {
                                 {status}
                                 {status === 'All' ? (
                                     <div className="flex items-center gap-1.5 ml-2">
-                                        <Badge className="bg-green-600 dark:bg-green-500 text-white dark:text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
-                                        <Badge className="bg-yellow-500 dark:bg-yellow-400 text-black dark:text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
-                                        <Badge className="bg-red-600 dark:bg-red-500 text-white dark:text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
+                                        <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
+                                        <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
+                                        <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
                                     </div>
                                 ) : (
                                     <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
@@ -947,6 +1008,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                               isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                               isSelectionMode={!!duplicateSelectionMode}
                                               onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                              onGetViabilityReasoning={() => handleGetViabilityReasoning(p)}
                                           />
                                       ))}
                                   </div>
@@ -974,6 +1036,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                                         isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                                         isSelectionMode={!!duplicateSelectionMode}
                                                         onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                                        onGetViabilityReasoning={() => handleGetViabilityReasoning(p)}
                                                     />
                                                 ))}
                                             </div>
@@ -1009,6 +1072,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                                 isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                                 isSelectionMode={!!duplicateSelectionMode}
                                                 onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                                onGetViabilityReasoning={() => handleGetViabilityReasoning(p)}
                                             />
                                         ))}
                                     </div>
@@ -1035,6 +1099,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                           isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                           isSelectionMode={!!duplicateSelectionMode}
                                           onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                          onGetViabilityReasoning={() => handleGetViabilityReasoning(p)}
                                       />
                                   ))}
                               </div>
@@ -1188,7 +1253,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
-
-    
