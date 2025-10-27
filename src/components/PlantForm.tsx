@@ -122,22 +122,22 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
       
       let commonName = result.species;
       const parenthesisMatch = result.species.match(/\(([^)]+)\)/);
-      
-      if (parenthesisMatch) {
-          const contentInParenthesis = parenthesisMatch[1].toLowerCase();
-          const contentOutside = result.species.substring(0, parenthesisMatch.index).trim().toLowerCase();
-          
-          // Heuristic: if content in parenthesis has fewer words and no dots, it's likely the common name.
-          // Or if the content outside looks like a latin name (two words)
-          const isContentOutsideLatin = contentOutside.split(' ').length === 2 && !contentInParenthesis.includes(' ');
-          const isContentInsideCommon = !contentInParenthesis.includes('.') && contentInParenthesis.split(' ').length <= 3;
 
-          if (isContentInsideCommon && !isContentOutsideLatin) {
-             commonName = parenthesisMatch[1].trim();
-          } else {
-             commonName = result.species.substring(0, parenthesisMatch.index).trim();
-          }
+      if (parenthesisMatch && parenthesisMatch[1]) {
+        // If there are parentheses, check if the content inside seems more like a common name
+        const contentInParenthesis = parenthesisMatch[1];
+        const contentOutside = result.species.substring(0, parenthesisMatch.index).trim();
+        
+        // Simple heuristic: if the outside is two words (likely Latin name), use the inside.
+        // Or if the inside is not just a single word.
+        if (contentOutside.split(' ').length === 2 && contentInParenthesis.split(' ').length > 0) {
+             commonName = contentInParenthesis;
+        } else {
+            // Otherwise, assume the part before parenthesis is the common name.
+            commonName = contentOutside;
+        }
       } else {
+          // If no parentheses, just take the part before any comma
           commonName = result.species.split(',')[0].trim();
       }
 
@@ -531,3 +531,5 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     </div>
   );
 }
+
+    
