@@ -127,35 +127,6 @@ export function LocationSwitcher({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64" align="start">
-          <div className="p-2">
-            <div className="flex items-center justify-center rounded-md bg-muted p-1">
-                <Button 
-                    variant={gardenViewMode === 'one' ? 'secondary' : 'ghost'} 
-                    size="sm" 
-                    className="flex-1 h-7 text-xs" 
-                    onClick={() => onGardenViewModeChange('one')}
-                >
-                    One
-                </Button>
-                <Button 
-                    variant={gardenViewMode === 'selected' ? 'secondary' : 'ghost'} 
-                    size="sm" 
-                    className="flex-1 h-7 text-xs" 
-                    onClick={() => onGardenViewModeChange('selected')}
-                >
-                    Selected
-                </Button>
-                <Button 
-                    variant={gardenViewMode === 'all' ? 'secondary' : 'ghost'} 
-                    size="sm" 
-                    className="flex-1 h-7 text-xs" 
-                    onClick={() => onGardenViewModeChange('all')}
-                >
-                    All
-                </Button>
-            </div>
-          </div>
-          <DropdownMenuSeparator />
           {locations.map(location => {
             const isSelected = selectedGardenIds.includes(location.id);
             return (
@@ -186,7 +157,8 @@ export function LocationSwitcher({
                       <div className="flex items-center w-full justify-between px-2 py-1.5">
                           <div className={cn("flex items-center gap-3 flex-1", gardenViewMode !== 'selected' ? 'cursor-pointer' : '')} onClick={(e) => {
                             if (gardenViewMode === 'selected') {
-                              handleCheckboxChange(location.id);
+                                e.preventDefault();
+                                handleCheckboxChange(location.id);
                             } else {
                                 onLocationChange(location.id)
                             }
@@ -225,7 +197,35 @@ export function LocationSwitcher({
                   )}
               </DropdownMenuItem>
           )})}
-
+        <DropdownMenuSeparator />
+          <div className="p-2">
+            <div className="flex items-center justify-center rounded-md bg-muted p-1">
+                <Button 
+                    variant={gardenViewMode === 'one' ? 'secondary' : 'ghost'} 
+                    size="sm" 
+                    className="flex-1 h-7 text-xs" 
+                    onClick={() => onGardenViewModeChange('one')}
+                >
+                    One
+                </Button>
+                <Button 
+                    variant={gardenViewMode === 'selected' ? 'secondary' : 'ghost'} 
+                    size="sm" 
+                    className="flex-1 h-7 text-xs" 
+                    onClick={() => onGardenViewModeChange('selected')}
+                >
+                    Selected
+                </Button>
+                <Button 
+                    variant={gardenViewMode === 'all' ? 'secondary' : 'ghost'} 
+                    size="sm" 
+                    className="flex-1 h-7 text-xs" 
+                    onClick={() => onGardenViewModeChange('all')}
+                >
+                    All
+                </Button>
+            </div>
+          </div>
         <DropdownMenuSeparator />
         <div className="p-2 space-y-2">
             <p className="text-xs font-medium text-muted-foreground px-2">Add New Garden</p>
