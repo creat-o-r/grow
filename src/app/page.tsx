@@ -87,7 +87,7 @@ export default function Home() {
   const [apiKeys, setApiKeys] = useState({ gemini: '' });
   const [areApiKeysSet, setAreApiKeysSet] = useState(false);
   const [viabilityMechanism, setViabilityMechanism] = useState<ViabilityAnalysisMode>('local');
-
+  const [viabilityData, setViabilityData] = useState<Record<string, Viability | undefined>>({});
 
   useEffect(() => {
     setIsClient(true);
@@ -533,7 +533,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     }
   };
 
-  const handleGetViabilityReasoning = async (planting: PlantingWithPlant) => {
+  const handleGetViability = async (planting: PlantingWithPlant) => {
     if (viabilityMechanism === 'ai' && !areApiKeysSet) {
       toast({
         title: 'API Key Required',
@@ -547,12 +547,12 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     if (!activeLocation?.conditions) return;
 
     toast({
-      title: 'Generating Viability Reasoning...',
+      title: 'Generating Viability Analysis...',
       description: `Analyzing ${planting.name} for your garden.`,
     });
 
     try {
-      let logData;
+      let logData, finalViability;
       if (viabilityMechanism === 'ai') {
         const promptData = {
             plant: {
@@ -569,6 +569,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
         const result = await getAiViability(promptData);
         logData = { flow: 'getAiViability', prompt: promptData, results: result };
+        finalViability = result.viability;
       } else {
         // Local reasoning
         const viability = analyzeViability(planting.plant, activeLocation.conditions);
@@ -581,6 +582,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         `.trim();
         const result = { viability, reasoning };
         logData = { flow: 'localViabilityAnalysis', prompt: { plant: planting.plant.species, conditions: activeLocation.conditions }, results: result };
+        finalViability = viability;
       }
       
       const newLog: AiLog = {
@@ -591,17 +593,22 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       
       await db.aiLogs.add(newLog);
 
+      // Update the viability state for this specific plant
+      if (finalViability) {
+        setViabilityData(prev => ({...prev, [planting.id]: finalViability}));
+      }
+
       toast({
         title: 'Analysis Complete',
-        description: `Reasoning for ${planting.name} has been added to the AI Log.`,
+        description: `Analysis for ${planting.name} has been added to the AI Log.`,
       });
       setIsLogPanelOpen(true);
 
     } catch (error: any) {
-      console.error('Viability reasoning failed:', error);
+      console.error('Viability analysis failed:', error);
       toast({
         title: 'Analysis Failed',
-        description: error.message || 'Could not retrieve reasoning. Please try again.',
+        description: error.message || 'Could not retrieve analysis. Please try again.',
         variant: 'destructive',
       });
     }
@@ -688,6 +695,29 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       .filter(p => p.plant); // Filter out plantings with no matching plant
   }, [plantings, plants]);
 
+  // Update viability data when dependencies change
+  useEffect(() => {
+    if (viabilityMechanism === 'local' && activeLocation?.conditions && plantingsWithPlants) {
+      const newViabilityData: Record<string, Viability> = {};
+      plantingsWithPlants.forEach(p => {
+        newViabilityData[p.id] = analyzeViability(p.plant, activeLocation.conditions!);
+      });
+      setViabilityData(newViabilityData);
+    } else if (viabilityMechanism === 'ai') {
+        // For AI, we don't calculate upfront. Scores are added to viabilityData on demand.
+        // We can choose to clear old local scores or keep them as fallbacks.
+        // Let's clear them for a cleaner state representation.
+        // On second thought, let's keep them as a fallback until the AI score is fetched.
+        const newViabilityData: Record<string, Viability | undefined> = { ...viabilityData };
+        plantingsWithPlants.forEach(p => {
+            if (!newViabilityData[p.id]) { // If no AI score yet
+                newViabilityData[p.id] = activeLocation?.conditions ? analyzeViability(p.plant, activeLocation.conditions) : undefined;
+            }
+        });
+        setViabilityData(newViabilityData);
+    }
+  }, [plantingsWithPlants, activeLocation?.conditions, viabilityMechanism]);
+
 
   const sortedAndFilteredPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
@@ -702,14 +732,14 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
         
         return filtered.slice().sort((a, b) => {
-            const viabilityA = analyzeViability(a.plant, activeLocation.conditions);
-            const viabilityB = analyzeViability(b.plant, activeLocation.conditions);
+            const viabilityA = viabilityData[a.id] || 'Low';
+            const viabilityB = viabilityData[b.id] || 'Low';
             return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
         });
     }
     
     return filtered;
-  }, [plantingsWithPlants, statusFilter, activeLocation?.conditions]);
+  }, [plantingsWithPlants, statusFilter, activeLocation?.conditions, viabilityData]);
   
   const wishlistPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
@@ -764,9 +794,9 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         if (seasonScoreA !== seasonScoreB) {
             return seasonScoreA - seasonScoreB;
         }
-
-        const viabilityA = analyzeViability(a.plant, activeLocation.conditions!);
-        const viabilityB = analyzeViability(b.plant, activeLocation.conditions!);
+        
+        const viabilityA = viabilityData[a.id] || 'Low';
+        const viabilityB = viabilityData[b.id] || 'Low';
         return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
     });
 
@@ -797,17 +827,17 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         };
     });
 
-}, [wishlistPlantings, activeLocation?.conditions]);
+}, [wishlistPlantings, activeLocation?.conditions, viabilityData]);
 
 const sortedWishlistByViability = useMemo(() => {
     if (!wishlistPlantings || !activeLocation?.conditions) return [];
     const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
     return [...wishlistPlantings].sort((a, b) => {
-        const viabilityA = analyzeViability(a.plant, activeLocation!.conditions);
-        const viabilityB = analyzeViability(b.plant, activeLocation!.conditions);
+        const viabilityA = viabilityData[a.id] || 'Low';
+        const viabilityB = viabilityData[b.id] || 'Low';
         return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
     });
-}, [wishlistPlantings, activeLocation?.conditions]);
+}, [wishlistPlantings, activeLocation?.conditions, viabilityData]);
 
 const unspecifiedSeasonCount = useMemo(() => {
     if (wishlistSortOrder !== 'season' || !organizedWishlist) return 0;
@@ -844,15 +874,15 @@ const unspecifiedSeasonCount = useMemo(() => {
 
     const viabilityCounts = useMemo(() => {
         const counts: Record<Viability, number> = { High: 0, Medium: 0, Low: 0 };
-        if (!plantingsWithPlants || !activeLocation?.conditions) return counts;
+        if (!plantingsWithPlants) return counts;
 
         plantingsWithPlants.forEach(p => {
-            const viability = analyzeViability(p.plant, activeLocation.conditions!);
+            const viability = viabilityData[p.id] || 'Low';
             counts[viability]++;
         });
 
         return counts;
-    }, [plantingsWithPlants, activeLocation?.conditions]);
+    }, [plantingsWithPlants, viabilityData]);
 
 
   const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
@@ -1089,7 +1119,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                           <PlantCard
                                               key={p.id}
                                               planting={p}
-                                              gardenConditions={activeLocation?.conditions}
+                                              viability={viabilityData[p.id]}
                                               onEdit={() => handleEditPlanting(p)}
                                               onDelete={() => promptDelete(p)}
                                               onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1097,7 +1127,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                               isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                               isSelectionMode={!!duplicateSelectionMode}
                                               onSelectDuplicate={() => handleDuplicateSelection(p)}
-                                              onGetViabilityReasoning={() => handleGetViabilityReasoning(p)}
+                                              onGetViability={() => handleGetViability(p)}
                                           />
                                       ))}
                                   </div>
@@ -1118,7 +1148,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                                     <PlantCard
                                                         key={p.id}
                                                         planting={p}
-                                                        gardenConditions={activeLocation?.conditions}
+                                                        viability={viabilityData[p.id]}
                                                         onEdit={() => handleEditPlanting(p)}
                                                         onDelete={() => promptDelete(p)}
                                                         onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1126,7 +1156,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                                         isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                                         isSelectionMode={!!duplicateSelectionMode}
                                                         onSelectDuplicate={() => handleDuplicateSelection(p)}
-                                                        onGetViabilityReasoning={() => handleGetViabilityReasoning(p)}
+                                                        onGetViability={() => handleGetViability(p)}
                                                     />
                                                 ))}
                                             </div>
@@ -1155,7 +1185,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                             <PlantCard 
                                                 key={p.id} 
                                                 planting={p} 
-                                                gardenConditions={activeLocation?.conditions}
+                                                viability={viabilityData[p.id]}
                                                 onEdit={() => handleEditPlanting(p)}
                                                 onDelete={() => promptDelete(p)}
                                                 onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1163,7 +1193,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                                 isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                                 isSelectionMode={!!duplicateSelectionMode}
                                                 onSelectDuplicate={() => handleDuplicateSelection(p)}
-                                                onGetViabilityReasoning={() => handleGetViabilityReasoning(p)}
+                                                onGetViability={() => handleGetViability(p)}
                                             />
                                         ))}
                                     </div>
@@ -1184,7 +1214,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                       <PlantCard 
                                           key={p.id} 
                                           planting={p} 
-                                          gardenConditions={activeLocation?.conditions}
+                                          viability={viabilityData[p.id]}
                                           onEdit={() => handleEditPlanting(p)}
                                           onDelete={() => promptDelete(p)}
                                           onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1192,7 +1222,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                           isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                           isSelectionMode={!!duplicateSelectionMode}
                                           onSelectDuplicate={() => handleDuplicateSelection(p)}
-                                          onGetViabilityReasoning={() => handleGetViabilityReasoning(p)}
+                                          onGetViability={() => handleGetViability(p)}
                                       />
                                   ))}
                               </div>

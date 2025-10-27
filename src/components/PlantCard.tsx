@@ -12,10 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { getSuitableSeasons } from '@/lib/viability';
+import { Viability } from '@/lib/viability';
 
 type PlantCardProps = {
   planting: PlantingWithPlant;
-  gardenConditions?: Conditions;
+  viability?: Viability;
   onEdit: () => void;
   onDelete: () => void;
   onMarkAsDuplicate: () => void;
@@ -23,12 +24,12 @@ type PlantCardProps = {
   isDuplicateSource: boolean;
   isSelectionMode: boolean;
   onSelectDuplicate: () => void;
-  onGetViabilityReasoning: () => void;
+  onGetViability: () => void;
 };
 
 export function PlantCard({
     planting, 
-    gardenConditions, 
+    viability, 
     onEdit, 
     onDelete, 
     onMarkAsDuplicate,
@@ -36,7 +37,7 @@ export function PlantCard({
     isDuplicateSource,
     isSelectionMode,
     onSelectDuplicate,
-    onGetViabilityReasoning,
+    onGetViability,
 }: PlantCardProps) {
     const { plant } = planting;
     const latestStatus = planting.history && planting.history.length > 0 ? planting.history[planting.history.length - 1] : null;
@@ -77,9 +78,9 @@ export function PlantCard({
                                 {latestStatus?.status === 'Growing' && <DropdownMenuItem onClick={() => onQuickStatusChange('Harvest')}><ArrowRight className="mr-2 h-4 w-4" />Mark for Harvest</DropdownMenuItem>}
                                 {(latestStatus?.status && latestStatus.status !== 'Harvest') && <DropdownMenuSeparator />}
                                 <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
-                                <DropdownMenuItem onClick={onGetViabilityReasoning}>
+                                <DropdownMenuItem onClick={onGetViability}>
                                     <Sparkles className="mr-2 h-4 w-4" />
-                                    Viability Reasoning
+                                    Viability Analysis
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={onMarkAsDuplicate}>
                                     <Copy className="mr-2 h-4 w-4" />
@@ -92,7 +93,7 @@ export function PlantCard({
                     </div>
                 </div>
                  <div className="flex flex-wrap gap-2 items-center pt-2">
-                    {gardenConditions && <ViabilityIndicator plant={plant} gardenConditions={gardenConditions} />}
+                    {viability && <ViabilityIndicator viability={viability} />}
                     {latestStatus && (
                         <Badge variant="outline" className={cn("font-normal", statusConfig[latestStatus.status])}>
                             {latestStatus.status}
