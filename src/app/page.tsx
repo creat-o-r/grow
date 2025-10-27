@@ -707,7 +707,14 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     if (viabilityMechanism === 'ai') {
         setViabilityData({});
     }
-  }, [plantingsWithPlants, activeLocation?.conditions, viabilityMechanism]);
+  }, [
+    plantingsWithPlants, 
+    viabilityMechanism,
+    activeLocation?.conditions?.temperature,
+    activeLocation?.conditions?.sunlight,
+    activeLocation?.conditions?.soil,
+    activeLocation?.conditions?.currentSeason
+  ]);
 
 
   const sortedAndFilteredPlantings = useMemo(() => {
@@ -1371,5 +1378,7 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    
 
     
