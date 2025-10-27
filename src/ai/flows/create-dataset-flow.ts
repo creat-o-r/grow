@@ -81,7 +81,7 @@ export async function createDataset(
 Theme: {{{theme}}}
 
 {{#if activeLocation}}
-Your primary goal is to generate a list of 5-8 plant species and a corresponding 'planting' for each.
+Your primary goal is to generate a list of 5 to 8 plant species and a corresponding 'planting' for each.
 The plantings must be perfectly suited to the provided active garden location and the theme.
 The provided location already exists, so you MUST return it as the single item in the 'locations' array in your output. Do not create a new location.
 For the 'name' field of the location, generate a NEW, creative name for the garden that fits the theme and location (e.g., "Balcony Bounty," "Shady Oasis," "Urban Jungle"). Do not just use the existing name.
@@ -92,7 +92,7 @@ Active Location:
 {{else}}
 Your task is to generate a dataset containing:
 1.  A single garden location object that fits the theme. It must have a creative name (e.g., "Balcony Bounty," "Shady Oasis," "Urban Jungle"), a plausible real-world city/country, and realistic environmental conditions. Use Fahrenheit for US locations and Celsius otherwise.
-2.  A list of 5-8 plant species objects that are well-suited to the theme and the location you created.
+2.  A list of 5 to 8 plant species objects that are well-suited to the theme and the location you created. This is a strict requirement, you must generate between 5 and 8 plants.
 3.  A corresponding list of 'planting' objects, one for each plant species.
 {{/if}}
 
