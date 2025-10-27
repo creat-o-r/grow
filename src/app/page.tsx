@@ -50,7 +50,7 @@ export default function Home() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [plantingToEdit, setPlantingToEdit] = useState<PlantingWithPlant | null>(null);
   const [isClient, setIsClient] = useState(false);
-  const [accordionValue, setAccordionValue] = useState<string>('');
+  const [accordionValue, setAccordionValue] = useState<string>('item-1');
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
   const [isLocating, setIsLocating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState<string | null>(null);
@@ -1172,34 +1172,6 @@ const unspecifiedSeasonCount = useMemo(() => {
                   </AccordionItem>
                 </Accordion>
                 
-                 {!isEffectivelySingleView && (
-                    <Accordion type="single" collapsible className="w-full mb-6" defaultValue="item-1">
-                        <AccordionItem value="item-1" className="border rounded-lg bg-muted/30">
-                            <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
-                                Viewing {selectedLocations.length} garden(s)
-                            </AccordionTrigger>
-                            <AccordionContent className="p-4 pt-0">
-                                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                {selectedLocations.map(loc => (
-                                    <Card key={loc.id} className="bg-background/50">
-                                        <CardHeader className="pb-2">
-                                            <CardTitle className="text-base">{loc.name}</CardTitle>
-                                            <CardDescription>{loc.location}</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <p className="text-sm text-muted-foreground">
-                                                {loc.conditions.temperature || 'Temp'}, {loc.conditions.sunlight || 'Sunlight'}, {loc.conditions.soil || 'Soil'}
-                                            </p>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
-                )}
-
-
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                         {allFilters.map((status) => (
@@ -1540,5 +1512,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
