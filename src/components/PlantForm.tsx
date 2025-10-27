@@ -120,23 +120,17 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     try {
       const result = await aiSearchPlantData({ searchTerm: aiSearchTerm, apiKeys });
       
-      let commonName = result.species;
-      const parenthesisMatch = result.species.match(/\(([^)]+)\)/);
-
-      if (parenthesisMatch && parenthesisMatch[1]) {
-        const contentInParenthesis = parenthesisMatch[1];
-        const contentOutside = result.species.substring(0, parenthesisMatch.index).trim();
-        
-        // Very basic check: if the "outside" part has more than one word, it's likely the scientific name
-        // and the part in parentheses is the common name.
-        if (contentOutside.includes(' ')) {
-             commonName = contentInParenthesis;
-        } else {
-             commonName = contentOutside;
-        }
-      }
-      
       if (!form.getValues('name')) {
+        let commonName = result.species;
+        const parenthesisMatch = result.species.match(/\(([^)]+)\)/);
+        if (parenthesisMatch && parenthesisMatch[1]) {
+          commonName = parenthesisMatch[1];
+        } else {
+            const beforeParenthesis = result.species.split('(')[0].trim();
+            if (beforeParenthesis) {
+                commonName = beforeParenthesis;
+            }
+        }
         form.setValue('name', commonName, { shouldValidate: true });
       }
 
