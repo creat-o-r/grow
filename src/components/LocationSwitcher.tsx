@@ -13,6 +13,7 @@ import {
   DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronsUpDown, Plus, Trash2, Edit, Check, X } from 'lucide-react';
 import { db } from '@/lib/db';
 import { cn } from '../lib/utils';
@@ -130,14 +131,18 @@ export function LocationSwitcher({
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64" align="start">
           {locations.map(location => (
-              <DropdownMenuItem key={location.id} onSelect={(e) => {
-                // Prevent menu closing on checkbox click or during edit
-                if (gardenViewMode === 'selected' || editingLocationId) {
-                    e.preventDefault();
-                }
-              }}>
+              <DropdownMenuItem 
+                key={location.id} 
+                onSelect={(e) => {
+                  e.preventDefault();
+                  if (gardenViewMode !== 'selected') {
+                      onLocationChange(location.id);
+                  }
+                }}
+                className={cn("p-0", gardenViewMode !== 'selected' && 'cursor-pointer')}
+              >
                   {editingLocationId === location.id ? (
-                      <div className="flex items-center gap-1 w-full">
+                      <div className="flex items-center gap-1 w-full px-2 py-1.5">
                         <Input 
                           autoFocus
                           value={editingName} 
@@ -149,26 +154,19 @@ export function LocationSwitcher({
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancelEdit}><X className="h-4 w-4 text-destructive"/></Button>
                       </div>
                     ) : (
-                      <div 
-                        className="flex items-center w-full"
-                        onClick={() => {
-                          if (gardenViewMode !== 'selected') {
-                            onLocationChange(location.id);
-                          }
-                        }}
-                      >
-                         {gardenViewMode === 'selected' ? (
-                            <DropdownMenuCheckboxItem
-                              checked={selectedGardenIds.includes(location.id)}
-                              onCheckedChange={() => handleCheckboxChange(location.id)}
-                              onSelect={(e) => e.preventDefault()}
-                              className="w-full p-0 focus:bg-transparent cursor-pointer"
-                            >
-                              <span className="flex-1 pl-2">{location.name}</span>
-                            </DropdownMenuCheckboxItem>
-                         ) : (
-                            <span className="flex-1">{location.name}</span>
-                         )}
+                      <div className="flex items-center w-full justify-between px-2 py-1.5">
+                        {gardenViewMode === 'selected' ? (
+                          <label className="flex items-center gap-2 cursor-pointer flex-1">
+                             <Checkbox
+                                checked={selectedGardenIds.includes(location.id)}
+                                onCheckedChange={() => handleCheckboxChange(location.id)}
+                              />
+                              <span onClick={() => onLocationChange(location.id)} className="flex-1">{location.name}</span>
+                          </label>
+                        ) : (
+                          <span onClick={() => onLocationChange(location.id)} className="flex-1">{location.name}</span>
+                        )}
+
                         <div className="flex items-center">
                             <Button 
                               variant="ghost" 
@@ -245,5 +243,3 @@ export function LocationSwitcher({
     </DropdownMenu>
   );
 }
-
-    

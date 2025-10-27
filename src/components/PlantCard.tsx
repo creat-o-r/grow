@@ -133,14 +133,14 @@ export function PlantCard({
                     <p className="text-sm text-foreground/80 line-clamp-3">{plant.optimalConditions}</p>
                 </div>
             </CardContent>
-            <CardFooter>
-                 {showGardenLabel && planting.garden && (
+            {showGardenLabel && planting.garden && (
+                <CardFooter>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground w-full">
                         <Fence className="h-3 w-3" />
                         <span>{planting.garden.name}</span>
                     </div>
-                )}
-            </CardFooter>
+                </CardFooter>
+            )}
         </>
     );
 
@@ -182,5 +182,3 @@ export function PlantCard({
         </Card>
     );
 }
-
-    

@@ -390,6 +390,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     await db.locations.delete(locationIdToDelete);
 
+    // If the deleted location was the active one, pick a new active one
     if (activeLocationId === locationIdToDelete) {
       const remainingLocations = locations.filter(loc => loc.id !== locationIdToDelete);
       if (remainingLocations.length > 0) {
@@ -702,7 +703,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     
     let plantingsToDisplay = plantings;
 
-    if (gardenViewMode === 'one') {
+    if (gardenViewMode === 'one' && activeLocationId) {
         plantingsToDisplay = plantings.filter(p => p.gardenId === activeLocationId);
     } else if (gardenViewMode === 'selected') {
         plantingsToDisplay = plantings.filter(p => selectedGardenIds.includes(p.gardenId));
@@ -1010,6 +1011,13 @@ const unspecifiedSeasonCount = useMemo(() => {
   const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
 
 
+  const selectedLocations = useMemo(() => {
+      if (!locations) return [];
+      if (gardenViewMode === 'all') return locations;
+      return locations.filter(loc => selectedGardenIds.includes(loc.id));
+  }, [locations, selectedGardenIds, gardenViewMode]);
+
+
   if (!isClient || !plantings || !plants || !locations || !aiLogs) {
     return null;
   }
@@ -1067,11 +1075,13 @@ const unspecifiedSeasonCount = useMemo(() => {
                                     onSelectedGardenIdsChange={setSelectedGardenIds}
                                   />
                               </div>
-                              <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
-                                <span className='text-sm text-muted-foreground font-normal truncate'>
-                                    {activeLocation?.conditions.temperature || 'Temp'}, {activeLocation?.conditions.sunlight || 'Sunlight'}, {activeLocation?.conditions.soil || 'Soil'}
-                                </span>
-                              </AccordionTrigger>
+                               {gardenViewMode === 'one' && activeLocation && (
+                                <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
+                                    <span className='text-sm text-muted-foreground font-normal truncate'>
+                                        {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
+                                    </span>
+                                </AccordionTrigger>
+                               )}
                           </div>
                           
                           <div className="flex items-center gap-2 pl-4">
@@ -1168,6 +1178,34 @@ const unspecifiedSeasonCount = useMemo(() => {
                   </AccordionItem>
                 </Accordion>
                 
+                 {(gardenViewMode === 'selected' || gardenViewMode === 'all') && selectedLocations.length > 0 && (
+                    <Accordion type="single" collapsible className="w-full mb-6" defaultValue="item-1">
+                        <AccordionItem value="item-1" className="border rounded-lg bg-muted/30">
+                            <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
+                                Viewing {selectedLocations.length} garden(s)
+                            </AccordionTrigger>
+                            <AccordionContent className="p-4 pt-0">
+                                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {selectedLocations.map(loc => (
+                                    <Card key={loc.id} className="bg-background/50">
+                                        <CardHeader className="pb-2">
+                                            <CardTitle className="text-base">{loc.name}</CardTitle>
+                                            <CardDescription>{loc.location}</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <p className="text-sm text-muted-foreground">
+                                                {loc.conditions.temperature || 'Temp'}, {loc.conditions.sunlight || 'Sunlight'}, {loc.conditions.soil || 'Soil'}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                )}
+
+
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                         {allFilters.map((status) => (
