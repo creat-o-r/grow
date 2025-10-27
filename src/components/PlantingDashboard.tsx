@@ -52,7 +52,7 @@ export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet,
                     <div className="space-y-6">
                         {viabilityGroups.High.length > 0 && (
                             <section>
-                                <h3 className="text-lg font-semibold mb-4 text-green-400">High Viability</h3>
+                                <h3 className="text-lg font-semibold mb-4 text-green-400">High Viability ({viabilityGroups.High.length})</h3>
                                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                                     {viabilityGroups.High.map(p => <PlantingDashboardCard key={p.id} planting={p} />)}
                                 </div>
@@ -60,7 +60,7 @@ export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet,
                         )}
                         {viabilityGroups.Medium.length > 0 && (
                              <section>
-                                <h3 className="text-lg font-semibold mb-4 text-yellow-400">Medium Viability</h3>
+                                <h3 className="text-lg font-semibold mb-4 text-yellow-400">Medium Viability ({viabilityGroups.Medium.length})</h3>
                                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                                     {viabilityGroups.Medium.map(p => <PlantingDashboardCard key={p.id} planting={p} />)}
                                 </div>
@@ -68,7 +68,7 @@ export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet,
                         )}
                          {viabilityGroups.Low.length > 0 && (
                              <section>
-                                <h3 className="text-lg font-semibold mb-4 text-red-400">Low Viability</h3>
+                                <h3 className="text-lg font-semibold mb-4 text-red-400">Low Viability ({viabilityGroups.Low.length})</h3>
                                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                                     {viabilityGroups.Low.map(p => <PlantingDashboardCard key={p.id} planting={p} />)}
                                 </div>

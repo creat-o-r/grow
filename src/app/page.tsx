@@ -566,13 +566,6 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
   }, [plantings]);
 
   const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
-  const statusConfig: { [key: string]: string } = {
-    All: 'bg-primary-foreground/20 text-primary-foreground',
-    Wishlist: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
-    Planting: 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300',
-    Growing: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
-    Harvest: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300',
-  };
 
 
   if (!isClient || !plantings || !plants || !locations || !aiLogs) {
@@ -737,9 +730,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                                     variant="secondary" 
                                     className={cn(
                                         "ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono",
-                                        statusFilter === status 
-                                            ? 'bg-background/20 text-foreground'
-                                            : statusConfig[status]
+                                        statusFilter === status && 'bg-background/20 text-foreground'
                                     )}
                                 >
                                     {displayCount}
