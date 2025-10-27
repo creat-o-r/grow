@@ -90,7 +90,11 @@ export default function Home() {
   const [areApiKeysSet, setAreApiKeysSet] = useState(false);
   const [viabilityMechanism, setViabilityMechanism] = useState<ViabilityAnalysisMode>('local');
   const [viabilityData, setViabilityData] = useState<Record<string, Viability | undefined>>({});
+
   const previousViabilityMechanism = usePrevious(viabilityMechanism);
+  const activeLocation = locations?.find(loc => loc.id === activeLocationId);
+  const previousActiveConditions = usePrevious(activeLocation?.conditions);
+  const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(REPO_URL)}`;
 
   useEffect(() => {
     setIsClient(true);
@@ -172,9 +176,6 @@ export default function Home() {
         description: `Viability analysis is now set to ${mechanism === 'ai' ? 'AI-Powered' : 'Local'}.`,
     });
   }
-
-  const activeLocation = locations?.find(loc => loc.id === activeLocationId);
-  const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(REPO_URL)}`;
 
   // Effect for location search
   useEffect(() => {
@@ -752,14 +753,12 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     // Consolidated effect for viability calculation and batch analysis
     useEffect(() => {
         const justSwitchedToAi = previousViabilityMechanism === 'local' && viabilityMechanism === 'ai';
-        const conditionsChangedInAiMode =
-            viabilityMechanism === 'ai' &&
-            activeLocation?.conditions &&
-            (activeLocation.conditions.temperature !== usePrevious(activeLocation.conditions.temperature) ||
-             activeLocation.conditions.sunlight !== usePrevious(activeLocation.conditions.sunlight) ||
-             activeLocation.conditions.soil !== usePrevious(activeLocation.conditions.soil) ||
-             activeLocation.conditions.currentSeason !== usePrevious(activeLocation.conditions.currentSeason));
-
+        const conditionsChangedInAiMode = viabilityMechanism === 'ai' && (
+            activeLocation?.conditions.temperature !== previousActiveConditions?.temperature ||
+            activeLocation?.conditions.sunlight !== previousActiveConditions?.sunlight ||
+            activeLocation?.conditions.soil !== previousActiveConditions?.soil ||
+            activeLocation?.conditions.currentSeason !== previousActiveConditions?.currentSeason
+        );
 
         if (viabilityMechanism === 'local') {
             if (activeLocation?.conditions && plantingsWithPlants) {
@@ -783,8 +782,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         viabilityMechanism,
         plantingsWithPlants,
         handleBatchAiViabilityAnalysis,
-        activeLocation?.conditions,
-        previousViabilityMechanism,
+        activeLocation?.conditions.temperature,
+        activeLocation?.conditions.sunlight,
+        activeLocation?.conditions.soil,
+        activeLocation?.conditions.currentSeason,
     ]);
 
 
