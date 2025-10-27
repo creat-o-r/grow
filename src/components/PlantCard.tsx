@@ -2,10 +2,10 @@
 
 'use client';
 
-import type { PlantingWithPlant, Conditions } from '@/lib/types';
+import type { PlantingWithPlant, Conditions, StatusHistory } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ChevronDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { ViabilityIndicator } from './ViabilityIndicator';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ type PlantCardProps = {
   onEdit: () => void;
   onDelete: () => void;
   onMarkAsDuplicate: () => void;
+  onQuickStatusChange: (newStatus: StatusHistory['status']) => void;
   isDuplicateSource: boolean;
   isSelectionMode: boolean;
   onSelectDuplicate: () => void;
@@ -31,6 +32,7 @@ export function PlantCard({
     onEdit, 
     onDelete, 
     onMarkAsDuplicate,
+    onQuickStatusChange,
     isDuplicateSource,
     isSelectionMode,
     onSelectDuplicate,
@@ -128,13 +130,25 @@ export function PlantCard({
                     </div>
                  )}
             </CardContent>
-            {latestStatus && (
-                <CardFooter>
+            <CardFooter className="flex justify-between items-center">
                     <p className="text-xs text-muted-foreground">
-                        Last update: {format(parseISO(latestStatus.date), 'MMM d, yyyy')}
+                        {latestStatus ? `Last update: ${format(parseISO(latestStatus.date), 'MMM d, yyyy')}` : 'No history'}
                     </p>
-                </CardFooter>
-            )}
+                    {latestStatus && latestStatus.status !== 'Harvest' && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="secondary" size="sm" className="h-8 -my-1" onClick={(e) => e.stopPropagation()}>
+                                    Quick Change <ChevronDown className="h-4 w-4 ml-2" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                {latestStatus.status === 'Wishlist' && <DropdownMenuItem onClick={() => onQuickStatusChange('Planting')}>Mark as Planting</DropdownMenuItem>}
+                                {latestStatus.status === 'Planting' && <DropdownMenuItem onClick={() => onQuickStatusChange('Growing')}>Mark as Growing</DropdownMenuItem>}
+                                {latestStatus.status === 'Growing' && <DropdownMenuItem onClick={() => onQuickStatusChange('Harvest')}>Mark for Harvest</DropdownMenuItem>}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
+            </CardFooter>
         </>
     );
 
@@ -176,3 +190,5 @@ export function PlantCard({
         </Card>
     );
 }
+
+    

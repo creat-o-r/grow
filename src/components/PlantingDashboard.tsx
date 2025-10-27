@@ -3,7 +3,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { PlantingWithPlant, Conditions } from '@/lib/types';
+import type { PlantingWithPlant, Conditions, StatusHistory } from '@/lib/types';
 import { analyzeViability, Viability } from '@/lib/viability';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,10 @@ type PlantingDashboardProps = {
     gardenConditions: Conditions;
     onOpenAddSheet: () => void;
     onOpenSettings: () => void;
+    onQuickStatusChange: (planting: PlantingWithPlant, newStatus: StatusHistory['status']) => void;
 };
 
-export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet, onOpenSettings }: PlantingDashboardProps) {
+export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet, onOpenSettings, onQuickStatusChange }: PlantingDashboardProps) {
 
     const viabilityGroups = useMemo(() => {
         const groups: Record<Viability, PlantingWithPlant[]> = {
@@ -65,7 +66,7 @@ export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet,
                             <section>
                                 <h3 className="text-lg font-semibold mb-4 text-green-400">High Viability ({viabilityGroups.High.length})</h3>
                                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                                    {viabilityGroups.High.map(p => <PlantingDashboardCard key={p.id} planting={p} />)}
+                                    {viabilityGroups.High.map(p => <PlantingDashboardCard key={p.id} planting={p} onQuickStatusChange={(newStatus) => onQuickStatusChange(p, newStatus)} />)}
                                 </div>
                             </section>
                         )}
@@ -73,7 +74,7 @@ export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet,
                              <section>
                                 <h3 className="text-lg font-semibold mb-4 text-yellow-400">Medium Viability ({viabilityGroups.Medium.length})</h3>
                                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                                    {viabilityGroups.Medium.map(p => <PlantingDashboardCard key={p.id} planting={p} />)}
+                                    {viabilityGroups.Medium.map(p => <PlantingDashboardCard key={p.id} planting={p} onQuickStatusChange={(newStatus) => onQuickStatusChange(p, newStatus)} />)}
                                 </div>
                             </section>
                         )}
@@ -81,7 +82,7 @@ export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet,
                              <section>
                                 <h3 className="text-lg font-semibold mb-4 text-red-400">Low Viability ({viabilityGroups.Low.length})</h3>
                                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                                    {viabilityGroups.Low.map(p => <PlantingDashboardCard key={p.id} planting={p} />)}
+                                    {viabilityGroups.Low.map(p => <PlantingDashboardCard key={p.id} planting={p} onQuickStatusChange={(newStatus) => onQuickStatusChange(p, newStatus)} />)}
                                 </div>
                             </section>
                         )}
@@ -107,5 +108,7 @@ export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet,
         </div>
     );
 }
+
+    
 
     

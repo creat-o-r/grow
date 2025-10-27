@@ -30,6 +30,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ToastAction } from '@/components/ui/toast';
 
 
 type PlantStatus = StatusHistory['status'];
@@ -592,6 +593,52 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     }
   };
 
+  const handleQuickStatusChange = async (planting: PlantingWithPlant, newStatus: PlantStatus) => {
+    const originalHistory = planting.history;
+
+    const newHistoryEntry: StatusHistory = {
+      id: `hist-${Date.now()}`,
+      status: newStatus,
+      date: new Date().toISOString(),
+      notes: 'Status changed via Quick Change',
+    };
+
+    const newHistory = [...originalHistory, newHistoryEntry];
+
+    try {
+      await db.plantings.update(planting.id, { history: newHistory });
+
+      const handleUndo = async () => {
+        try {
+          await db.plantings.update(planting.id, { history: originalHistory });
+          toast({
+            title: 'Undo Successful',
+            description: `${planting.name}'s status has been reverted.`,
+          });
+        } catch (undoError) {
+          toast({
+            title: 'Undo Failed',
+            description: 'Could not revert the change.',
+            variant: 'destructive',
+          });
+        }
+      };
+
+      toast({
+        title: 'Status Updated',
+        description: `${planting.name} is now "${newStatus}".`,
+        action: <ToastAction altText="Undo" onClick={handleUndo}>Undo</ToastAction>,
+      });
+    } catch (error) {
+      console.error("Failed to update status:", error);
+      toast({
+        title: 'Update Failed',
+        description: 'Could not change the planting status.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const plantingsWithPlants = useMemo((): PlantingWithPlant[] => {
     if (!plantings || !plants) return [];
     const plantMap = new Map(plants.map(p => [p.id, p]));
@@ -1005,6 +1052,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                               onEdit={() => handleEditPlanting(p)}
                                               onDelete={() => promptDelete(p)}
                                               onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                              onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
                                               isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                               isSelectionMode={!!duplicateSelectionMode}
                                               onSelectDuplicate={() => handleDuplicateSelection(p)}
@@ -1033,6 +1081,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                                         onEdit={() => handleEditPlanting(p)}
                                                         onDelete={() => promptDelete(p)}
                                                         onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                                        onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
                                                         isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                                         isSelectionMode={!!duplicateSelectionMode}
                                                         onSelectDuplicate={() => handleDuplicateSelection(p)}
@@ -1069,6 +1118,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                                 onEdit={() => handleEditPlanting(p)}
                                                 onDelete={() => promptDelete(p)}
                                                 onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                                onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
                                                 isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                                 isSelectionMode={!!duplicateSelectionMode}
                                                 onSelectDuplicate={() => handleDuplicateSelection(p)}
@@ -1083,6 +1133,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                   gardenConditions={activeLocation.conditions}
                                   onOpenAddSheet={handleOpenAddSheet}
                                   onOpenSettings={() => setIsSettingsSheetOpen(true)}
+                                  onQuickStatusChange={handleQuickStatusChange}
                               />
                           </div>
                       ) : (
@@ -1096,6 +1147,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                           onEdit={() => handleEditPlanting(p)}
                                           onDelete={() => promptDelete(p)}
                                           onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                          onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
                                           isDuplicateSource={duplicateSelectionMode?.id === p.id}
                                           isSelectionMode={!!duplicateSelectionMode}
                                           onSelectDuplicate={() => handleDuplicateSelection(p)}
@@ -1253,3 +1305,5 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    

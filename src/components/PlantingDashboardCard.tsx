@@ -1,7 +1,8 @@
 
+
 'use client';
 import { useState, useEffect } from 'react';
-import type { PlantingWithPlant } from '@/lib/types';
+import type { PlantingWithPlant, StatusHistory } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +15,12 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlant }) {
+type PlantingDashboardCardProps = {
+    planting: PlantingWithPlant;
+    onQuickStatusChange: (newStatus: StatusHistory['status']) => void;
+};
+
+export function PlantingDashboardCard({ planting, onQuickStatusChange }: PlantingDashboardCardProps) {
     const [seedsOnHand, setSeedsOnHand] = useState<number | string>('');
     const [plannedQty, setPlannedQty] = useState<number | string>(planting.plannedQty || '');
     const [isSavingPlannedQty, setIsSavingPlannedQty] = useState(false);
@@ -62,7 +68,7 @@ export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlan
     };
 
 
-    const updatePlantingStatus = async (status: 'Planting' | 'Growing', seeds?: number) => {
+    const updatePlantingStatus = async (status: 'Planting' | 'Growing' | 'Wishlist', seeds?: number) => {
         // Capture current state before changing it
         setPreviousPlantingState({
             history: planting.history,
@@ -204,8 +210,11 @@ export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlan
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Planting')}>Mark as Planting</Button>
-                        <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Growing')}>Mark as Growing</Button>
+                        {latestStatus?.status === 'Harvest' 
+                            ? <Button variant="secondary" className="w-full" onClick={() => onQuickStatusChange('Wishlist')}>Move to Wishlist</Button>
+                            : <Button variant="secondary" className="w-full" onClick={() => onQuickStatusChange('Planting')}>Mark as Planting</Button>
+                        }
+                        <Button variant="secondary" className="w-full" onClick={() => onQuickStatusChange('Growing')}>Mark as Growing</Button>
                     </div>
                     <div className="text-xs text-muted-foreground space-y-2 pt-2">
                         <div>
