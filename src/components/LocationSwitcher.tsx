@@ -62,6 +62,9 @@ export function LocationSwitcher({
 
   const handleAddLocation = () => {
     if (newLocationName.trim()) {
+      if (locations.length === 0) {
+        onGardenViewModeChange('one');
+      }
       onAddLocation(newLocationName.trim());
       setNewLocationName('');
     }

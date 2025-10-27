@@ -572,7 +572,9 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       }
     };
     const newId = await db.locations.add(newLocation);
-    setActiveLocationId(newId.toString());
+    if (gardenViewMode !== 'all') {
+      setActiveLocationId(newId.toString());
+    }
     setAccordionValue('item-1');
     setTimeout(() => {
       const locationInput = document.getElementById(`location-${newId}`);
