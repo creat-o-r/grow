@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, AiDataset } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
+import { usePrevious } from '@/hooks/use-previous';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
 import { loadDataset } from '@/lib/datasets';
@@ -89,6 +90,7 @@ export default function Home() {
   const [areApiKeysSet, setAreApiKeysSet] = useState(false);
   const [viabilityMechanism, setViabilityMechanism] = useState<ViabilityAnalysisMode>('local');
   const [viabilityData, setViabilityData] = useState<Record<string, Viability | undefined>>({});
+  const previousViabilityMechanism = usePrevious(viabilityMechanism);
 
   useEffect(() => {
     setIsClient(true);
@@ -758,20 +760,35 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
                 setViabilityData(newViabilityData);
             }
         } else if (viabilityMechanism === 'ai') {
-            // When switching to AI, clear data and run batch analysis
-            setViabilityData({});
-            if (plantingsWithPlants && plantingsWithPlants.length > 0) {
-                handleBatchAiViabilityAnalysis(plantingsWithPlants);
+            // Only run batch analysis if the mode was just switched from local to ai
+            if (previousViabilityMechanism === 'local') {
+                setViabilityData({}); // Clear old data for a clean slate
+                if (plantingsWithPlants && plantingsWithPlants.length > 0) {
+                    handleBatchAiViabilityAnalysis(plantingsWithPlants);
+                }
+            } else {
+                // If already in 'ai' mode, check if conditions changed to re-trigger
+                const didConditionsChange =
+                    previousViabilityMechanism === 'ai' &&
+                    (activeLocation?.conditions.temperature !== usePrevious(activeLocation?.conditions.temperature) ||
+                     activeLocation?.conditions.sunlight !== usePrevious(activeLocation?.conditions.sunlight) ||
+                     activeLocation?.conditions.soil !== usePrevious(activeLocation?.conditions.soil) ||
+                     activeLocation?.conditions.currentSeason !== usePrevious(activeLocation?.conditions.currentSeason));
+
+                if (didConditionsChange && plantingsWithPlants && plantingsWithPlants.length > 0) {
+                     handleBatchAiViabilityAnalysis(plantingsWithPlants);
+                }
             }
         }
     }, [
         viabilityMechanism,
         plantingsWithPlants,
         handleBatchAiViabilityAnalysis,
-        activeLocation?.conditions?.temperature,
-        activeLocation?.conditions?.sunlight,
-        activeLocation?.conditions?.soil,
-        activeLocation?.conditions?.currentSeason,
+        activeLocation?.conditions.temperature,
+        activeLocation?.conditions.sunlight,
+        activeLocation?.conditions.soil,
+        activeLocation?.conditions.currentSeason,
+        previousViabilityMechanism,
     ]);
 
 
