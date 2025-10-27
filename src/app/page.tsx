@@ -30,6 +30,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 type PlantStatus = StatusHistory['status'];
@@ -763,7 +764,17 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                               </div>
                                <div>
                                   <Label htmlFor="season" className="text-xs font-semibold uppercase text-muted-foreground">Current Season</Label>
-                                  <Input id="season" value={activeLocation?.conditions.currentSeason || ''} onChange={(e) => handleConditionChange('currentSeason', e.target.value)} />
+                                  <Select value={activeLocation?.conditions.currentSeason || ''} onValueChange={(value) => handleConditionChange('currentSeason', value)}>
+                                      <SelectTrigger id="season">
+                                          <SelectValue placeholder="Select season" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                          <SelectItem value="Spring">Spring</SelectItem>
+                                          <SelectItem value="Summer">Summer</SelectItem>
+                                          <SelectItem value="Autumn">Autumn</SelectItem>
+                                          <SelectItem value="Winter">Winter</SelectItem>
+                                      </SelectContent>
+                                  </Select>
                                </div>
                               <div>
                               <Label htmlFor="temperature" className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
@@ -797,7 +808,9 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                             className="h-8"
                         >
                             {status}
-                            <Badge variant="secondary" className="ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono">
+                            <Badge variant="secondary" className={cn(
+                                "ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono"
+                                )}>
                                 {statusCounts[status]}
                             </Badge>
                         </Button>
