@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, MouseEvent, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, MouseEvent, useMemo, useRef, KeyboardEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, GardenViewMode } from '@/lib/types';
@@ -357,7 +357,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     }
   };
   
-  const handleLocationFieldChange = useCallback(async (locationId: string, field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
+  const handleLocationFieldChange = useCallback(async (locationId: string, value: string) => {
     if (!locationId) return;
     const location = await db.locations.get(locationId);
     if (!location) return;
@@ -365,11 +365,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     const trimmedValue = value.trim();
     if (trimmedValue === location.location) return;
 
-    await db.locations.update(locationId, { [field]: trimmedValue });
-    // After changing the location, automatically re-analyze conditions
-    if (field === 'location' && trimmedValue) {
-      handleAnalyzeConditions(locationId, trimmedValue);
-    }
+    await db.locations.update(locationId, { location: trimmedValue });
   }, []);
 
   
@@ -457,15 +453,16 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           const data = await response.json();
           const locationName = data.address?.city || data.address?.town || data.display_name || 'Unknown Location';
           
-          handleLocationFieldChange(locationId, 'location', locationName);
+          handleLocationFieldChange(locationId, locationName);
+          handleAnalyzeConditions(locationId, locationName);
 
           toast({
             title: 'Location Found',
-            description: `Set to ${locationName}`,
+            description: `Set to ${locationName} and analyzed conditions.`,
           });
         } catch (error) {
           console.error("Error fetching location name:", error);
-          handleLocationFieldChange(locationId, 'location', 'Current Location');
+          handleLocationFieldChange(locationId, 'Current Location');
           toast({
             title: 'Could Not Get Location Name',
             description: 'Location set to your current position.',
@@ -487,7 +484,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   };
 
   const handleLocationSuggestionSelect = (locationId: string, locationName: string) => {
-    handleLocationFieldChange(locationId, 'location', locationName);
+    handleLocationFieldChange(locationId, locationName);
     setLocationSuggestions([]);
     setShowLocationSuggestions(false);
     // Briefly set focus away and back to prevent immediate re-opening of suggestions
@@ -1158,8 +1155,9 @@ const unspecifiedSeasonCount = useMemo(() => {
                                     <div className="relative w-full">
                                       <Input 
                                         id={`location-${loc.id}`} 
-                                        value={loc.location} 
-                                        onChange={(e) => handleLocationFieldChange(loc.id, 'location', e.target.value)}
+                                        defaultValue={loc.location} 
+                                        onBlur={(e) => handleLocationFieldChange(loc.id, e.target.value)}
+                                        onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleLocationFieldChange(loc.id, (e.target as HTMLInputElement).value)}
                                         autoComplete="off"
                                       />
                                     </div>
@@ -1184,16 +1182,16 @@ const unspecifiedSeasonCount = useMemo(() => {
                                </div>
                               <div>
                               <Label htmlFor={`temperature-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
-                              <Input id={`temperature-${loc.id}`} value={loc.conditions.temperature || ''} onChange={(e) => handleConditionChange(loc.id, 'temperature', e.target.value)} />
+                              <Input id={`temperature-${loc.id}`} defaultValue={loc.conditions.temperature || ''} onBlur={(e) => handleConditionChange(loc.id, 'temperature', e.target.value)} onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleConditionChange(loc.id, 'temperature', (e.target as HTMLInputElement).value)} />
                               </div>
                               <div>
                               <Label htmlFor={`sunlight-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
-                              <Input id={`sunlight-${loc.id}`} value={loc.conditions.sunlight || ''} onChange={(e) => handleConditionChange(loc.id, 'sunlight', e.target.value)} />
+                              <Input id={`sunlight-${loc.id}`} defaultValue={loc.conditions.sunlight || ''} onBlur={(e) => handleConditionChange(loc.id, 'sunlight', e.target.value)} onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleConditionChange(loc.id, 'sunlight', (e.target as HTMLInputElement).value)} />
                               </div>
                               <div className="flex gap-2">
                                   <div className="flex-1">
                                       <Label htmlFor={`soil-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
-                                      <Input id={`soil-${loc.id}`} value={loc.conditions.soil || ''} onChange={(e) => handleConditionChange(loc.id, 'soil', e.target.value)} />
+                                      <Input id={`soil-${loc.id}`} defaultValue={loc.conditions.soil || ''} onBlur={(e) => handleConditionChange(loc.id, 'soil', e.target.value)} onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleConditionChange(loc.id, 'soil', (e.target as HTMLInputElement).value)} />
                                   </div>
                                   <Button size="icon" variant="outline" onClick={() => handleAnalyzeConditions(loc.id)} disabled={isAnalyzing === loc.id}>
                                       {isAnalyzing === loc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -1545,3 +1543,5 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    
