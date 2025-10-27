@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, MouseEvent, useMemo, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, AiDataset } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
@@ -1378,6 +1378,8 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    
 
     
 
