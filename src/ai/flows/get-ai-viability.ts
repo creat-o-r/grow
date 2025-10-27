@@ -18,11 +18,15 @@ const GetAiViabilityInputSchema = z.object({
         germinationNeeds: z.string(),
         optimalConditions: z.string(),
     }),
-    gardenConditions: z.object({
-        temperature: z.string(),
-        sunlight: z.string(),
-        soil: z.string(),
-        currentSeason: z.string().optional(),
+    garden: z.object({
+        conditions: z.object({
+            temperature: z.string(),
+            sunlight: z.string(),
+            soil: z.string(),
+            currentSeason: z.string().optional(),
+        }),
+        growingSystems: z.string().optional(),
+        growingMethods: z.string().optional(),
     }),
     apiKeys: z.object({
         gemini: z.string().optional(),
@@ -32,7 +36,7 @@ type GetAiViabilityInput = z.infer<typeof GetAiViabilityInputSchema>;
 
 const GetAiViabilityOutputSchema = z.object({
   viability: z.enum(['High', 'Medium', 'Low']).describe("The calculated viability score: 'High', 'Medium', or 'Low'."),
-  reasoning: z.string().describe('A detailed, narrative explanation for the calculated viability score. It should compare the plant\'s needs to the garden\'s conditions point-by-point.'),
+  reasoning: z.string().describe('A detailed, narrative explanation for the calculated viability score. It should compare the plant\'s needs to the garden\'s conditions point-by-point, including systems and methods.'),
 });
 type GetAiViabilityOutput = z.infer<typeof GetAiViabilityOutputSchema>;
 
@@ -60,14 +64,16 @@ Analyze the following information:
 - Optimal Conditions: {{{plant.optimalConditions}}}
 
 **Garden Conditions:**
-- Current Season: {{{gardenConditions.currentSeason}}}
-- Soil Temperature: {{{gardenConditions.temperature}}}
-- Sunlight: {{{gardenConditions.sunlight}}}
-- Soil Type: {{{gardenConditions.soil}}}
+- Current Season: {{{garden.conditions.currentSeason}}}
+- Soil Temperature: {{{garden.conditions.temperature}}}
+- Sunlight: {{{garden.conditions.sunlight}}}
+- Soil Type: {{{garden.conditions.soil}}}
+- Growing Systems: {{{garden.growingSystems}}}
+- Growing Methods: {{{garden.growingMethods}}}
 
 **Analysis Steps:**
-1.  **Determine Viability Score**: First, based on all the provided data, decide if the viability is 'High', 'Medium', or 'Low'. A 'High' score means a near-perfect match. 'Medium' means some conditions are met, but some are not ideal. 'Low' means there are significant mismatches.
-2.  **Generate Reasoning**: After determining the score, generate a comprehensive, narrative 'reasoning' that explains *why* you chose that score. Compare the plant's requirements for sun, temperature, soil, and season with the garden's provided conditions. Be specific. For example, if the plant needs "full sun" and the garden has "6-8 hours", explain that this is a good match. If the plant needs "cool weather" and the garden is in "Summer" with high temperatures, explain that this is a mismatch and why it contributes to a lower score.
+1.  **Determine Viability Score**: First, based on all the provided data, decide if the viability is 'High', 'Medium', or 'Low'. A 'High' score means a near-perfect match. 'Medium' means some conditions are met, but some are not ideal. 'Low' means there are significant mismatches. Consider how the growing systems (e.g., 'greenhouse') or methods (e.g., 'transplant') might increase viability for a plant that isn't a perfect match for the outdoor conditions.
+2.  **Generate Reasoning**: After determining the score, generate a comprehensive, narrative 'reasoning' that explains *why* you chose that score. Compare the plant's requirements for sun, temperature, soil, season, and planting method with the garden's provided conditions and systems. Be specific. For example, if the plant needs "full sun" and the garden has "6-8 hours", explain that this is a good match. If a tender plant needs warm soil but the garden has a 'heat mat' system, explain how that improves its viability.
 
 Return your final analysis in the specified output format.
 `,
@@ -80,7 +86,7 @@ Return your final analysis in the specified output format.
       outputSchema: GetAiViabilityOutputSchema,
     },
     async (flowInput) => {
-      const {output} = await prompt(flowInput, { model: 'googleai/gemini-2.5-flash' });
+      const {output} = await prompt(flowInput, { model: 'googleai/gemini-1.5-pro-latest' });
       return output!;
     }
   );

@@ -43,6 +43,8 @@ const GardenLocationSchema = z.object({
     sunlight: z.string(),
     soil: z.string(),
   }),
+  growingSystems: z.string().optional().describe("A comma-separated list of available growing systems (e.g., 'greenhouse, seed trays, 5-gallon pots')."),
+  growingMethods: z.string().optional().describe("A comma-separated list of preferred growing methods (e.g., 'direct sow, transplant')."),
 });
 
 const CreateDatasetInputSchema = z.object({
@@ -91,9 +93,11 @@ Active Location:
 - Name: {{{activeLocation.name}}}
 - Location: {{{activeLocation.location}}}
 - Conditions: Temp: {{{activeLocation.conditions.temperature}}}, Sunlight: {{{activeLocation.conditions.sunlight}}}, Soil: {{{activeLocation.conditions.soil}}}
+- Growing Systems: {{{activeLocation.growingSystems}}}
+- Growing Methods: {{{activeLocation.growingMethods}}}
 {{else}}
 Your task is to generate a dataset containing:
-1.  A single garden location object that fits the theme. It must have a creative name (e.g., "Balcony Bounty," "Shady Oasis," "Urban Jungle"), a plausible real-world city/country, and realistic environmental conditions. Use Fahrenheit for US locations and Celsius otherwise.
+1.  A single garden location object that fits the theme. It must have a creative name (e.g., "Balcony Bounty," "Shady Oasis," "Urban Jungle"), a plausible real-world city/country, and realistic environmental conditions. Use Fahrenheit for US locations and Celsius otherwise. Also consider plausible growing systems and methods based on the theme.
 2.  A list of plant species objects that are well-suited to the theme and the location you created, following the quantity instruction above.
 3.  A corresponding list of 'planting' objects, one for each plant species.
 {{/if}}
@@ -125,7 +129,7 @@ Ensure the output is structured exactly according to the provided Zod output sch
       outputSchema: CreateDatasetOutputSchema,
     },
     async (flowInput) => {
-      const {output} = await prompt(flowInput, { model: 'googleai/gemini-2.5-flash' });
+      const {output} = await prompt(flowInput, { model: 'googleai/gemini-1.5-pro-latest' });
       return output!;
     }
   );

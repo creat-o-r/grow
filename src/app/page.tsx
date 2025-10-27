@@ -59,77 +59,103 @@ const GardenEditor = React.memo(function GardenEditor({
   isAnalyzing,
 }: GardenEditorProps) {
   return (
-    <div key={loc.id} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end border-b pb-6 last:border-b-0 last:pb-0">
-      <div className="sm:col-span-2 lg:col-span-1 relative">
-        <Label htmlFor={`location-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">{loc.name}</Label>
-        <div className="flex items-center gap-2">
-          <div className="relative w-full">
-            <Input
-              id={`location-${loc.id}`}
-              name="location"
-              defaultValue={loc.location}
-              onBlur={handleLocationFieldChange}
+    <div key={loc.id} className="grid gap-6 border-b pb-6 last:border-b-0 last:pb-0">
+       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end">
+          <div className="sm:col-span-2 lg:col-span-1 relative">
+            <Label htmlFor={`location-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">{loc.name}</Label>
+            <div className="flex items-center gap-2">
+              <div className="relative w-full">
+                <Input
+                  id={`location-${loc.id}`}
+                  name="location"
+                  defaultValue={loc.location}
+                  onBlur={handleLocationFieldChange}
+                  onKeyDown={handleLocationFieldChange}
+                  autoComplete="off"
+                />
+              </div>
+              <Button size="icon" variant="outline" onClick={() => handleGetCurrentLocation(loc.id)} disabled={isLocating}>
+                {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+          <div>
+            <Label htmlFor={`season-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Current Season</Label>
+            <Select
+              value={loc.conditions.currentSeason || ''}
+              onValueChange={(value) => handleConditionChange(value, 'currentSeason', loc.id)}
+            >
+              <SelectTrigger id={`season-${loc.id}`}>
+                <SelectValue placeholder="Select season" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Spring">Spring</SelectItem>
+                <SelectItem value="Summer">Summer</SelectItem>
+                <SelectItem value="Autumn">Autumn</SelectItem>
+                <SelectItem value="Winter">Winter</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor={`temperature-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
+            <Input 
+              id={`temperature-${loc.id}`} 
+              name="temperature"
+              defaultValue={loc.conditions.temperature || ''} 
+              onBlur={handleLocationFieldChange} 
               onKeyDown={handleLocationFieldChange}
-              autoComplete="off"
             />
           </div>
-          <Button size="icon" variant="outline" onClick={() => handleGetCurrentLocation(loc.id)} disabled={isLocating}>
-            {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
-          </Button>
+          <div>
+            <Label htmlFor={`sunlight-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
+            <Input 
+              id={`sunlight-${loc.id}`} 
+              name="sunlight"
+              defaultValue={loc.conditions.sunlight || ''} 
+              onBlur={handleLocationFieldChange} 
+              onKeyDown={handleLocationFieldChange}
+            />
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Label htmlFor={`soil-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
+              <Input 
+                id={`soil-${loc.id}`} 
+                name="soil"
+                defaultValue={loc.conditions.soil || ''} 
+                onBlur={handleLocationFieldChange} 
+                onKeyDown={handleLocationFieldChange}
+              />
+            </div>
+            <Button size="icon" variant="outline" onClick={() => handleAnalyzeConditions(loc.id)} disabled={isAnalyzing === loc.id}>
+              {isAnalyzing === loc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
-      </div>
-      <div>
-        <Label htmlFor={`season-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Current Season</Label>
-        <Select
-          value={loc.conditions.currentSeason || ''}
-          onValueChange={(value) => handleConditionChange(value, 'currentSeason', loc.id)}
-        >
-          <SelectTrigger id={`season-${loc.id}`}>
-            <SelectValue placeholder="Select season" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Spring">Spring</SelectItem>
-            <SelectItem value="Summer">Summer</SelectItem>
-            <SelectItem value="Autumn">Autumn</SelectItem>
-            <SelectItem value="Winter">Winter</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div>
-        <Label htmlFor={`temperature-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
-        <Input 
-          id={`temperature-${loc.id}`} 
-          name="temperature"
-          defaultValue={loc.conditions.temperature || ''} 
-          onBlur={handleLocationFieldChange} 
-          onKeyDown={handleLocationFieldChange}
-        />
-      </div>
-      <div>
-        <Label htmlFor={`sunlight-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
-        <Input 
-          id={`sunlight-${loc.id}`} 
-          name="sunlight"
-          defaultValue={loc.conditions.sunlight || ''} 
-          onBlur={handleLocationFieldChange} 
-          onKeyDown={handleLocationFieldChange}
-        />
-      </div>
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <Label htmlFor={`soil-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
-          <Input 
-            id={`soil-${loc.id}`} 
-            name="soil"
-            defaultValue={loc.conditions.soil || ''} 
-            onBlur={handleLocationFieldChange} 
-            onKeyDown={handleLocationFieldChange}
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+                <Label htmlFor={`growing-systems-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Growing Systems</Label>
+                <Input
+                    id={`growing-systems-${loc.id}`}
+                    name="growingSystems"
+                    defaultValue={loc.growingSystems || ''}
+                    onBlur={handleLocationFieldChange}
+                    onKeyDown={handleLocationFieldChange}
+                    placeholder="e.g., greenhouse, seed trays, pots"
+                />
+            </div>
+            <div>
+                <Label htmlFor={`growing-methods-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Growing Methods</Label>
+                <Input
+                    id={`growing-methods-${loc.id}`}
+                    name="growingMethods"
+                    defaultValue={loc.growingMethods || ''}
+                    onBlur={handleLocationFieldChange}
+                    onKeyDown={handleLocationFieldChange}
+                    placeholder="e.g., direct sow, transplant"
+                />
+            </div>
         </div>
-        <Button size="icon" variant="outline" onClick={() => handleAnalyzeConditions(loc.id)} disabled={isAnalyzing === loc.id}>
-          {isAnalyzing === loc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-        </Button>
-      </div>
     </div>
   );
 });
@@ -181,7 +207,7 @@ export default function Home() {
 
   const previousViabilityMechanism = usePrevious(viabilityMechanism);
   const activeLocation = useMemo(() => locations?.find(loc => loc.id === activeLocationId), [locations, activeLocationId]);
-  const previousActiveConditions = usePrevious(activeLocation?.conditions);
+  const previousActiveLocation = usePrevious(activeLocation);
   const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(REPO_URL)}`;
 
   useEffect(() => {
@@ -467,12 +493,18 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         description: `Conditions for ${locationToAnalyze} have been populated.`,
       });
     } catch (error: any) {
-      console.error('AI analysis failed:', error);
-      toast({
-        title: 'AI Analysis Failed',
-        description: `An error occurred during AI analysis: ${error.message}`,
-        variant: 'destructive',
-      });
+        toast({
+            title: 'AI Analysis Failed',
+            description: (
+                <div className="flex flex-col gap-2">
+                    <p>An error occurred during AI analysis:</p>
+                    <pre className="text-xs whitespace-pre-wrap p-2 bg-destructive/20 rounded-md">
+                        {error.message}
+                    </pre>
+                </div>
+            ),
+            variant: 'destructive',
+        });
     } finally {
       setIsAnalyzing(null);
     }
@@ -541,16 +573,16 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       return;
     }
     const target = e.currentTarget;
-    const locationId = target.id.replace(/^(location|temperature|sunlight|soil)-/, '');
+    const locationId = target.id.replace(/^(location|temperature|sunlight|soil|growing-systems|growing-methods)-/, '');
     const field = target.name as keyof GardenLocation | keyof Conditions;
     const value = target.value;
   
     db.locations.get(locationId).then(location => {
       if (!location) return;
 
-      if (field === 'location') {
+      if (['location', 'growingSystems', 'growingMethods'].includes(field)) {
         const trimmedValue = value.trim();
-        if (trimmedValue !== location.location) {
+        if (trimmedValue !== (location as any)[field]) {
           db.locations.update(locationId, { [field]: trimmedValue });
         }
       } else {
@@ -570,7 +602,9 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         temperature: '',
         sunlight: '',
         soil: '',
-      }
+      },
+      growingSystems: '',
+      growingMethods: '',
     };
     const newId = await db.locations.add(newLocation);
     if (gardenViewMode !== 'all') {
@@ -634,7 +668,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       return;
     }
 
-    if (!activeLocation?.conditions) return;
+    if (!activeLocation) return;
 
     toast({
       title: 'Generating Viability Analysis...',
@@ -650,9 +684,13 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
                 germinationNeeds: planting.plant.germinationNeeds,
                 optimalConditions: planting.plant.optimalConditions,
             },
-            gardenConditions: {
-                ...activeLocation.conditions,
-                currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
+            garden: {
+                conditions: {
+                    ...activeLocation.conditions,
+                    currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
+                },
+                growingSystems: activeLocation.growingSystems,
+                growingMethods: activeLocation.growingMethods,
             },
             apiKeys,
         };
@@ -687,10 +725,16 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       setIsLogPanelOpen(true);
 
     } catch (error: any) {
-      console.error('Viability analysis failed:', error);
       toast({
         title: 'Analysis Failed',
-        description: `An error occurred during analysis: ${error.message}`,
+        description: (
+            <div className="flex flex-col gap-2">
+                <p>An error occurred during analysis:</p>
+                <pre className="text-xs whitespace-pre-wrap p-2 bg-destructive/20 rounded-md">
+                    {error.message}
+                </pre>
+            </div>
+        ),
         variant: 'destructive',
       });
     }
@@ -840,9 +884,13 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         try {
             const promptData = {
                 plant: planting.plant,
-                gardenConditions: {
-                    ...activeLocation.conditions,
-                    currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
+                garden: {
+                    conditions: {
+                        ...activeLocation.conditions,
+                        currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
+                    },
+                    growingSystems: activeLocation.growingSystems,
+                    growingMethods: activeLocation.growingMethods,
                 },
                 apiKeys,
             };
@@ -893,7 +941,14 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     if (successfulAnalyses < plantingsToAnalyze.length && firstError) {
          toast({
             title: 'Batch Analysis Partially Failed',
-            description: `Analyzed ${successfulAnalyses} of ${plantingsToAnalyze.length} plants. Error: ${firstError.message}`,
+            description: (
+                <div className="flex flex-col gap-2">
+                    <p>Analyzed {successfulAnalyses} of {plantingsToAnalyze.length} plants. An error occurred:</p>
+                    <pre className="text-xs whitespace-pre-wrap p-2 bg-destructive/20 rounded-md">
+                        {firstError.message}
+                    </pre>
+                </div>
+            ),
             variant: 'destructive',
         });
     } else {
@@ -903,16 +958,16 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         });
     }
 
-}, [activeLocation?.conditions, apiKeys, areApiKeysSet, toast, dismiss]);
+}, [activeLocation, apiKeys, areApiKeysSet, toast, dismiss]);
 
     useEffect(() => {
         const justSwitchedToAi = previousViabilityMechanism === 'local' && viabilityMechanism === 'ai';
         // Poor man's deep object comparison
-        const conditionsChangedInAiMode = viabilityMechanism === 'ai' && JSON.stringify(activeLocation?.conditions) !== JSON.stringify(previousActiveConditions);
+        const locationChangedInAiMode = viabilityMechanism === 'ai' && JSON.stringify(activeLocation) !== JSON.stringify(previousActiveLocation);
 
         if (viabilityMechanism === 'ai' && areApiKeysSet && plantingsWithPlants) {
             const plantingsToAnalyze = plantingsWithPlants.filter(p => p.gardenId === activeLocationId);
-            if ((justSwitchedToAi || conditionsChangedInAiMode) && plantingsToAnalyze.length > 0) {
+            if ((justSwitchedToAi || locationChangedInAiMode) && plantingsToAnalyze.length > 0) {
                  handleBatchAiViabilityAnalysis(plantingsToAnalyze);
             }
         }
@@ -920,8 +975,8 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         viabilityMechanism,
         previousViabilityMechanism,
         activeLocationId,
-        activeLocation?.conditions,
-        previousActiveConditions,
+        activeLocation,
+        previousActiveLocation,
         areApiKeysSet,
         handleBatchAiViabilityAnalysis,
         plantingsWithPlants
@@ -1251,11 +1306,16 @@ const unspecifiedSeasonCount = useMemo(() => {
                                 {status === 'All' ? (
                                     <div className="flex items-center gap-1.5 ml-2">
                                         {hasDuplicates && (
-                                            <div 
-                                                className="h-6 w-6 rounded-md bg-destructive text-destructive-foreground font-bold text-lg flex items-center justify-center"
+                                            <Button
+                                                variant="destructive"
+                                                className="h-6 w-6 p-0"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsDuplicateReviewSheetOpen(true);
+                                                }}
                                             >
-                                                !
-                                            </div>
+                                                <span className="font-bold text-lg">!</span>
+                                            </Button>
                                         )}
                                         <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
                                         <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
@@ -1533,7 +1593,7 @@ const unspecifiedSeasonCount = useMemo(() => {
             setIsSettingsSheetOpen(false);
             setIsAiImportSheetOpen(true);
         }}
-        onPublish={handlePublish}
+        onPublish={onPublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
         viabilityMechanism={viabilityMechanism}
@@ -1583,5 +1643,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    

@@ -40,6 +40,8 @@ export type GardenLocation = {
   location: string;
   temperatureUnit: 'C' | 'F';
   conditions: Conditions;
+  growingSystems?: string;
+  growingMethods?: string;
 };
 
 export type AiLog = {

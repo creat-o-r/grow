@@ -9,12 +9,25 @@ const db = new Dexie('growDB') as Dexie & {
   aiLogs: EntityTable<AiLog, 'id'>;
 };
 
+// Latest version
+db.version(3).stores({
+  plants: '++id, species',
+  plantings: '++id, plantId, gardenId',
+  locations: '++id, name',
+  aiLogs: '++id, timestamp',
+});
+
+// Upgrade from version 2 to 3
 db.version(2).stores({
   plants: '++id, species',
   plantings: '++id, plantId, status', // index status for filtering
   locations: '++id, name',
   aiLogs: '++id, timestamp',
+}).upgrade(async tx => {
+    // This schema change adds optional properties, so no data migration is needed
+    // for existing location objects. They will just lack the new properties until set.
 });
+
 
 // Upgrade from version 1 to 2
 db.version(1).stores({
