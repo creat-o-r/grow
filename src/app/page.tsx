@@ -294,6 +294,10 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
   const handleLocationFieldChange = useCallback(async (field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
     if (!activeLocationId) return;
     await db.locations.update(activeLocationId, { [field]: value });
+    // After changing the location, automatically re-analyze conditions
+    if (field === 'location' && value.trim()) {
+      handleAnalyzeConditions(value.trim());
+    }
   }, [activeLocationId]);
 
   
@@ -424,7 +428,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     document.getElementById('location')?.focus();
   }
 
-  const handleAnalyzeConditions = async () => {
+  const handleAnalyzeConditions = async (locationOverride?: string) => {
     if (!areApiKeysSet) {
       toast({
         title: 'API Key Required',
@@ -434,7 +438,10 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
       setIsSettingsSheetOpen(true);
       return;
     }
-    if (!activeLocation || !activeLocation.location.trim()) {
+
+    const locationToAnalyze = locationOverride || activeLocation?.location;
+
+    if (!locationToAnalyze || !locationToAnalyze.trim()) {
       toast({
         title: 'Location Required',
         description: 'Please enter a specific location before analyzing conditions.',
@@ -444,17 +451,20 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     }
 
     setIsAnalyzing(true);
-    const promptData = { location: activeLocation.location };
+    const promptData = { location: locationToAnalyze };
     try {
       const result = await getEnvironmentalData({ ...promptData, apiKeys });
-      await db.locations.update(activeLocation.id, {
-        conditions: {
-            temperature: result.soilTemperature,
-            sunlight: result.sunlightHours,
-            soil: result.soilDescription,
-            currentSeason: result.currentSeason,
-        }
-      });
+      
+      if (activeLocationId) {
+        await db.locations.update(activeLocationId, {
+          conditions: {
+              temperature: result.soilTemperature,
+              sunlight: result.sunlightHours,
+              soil: result.soilDescription,
+              currentSeason: result.currentSeason,
+          }
+        });
+      }
       
       const newLog: AiLog = {
         id: Date.now().toString(),
@@ -468,7 +478,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
 
       toast({
         title: 'AI Analysis Complete',
-        description: `Conditions for ${activeLocation.location} have been populated.`,
+        description: `Conditions for ${locationToAnalyze} have been populated.`,
       });
     } catch (error: any) {
       console.error('AI analysis failed:', error);
@@ -763,7 +773,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                                       <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
                                       <Input id="soil" value={activeLocation?.conditions.soil || ''} onChange={(e) => handleConditionChange('soil', e.target.value)} />
                                   </div>
-                                  <Button size="icon" variant="outline" onClick={handleAnalyzeConditions} disabled={isAnalyzing}>
+                                  <Button size="icon" variant="outline" onClick={() => handleAnalyzeConditions()} disabled={isAnalyzing}>
                                       {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                   </Button>
                               </div>
@@ -1023,3 +1033,5 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     </div>
   );
 }
+
+    
