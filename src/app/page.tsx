@@ -453,7 +453,9 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     }
 
     setIsAnalyzing(true);
-    const promptData = { location: locationToAnalyze };
+    const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+    const promptData = { location: locationToAnalyze, currentMonth };
+
     try {
       const result = await getEnvironmentalData({ ...promptData, apiKeys });
       
@@ -1051,5 +1053,3 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     </div>
   );
 }
-
-    
