@@ -855,36 +855,11 @@ const unspecifiedSeasonCount = useMemo(() => {
                                   </Button>
                               </div>
                           </div>
-                           {statusFilter === 'Wishlist' && (
-                                <div className="flex items-center gap-4 pt-4 mt-4 border-t">
-                                    {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 gap-2 text-muted-foreground"
-                                            onClick={() => unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                                        >
-                                            <AlertCircle className="h-4 w-4" />
-                                            <span className="font-mono">{unspecifiedSeasonCount}</span>
-                                        </Button>
-                                    )}
-                                    <div className="flex items-center space-x-2 ml-auto">
-                                        <Label htmlFor="sort-order" className='text-sm font-medium text-muted-foreground'>
-                                            Sort by {wishlistSortOrder}
-                                        </Label>
-                                        <Switch
-                                            id="sort-order"
-                                            checked={wishlistSortOrder === 'viability'}
-                                            onCheckedChange={(checked) => setWishlistSortOrder(checked ? 'viability' : 'season')}
-                                        />
-                                    </div>
-                                </div>
-                            )}
                       </AccordionContent>
                   </AccordionItem>
                 </Accordion>
                 
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                         {allFilters.map(status => (
                             <Button
@@ -902,6 +877,32 @@ const unspecifiedSeasonCount = useMemo(() => {
                         ))}
                     </div>
                 </div>
+
+                {statusFilter === 'Wishlist' && (
+                    <div className="flex items-center gap-4 mb-6">
+                        {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-2 text-muted-foreground"
+                                onClick={() => unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                            >
+                                <AlertCircle className="h-4 w-4" />
+                                <span className="font-mono">{unspecifiedSeasonCount}</span>
+                            </Button>
+                        )}
+                        <div className="flex items-center space-x-2 ml-auto">
+                            <Label htmlFor="sort-order" className='text-sm font-medium text-muted-foreground'>
+                                Sort by {wishlistSortOrder}
+                            </Label>
+                            <Switch
+                                id="sort-order"
+                                checked={wishlistSortOrder === 'viability'}
+                                onCheckedChange={(checked) => setWishlistSortOrder(checked ? 'viability' : 'season')}
+                            />
+                        </div>
+                    </div>
+                )}
                 
                 {plantings && plantings.length > 0 ? (
                     <>
@@ -914,7 +915,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                         ref={group.groupTitle === 'Season Not Specified' ? unspecifiedSeasonSectionRef : null}
                                       >
                                           <h2 className="text-2xl font-headline mb-4 capitalize">
-                                              {group.groupTitle === 'Season Not Specified' ? 'Season Not Specified' : group.groupTitle.toLowerCase()}
+                                              {group.groupTitle.toLowerCase()}
                                           </h2>
                                           <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                               {group.plantings.map(p => (
