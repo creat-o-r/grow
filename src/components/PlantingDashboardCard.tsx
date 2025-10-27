@@ -137,80 +137,81 @@ export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlan
 
     return (
         <Card className="flex flex-col bg-muted/50">
-            <CardHeader>
-                <CardTitle className="font-headline text-lg leading-tight mb-1 pr-2">{planting.name}</CardTitle>
-                <CardDescription className="flex items-center gap-2">
-                    <span>{planting.plant.species}</span>
-                    <a href={`https://www.google.com/search?q=${encodeURIComponent(planting.plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
-                        <ExternalLink className="h-3 w-3" />
-                        <span className="sr-only">Search for {planting.plant.species}</span>
-                    </a>
-                </CardDescription>
-                {latestStatus && (
-                    <div className="pt-2">
-                        <Badge variant="outline" className={cn("font-normal w-fit", statusConfig[latestStatus.status])}>
-                            {latestStatus.status}
-                        </Badge>
-                    </div>
-                )}
-            </CardHeader>
-            <CardContent className="flex-grow space-y-4">
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor={`seeds-on-hand-${planting.id}`}>Seeds on Hand</Label>
-                        <div className="flex gap-2">
-                            <Input
-                                id={`seeds-on-hand-${planting.id}`}
-                                type="number"
-                                placeholder="e.g., 50"
-                                value={seedsOnHand}
-                                onChange={(e) => setSeedsOnHand(e.target.value)}
-                                className="h-9"
-                            />
-                            <Button onClick={handleSetSeeds} disabled={!seedsOnHand} size="sm" className="h-9">Set</Button>
+            <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="item-1" className="border-b-0">
+                    <AccordionTrigger className="p-6 hover:no-underline">
+                        <div className="text-left w-full">
+                            <CardTitle className="font-headline text-lg leading-tight mb-1 pr-2">{planting.name}</CardTitle>
+                            <CardDescription className="flex items-center gap-2">
+                                <span>{planting.plant.species}</span>
+                                <a href={`https://www.google.com/search?q=${encodeURIComponent(planting.plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
+                                    <ExternalLink className="h-3 w-3" />
+                                    <span className="sr-only">Search for {planting.plant.species}</span>
+                                </a>
+                            </CardDescription>
+                            {latestStatus && (
+                                <div className="pt-2">
+                                    <Badge variant="outline" className={cn("font-normal w-fit", statusConfig[latestStatus.status])}>
+                                        {latestStatus.status}
+                                    </Badge>
+                                </div>
+                            )}
                         </div>
-                        <p className="text-xs text-muted-foreground">Sets status to "Planting".</p>
-                    </div>
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                            <Label htmlFor={`planned-qty-${planting.id}`}>Planned Qty</Label>
-                            {isSavingPlannedQty && <CheckCircle className="h-4 w-4 text-green-500 animate-in fade-in" />}
-                        </div>
-                        <div className="flex gap-2">
-                            <Input
-                                id={`planned-qty-${planting.id}`}
-                                type="number"
-                                placeholder="e.g., 20"
-                                value={plannedQty}
-                                onChange={(e) => setPlannedQty(e.target.value)}
-                                onBlur={handleSetPlannedQty}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSetPlannedQty()}
-                                className="h-9"
-                            />
-                             <Button onClick={handleSetPlannedQty} size="sm" className="h-9">Set</Button>
-                        </div>
-                         {planting.plannedQty !== undefined && planting.plannedQty > 0 ? (
-                            <p className="text-xs text-muted-foreground">
-                                Seeds on hand: {planting.seedsOnHand || 0}. 
-                                <span className="font-bold"> Needs: {seedsRequired}</span>
-                            </p>
-                         ) : (
-                            <p className="text-xs text-muted-foreground">
-                                 Seeds on hand: {planting.seedsOnHand || 0}.
-                            </p>
-                         )
-                        }
-                    </div>
-                 </div>
-                 <div className="flex gap-2">
-                    <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Planting')}>Mark as Planting</Button>
-                    <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Growing')}>Mark as Growing</Button>
-                </div>
-                 <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="item-1" className="border-b-0">
-                        <AccordionTrigger className="text-xs py-2 hover:no-underline">Show Details</AccordionTrigger>
-                        <AccordionContent>
-                           <div className="text-xs text-muted-foreground space-y-2 mt-2">
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6">
+                        <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
+                             <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor={`seeds-on-hand-${planting.id}`}>Seeds on Hand</Label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            id={`seeds-on-hand-${planting.id}`}
+                                            type="number"
+                                            placeholder="e.g., 50"
+                                            value={seedsOnHand}
+                                            onChange={(e) => setSeedsOnHand(e.target.value)}
+                                            className="h-9"
+                                        />
+                                        <Button onClick={handleSetSeeds} disabled={!seedsOnHand} size="sm" className="h-9">Set</Button>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">Sets status to "Planting".</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <Label htmlFor={`planned-qty-${planting.id}`}>Planned Qty</Label>
+                                        {isSavingPlannedQty && <CheckCircle className="h-4 w-4 text-green-500 animate-in fade-in" />}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            id={`planned-qty-${planting.id}`}
+                                            type="number"
+                                            placeholder="e.g., 20"
+                                            value={plannedQty}
+                                            onChange={(e) => setPlannedQty(e.target.value)}
+                                            onBlur={handleSetPlannedQty}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleSetPlannedQty()}
+                                            className="h-9"
+                                        />
+                                        <Button onClick={handleSetPlannedQty} size="sm" className="h-9">Set</Button>
+                                    </div>
+                                    {planting.plannedQty !== undefined && planting.plannedQty > 0 ? (
+                                        <p className="text-xs text-muted-foreground">
+                                            Seeds on hand: {planting.seedsOnHand || 0}. 
+                                            <span className="font-bold"> Needs: {seedsRequired}</span>
+                                        </p>
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground">
+                                            Seeds on hand: {planting.seedsOnHand || 0}.
+                                        </p>
+                                    )
+                                    }
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Planting')}>Mark as Planting</Button>
+                                <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Growing')}>Mark as Growing</Button>
+                            </div>
+                           <div className="text-xs text-muted-foreground space-y-2 pt-2">
                                 <div>
                                     <p className="font-semibold text-foreground/80">Germination</p>
                                     <p>{planting.plant.germinationNeeds}</p>
@@ -220,10 +221,10 @@ export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlan
                                     <p>{planting.plant.optimalConditions}</p>
                                 </div>
                             </div>
-                        </AccordionContent>
-                    </AccordionItem>
-                </Accordion>
-            </CardContent>
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
         </Card>
     );
 }
