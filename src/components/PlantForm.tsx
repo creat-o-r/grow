@@ -56,6 +56,7 @@ type PlantFormProps = {
 export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiKeysSet, apiKeys, plants }: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
+  const [isSpeciesPopoverOpen, setIsSpeciesPopoverOpen] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<PlantFormValues>({
@@ -76,7 +77,6 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     name: "history",
   });
   
-  const speciesValue = form.watch('species');
   const historyValue = form.watch('history');
   const lastStatus = historyValue?.slice(-1)[0]?.status;
 
@@ -178,9 +178,10 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
   };
 
   const handleSpeciesSelect = (plant: Plant) => {
-     form.setValue('species', plant.species);
-     form.setValue('germinationNeeds', plant.germinationNeeds);
-     form.setValue('optimalConditions', plant.optimalConditions);
+     form.setValue('species', plant.species, { shouldValidate: true });
+     form.setValue('germinationNeeds', plant.germinationNeeds, { shouldValidate: true });
+     form.setValue('optimalConditions', plant.optimalConditions, { shouldValidate: true });
+     setIsSpeciesPopoverOpen(false);
   }
 
   return (
@@ -250,7 +251,7 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
             name="species"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>
+                 <FormLabel>
                    <div className="flex items-center gap-2">
                       <span>Species</span>
                       {field.value && (
@@ -261,7 +262,7 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
                       )}
                     </div>
                 </FormLabel>
-                <Popover>
+                <Popover open={isSpeciesPopoverOpen} onOpenChange={setIsSpeciesPopoverOpen}>
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
@@ -274,7 +275,7 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
                       >
                         {field.value
                           ? plants.find(
-                              (plant) => plant.species === field.value
+                              (plant) => plant.species.toLowerCase() === field.value.toLowerCase()
                             )?.species
                           : "Select a species or create a new one"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -284,12 +285,17 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
                   <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
                     <Command>
                       <CommandInput 
-                        placeholder="Search species or type to create new..." 
-                        value={field.value}
+                        placeholder="Search species or type to create new..."
                         onValueChange={field.onChange}
                       />
                       <CommandEmpty>
-                        <CommandItem onSelect={() => form.setValue('species', field.value)}>
+                        <CommandItem 
+                          onSelect={() => {
+                            form.setValue('species', field.value, { shouldValidate: true });
+                            setIsSpeciesPopoverOpen(false);
+                          }}
+                          value={field.value}
+                        >
                             Create "{field.value}"
                         </CommandItem>
                       </CommandEmpty>
@@ -305,7 +311,7 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
                             <Check
                               className={cn(
                                 "mr-2 h-4 w-4",
-                                plant.species === field.value
+                                plant.species.toLowerCase() === field.value?.toLowerCase()
                                   ? "opacity-100"
                                   : "opacity-0"
                               )}
@@ -495,3 +501,5 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     </div>
   );
 }
+
+    
