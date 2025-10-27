@@ -878,6 +878,16 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     }, [activeLocation?.conditions, apiKeys, areApiKeysSet, toast, dismiss]);
 
+    const localViabilityData = useMemo(() => {
+        const newViabilityData: Record<string, Viability> = {};
+        if (viabilityMechanism === 'local' && activeLocation?.conditions && plantingsWithPlants) {
+            plantingsWithPlants.forEach(p => {
+                newViabilityData[p.id] = analyzeViability(p.plant, activeLocation.conditions!);
+            });
+        }
+        return newViabilityData;
+    }, [viabilityMechanism, activeLocation?.conditions, plantingsWithPlants]);
+
     useEffect(() => {
         const justSwitchedToAi = previousViabilityMechanism === 'local' && viabilityMechanism === 'ai';
         const conditionsChangedInAiMode = viabilityMechanism === 'ai' && (
@@ -887,15 +897,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             activeLocation?.conditions.currentSeason !== previousActiveConditions?.currentSeason
         );
 
-        if (viabilityMechanism === 'local') {
-            if (activeLocation?.conditions && plantingsWithPlants) {
-                const newViabilityData: Record<string, Viability> = {};
-                plantingsWithPlants.forEach(p => {
-                    newViabilityData[p.id] = analyzeViability(p.plant, activeLocation.conditions!);
-                });
-                setViabilityData(newViabilityData);
-            }
-        } else if (viabilityMechanism === 'ai' && areApiKeysSet) {
+        if (viabilityMechanism === 'ai' && areApiKeysSet) {
             const plantingsToAnalyze = plantingsWithPlants.filter(p => p.gardenId === activeLocationId);
             if ((justSwitchedToAi || conditionsChangedInAiMode) && plantingsToAnalyze.length > 0) {
                  handleBatchAiViabilityAnalysis(plantingsToAnalyze);
@@ -909,9 +911,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         previousActiveConditions,
         areApiKeysSet,
         handleBatchAiViabilityAnalysis,
-        plantings, // Keep plantings/plants here to recalculate for local on data change
-        plants
+        plantingsWithPlants
     ]);
+
+    const currentViabilityData = viabilityMechanism === 'ai' ? viabilityData : localViabilityData;
 
   const sortedAndFilteredPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
@@ -926,14 +929,14 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
         
         return filtered.slice().sort((a, b) => {
-            const viabilityA = viabilityData[a.id] || 'Low';
-            const viabilityB = viabilityData[b.id] || 'Low';
+            const viabilityA = currentViabilityData[a.id] || 'Low';
+            const viabilityB = currentViabilityData[b.id] || 'Low';
             return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
         });
     }
     
     return filtered;
-  }, [plantingsWithPlants, statusFilter, activeLocation?.conditions, viabilityData]);
+  }, [plantingsWithPlants, statusFilter, activeLocation?.conditions, currentViabilityData]);
   
 
   const organizedWishlist = useMemo(() => {
@@ -983,8 +986,8 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             return seasonScoreA - seasonScoreB;
         }
         
-        const viabilityA = viabilityData[a.id] || 'Low';
-        const viabilityB = viabilityData[b.id] || 'Low';
+        const viabilityA = currentViabilityData[a.id] || 'Low';
+        const viabilityB = currentViabilityData[b.id] || 'Low';
         return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
     });
 
@@ -1015,17 +1018,17 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         };
     });
 
-}, [wishlistPlantings, activeLocation?.conditions, viabilityData]);
+}, [wishlistPlantings, activeLocation?.conditions, currentViabilityData]);
 
 const sortedWishlistByViability = useMemo(() => {
     if (!wishlistPlantings || !activeLocation?.conditions) return [];
     const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
     return [...wishlistPlantings].sort((a, b) => {
-        const viabilityA = viabilityData[a.id] || 'Low';
-        const viabilityB = viabilityData[b.id] || 'Low';
+        const viabilityA = currentViabilityData[a.id] || 'Low';
+        const viabilityB = currentViabilityData[b.id] || 'Low';
         return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
     });
-}, [wishlistPlantings, activeLocation?.conditions, viabilityData]);
+}, [wishlistPlantings, activeLocation?.conditions, currentViabilityData]);
 
 const unspecifiedSeasonCount = useMemo(() => {
     if (wishlistSortOrder !== 'season' || !organizedWishlist) return 0;
@@ -1061,14 +1064,14 @@ const unspecifiedSeasonCount = useMemo(() => {
     const viabilityCounts = useMemo(() => {
         const counts: Record<Viability, number> = { High: 0, Medium: 0, Low: 0 };
         
-        Object.values(viabilityData).forEach(viability => {
+        Object.values(currentViabilityData).forEach(viability => {
             if (viability) {
               counts[viability]++;
             }
         });
 
         return counts;
-    }, [viabilityData]);
+    }, [currentViabilityData]);
 
   const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
 
@@ -1282,7 +1285,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                           <PlantCard
                                               key={p.id}
                                               planting={p}
-                                              viability={viabilityData[p.id]}
+                                              viability={currentViabilityData[p.id]}
                                               onEdit={() => handleEditPlanting(p)}
                                               onDelete={() => promptDelete(p)}
                                               onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1312,7 +1315,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                                     <PlantCard
                                                         key={p.id}
                                                         planting={p}
-                                                        viability={viabilityData[p.id]}
+                                                        viability={currentViabilityData[p.id]}
                                                         onEdit={() => handleEditPlanting(p)}
                                                         onDelete={() => promptDelete(p)}
                                                         onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1350,7 +1353,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                             <PlantCard 
                                                 key={p.id} 
                                                 planting={p} 
-                                                viability={viabilityData[p.id]}
+                                                viability={currentViabilityData[p.id]}
                                                 onEdit={() => handleEditPlanting(p)}
                                                 onDelete={() => promptDelete(p)}
                                                 onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1380,7 +1383,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                       <PlantCard 
                                           key={p.id} 
                                           planting={p} 
-                                          viability={viabilityData[p.id]}
+                                          viability={currentViabilityData[p.id]}
                                           onEdit={() => handleEditPlanting(p)}
                                           onDelete={() => promptDelete(p)}
                                           onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1545,3 +1548,4 @@ const unspecifiedSeasonCount = useMemo(() => {
   );
 }
 
+    
