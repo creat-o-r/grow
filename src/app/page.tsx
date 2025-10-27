@@ -144,13 +144,10 @@ export default function Home() {
   useEffect(() => {
     if (activeLocationId) {
         localStorage.setItem('grow_activeLocation', activeLocationId);
-        if (gardenViewMode === 'one') {
-            setSelectedGardenIds([activeLocationId]);
-        }
     } else {
         localStorage.removeItem('grow_activeLocation');
     }
-  }, [activeLocationId, gardenViewMode]);
+  }, [activeLocationId]);
   
   const handleApiKeysChange = (newKeys: {gemini: string}) => {
     localStorage.setItem('grow_apiKeys', JSON.stringify(newKeys));
@@ -211,10 +208,12 @@ export default function Home() {
   useEffect(() => {
     if (activeLocation) {
       setLocationSearchQuery(activeLocation.location);
-    } else if (locations && locations.length > 0) {
-      setActiveLocationId(locations[0].id);
+    } else if (locations && locations.length > 0 && !activeLocationId) {
+      const firstLocation = locations[0];
+      setActiveLocationId(firstLocation.id);
+      setSelectedGardenIds([firstLocation.id]);
     }
-  }, [activeLocation, locations]);
+  }, [activeLocation, locations, activeLocationId]);
 
   const handleAddPlant = async (plantingData: Omit<Planting, 'id'>, plantData: Omit<Plant, 'id'>) => {
     let plantId = (await db.plants.where('species').equalsIgnoreCase(plantData.species).first())?.id;
@@ -1070,11 +1069,9 @@ const unspecifiedSeasonCount = useMemo(() => {
                                   />
                               </div>
                               <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
-                                  {gardenViewMode === 'one' && (
-                                    <span className='text-sm text-muted-foreground font-normal truncate'>
-                                        {activeLocation?.conditions.temperature || 'Temp'}, {activeLocation?.conditions.sunlight || 'Sunlight'}, {activeLocation?.conditions.soil || 'Soil'}
-                                    </span>
-                                  )}
+                                <span className='text-sm text-muted-foreground font-normal truncate'>
+                                    {activeLocation?.conditions.temperature || 'Temp'}, {activeLocation?.conditions.sunlight || 'Sunlight'}, {activeLocation?.conditions.soil || 'Soil'}
+                                </span>
                               </AccordionTrigger>
                           </div>
                           
@@ -1461,7 +1458,7 @@ const unspecifiedSeasonCount = useMemo(() => {
             setIsSettingsSheetOpen(false);
             setIsAiImportSheetOpen(true);
         }}
-        onPublish={handlePublish}
+        onPublish={onPublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
         viabilityMechanism={viabilityMechanism}
