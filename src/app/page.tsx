@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, MouseEvent, useMemo, useRef } from 'react';
@@ -11,7 +10,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { usePrevious } from '@/hooks/use-previous';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
-import { loadDataset } from '@/lib/datasets';
+import { loadDataset, type AiDataset } from '@/lib/datasets';
 import { analyzeViability, Viability, getSuitableSeasons, generateLocalViabilityReasoning } from '@/lib/viability';
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
@@ -1171,7 +1170,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                 
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                        {allFilters.map(status => (
+                        {allFilters.map((status) => (
                             <Button
                                 key={status}
                                 variant={statusFilter === status ? 'default' : 'outline'}
@@ -1458,7 +1457,7 @@ const unspecifiedSeasonCount = useMemo(() => {
             setIsSettingsSheetOpen(false);
             setIsAiImportSheetOpen(true);
         }}
-        onPublish={onPublish}
+        onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
         viabilityMechanism={viabilityMechanism}
@@ -1509,5 +1508,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
