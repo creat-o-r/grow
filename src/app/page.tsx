@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, MouseEvent, useMemo, useRef, KeyboardEvent } from 'react';
@@ -1492,7 +1493,7 @@ const unspecifiedSeasonCount = useMemo(() => {
             setIsSettingsSheetOpen(false);
             setIsAiImportSheetOpen(true);
         }}
-        onPublish={handlePublish}
+        onPublish={onPublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
         viabilityMechanism={viabilityMechanism}
@@ -1543,5 +1544,7 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    
 
     
