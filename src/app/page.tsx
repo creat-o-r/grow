@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, MouseEvent, useMemo, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, AiDataset, GardenViewMode } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, GardenViewMode } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { usePrevious } from '@/hooks/use-previous';
@@ -1070,9 +1070,11 @@ const unspecifiedSeasonCount = useMemo(() => {
                                   />
                               </div>
                               <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
-                                  <span className='text-sm text-muted-foreground font-normal truncate'>
-                                      {activeLocation?.conditions.temperature || 'Temp'}, {activeLocation?.conditions.sunlight || 'Sunlight'}, {activeLocation?.conditions.soil || 'Soil'}
-                                  </span>
+                                  {gardenViewMode === 'one' && (
+                                    <span className='text-sm text-muted-foreground font-normal truncate'>
+                                        {activeLocation?.conditions.temperature || 'Temp'}, {activeLocation?.conditions.sunlight || 'Sunlight'}, {activeLocation?.conditions.soil || 'Soil'}
+                                    </span>
+                                  )}
                               </AccordionTrigger>
                           </div>
                           

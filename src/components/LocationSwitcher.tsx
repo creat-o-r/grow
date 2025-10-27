@@ -172,9 +172,18 @@ export function LocationSwitcher({
                         }}
                       >
                         {gardenViewMode === 'selected' && (
-                           <Check className={cn("h-4 w-4 mr-2", isSelected ? "opacity-100" : "opacity-0")} />
+                           <DropdownMenuCheckboxItem
+                              checked={isSelected}
+                              onCheckedChange={() => handleCheckboxChange(location.id)}
+                              onSelect={(e) => e.preventDefault()}
+                              className="w-full p-0 focus:bg-transparent"
+                            >
+                              <span className="flex-1">{location.name}</span>
+                            </DropdownMenuCheckboxItem>
                         )}
-                        <span className="flex-1">{location.name}</span>
+                        {gardenViewMode !== 'selected' && (
+                          <span className="flex-1">{location.name}</span>
+                        )}
                         <div className="flex items-center">
                             <Button 
                               variant="ghost" 
@@ -221,14 +230,6 @@ export function LocationSwitcher({
         <DropdownMenuSeparator />
         <div className="p-2">
           <div className="flex items-center justify-center rounded-md bg-muted p-1">
-              <Button 
-                variant={gardenViewMode === 'selected' ? 'secondary' : 'ghost'} 
-                size="sm" 
-                className="flex-1 h-7 text-xs" 
-                onClick={() => onGardenViewModeChange('selected')}
-              >
-                Selected
-              </Button>
                <Button 
                 variant={gardenViewMode === 'one' ? 'secondary' : 'ghost'} 
                 size="sm" 
@@ -236,6 +237,14 @@ export function LocationSwitcher({
                 onClick={() => onGardenViewModeChange('one')}
               >
                 One
+              </Button>
+              <Button 
+                variant={gardenViewMode === 'selected' ? 'secondary' : 'ghost'} 
+                size="sm" 
+                className="flex-1 h-7 text-xs" 
+                onClick={() => onGardenViewModeChange('selected')}
+              >
+                Selected
               </Button>
                <Button 
                 variant={gardenViewMode === 'all' ? 'secondary' : 'ghost'} 
