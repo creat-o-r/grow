@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, MouseEvent, useMemo, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, AiDataset } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, AiDataset, GardenViewMode } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { usePrevious } from '@/hooks/use-previous';
@@ -43,7 +43,6 @@ type NominatimResult = {
   lat: string;
   lon: string;
 };
-type GardenSelectionMode = 'single' | 'multiple';
 
 const REPO_URL = 'https://github.com/creat-o-r/grow';
 
@@ -66,7 +65,7 @@ export default function Home() {
 
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [selectedGardenIds, setSelectedGardenIds] = useState<string[]>([]);
-  const [gardenSelectionMode, setGardenSelectionMode] = useState<GardenSelectionMode>('single');
+  const [gardenViewMode, setGardenViewMode] = useState<GardenViewMode>('single');
 
 
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
@@ -145,13 +144,13 @@ export default function Home() {
   useEffect(() => {
     if (activeLocationId) {
         localStorage.setItem('grow_activeLocation', activeLocationId);
-        if (gardenSelectionMode === 'single') {
+        if (gardenViewMode === 'single') {
             setSelectedGardenIds([activeLocationId]);
         }
     } else {
         localStorage.removeItem('grow_activeLocation');
     }
-  }, [activeLocationId, gardenSelectionMode]);
+  }, [activeLocationId, gardenViewMode]);
   
   const handleApiKeysChange = (newKeys: {gemini: string}) => {
     localStorage.setItem('grow_apiKeys', JSON.stringify(newKeys));
@@ -702,12 +701,20 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   const plantingsWithPlants = useMemo((): PlantingWithPlant[] => {
     if (!plantings || !plants) return [];
     const plantMap = new Map(plants.map(p => [p.id, p]));
-    const plantingsToDisplay = plantings.filter(p => gardenSelectionMode === 'multiple' ? selectedGardenIds.includes(p.gardenId) : p.gardenId === activeLocationId);
+    
+    let plantingsToDisplay = plantings;
+
+    if (gardenViewMode === 'single') {
+        plantingsToDisplay = plantings.filter(p => p.gardenId === activeLocationId);
+    } else if (gardenViewMode === 'multiple') {
+        plantingsToDisplay = plantings.filter(p => selectedGardenIds.includes(p.gardenId));
+    }
+    // 'all' mode uses all plantings
 
     return plantingsToDisplay
       .map(p => ({ ...p, plant: plantMap.get(p.plantId)! }))
       .filter(p => p.plant); // Filter out plantings with no matching plant
-  }, [plantings, plants, gardenSelectionMode, selectedGardenIds, activeLocationId]);
+  }, [plantings, plants, gardenViewMode, selectedGardenIds, activeLocationId]);
   
   const wishlistPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
@@ -1056,8 +1063,8 @@ const unspecifiedSeasonCount = useMemo(() => {
                                     onLocationChange={setActiveLocationId}
                                     onAddLocation={handleAddLocation}
                                     onDeleteLocation={(loc) => promptDelete(loc)}
-                                    selectionMode={gardenSelectionMode}
-                                    onSelectionModeChange={setGardenSelectionMode}
+                                    gardenViewMode={gardenViewMode}
+                                    onGardenViewModeChange={setGardenViewMode}
                                     selectedGardenIds={selectedGardenIds}
                                     onSelectedGardenIdsChange={setSelectedGardenIds}
                                   />

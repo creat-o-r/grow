@@ -2,7 +2,7 @@
 'use client';
 
 import { MouseEvent, useState, useEffect, KeyboardEvent } from 'react';
-import type { GardenLocation } from '@/lib/types';
+import type { GardenLocation, GardenViewMode } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,15 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
-  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { ChevronsUpDown, Plus, Trash2, Edit, Check, X, List, Rows } from 'lucide-react';
+import { ChevronsUpDown, Plus, Trash2, Edit, Check, X } from 'lucide-react';
 import { db } from '@/lib/db';
-import { Switch } from './ui/switch';
-import { Label } from './ui/label';
+import { cn } from '../lib/utils';
 
-type GardenSelectionMode = 'single' | 'multiple';
 
 type LocationSwitcherProps = {
   locations: GardenLocation[];
@@ -27,8 +24,8 @@ type LocationSwitcherProps = {
   onLocationChange: (id: string) => void;
   onAddLocation: (name: string) => void;
   onDeleteLocation: (location: GardenLocation) => void;
-  selectionMode: GardenSelectionMode;
-  onSelectionModeChange: (mode: GardenSelectionMode) => void;
+  gardenViewMode: GardenViewMode;
+  onGardenViewModeChange: (mode: GardenViewMode) => void;
   selectedGardenIds: string[];
   onSelectedGardenIdsChange: (ids: string[]) => void;
 };
@@ -39,8 +36,8 @@ export function LocationSwitcher({
   onLocationChange,
   onAddLocation,
   onDeleteLocation,
-  selectionMode,
-  onSelectionModeChange,
+  gardenViewMode,
+  onGardenViewModeChange,
   selectedGardenIds,
   onSelectedGardenIdsChange,
 }: LocationSwitcherProps) {
@@ -118,19 +115,16 @@ export function LocationSwitcher({
     );
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    onSelectedGardenIdsChange(checked ? locations.map(l => l.id) : []);
-  }
-
   const triggerText = () => {
-    if (selectionMode === 'multiple') {
+    if (gardenViewMode === 'multiple') {
       if (selectedGardenIds.length === 0) return 'Select Gardens';
       if (selectedGardenIds.length === 1) {
         return locations.find(l => l.id === selectedGardenIds[0])?.name || '1 Garden';
       }
-      if (selectedGardenIds.length === locations.length) return 'All Gardens';
-      return `${selectedGardenIds.length} Gardens`;
+      if (selectedGardenIds.length === locations.length) return 'All Selected';
+      return `${selectedGardenIds.length} Gardens Selected`;
     }
+    if (gardenViewMode === 'all') return 'All Gardens';
     return activeLocation ? activeLocation.name : 'Select Garden';
   }
 
@@ -147,84 +141,66 @@ export function LocationSwitcher({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64" align="start">
-          <div className="flex items-center justify-between p-2">
-              <Label htmlFor="multi-select-switch" className="text-xs font-normal pr-2">Select Multiple</Label>
-              <Switch
-                id="multi-select-switch"
-                checked={selectionMode === 'multiple'}
-                onCheckedChange={(checked) => onSelectionModeChange(checked ? 'multiple' : 'single')}
-              />
-          </div>
-          <DropdownMenuSeparator />
-          {selectionMode === 'multiple' ? (
-              <>
-                <DropdownMenuCheckboxItem
-                    checked={selectedGardenIds.length === locations.length}
-                    onCheckedChange={handleSelectAll}
-                    onSelect={(e) => e.preventDefault()}
-                >
-                    All Gardens
-                </DropdownMenuCheckboxItem>
-                {locations.map(location => (
-                    <DropdownMenuCheckboxItem
-                        key={location.id}
-                        checked={selectedGardenIds.includes(location.id)}
-                        onCheckedChange={(checked) => handleCheckboxChange(location.id, !!checked)}
-                        onSelect={(e) => e.preventDefault()}
-                    >
-                        {location.name}
-                    </DropdownMenuCheckboxItem>
-                ))}
-              </>
-          ) : (
-             locations.map(location => (
-                 <DropdownMenuItem key={location.id} onSelect={(e) => e.preventDefault()} className="focus:bg-transparent p-0">
-                    {editingLocationId === location.id ? (
-                        <div className="flex items-center gap-1 w-full px-2 py-1.5">
-                          <Input 
-                            autoFocus
-                            value={editingName} 
-                            onChange={(e) => setEditingName(e.target.value)}
-                            onKeyDown={handleEditKeyDown}
-                            className="h-7"
-                          />
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveEdit}><Check className="h-4 w-4 text-green-600"/></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancelEdit}><X className="h-4 w-4 text-destructive"/></Button>
+          {locations.map(location => {
+            const isSelected = gardenViewMode === 'multiple' && selectedGardenIds.includes(location.id);
+            return (
+              <DropdownMenuItem key={location.id} onSelect={(e) => e.preventDefault()} className="focus:bg-transparent p-0">
+                  {editingLocationId === location.id ? (
+                      <div className="flex items-center gap-1 w-full px-2 py-1.5">
+                        <Input 
+                          autoFocus
+                          value={editingName} 
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={handleEditKeyDown}
+                          className="h-7"
+                        />
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveEdit}><Check className="h-4 w-4 text-green-600"/></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancelEdit}><X className="h-4 w-4 text-destructive"/></Button>
+                      </div>
+                    ) : (
+                      <div 
+                        className={cn("flex items-center w-full cursor-pointer hover:bg-accent rounded-sm px-2 py-1.5", isSelected && 'bg-accent/50')}
+                        onClick={() => {
+                          if (gardenViewMode !== 'multiple') {
+                            onLocationChange(location.id);
+                            setIsOpen(false);
+                          }
+                        }}
+                      >
+                        {gardenViewMode === 'multiple' && (
+                            <DropdownMenuCheckboxItem
+                                key={location.id}
+                                checked={isSelected}
+                                onCheckedChange={(checked) => handleCheckboxChange(location.id, !!checked)}
+                                className="p-0 mr-2 border-0 focus:ring-0"
+                                onSelect={(e) => e.preventDefault()}
+                            />
+                        )}
+                        <span className="flex-1">{location.name}</span>
+                        <div className="flex items-center">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7"
+                              onClick={(e) => handleEditClick(e, location)}
+                              aria-label={`Edit ${location.name}`}
+                            >
+                              <Edit className="h-4 w-4"/>
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7"
+                              onClick={(e) => handleDeleteClick(e, location)}
+                              aria-label={`Delete ${location.name}`}
+                            >
+                                <Trash2 className="h-4 w-4 text-destructive"/>
+                            </Button>
                         </div>
-                      ) : (
-                        <div 
-                          className="flex items-center w-full cursor-pointer hover:bg-accent rounded-sm px-2 py-1.5"
-                          onClick={() => {
-                              onLocationChange(location.id);
-                              setIsOpen(false);
-                          }}
-                        >
-                          <span className="flex-1">{location.name}</span>
-                          <div className="flex items-center">
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-7 w-7"
-                                onClick={(e) => handleEditClick(e, location)}
-                                aria-label={`Edit ${location.name}`}
-                              >
-                                <Edit className="h-4 w-4"/>
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-7 w-7"
-                                onClick={(e) => handleDeleteClick(e, location)}
-                                aria-label={`Delete ${location.name}`}
-                              >
-                                  <Trash2 className="h-4 w-4 text-destructive"/>
-                              </Button>
-                          </div>
-                        </div>
-                    )}
-                </DropdownMenuItem>
-              ))
-          )}
+                      </div>
+                  )}
+              </DropdownMenuItem>
+          )})}
 
         <DropdownMenuSeparator />
         <div className="p-2 space-y-2">
@@ -243,6 +219,35 @@ export function LocationSwitcher({
                     <Plus className="h-4 w-4" />
                 </Button>
             </div>
+        </div>
+        <DropdownMenuSeparator />
+        <div className="p-2">
+          <div className="flex items-center justify-center rounded-md bg-muted p-1">
+              <Button 
+                variant={gardenViewMode === 'multiple' ? 'secondary' : 'ghost'} 
+                size="sm" 
+                className="flex-1 h-7 text-xs" 
+                onClick={() => onGardenViewModeChange('multiple')}
+              >
+                Selected
+              </Button>
+               <Button 
+                variant={gardenViewMode === 'single' ? 'secondary' : 'ghost'} 
+                size="sm" 
+                className="flex-1 h-7 text-xs" 
+                onClick={() => onGardenViewModeChange('single')}
+              >
+                Single
+              </Button>
+               <Button 
+                variant={gardenViewMode === 'all' ? 'secondary' : 'ghost'} 
+                size="sm" 
+                className="flex-1 h-7 text-xs" 
+                onClick={() => onGardenViewModeChange('all')}
+              >
+                All
+              </Button>
+          </div>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

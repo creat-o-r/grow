@@ -1,4 +1,5 @@
 
+
 export type StatusHistory = {
   id: string;
   status: 'Wishlist' | 'Planting' | 'Growing' | 'Harvest';
@@ -63,3 +64,4 @@ export type PlantingWithPlant extends Planting {
 }
 
 export type ViabilityAnalysisMode = 'local' | 'ai';
+export type GardenViewMode = 'single' | 'multiple' | 'all';
