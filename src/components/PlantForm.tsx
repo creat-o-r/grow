@@ -119,7 +119,8 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     setIsAiSearching(true);
     try {
       const result = await aiSearchPlantData({ searchTerm: aiSearchTerm, apiKeys });
-      form.setValue('name', result.species, { shouldValidate: true });
+      const commonName = result.species.split('(')[0].trim();
+      form.setValue('name', commonName, { shouldValidate: true });
       form.setValue('species', result.species, { shouldValidate: true });
       form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
       form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });
@@ -508,5 +509,3 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     </div>
   );
 }
-
-    
