@@ -692,24 +692,35 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
   // Update viability data when dependencies change
   useEffect(() => {
-    // If local mode, always calculate fresh.
-    if (viabilityMechanism === 'local' && activeLocation?.conditions && plantingsWithPlants) {
-      const newViabilityData: Record<string, Viability> = {};
-      plantingsWithPlants.forEach(p => {
-        newViabilityData[p.id] = analyzeViability(p.plant, activeLocation.conditions!);
-      });
-      setViabilityData(newViabilityData);
-      return;
-    }
-    
-    // If AI mode, clear the data. It will be populated on-demand.
-    // This prevents showing stale local data when in AI mode.
-    if (viabilityMechanism === 'ai') {
+    if (viabilityMechanism === 'local') {
+      if (activeLocation?.conditions && plantingsWithPlants) {
+        const newViabilityData: Record<string, Viability> = {};
+        plantingsWithPlants.forEach(p => {
+          newViabilityData[p.id] = analyzeViability(p.plant, activeLocation.conditions!);
+        });
+        setViabilityData(newViabilityData);
+      }
+    } else if (viabilityMechanism === 'ai') {
+        // Clear data only when switching to 'ai' mode
         setViabilityData({});
     }
   }, [
     plantingsWithPlants, 
-    viabilityMechanism,
+    viabilityMechanism
+  ]);
+  
+  // Separate effect for local calculation updates when conditions change
+  useEffect(() => {
+    if (viabilityMechanism === 'local') {
+      if (activeLocation?.conditions && plantingsWithPlants) {
+        const newViabilityData: Record<string, Viability> = {};
+        plantingsWithPlants.forEach(p => {
+          newViabilityData[p.id] = analyzeViability(p.plant, activeLocation.conditions!);
+        });
+        setViabilityData(newViabilityData);
+      }
+    }
+  }, [
     activeLocation?.conditions?.temperature,
     activeLocation?.conditions?.sunlight,
     activeLocation?.conditions?.soil,
