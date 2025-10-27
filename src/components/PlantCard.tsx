@@ -4,7 +4,7 @@
 import type { PlantingWithPlant, Conditions, StatusHistory } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight, Fence } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { ViabilityIndicator } from './ViabilityIndicator';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,7 @@ type PlantCardProps = {
   isSelectionMode: boolean;
   onSelectDuplicate: () => void;
   onGetViability: () => void;
+  showGardenLabel?: boolean;
 };
 
 export function PlantCard({
@@ -37,6 +38,7 @@ export function PlantCard({
     isSelectionMode,
     onSelectDuplicate,
     onGetViability,
+    showGardenLabel,
 }: PlantCardProps) {
     const { plant } = planting;
     const latestStatus = planting.history && planting.history.length > 0 ? planting.history[planting.history.length - 1] : null;
@@ -132,6 +134,12 @@ export function PlantCard({
                 </div>
             </CardContent>
             <CardFooter>
+                 {showGardenLabel && planting.garden && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground w-full">
+                        <Fence className="h-3 w-3" />
+                        <span>{planting.garden.name}</span>
+                    </div>
+                )}
             </CardFooter>
         </>
     );
@@ -174,3 +182,5 @@ export function PlantCard({
         </Card>
     );
 }
+
+    

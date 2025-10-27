@@ -65,7 +65,7 @@ export default function Home() {
 
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [selectedGardenIds, setSelectedGardenIds] = useState<string[]>([]);
-  const [gardenViewMode, setGardenViewMode] = useState<GardenViewMode>('single');
+  const [gardenViewMode, setGardenViewMode] = useState<GardenViewMode>('one');
 
 
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
@@ -144,7 +144,7 @@ export default function Home() {
   useEffect(() => {
     if (activeLocationId) {
         localStorage.setItem('grow_activeLocation', activeLocationId);
-        if (gardenViewMode === 'single') {
+        if (gardenViewMode === 'one') {
             setSelectedGardenIds([activeLocationId]);
         }
     } else {
@@ -704,17 +704,17 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     
     let plantingsToDisplay = plantings;
 
-    if (gardenViewMode === 'single') {
+    if (gardenViewMode === 'one') {
         plantingsToDisplay = plantings.filter(p => p.gardenId === activeLocationId);
-    } else if (gardenViewMode === 'multiple') {
+    } else if (gardenViewMode === 'selected') {
         plantingsToDisplay = plantings.filter(p => selectedGardenIds.includes(p.gardenId));
     }
     // 'all' mode uses all plantings
 
     return plantingsToDisplay
-      .map(p => ({ ...p, plant: plantMap.get(p.plantId)! }))
+      .map(p => ({ ...p, plant: plantMap.get(p.plantId)!, garden: locations?.find(l => l.id === p.gardenId) }))
       .filter(p => p.plant); // Filter out plantings with no matching plant
-  }, [plantings, plants, gardenViewMode, selectedGardenIds, activeLocationId]);
+  }, [plantings, plants, locations, gardenViewMode, selectedGardenIds, activeLocationId]);
   
   const wishlistPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
@@ -1256,6 +1256,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                               isSelectionMode={!!duplicateSelectionMode}
                                               onSelectDuplicate={() => handleDuplicateSelection(p)}
                                               onGetViability={() => handleGetViability(p)}
+                                              showGardenLabel={gardenViewMode === 'all' || gardenViewMode === 'selected'}
                                           />
                                       ))}
                                   </div>
@@ -1285,6 +1286,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                                         isSelectionMode={!!duplicateSelectionMode}
                                                         onSelectDuplicate={() => handleDuplicateSelection(p)}
                                                         onGetViability={() => handleGetViability(p)}
+                                                        showGardenLabel={gardenViewMode === 'all' || gardenViewMode === 'selected'}
                                                     />
                                                 ))}
                                             </div>
@@ -1322,6 +1324,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                                 isSelectionMode={!!duplicateSelectionMode}
                                                 onSelectDuplicate={() => handleDuplicateSelection(p)}
                                                 onGetViability={() => handleGetViability(p)}
+                                                showGardenLabel={gardenViewMode === 'all' || gardenViewMode === 'selected'}
                                             />
                                         ))}
                                     </div>
@@ -1351,6 +1354,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                           isSelectionMode={!!duplicateSelectionMode}
                                           onSelectDuplicate={() => handleDuplicateSelection(p)}
                                           onGetViability={() => handleGetViability(p)}
+                                          showGardenLabel={gardenViewMode === 'all' || gardenViewMode === 'selected'}
                                       />
                                   ))}
                               </div>
@@ -1506,3 +1510,5 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    

@@ -61,7 +61,10 @@ export type AiDataset = {
 // A helper type for combining Plant and Planting data for display
 export type PlantingWithPlant extends Planting {
   plant: Plant;
+  garden?: GardenLocation;
 }
 
 export type ViabilityAnalysisMode = 'local' | 'ai';
-export type GardenViewMode = 'single' | 'multiple' | 'all';
+export type GardenViewMode = 'one' | 'selected' | 'all';
+
+    
