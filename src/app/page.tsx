@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, MouseEvent, useMemo } from 'react';
@@ -697,7 +698,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                               </div>
                               <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
                                   <span className='text-sm text-muted-foreground font-normal truncate'>
-                                      {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
+                                      {activeLocation.conditions.currentSeason || 'Season'}, {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
                                   </span>
                               </AccordionTrigger>
                           </div>
@@ -715,7 +716,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                       </div>
 
                       <AccordionContent className="p-6 pt-2">
-                           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-end">
+                           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end">
                               <div className="sm:col-span-2 lg:col-span-1 relative">
                                   <Label htmlFor="location" className="text-xs font-semibold uppercase text-muted-foreground">Location</Label>
                                   <div className="flex items-center gap-2">
@@ -760,6 +761,10 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                                       </Card>
                                   )}
                               </div>
+                               <div>
+                                  <Label htmlFor="season" className="text-xs font-semibold uppercase text-muted-foreground">Current Season</Label>
+                                  <Input id="season" value={activeLocation?.conditions.currentSeason || ''} onChange={(e) => handleConditionChange('currentSeason', e.target.value)} />
+                               </div>
                               <div>
                               <Label htmlFor="temperature" className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
                               <Input id="temperature" value={activeLocation?.conditions.temperature || ''} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
@@ -792,7 +797,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                             className="h-8"
                         >
                             {status}
-                            <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono", statusFilter === status && 'bg-background/20 text-foreground')}>
+                            <Badge variant="secondary" className="ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono">
                                 {statusCounts[status]}
                             </Badge>
                         </Button>
