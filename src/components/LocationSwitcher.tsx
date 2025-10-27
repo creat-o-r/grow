@@ -135,7 +135,7 @@ export function LocationSwitcher({
     if (gardenViewMode === 'selected') {
         onGardenViewModeChange('one');
     }
-    setSelectedGardenIds([locationId]);
+    onSelectedGardenIdsChange([locationId]);
     setIsOpen(false);
   }
 
