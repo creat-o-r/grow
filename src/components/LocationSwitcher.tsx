@@ -9,8 +9,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -70,6 +68,7 @@ export function LocationSwitcher({
 
   const handleDeleteClick = (e: MouseEvent, location: GardenLocation) => {
     e.stopPropagation();
+    e.preventDefault();
     onDeleteLocation(location);
   };
   
@@ -108,47 +107,30 @@ export function LocationSwitcher({
     }
   }
 
-  const handleCheckboxChange = (e: MouseEvent, locationId: string) => {
-    e.preventDefault();
+  const handleItemSelect = (e: MouseEvent, locationId: string) => {
+    if (gardenViewMode === 'selected') {
+        e.preventDefault();
+        const newSelectedIds = selectedGardenIds.includes(locationId)
+            ? selectedGardenIds.filter((id) => id !== locationId)
+            : [...selectedGardenIds, locationId];
 
-    const isCurrentlySelected = selectedGardenIds.includes(locationId);
-
-    if (isCurrentlySelected && selectedGardenIds.length === 1) {
-        return;
-    }
-
-    const newSelectedIds = isCurrentlySelected
-      ? selectedGardenIds.filter(id => id !== locationId)
-      : [...selectedGardenIds, locationId];
-
-     onSelectedGardenIdsChange(newSelectedIds);
-  };
-
-    const handleItemSelect = (locationId: string) => {
-        if (gardenViewMode === 'selected') {
-            const newSelectedIds = selectedGardenIds.includes(locationId)
-                ? selectedGardenIds.filter((id) => id !== locationId)
-                : [...selectedGardenIds, locationId];
-
-            if (newSelectedIds.length === 1) {
-                // If only one is left selected, switch to 'one' mode with it as active
-                onLocationChange(newSelectedIds[0]);
-                onGardenViewModeChange('one');
-                setIsOpen(false);
-            } else if (newSelectedIds.length === 0 && locations.length > 0) {
-                 // If all are deselected, switch to 'one' mode with the first location
-                onLocationChange(locations[0].id);
-                onGardenViewModeChange('one');
-                setIsOpen(false);
-            } else {
-                onSelectedGardenIdsChange(newSelectedIds);
-            }
+        if (newSelectedIds.length === 0 && locations.length > 0) {
+            onSelectedGardenIdsChange([locations[0].id]);
         } else {
-            onLocationChange(locationId);
-            setIsOpen(false);
+            onSelectedGardenIdsChange(newSelectedIds);
         }
-    };
+    } else {
+        onLocationChange(locationId);
+        setIsOpen(false);
+    }
+};
 
+  const handleSelectOneShortcut = (locationId: string) => {
+    onLocationChange(locationId);
+    onGardenViewModeChange('one');
+    setSelectedGardenIds([locationId]);
+    setIsOpen(false);
+  }
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={(open) => {
@@ -163,15 +145,12 @@ export function LocationSwitcher({
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64" align="start">
           {locations.map(location => {
-            const isSelected = gardenViewMode === 'selected' && selectedGardenIds.includes(location.id);
+            const isSelectedForMulti = gardenViewMode === 'selected' && selectedGardenIds.includes(location.id);
             const isActive = location.id === activeLocationId;
             return (
               <DropdownMenuItem 
                 key={location.id} 
-                onSelect={(e) => {
-                    e.preventDefault(); // Prevent default close behavior
-                    onLocationChange(location.id);
-                }}
+                onSelect={(e) => e.preventDefault()} // Prevent default close behavior
                 className="p-0"
               >
                   {editingLocationId === location.id ? (
@@ -187,12 +166,12 @@ export function LocationSwitcher({
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancelEdit}><X className="h-4 w-4 text-destructive"/></Button>
                       </div>
                     ) : (
-                      <div className={cn("flex items-center w-full justify-between px-2 py-1.5", isActive && gardenViewMode === 'one' && 'bg-accent/50')}>
-                          <div className={cn("flex items-center gap-3 flex-1 cursor-pointer")} onClick={() => onLocationChange(location.id)}>
+                      <div className={cn("flex items-center w-full justify-between px-2 py-1.5 cursor-pointer", isActive && gardenViewMode === 'one' && 'bg-accent/50')}>
+                          <div className={cn("flex items-center gap-3 flex-1")} onClick={() => handleSelectOneShortcut(location.id)}>
                              {gardenViewMode === 'selected' && (
-                                <div onClick={(e) => { e.stopPropagation(); handleItemSelect(location.id); }} className="p-1 -ml-1">
+                                <div onClick={(e) => { e.stopPropagation(); handleItemSelect(e, location.id); }} className="p-1 -ml-1">
                                     <Checkbox
-                                        checked={isSelected}
+                                        checked={isSelectedForMulti}
                                     />
                                 </div>
                              )}
@@ -224,8 +203,8 @@ export function LocationSwitcher({
               </DropdownMenuItem>
           )})}
         
-        <DropdownMenuSeparator />
-        <div className="p-2">
+        
+        <div className="p-2 pt-1">
             <div className="flex items-center justify-center rounded-md bg-muted p-1">
                 <Button 
                     variant={gardenViewMode === 'one' ? 'secondary' : 'ghost'} 

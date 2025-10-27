@@ -711,7 +711,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     
     let plantingsToDisplay = plantings;
 
-    if (gardenViewMode === 'one') {
+    if (effectivelySingleGardenView) {
         plantingsToDisplay = plantings.filter(p => p.gardenId === activeLocationId);
     } else if (gardenViewMode === 'selected') {
         plantingsToDisplay = plantings.filter(p => selectedGardenIds.includes(p.gardenId));
@@ -721,7 +721,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     return plantingsToDisplay
       .map(p => ({ ...p, plant: plantMap.get(p.plantId)!, garden: locations?.find(l => l.id === p.gardenId) }))
       .filter(p => p.plant); // Filter out plantings with no matching plant
-  }, [plantings, plants, locations, gardenViewMode, selectedGardenIds, activeLocationId]);
+  }, [plantings, plants, locations, gardenViewMode, selectedGardenIds, activeLocationId, effectivelySingleGardenView]);
   
   const wishlistPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
@@ -1027,10 +1027,10 @@ const unspecifiedSeasonCount = useMemo(() => {
   }, [locations, selectedGardenIds, gardenViewMode, activeLocation, effectivelySingleGardenView]);
 
   const locationSwitcherTriggerText = useMemo(() => {
+    if (gardenViewMode === 'one' || (gardenViewMode === 'selected' && selectedGardenIds.length <= 1)) {
+       return activeLocation?.name || 'Select Garden';
+    }
     if (gardenViewMode === 'selected') {
-        if (selectedGardenIds.length === 1 && locations) {
-            return locations.find(l => l.id === selectedGardenIds[0])?.name || 'Select Garden';
-        }
         if (selectedGardenIds.length === locations?.length) return 'All Gardens Selected';
         return `${selectedGardenIds.length} Garden(s) Selected`;
     }
@@ -1089,7 +1089,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                     activeLocationId={activeLocationId}
                                     onLocationChange={(id) => {
                                         setActiveLocationId(id);
-                                        if (gardenViewMode === 'selected') {
+                                        if (gardenViewMode === 'selected' && selectedGardenIds.length > 1) {
                                             setSelectedGardenIds([id]);
                                         }
                                     }}
@@ -1102,13 +1102,17 @@ const unspecifiedSeasonCount = useMemo(() => {
                                     triggerText={locationSwitcherTriggerText}
                                   />
                               </div>
-                               {effectivelySingleGardenView && activeLocation && (
-                                <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
+                              <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
+                                {effectivelySingleGardenView && activeLocation ? (
                                     <span className='text-sm text-muted-foreground font-normal truncate'>
                                         {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
                                     </span>
+                                ) : (
+                                    <span className='text-sm text-muted-foreground font-normal truncate'>
+                                        {gardenViewMode === 'all' ? `Viewing All ${locations.length} Gardens` : `Viewing ${selectedGardenIds.length} Gardens`}
+                                    </span>
+                                )}
                                 </AccordionTrigger>
-                               )}
                           </div>
                           
                           <div className="flex items-center gap-2 pl-4">
@@ -1178,28 +1182,6 @@ const unspecifiedSeasonCount = useMemo(() => {
                       </AccordionContent>
                   </AccordionItem>
                 </Accordion>
-                
-                {!effectivelySingleGardenView && (
-                    <Accordion type="single" collapsible className="w-full mb-6 rounded-lg border">
-                        <AccordionItem value="item-1">
-                            <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
-                                Viewing {selectedLocations.length} Gardens
-                            </AccordionTrigger>
-                            <AccordionContent className="p-4 pt-0">
-                                <div className="space-y-2">
-                                    {selectedLocations.map(loc => (
-                                        <div key={loc.id} className="text-sm p-3 bg-muted/50 rounded-md">
-                                            <p className="font-semibold">{loc.name}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {loc.conditions.temperature || 'Temp'}, {loc.conditions.sunlight || 'Sunlight'}, {loc.conditions.soil || 'Soil'}
-                                            </p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
-                )}
                 
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
