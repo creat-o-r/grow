@@ -80,7 +80,7 @@ export default function Home() {
   const unspecifiedSeasonSectionRef = useRef<HTMLDivElement>(null);
 
 
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
 
   const plants = useLiveQuery(() => db.plants.toArray(), []);
   const plantings = useLiveQuery(() => db.plantings.toArray(), []);
@@ -778,13 +778,13 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             await db.aiLogs.bulkAdd(newLogs);
         }
 
-        toast.dismiss(toastId);
+        dismiss(toastId);
         toast({
             title: 'Batch Analysis Complete',
             description: `Analyzed ${newLogs.length} out of ${plantingsToAnalyze.length} plants.`,
         });
 
-    }, [activeLocation?.conditions, apiKeys, areApiKeysSet, toast]);
+    }, [activeLocation?.conditions, apiKeys, areApiKeysSet, toast, dismiss]);
 
 
     // Consolidated effect for viability calculation and batch analysis
@@ -1483,4 +1483,6 @@ const unspecifiedSeasonCount = useMemo(() => {
 }
 
     
+    
+
     
