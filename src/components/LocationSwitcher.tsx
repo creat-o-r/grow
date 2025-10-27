@@ -108,7 +108,8 @@ export function LocationSwitcher({
     }
   }
 
-  const handleCheckboxChange = (locationId: string) => {
+  const handleCheckboxChange = (e: MouseEvent, locationId: string) => {
+    e.preventDefault();
     const newSelectedIds = selectedGardenIds.includes(locationId)
       ? selectedGardenIds.filter(id => id !== locationId)
       : [...selectedGardenIds, locationId];
@@ -155,20 +156,13 @@ export function LocationSwitcher({
                       </div>
                     ) : (
                       <div className="flex items-center w-full justify-between px-2 py-1.5">
-                          <div className={cn("flex items-center gap-3 flex-1", gardenViewMode !== 'selected' ? 'cursor-pointer' : '')} onClick={(e) => {
-                            if (gardenViewMode === 'selected') {
-                                e.preventDefault();
-                                handleCheckboxChange(location.id);
-                            } else {
-                                onLocationChange(location.id)
-                            }
-                          }}>
+                          <div className={cn("flex items-center gap-3 flex-1 cursor-pointer")} onClick={() => onLocationChange(location.id)}>
                              {gardenViewMode === 'selected' && (
-                                <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={() => handleCheckboxChange(location.id)}
-                                    onClick={(e) => e.stopPropagation()}
-                                />
+                                <div onClick={(e) => handleCheckboxChange(e, location.id)}>
+                                    <Checkbox
+                                        checked={isSelected}
+                                    />
+                                </div>
                              )}
                               <span className="flex-1">{location.name}</span>
                           </div>
@@ -197,7 +191,6 @@ export function LocationSwitcher({
                   )}
               </DropdownMenuItem>
           )})}
-        <DropdownMenuSeparator />
           <div className="p-2">
             <div className="flex items-center justify-center rounded-md bg-muted p-1">
                 <Button 
