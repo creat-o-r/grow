@@ -483,7 +483,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
         flow: 'getEnvironmentalData',
-        prompt: { location: promptData.location, currentMonth: promptData.currentMonth },
+        prompt: promptData,
         results: result,
       };
       
@@ -657,6 +657,9 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
         let groupTitle = seasonName;
         if (seasonName === activeLocation.conditions.currentSeason) {
             groupTitle = `Current Season: ${seasonName}`;
+        }
+        if (seasonName === 'Season Not Specified') {
+            groupTitle = 'Season Not Specified';
         }
         return {
             groupTitle: groupTitle,
@@ -913,7 +916,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                         ref={group.groupTitle === 'Season Not Specified' ? unspecifiedSeasonSectionRef : null}
                                       >
                                           <h2 className="text-2xl font-headline mb-4 capitalize">
-                                              {group.groupTitle.toLowerCase()}
+                                              {group.groupTitle === 'Season Not Specified' ? 'Season Not Specified' : group.groupTitle.toLowerCase()}
                                           </h2>
                                           <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                               {group.plantings.map(p => (
