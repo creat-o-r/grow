@@ -1238,23 +1238,24 @@ const unspecifiedSeasonCount = useMemo(() => {
                                 key={status}
                                 variant={statusFilter === status ? 'default' : 'outline'}
                                 size="sm"
-                                onClick={() => setStatusFilter(status)}
+                                onClick={() => {
+                                    if (status === 'All' && hasDuplicates) {
+                                        setIsDuplicateReviewSheetOpen(true);
+                                    } else {
+                                        setStatusFilter(status)
+                                    }
+                                }}
                                 className="h-8"
                             >
                                 {status}
                                 {status === 'All' ? (
                                     <div className="flex items-center gap-1.5 ml-2">
                                         {hasDuplicates && (
-                                            <Button 
-                                                variant="destructive" 
-                                                className="h-6 w-6 p-0"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setIsDuplicateReviewSheetOpen(true);
-                                                }}
+                                            <div 
+                                                className="h-6 w-6 rounded-md bg-destructive text-destructive-foreground font-bold text-lg flex items-center justify-center"
                                             >
-                                                <span className="font-bold text-lg">!</span>
-                                            </Button>
+                                                !
+                                            </div>
                                         )}
                                         <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
                                         <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
@@ -1582,3 +1583,5 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    
