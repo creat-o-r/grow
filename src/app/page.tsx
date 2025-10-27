@@ -1,13 +1,14 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, MouseEvent, useMemo, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, AiDataset } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, AiDataset, ViabilityAnalysisMode } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
-import { getViabilityReasoning } from '@/ai/flows/get-viability-reasoning';
+import { getAiViability } from '@/ai/flows/get-ai-viability';
 import { loadDataset } from '@/lib/datasets';
 import { analyzeViability, Viability, getSuitableSeasons } from '@/lib/viability';
 
@@ -85,6 +86,8 @@ export default function Home() {
   
   const [apiKeys, setApiKeys] = useState({ gemini: '' });
   const [areApiKeysSet, setAreApiKeysSet] = useState(false);
+  const [viabilityMechanism, setViabilityMechanism] = useState<ViabilityAnalysisMode>('local');
+
 
   useEffect(() => {
     setIsClient(true);
@@ -117,6 +120,11 @@ export default function Home() {
       }
     }
 
+    const storedMechanism = localStorage.getItem('grow_viabilityMechanism') as ViabilityAnalysisMode | null;
+    if (storedMechanism) {
+      setViabilityMechanism(storedMechanism);
+    }
+
   }, []);
 
   useEffect(() => {
@@ -138,8 +146,29 @@ export default function Home() {
       });
     } else {
       setAreApiKeysSet(false);
+      // If keys are removed, default back to local viability
+      setViabilityMechanism('local');
+      localStorage.setItem('grow_viabilityMechanism', 'local');
     }
   };
+
+  const handleViabilityMechanismChange = (mechanism: ViabilityAnalysisMode) => {
+    if (mechanism === 'ai' && !areApiKeysSet) {
+       toast({
+        title: 'API Key Required',
+        description: 'Please set your Gemini API key to use AI-powered analysis.',
+        variant: 'destructive',
+      });
+      setIsSettingsSheetOpen(true);
+      return;
+    }
+    setViabilityMechanism(mechanism);
+    localStorage.setItem('grow_viabilityMechanism', mechanism);
+    toast({
+        title: 'Setting Saved',
+        description: `Viability analysis is now set to ${mechanism === 'ai' ? 'AI-Powered' : 'Local'}.`,
+    });
+  }
 
   const activeLocation = locations?.find(loc => loc.id === activeLocationId);
   const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(REPO_URL)}`;
@@ -505,10 +534,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   };
 
   const handleGetViabilityReasoning = async (planting: PlantingWithPlant) => {
-    if (!areApiKeysSet) {
+    if (viabilityMechanism === 'ai' && !areApiKeysSet) {
       toast({
         title: 'API Key Required',
-        description: 'Please set your Gemini API key in the settings.',
+        description: 'Please set your Gemini API key in the settings for AI-powered analysis.',
         variant: 'destructive',
       });
       setIsSettingsSheetOpen(true);
@@ -523,7 +552,8 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     });
 
     try {
-        const viabilityScore = analyzeViability(planting.plant, activeLocation.conditions);
+      let logData;
+      if (viabilityMechanism === 'ai') {
         const promptData = {
             plant: {
                 species: planting.plant.species,
@@ -534,18 +564,29 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
                 ...activeLocation.conditions,
                 currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
             },
-            viabilityScore,
             apiKeys,
         };
 
-      const result = await getViabilityReasoning(promptData);
+        const result = await getAiViability(promptData);
+        logData = { flow: 'getAiViability', prompt: promptData, results: result };
+      } else {
+        // Local reasoning
+        const viability = analyzeViability(planting.plant, activeLocation.conditions);
+        const reasoning = `
+          Based on local analysis:
+          - Viability Score: ${viability}
+          - Plant Needs: ${planting.plant.optimalConditions} ${planting.plant.germinationNeeds}
+          - Garden Conditions: Sun: ${activeLocation.conditions.sunlight}, Temp: ${activeLocation.conditions.temperature}, Soil: ${activeLocation.conditions.soil}
+          This is a simplified, non-AI analysis based on keyword matching.
+        `.trim();
+        const result = { viability, reasoning };
+        logData = { flow: 'localViabilityAnalysis', prompt: { plant: planting.plant.species, conditions: activeLocation.conditions }, results: result };
+      }
       
       const newLog: AiLog = {
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
-        flow: 'getViabilityReasoning',
-        prompt: promptData,
-        results: result,
+        ...logData,
       };
       
       await db.aiLogs.add(newLog);
@@ -557,9 +598,9 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       setIsLogPanelOpen(true);
 
     } catch (error: any) {
-      console.error('AI viability reasoning failed:', error);
+      console.error('Viability reasoning failed:', error);
       toast({
-        title: 'AI Analysis Failed',
+        title: 'Analysis Failed',
         description: error.message || 'Could not retrieve reasoning. Please try again.',
         variant: 'destructive',
       });
@@ -1259,6 +1300,8 @@ const unspecifiedSeasonCount = useMemo(() => {
         onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
+        viabilityMechanism={viabilityMechanism}
+        onViabilityMechanismChange={handleViabilityMechanismChange}
         onDuplicateReviewOpen={() => {
             setIsSettingsSheetOpen(false);
             setIsDuplicateReviewSheetOpen(true);

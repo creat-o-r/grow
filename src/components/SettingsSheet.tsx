@@ -7,10 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, KeyRound, Sparkles, AlertTriangle, SearchCheck, Rocket, MessageSquare, GitBranch, ExternalLink } from 'lucide-react';
+import { Upload, Download, KeyRound, Sparkles, AlertTriangle, SearchCheck, Rocket, MessageSquare, GitBranch, ExternalLink, BrainCircuit, Cpu } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
+import type { ViabilityAnalysisMode } from '@/lib/types';
 
 
 type SettingsSheetProps = {
@@ -21,6 +23,8 @@ type SettingsSheetProps = {
   onPublish: () => void;
   onApiKeysChange: (keys: { gemini: string }) => void;
   apiKeys: { gemini: string };
+  viabilityMechanism: ViabilityAnalysisMode;
+  onViabilityMechanismChange: (mechanism: ViabilityAnalysisMode) => void;
   onDuplicateReviewOpen: () => void;
 };
 
@@ -42,6 +46,8 @@ export function SettingsSheet({
   onPublish,
   onApiKeysChange,
   apiKeys,
+  viabilityMechanism,
+  onViabilityMechanismChange,
   onDuplicateReviewOpen,
 }: SettingsSheetProps) {
   const [confirmationState, setConfirmationState] = useState<ConfirmationState>(null);
@@ -155,35 +161,54 @@ export function SettingsSheet({
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-headline text-lg">API Keys</CardTitle>
-                  <CardDescription>
-                    Provide your API keys to enable AI-powered features. Your keys are stored securely in your browser's local storage and are never shared.
-                  </CardDescription>
+                  <CardTitle className="font-headline text-lg">AI Settings</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                        <Label htmlFor="gemini-key">
-                          <div className="flex items-center gap-2">
-                            <KeyRound className="h-4 w-4" />
-                            <span>Google Gemini API Key</span>
-                          </div>
-                        </Label>
-                        {!localApiKeys.gemini && (
-                            <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
-                                Get API Key <ExternalLink className="h-3 w-3" />
-                            </a>
-                        )}
+                    <div className="space-y-2">
+                        <Label>Viability Analysis</Label>
+                        <div className="flex items-center justify-between rounded-lg border p-3">
+                            <div className="space-y-0.5">
+                                <Label className="text-base flex items-center gap-2">
+                                    {viabilityMechanism === 'ai' ? <BrainCircuit /> : <Cpu />}
+                                    {viabilityMechanism === 'ai' ? 'AI-Powered' : 'Local'}
+                                </Label>
+                                <div className="text-xs text-muted-foreground">
+                                    {viabilityMechanism === 'ai' 
+                                        ? 'Detailed analysis. Requires API key.' 
+                                        : 'Instant, simplified analysis.'}
+                                </div>
+                            </div>
+                            <Switch
+                                checked={viabilityMechanism === 'ai'}
+                                onCheckedChange={(checked) => onViabilityMechanismChange(checked ? 'ai' : 'local')}
+                            />
+                        </div>
                     </div>
-                    <Input 
-                      id="gemini-key" 
-                      type="password" 
-                      placeholder="Enter your Gemini API key" 
-                      value={localApiKeys.gemini}
-                      onChange={(e) => setLocalApiKeys(prev => ({...prev, gemini: e.target.value}))}
-                    />
-                  </div>
-                   <Button onClick={handleSaveApiKeys}>Save API Keys</Button>
+                    <div className="border-t pt-4 space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                            <Label htmlFor="gemini-key">
+                              <div className="flex items-center gap-2">
+                                <KeyRound className="h-4 w-4" />
+                                <span>Google Gemini API Key</span>
+                              </div>
+                            </Label>
+                            {!localApiKeys.gemini && (
+                                <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                                    Get API Key <ExternalLink className="h-3 w-3" />
+                                </a>
+                            )}
+                        </div>
+                        <Input 
+                          id="gemini-key" 
+                          type="password" 
+                          placeholder="Enter your Gemini API key" 
+                          value={localApiKeys.gemini}
+                          onChange={(e) => setLocalApiKeys(prev => ({...prev, gemini: e.target.value}))}
+                        />
+                      </div>
+                       <Button onClick={handleSaveApiKeys}>Save API Keys</Button>
+                    </div>
                 </CardContent>
               </Card>
 

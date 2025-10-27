@@ -59,3 +59,5 @@ export type AiDataset = {
 export type PlantingWithPlant extends Planting {
   plant: Plant;
 }
+
+export type ViabilityAnalysisMode = 'local' | 'ai';
