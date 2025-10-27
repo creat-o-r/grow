@@ -876,9 +876,9 @@ const unspecifiedSeasonCount = useMemo(() => {
                                 {status}
                                 {status === 'All' ? (
                                     <div className="flex items-center gap-1.5 ml-2">
-                                        <Badge className="bg-green-600 dark:bg-green-500 text-white dark:text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
-                                        <Badge className="bg-yellow-500 dark:bg-yellow-400 text-white dark:text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
-                                        <Badge className="bg-red-600 dark:bg-red-500 text-white dark:text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
+                                        <Badge className="bg-green-600 dark:bg-green-500 text-white dark:text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
+                                        <Badge className="bg-yellow-500 dark:bg-yellow-400 text-black dark:text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
+                                        <Badge className="bg-red-600 dark:bg-red-500 text-white dark:text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
                                     </div>
                                 ) : (
                                     <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
@@ -895,126 +895,93 @@ const unspecifiedSeasonCount = useMemo(() => {
                     <>
                       {statusFilter === 'Wishlist' ? (
                           wishlistPlantings.length > 0 ? (
-                            wishlistSortOrder === 'viability' ? (
-                                <div>
-                                    <div className="flex justify-end items-center mb-4">
-                                        <div className="flex items-center gap-4">
-                                            {unspecifiedSeasonCount > 0 && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 gap-2 text-muted-foreground"
-                                                    onClick={() => {
-                                                        setWishlistSortOrder('season');
-                                                        setTimeout(() => {
-                                                            unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
-                                                        }, 100);
-                                                    }}
-                                                >
-                                                    <AlertCircle className="h-4 w-4" />
-                                                    <span className="font-mono">{unspecifiedSeasonCount}</span>
-                                                </Button>
-                                            )}
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant={wishlistSortOrder === 'season' ? 'outline' : 'default'}
-                                                    onClick={() => setWishlistSortOrder('season')}
-                                                    className="h-8"
-                                                >
-                                                    Season
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant={wishlistSortOrder === 'viability' ? 'default' : 'outline'}
-                                                    onClick={() => setWishlistSortOrder('viability')}
-                                                    className="h-8"
-                                                >
-                                                    Viability
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                        {sortedWishlistByViability.map(p => (
-                                            <PlantCard
-                                                key={p.id}
-                                                planting={p}
-                                                gardenConditions={activeLocation?.conditions}
-                                                onEdit={() => handleEditPlanting(p)}
-                                                onDelete={() => promptDelete(p)}
-                                                onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
-                                                isDuplicateSource={duplicateSelectionMode?.id === p.id}
-                                                isSelectionMode={!!duplicateSelectionMode}
-                                                onSelectDuplicate={() => handleDuplicateSelection(p)}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : (
-                              <div className="space-y-8">
-                                  {organizedWishlist && organizedWishlist.map((group, index) => (
-                                      <section 
-                                        key={group.groupTitle}
-                                        ref={group.groupTitle === 'Season Not Specified' ? unspecifiedSeasonSectionRef : null}
-                                      >
-                                          <div className="flex justify-between items-center mb-4 sticky top-0 bg-background py-2 z-10">
-                                            <h2 className="text-2xl font-headline capitalize">
-                                                {group.groupTitle.toLowerCase()}
-                                            </h2>
-                                            {index === 0 && (
-                                              <div className="flex items-center gap-4">
-                                                {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 gap-2 text-muted-foreground"
-                                                        onClick={() => unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                                                    >
-                                                        <AlertCircle className="h-4 w-4" />
-                                                        <span className="font-mono">{unspecifiedSeasonCount}</span>
-                                                    </Button>
-                                                )}
-                                                <div className="flex items-center gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        variant={wishlistSortOrder === 'season' ? 'default' : 'outline'}
-                                                        onClick={() => setWishlistSortOrder('season')}
-                                                        className="h-8"
-                                                    >
-                                                        Season
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant={wishlistSortOrder === 'viability' ? 'default' : 'outline'}
-                                                        onClick={() => setWishlistSortOrder('viability')}
-                                                        className="h-8"
-                                                    >
-                                                        Viability
-                                                    </Button>
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
-                                          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                              {group.plantings.map(p => (
-                                                  <PlantCard
-                                                      key={p.id}
-                                                      planting={p}
-                                                      gardenConditions={activeLocation?.conditions}
-                                                      onEdit={() => handleEditPlanting(p)}
-                                                      onDelete={() => promptDelete(p)}
-                                                      onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
-                                                      isDuplicateSource={duplicateSelectionMode?.id === p.id}
-                                                      isSelectionMode={!!duplicateSelectionMode}
-                                                      onSelectDuplicate={() => handleDuplicateSelection(p)}
-                                                  />
-                                              ))}
-                                          </div>
-                                      </section>
-                                  ))}
+                            <>
+                              <div className="flex justify-end items-center mb-4">
+                                  <div className="flex items-center gap-4">
+                                      {unspecifiedSeasonCount > 0 && (
+                                          <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-8 gap-2 text-muted-foreground"
+                                              onClick={() => {
+                                                  setWishlistSortOrder('season');
+                                                  setTimeout(() => {
+                                                      unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+                                                  }, 100);
+                                              }}
+                                          >
+                                              <AlertCircle className="h-4 w-4" />
+                                              <span className="font-mono">{unspecifiedSeasonCount}</span>
+                                          </Button>
+                                      )}
+                                      <div className="flex items-center gap-2">
+                                          <Button
+                                              size="sm"
+                                              variant={wishlistSortOrder === 'season' ? 'default' : 'outline'}
+                                              onClick={() => setWishlistSortOrder('season')}
+                                              className="h-8"
+                                          >
+                                              Season
+                                          </Button>
+                                          <Button
+                                              size="sm"
+                                              variant={wishlistSortOrder === 'viability' ? 'default' : 'outline'}
+                                              onClick={() => setWishlistSortOrder('viability')}
+                                              className="h-8"
+                                          >
+                                              Viability
+                                          </Button>
+                                      </div>
+                                  </div>
                               </div>
-                            )
+                              {wishlistSortOrder === 'viability' ? (
+                                  <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                      {sortedWishlistByViability.map(p => (
+                                          <PlantCard
+                                              key={p.id}
+                                              planting={p}
+                                              gardenConditions={activeLocation?.conditions}
+                                              onEdit={() => handleEditPlanting(p)}
+                                              onDelete={() => promptDelete(p)}
+                                              onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                              isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                              isSelectionMode={!!duplicateSelectionMode}
+                                              onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                          />
+                                      ))}
+                                  </div>
+                              ) : (
+                                <div className="space-y-8">
+                                    {organizedWishlist && organizedWishlist.map((group) => (
+                                        <section 
+                                          key={group.groupTitle}
+                                          ref={group.groupTitle === 'Season Not Specified' ? unspecifiedSeasonSectionRef : null}
+                                        >
+                                            <div className="flex justify-between items-center mb-4 sticky top-0 bg-background py-2 z-10">
+                                              <h2 className="text-2xl font-headline capitalize">
+                                                  {group.groupTitle.toLowerCase()}
+                                              </h2>
+                                            </div>
+                                            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                                {group.plantings.map(p => (
+                                                    <PlantCard
+                                                        key={p.id}
+                                                        planting={p}
+                                                        gardenConditions={activeLocation?.conditions}
+                                                        onEdit={() => handleEditPlanting(p)}
+                                                        onDelete={() => promptDelete(p)}
+                                                        onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                                        isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                                        isSelectionMode={!!duplicateSelectionMode}
+                                                        onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </section>
+                                    ))}
+                                </div>
+                              )}
+                            </>
                           ) : (
                               <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                                   <CardHeader>
