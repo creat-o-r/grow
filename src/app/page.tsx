@@ -60,7 +60,7 @@ const GardenEditor = React.memo(function GardenEditor({
 }: GardenEditorProps) {
   return (
     <div key={loc.id} className="grid gap-6 border-b pb-6 last:border-b-0 last:pb-0">
-       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end">
+       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
           <div className="sm:col-span-2 lg:col-span-1 relative">
             <Label htmlFor={`location-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">{loc.name}</Label>
             <div className="flex items-center gap-2">
@@ -79,57 +79,59 @@ const GardenEditor = React.memo(function GardenEditor({
               </Button>
             </div>
           </div>
-          <div>
-            <Label htmlFor={`season-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Current Season</Label>
-            <Select
-              value={loc.conditions.currentSeason || ''}
-              onValueChange={(value) => handleConditionChange(value, 'currentSeason', loc.id)}
-            >
-              <SelectTrigger id={`season-${loc.id}`}>
-                <SelectValue placeholder="Select season" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Spring">Spring</SelectItem>
-                <SelectItem value="Summer">Summer</SelectItem>
-                <SelectItem value="Autumn">Autumn</SelectItem>
-                <SelectItem value="Winter">Winter</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor={`temperature-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
-            <Input 
-              id={`temperature-${loc.id}`} 
-              name="temperature"
-              defaultValue={loc.conditions.temperature || ''} 
-              onBlur={handleLocationFieldChange} 
-              onKeyDown={handleLocationFieldChange}
-            />
-          </div>
-          <div>
-            <Label htmlFor={`sunlight-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
-            <Input 
-              id={`sunlight-${loc.id}`} 
-              name="sunlight"
-              defaultValue={loc.conditions.sunlight || ''} 
-              onBlur={handleLocationFieldChange} 
-              onKeyDown={handleLocationFieldChange}
-            />
-          </div>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <Label htmlFor={`soil-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 sm:col-span-2 lg:col-span-4 gap-4 items-end">
+            <div>
+              <Label htmlFor={`season-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Current Season</Label>
+              <Select
+                value={loc.conditions.currentSeason || ''}
+                onValueChange={(value) => handleConditionChange(value, 'currentSeason', loc.id)}
+              >
+                <SelectTrigger id={`season-${loc.id}`}>
+                  <SelectValue placeholder="Select season" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Spring">Spring</SelectItem>
+                  <SelectItem value="Summer">Summer</SelectItem>
+                  <SelectItem value="Autumn">Autumn</SelectItem>
+                  <SelectItem value="Winter">Winter</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor={`temperature-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
               <Input 
-                id={`soil-${loc.id}`} 
-                name="soil"
-                defaultValue={loc.conditions.soil || ''} 
+                id={`temperature-${loc.id}`} 
+                name="temperature"
+                defaultValue={loc.conditions.temperature || ''} 
                 onBlur={handleLocationFieldChange} 
                 onKeyDown={handleLocationFieldChange}
               />
             </div>
-            <Button size="icon" variant="outline" onClick={() => handleAnalyzeConditions(loc.id)} disabled={isAnalyzing === loc.id}>
-              {isAnalyzing === loc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            </Button>
+            <div>
+              <Label htmlFor={`sunlight-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
+              <Input 
+                id={`sunlight-${loc.id}`} 
+                name="sunlight"
+                defaultValue={loc.conditions.sunlight || ''} 
+                onBlur={handleLocationFieldChange} 
+                onKeyDown={handleLocationFieldChange}
+              />
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label htmlFor={`soil-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
+                <Input 
+                  id={`soil-${loc.id}`} 
+                  name="soil"
+                  defaultValue={loc.conditions.soil || ''} 
+                  onBlur={handleLocationFieldChange} 
+                  onKeyDown={handleLocationFieldChange}
+                />
+              </div>
+              <Button size="icon" variant="outline" onClick={() => handleAnalyzeConditions(loc.id)} disabled={isAnalyzing === loc.id}>
+                {isAnalyzing === loc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -602,6 +604,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         temperature: '',
         sunlight: '',
         soil: '',
+        currentSeason: 'Spring',
       },
       growingSystems: '',
       growingMethods: '',
@@ -1216,8 +1219,8 @@ const unspecifiedSeasonCount = useMemo(() => {
               <>
                 <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg" value={accordionValue} onValueChange={setAccordionValue}>
                   <AccordionItem value="item-1" className="border-0">
-                      <div className="flex items-center justify-between w-full px-4 py-3">
-                          <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className="flex flex-col md:flex-row items-center justify-between w-full px-4 py-3 gap-4">
+                          <div className="flex items-center gap-4 flex-1 min-w-0 w-full">
                                <div onClick={(e) => e.stopPropagation()}>
                                   <LocationSwitcher 
                                     locations={locations || []}
@@ -1257,12 +1260,12 @@ const unspecifiedSeasonCount = useMemo(() => {
                                 </AccordionTrigger>
                           </div>
                           
-                          <div className="flex items-center gap-2 pl-4">
-                             <Button onClick={handleOpenAddSheet}>
+                          <div className="flex items-center gap-2 pl-0 md:pl-4 w-full md:w-auto">
+                             <Button onClick={handleOpenAddSheet} className="w-full md:w-auto">
                                   <Plus className="mr-2 h-4 w-4" />
                                   Add Plant
                               </Button>
-                              <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10">
+                              <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
                                 <Settings className="h-4 w-4" />
                                 <span className="sr-only">Settings</span>
                               </Button>
@@ -1287,7 +1290,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                 </Accordion>
                 
                 <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2">
                         {allFilters.map((status) => (
                             <Button
                                 key={status}
@@ -1300,7 +1303,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                         setStatusFilter(status)
                                     }
                                 }}
-                                className="h-8"
+                                className="h-8 flex-shrink-0"
                             >
                                 {status}
                                 {status === 'All' ? (
@@ -1317,9 +1320,9 @@ const unspecifiedSeasonCount = useMemo(() => {
                                                 <span className="font-bold text-lg">!</span>
                                             </Button>
                                         )}
-                                        <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
-                                        <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
-                                        <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
+                                        <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono hidden sm:inline-block">{viabilityCounts.High}</Badge>
+                                        <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono hidden sm:inline-block">{viabilityCounts.Medium}</Badge>
+                                        <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono hidden sm:inline-block">{viabilityCounts.Low}</Badge>
                                     </div>
                                 ) : (
                                     <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
@@ -1512,11 +1515,11 @@ const unspecifiedSeasonCount = useMemo(() => {
                         Add a plant or import a sample dataset to get started.
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="flex gap-4">
-                       <Button onClick={handleOpenAddSheet}>
+                    <CardContent className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
+                       <Button onClick={handleOpenAddSheet} className="w-full">
                          <Plus className="mr-2 h-4 w-4" /> Add Your First Plant
                       </Button>
-                       <Button onClick={() => setIsSettingsSheetOpen(true)} variant="secondary">
+                       <Button onClick={() => setIsSettingsSheetOpen(true)} variant="secondary" className="w-full">
                          <Upload className="mr-2 h-4 w-4" /> Import Datasets
                       </Button>
                     </CardContent>
@@ -1623,7 +1626,7 @@ const unspecifiedSeasonCount = useMemo(() => {
 
 
       <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
-        <SheetContent className="sm:max-w-lg w-[90vw] overflow-y-auto">
+        <SheetContent className="w-full max-w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="font-headline">{plantingToEdit ? 'Edit Plant' : 'Add a New Plant'}</SheetTitle>
           </SheetHeader>
