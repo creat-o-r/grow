@@ -292,7 +292,12 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         await db.plants.bulkAdd(data.plants);
       }
       if (data.plantings) {
-        await db.plantings.bulkAdd(data.plantings);
+        const firstLocationId = data.locations[0]?.id;
+        const plantingsWithGardenId = data.plantings.map(p => ({
+          ...p,
+          gardenId: firstLocationId,
+        }))
+        await db.plantings.bulkAdd(plantingsWithGardenId);
       }
     });
 
@@ -345,15 +350,14 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   };
 
   const handleConditionChange = useCallback(async (locationId: string, field: keyof Conditions, value: string) => {
-    if (!locationId) return;
     const location = await db.locations.get(locationId);
     if (location) {
-        await db.locations.update(locationId, { conditions: { ...location.conditions, [field]: value } });
+        const newConditions = { ...location.conditions, [field]: value };
+        await db.locations.update(locationId, { conditions: newConditions });
     }
   }, []);
   
   const handleLocationFieldChange = useCallback(async (locationId: string, value: string) => {
-    if (!locationId) return;
     const location = await db.locations.get(locationId);
     if (!location) return;
 
@@ -845,10 +849,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         } else if (viabilityMechanism === 'ai' && areApiKeysSet) {
             const plantingsToAnalyze = plantingsWithPlants.filter(p => p.gardenId === activeLocationId);
 
-            if (justSwitchedToAi && plantingsToAnalyze.length > 0) {
-                setViabilityData({}); // Clear old data for a clean slate
-                handleBatchAiViabilityAnalysis(plantingsToAnalyze);
-            } else if (conditionsChangedInAiMode && plantingsToAnalyze.length > 0) {
+            if ((justSwitchedToAi || conditionsChangedInAiMode) && plantingsToAnalyze.length > 0) {
                  handleBatchAiViabilityAnalysis(plantingsToAnalyze);
             }
         }
@@ -863,7 +864,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         previousActiveConditions,
         areApiKeysSet,
         handleBatchAiViabilityAnalysis,
-        // plantingsWithPlants is intentionally omitted to prevent loop
+        plantingsWithPlants,
     ]);
 
 
