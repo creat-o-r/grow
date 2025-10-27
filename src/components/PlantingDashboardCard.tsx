@@ -12,6 +12,7 @@ import { ExternalLink, CheckCircle } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlant }) {
     const [seedsOnHand, setSeedsOnHand] = useState<number | string>('');
@@ -132,7 +133,7 @@ export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlan
         }
     };
 
-    const seedsRequired = Math.max(0, (planting.plannedQty || 0) - (planting.seedsOnHand || 0));
+    const seedsRequired = Math.max(0, (Number(plannedQty) || 0) - (planting.seedsOnHand || 0));
 
     return (
         <Card className="flex flex-col bg-muted/50">
@@ -182,9 +183,11 @@ export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlan
                                 placeholder="e.g., 20"
                                 value={plannedQty}
                                 onChange={(e) => setPlannedQty(e.target.value)}
+                                onBlur={handleSetPlannedQty}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSetPlannedQty()}
                                 className="h-9"
                             />
-                            <Button onClick={handleSetPlannedQty} size="sm" className="h-9">Set</Button>
+                             <Button onClick={handleSetPlannedQty} size="sm" className="h-9">Set</Button>
                         </div>
                          {planting.plannedQty !== undefined && planting.plannedQty > 0 ? (
                             <p className="text-xs text-muted-foreground">
@@ -203,6 +206,23 @@ export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlan
                     <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Planting')}>Mark as Planting</Button>
                     <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Growing')}>Mark as Growing</Button>
                 </div>
+                 <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="item-1" className="border-b-0">
+                        <AccordionTrigger className="text-xs py-2 hover:no-underline">Show Details</AccordionTrigger>
+                        <AccordionContent>
+                           <div className="text-xs text-muted-foreground space-y-2 mt-2">
+                                <div>
+                                    <p className="font-semibold text-foreground/80">Germination</p>
+                                    <p>{planting.plant.germinationNeeds}</p>
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-foreground/80">Conditions</p>
+                                    <p>{planting.plant.optimalConditions}</p>
+                                </div>
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
             </CardContent>
         </Card>
     );
