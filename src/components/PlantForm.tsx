@@ -509,5 +509,3 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     </div>
   );
 }
-
-    
