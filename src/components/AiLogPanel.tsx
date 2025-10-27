@@ -1,13 +1,13 @@
 
 'use client';
 
-import type { AiLog, ViabilityAnalysisMode } from '@/lib/types';
+import type { AiLog } from '@/lib/types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Settings, AlertTriangle, ThumbsDown, ThumbsUp, Medal, BrainCircuit, Cpu } from 'lucide-react';
+import { Settings, AlertTriangle, ThumbsDown, ThumbsUp, BrainCircuit, Cpu, Target } from 'lucide-react';
 import {
   Alert,
   AlertDescription,
@@ -52,7 +52,7 @@ const toTitleCase = (str: string) => {
 export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiKeysSet }: AiLogPanelProps) {
     const { toast } = useToast();
     
-    const handleFeedback = async (logId: string, feedback: 'bad' | 'ok' | 'great') => {
+    const handleFeedback = async (logId: string, feedback: 'way-off' | 'bad' | 'ok' | 'spot-on') => {
         try {
             await db.aiLogs.update(logId, { feedback });
             toast({
@@ -109,7 +109,7 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                   }
 
                   const displayName = FLOW_DISPLAY_NAMES[log.flow] || log.flow;
-                  const isViabilityAnalysis = log.flow === 'getAiViability' || log.flow === 'localViabilityAnalysis';
+                  const showFeedback = log.flow === 'getAiViability' || log.flow === 'localViabilityAnalysis' || log.flow === 'getEnvironmentalData';
 
                   return (
                     <Card key={log.id} className="text-sm">
@@ -117,7 +117,7 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                         <CardTitle className="text-base font-medium flex justify-between items-start">
                             <div className="flex flex-col gap-1.5">
                                 <span className='font-mono text-primary'>{displayName}</span>
-                                {isViabilityAnalysis && log.viabilityType && (
+                                {log.viabilityType && (
                                     <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
                                         {log.viabilityType === 'ai' ? <BrainCircuit className="h-3 w-3" /> : <Cpu className="h-3 w-3" />}
                                         {log.viabilityType === 'ai' ? 'AI-Powered Analysis' : 'Local Analysis'}
@@ -167,16 +167,24 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                           </div>
                         )}
                       </CardContent>
-                      {isViabilityAnalysis && (
+                      {showFeedback && (
                         <CardFooter className="flex flex-col items-start gap-3">
-                            <h4 className="text-xs font-semibold text-muted-foreground">Was this analysis helpful?</h4>
+                            <h4 className="text-xs font-semibold text-muted-foreground">Rate this analysis</h4>
                             <div className="flex gap-2">
                                 <Button 
                                     size="sm" 
+                                    variant={log.feedback === 'way-off' ? 'destructive' : 'outline'}
+                                    onClick={() => handleFeedback(log.id, 'way-off')}
+                                >
+                                    Way Off
+                                </Button>
+                                <Button 
+                                    size="sm" 
                                     variant={log.feedback === 'bad' ? 'destructive' : 'outline'}
+                                    className={cn(log.feedback === 'bad' && 'bg-red-700/80 hover:bg-red-700')}
                                     onClick={() => handleFeedback(log.id, 'bad')}
                                 >
-                                    <ThumbsDown className={cn("mr-2 h-4 w-4", log.feedback === 'bad' && 'text-destructive-foreground')} /> Bad
+                                   <ThumbsDown className="mr-2 h-4 w-4" /> Bad
                                 </Button>
                                 <Button 
                                     size="sm" 
@@ -188,11 +196,11 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                                 </Button>
                                 <Button 
                                     size="sm" 
-                                    variant={log.feedback === 'great' ? 'secondary' : 'outline'}
-                                    className={cn(log.feedback === 'great' && 'bg-green-600/80 text-secondary-foreground hover:bg-green-600')}
-                                    onClick={() => handleFeedback(log.id, 'great')}
+                                    variant={log.feedback === 'spot-on' ? 'secondary' : 'outline'}
+                                    className={cn(log.feedback === 'spot-on' && 'bg-green-600/80 text-secondary-foreground hover:bg-green-600')}
+                                    onClick={() => handleFeedback(log.id, 'spot-on')}
                                 >
-                                    <Medal className="mr-2 h-4 w-4" /> Great
+                                    <Target className="mr-2 h-4 w-4" /> Spot On
                                 </Button>
                             </div>
                         </CardFooter>

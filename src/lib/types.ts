@@ -47,7 +47,7 @@ export type AiLog = {
     flow: string;
     prompt: any;
     results: any;
-    feedback?: 'bad' | 'ok' | 'great';
+    feedback?: 'way-off' | 'bad' | 'ok' | 'spot-on';
     viabilityType?: ViabilityAnalysisMode;
 }
 
