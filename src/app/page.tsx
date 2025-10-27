@@ -382,8 +382,10 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
           const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await response.json();
           const locationName = data.display_name || 'Unknown Location';
-          handleLocationFieldChange('location', locationName);
+          
           setLocationSearchQuery(locationName); // Update search query as well
+          handleLocationFieldChange('location', locationName);
+
           toast({
             title: 'Location Found',
             description: `Set to ${locationName}`,
@@ -412,8 +414,8 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
   };
 
   const handleLocationSuggestionSelect = (locationName: string) => {
-    handleLocationFieldChange('location', locationName);
     setLocationSearchQuery(locationName);
+    handleLocationFieldChange('location', locationName);
     setLocationSuggestions([]);
     setShowLocationSuggestions(false);
     // Briefly set focus away and back to prevent immediate re-opening of suggestions
@@ -559,13 +561,13 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
 
     const getBestPlantSeason = (plant: Plant): string => {
         const seasons = getSuitableSeasons(plant);
-        if (seasons.length === 0) return 'Any';
+        if (seasons.length === 0) return 'Year-Round';
 
         const seasonOrder = ['Spring', 'Summer', 'Autumn', 'Winter'];
         const currentSeason = activeLocation.conditions.currentSeason;
         const currentSeasonIndex = currentSeason ? seasonOrder.indexOf(currentSeason) : -1;
 
-        if (currentSeasonIndex === -1) return seasons[0]; // Default if current season isn't set
+        if (currentSeasonIndex === -1) return seasons[0];
 
         // Find the next best season, starting from the current one
         for (let i = 0; i < seasonOrder.length; i++) {
@@ -575,18 +577,18 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                 return season;
             }
         }
-        return 'Any'; // Fallback
+        return seasons[0]; // Fallback to the first suitable season if no match is found
     };
 
     const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
-    const seasonOrder = ['Spring', 'Summer', 'Autumn', 'Winter'];
+    const seasonOrder = ['Spring', 'Summer', 'Autumn', 'Winter', 'Year-Round'];
     const currentSeason = activeLocation.conditions.currentSeason;
     const currentSeasonIndex = currentSeason ? seasonOrder.indexOf(currentSeason) : 0;
 
     const getSeasonScore = (season: string) => {
-        if (season === 'Any') return 4;
         const seasonIndex = seasonOrder.indexOf(season);
-        return (seasonIndex - currentSeasonIndex + 4) % 4;
+        if (seasonIndex === -1) return 4; // 'Year-Round' or others at the end
+        return (seasonIndex - currentSeasonIndex + seasonOrder.length) % seasonOrder.length;
     };
     
     const wishlistPlantings = plantingsWithPlants.filter(p => p.history?.slice(-1)[0]?.status === 'Wishlist');
