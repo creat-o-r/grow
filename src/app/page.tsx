@@ -761,7 +761,8 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             }
         } else if (viabilityMechanism === 'ai') {
             // Only run batch analysis if the mode was just switched from local to ai
-            if (previousViabilityMechanism === 'local') {
+            const justSwitchedToAi = previousViabilityMechanism === 'local';
+            if (justSwitchedToAi) {
                 setViabilityData({}); // Clear old data for a clean slate
                 if (plantingsWithPlants && plantingsWithPlants.length > 0) {
                     handleBatchAiViabilityAnalysis(plantingsWithPlants);
@@ -1447,3 +1448,5 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    
