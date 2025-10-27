@@ -1027,7 +1027,7 @@ const unspecifiedSeasonCount = useMemo(() => {
   }, [locations, selectedGardenIds, gardenViewMode, activeLocation, effectivelySingleGardenView]);
 
   const locationSwitcherTriggerText = useMemo(() => {
-    if (gardenViewMode === 'one' || (gardenViewMode === 'selected' && selectedGardenIds.length <= 1)) {
+    if (effectivelySingleGardenView) {
        return activeLocation?.name || 'Select Garden';
     }
     if (gardenViewMode === 'selected') {
@@ -1036,7 +1036,7 @@ const unspecifiedSeasonCount = useMemo(() => {
     }
     if (gardenViewMode === 'all') return 'All Gardens';
     return activeLocation?.name || 'Select Garden';
-}, [gardenViewMode, activeLocation, selectedGardenIds, locations]);
+}, [gardenViewMode, activeLocation, selectedGardenIds, locations, effectivelySingleGardenView]);
 
 
   if (!isClient || !plantings || !plants || !locations || !aiLogs) {
@@ -1108,9 +1108,14 @@ const unspecifiedSeasonCount = useMemo(() => {
                                         {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
                                     </span>
                                 ) : (
-                                    <span className='text-sm text-muted-foreground font-normal truncate'>
-                                        {gardenViewMode === 'all' ? `Viewing All ${locations.length} Gardens` : `Viewing ${selectedGardenIds.length} Gardens`}
-                                    </span>
+                                    <div className="flex flex-col items-start text-sm text-muted-foreground font-normal">
+                                        {selectedLocations.map((loc, index) => (
+                                            <div key={loc.id} className="truncate">
+                                                <span><span className="font-semibold">{loc.name}:</span> {loc.conditions.temperature || 'N/A'}</span>
+                                                {index < selectedLocations.length - 1 && <span className="mx-1">|</span>}
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
                                 </AccordionTrigger>
                           </div>
