@@ -179,7 +179,7 @@ export default function Home() {
   const [analysisProgress, setAnalysisProgress] = useState(0);
 
   const previousViabilityMechanism = usePrevious(viabilityMechanism);
-  const activeLocation = locations?.find(loc => loc.id === activeLocationId);
+  const activeLocation = useMemo(() => locations?.find(loc => loc.id === activeLocationId), [locations, activeLocationId]);
   const previousActiveConditions = usePrevious(activeLocation?.conditions);
   const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(REPO_URL)}`;
 
@@ -339,6 +339,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   };
 
   const importData = async (data: AiDataset, name: string) => {
+    setViabilityData({}); // Clear old viability data
     await db.transaction('rw', db.plants, db.plantings, db.locations, async () => {
         await db.plants.clear();
         await db.plantings.clear();
@@ -422,7 +423,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       setIsSettingsSheetOpen(true);
       return;
     }
-
+    
     const locationToAnalyze = locationOverride || locations?.find(l => l.id === locationId)?.location;
 
     if (!locationToAnalyze || !locationToAnalyze.trim()) {
@@ -897,7 +898,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             activeLocation?.conditions.currentSeason !== previousActiveConditions?.currentSeason
         );
 
-        if (viabilityMechanism === 'ai' && areApiKeysSet) {
+        if (viabilityMechanism === 'ai' && areApiKeysSet && plantingsWithPlants) {
             const plantingsToAnalyze = plantingsWithPlants.filter(p => p.gardenId === activeLocationId);
             if ((justSwitchedToAi || conditionsChangedInAiMode) && plantingsToAnalyze.length > 0) {
                  handleBatchAiViabilityAnalysis(plantingsToAnalyze);
@@ -1547,5 +1548,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
