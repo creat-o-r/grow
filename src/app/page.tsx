@@ -571,24 +571,6 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
   const organizedWishlist = useMemo(() => {
     if (!wishlistPlantings || !activeLocation?.conditions) return null;
 
-    if (wishlistSortOrder === 'viability') {
-        const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
-        const groupedByViability: Record<Viability, PlantingWithPlant[]> = { High: [], Medium: [], Low: [] };
-        
-        wishlistPlantings.forEach(p => {
-            const viability = analyzeViability(p.plant, activeLocation.conditions!);
-            groupedByViability[viability].push(p);
-        });
-
-        // Sort within each group by name for consistent ordering
-        Object.values(groupedByViability).forEach(group => group.sort((a, b) => a.name.localeCompare(b.name)));
-
-        return (Object.keys(groupedByViability) as Viability[]).sort((a,b) => viabilityOrder[a] - viabilityOrder[b]).map(viability => ({
-            groupTitle: `${viability} Viability`,
-            plantings: groupedByViability[viability]
-        }));
-    }
-
     // Default to 'season' sort
     const getBestPlantSeason = (plant: Plant): string => {
         const suitableSeasons = getSuitableSeasons(plant);
@@ -667,7 +649,17 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
         };
     });
 
-}, [wishlistPlantings, activeLocation?.conditions, wishlistSortOrder]);
+}, [wishlistPlantings, activeLocation?.conditions]);
+
+const sortedWishlistByViability = useMemo(() => {
+    if (!wishlistPlantings || !activeLocation?.conditions) return [];
+    const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
+    return [...wishlistPlantings].sort((a, b) => {
+        const viabilityA = analyzeViability(a.plant, activeLocation!.conditions);
+        const viabilityB = analyzeViability(b.plant, activeLocation!.conditions);
+        return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
+    });
+}, [wishlistPlantings, activeLocation?.conditions]);
 
 const unspecifiedSeasonCount = useMemo(() => {
     if (wishlistSortOrder !== 'season' || !organizedWishlist) return 0;
@@ -882,9 +874,10 @@ const unspecifiedSeasonCount = useMemo(() => {
                 {plantings && plantings.length > 0 ? (
                     <>
                       {statusFilter === 'Wishlist' ? (
-                          organizedWishlist && organizedWishlist.length > 0 ? (
+                          wishlistPlantings.length > 0 ? (
+                            wishlistSortOrder === 'season' ? (
                               <div className="space-y-8">
-                                  {organizedWishlist.map((group, index) => (
+                                  {organizedWishlist && organizedWishlist.map((group, index) => (
                                       <section 
                                         key={group.groupTitle}
                                         ref={group.groupTitle === 'Season Not Specified' ? unspecifiedSeasonSectionRef : null}
@@ -895,9 +888,6 @@ const unspecifiedSeasonCount = useMemo(() => {
                                             </h2>
                                             {index === 0 && (
                                               <div className="flex items-center gap-4">
-                                                <Label className='text-sm font-medium text-muted-foreground'>
-                                                    Sort by
-                                                </Label>
                                                 {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
                                                     <Button
                                                         variant="ghost"
@@ -948,6 +938,58 @@ const unspecifiedSeasonCount = useMemo(() => {
                                       </section>
                                   ))}
                               </div>
+                            ) : (
+                                <div>
+                                    <div className="flex justify-end items-center mb-4">
+                                        <div className="flex items-center gap-4">
+                                            {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 gap-2 text-muted-foreground"
+                                                    onClick={() => unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                                                >
+                                                    <AlertCircle className="h-4 w-4" />
+                                                    <span className="font-mono">{unspecifiedSeasonCount}</span>
+                                                </Button>
+                                            )}
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant={wishlistSortOrder === 'season' ? 'default' : 'outline'}
+                                                    onClick={() => setWishlistSortOrder('season')}
+                                                    className="h-8"
+                                                >
+                                                    Season
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant={wishlistSortOrder === 'viability' ? 'default' : 'outline'}
+                                                    onClick={() => setWishlistSortOrder('viability')}
+                                                    className="h-8"
+                                                >
+                                                    Viability
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                        {sortedWishlistByViability.map(p => (
+                                            <PlantCard
+                                                key={p.id}
+                                                planting={p}
+                                                gardenConditions={activeLocation?.conditions}
+                                                onEdit={() => handleEditPlanting(p)}
+                                                onDelete={() => promptDelete(p)}
+                                                onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                                isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                                isSelectionMode={!!duplicateSelectionMode}
+                                                onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )
                           ) : (
                               <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                                   <CardHeader>
