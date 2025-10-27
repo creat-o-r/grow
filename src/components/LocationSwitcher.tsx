@@ -114,8 +114,6 @@ export function LocationSwitcher({
     const isCurrentlySelected = selectedGardenIds.includes(locationId);
 
     if (isCurrentlySelected && selectedGardenIds.length === 1) {
-        // If it's the last one, do nothing (or maybe revert to 'one' mode?)
-        // For now, prevent de-selecting the last item.
         return;
     }
 
@@ -128,12 +126,18 @@ export function LocationSwitcher({
 
     const handleItemSelect = (locationId: string) => {
         if (gardenViewMode === 'selected') {
-            const isSelected = selectedGardenIds.includes(locationId);
-            const newSelectedIds = isSelected ? selectedGardenIds.filter(id => id !== locationId) : [...selectedGardenIds, locationId];
+            const newSelectedIds = selectedGardenIds.includes(locationId)
+                ? selectedGardenIds.filter((id) => id !== locationId)
+                : [...selectedGardenIds, locationId];
 
             if (newSelectedIds.length === 1) {
-                // If only one is selected, switch to 'one' mode
+                // If only one is left selected, switch to 'one' mode with it as active
                 onLocationChange(newSelectedIds[0]);
+                onGardenViewModeChange('one');
+                setIsOpen(false);
+            } else if (newSelectedIds.length === 0 && locations.length > 0) {
+                 // If all are deselected, switch to 'one' mode with the first location
+                onLocationChange(locations[0].id);
                 onGardenViewModeChange('one');
                 setIsOpen(false);
             } else {
@@ -166,7 +170,7 @@ export function LocationSwitcher({
                 key={location.id} 
                 onSelect={(e) => {
                     e.preventDefault(); // Prevent default close behavior
-                    handleItemSelect(location.id);
+                    onLocationChange(location.id);
                 }}
                 className="p-0"
               >
@@ -184,15 +188,15 @@ export function LocationSwitcher({
                       </div>
                     ) : (
                       <div className={cn("flex items-center w-full justify-between px-2 py-1.5", isActive && gardenViewMode === 'one' && 'bg-accent/50')}>
-                          <div className={cn("flex items-center gap-3 flex-1 cursor-pointer")}>
+                          <div className={cn("flex items-center gap-3 flex-1 cursor-pointer")} onClick={() => onLocationChange(location.id)}>
                              {gardenViewMode === 'selected' && (
-                                <div onClick={(e) => {e.stopPropagation(); handleItemSelect(location.id)}}>
+                                <div onClick={(e) => { e.stopPropagation(); handleItemSelect(location.id); }} className="p-1 -ml-1">
                                     <Checkbox
                                         checked={isSelected}
                                     />
                                 </div>
                              )}
-                              <span className="flex-1" onClick={() => handleItemSelect(location.id)}>{location.name}</span>
+                              <span className="flex-1">{location.name}</span>
                           </div>
 
                         <div className="flex items-center">
@@ -219,7 +223,8 @@ export function LocationSwitcher({
                   )}
               </DropdownMenuItem>
           )})}
-          
+        
+        <DropdownMenuSeparator />
         <div className="p-2">
             <div className="flex items-center justify-center rounded-md bg-muted p-1">
                 <Button 
@@ -236,7 +241,6 @@ export function LocationSwitcher({
                     className="flex-1 h-7 text-xs" 
                     onClick={() => {
                         onGardenViewModeChange('selected');
-                        // When switching to selected, ensure at least the active garden is selected.
                         if (activeLocationId && !selectedGardenIds.includes(activeLocationId)) {
                              onSelectedGardenIdsChange([...selectedGardenIds, activeLocationId]);
                         } else if (selectedGardenIds.length === 0 && activeLocationId) {
@@ -278,5 +282,3 @@ export function LocationSwitcher({
     </DropdownMenu>
   );
 }
-
-    

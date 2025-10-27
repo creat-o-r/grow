@@ -711,7 +711,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     
     let plantingsToDisplay = plantings;
 
-    if (gardenViewMode === 'one' && activeLocationId) {
+    if (gardenViewMode === 'one') {
         plantingsToDisplay = plantings.filter(p => p.gardenId === activeLocationId);
     } else if (gardenViewMode === 'selected') {
         plantingsToDisplay = plantings.filter(p => selectedGardenIds.includes(p.gardenId));
@@ -1089,7 +1089,6 @@ const unspecifiedSeasonCount = useMemo(() => {
                                     activeLocationId={activeLocationId}
                                     onLocationChange={(id) => {
                                         setActiveLocationId(id);
-                                        // If in selected mode and we pick a new active one, maybe it should be the only selected?
                                         if (gardenViewMode === 'selected') {
                                             setSelectedGardenIds([id]);
                                         }
@@ -1179,6 +1178,28 @@ const unspecifiedSeasonCount = useMemo(() => {
                       </AccordionContent>
                   </AccordionItem>
                 </Accordion>
+                
+                {!effectivelySingleGardenView && (
+                    <Accordion type="single" collapsible className="w-full mb-6 rounded-lg border">
+                        <AccordionItem value="item-1">
+                            <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
+                                Viewing {selectedLocations.length} Gardens
+                            </AccordionTrigger>
+                            <AccordionContent className="p-4 pt-0">
+                                <div className="space-y-2">
+                                    {selectedLocations.map(loc => (
+                                        <div key={loc.id} className="text-sm p-3 bg-muted/50 rounded-md">
+                                            <p className="font-semibold">{loc.name}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {loc.conditions.temperature || 'Temp'}, {loc.conditions.sunlight || 'Sunlight'}, {loc.conditions.soil || 'Soil'}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                )}
                 
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
@@ -1520,5 +1541,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
