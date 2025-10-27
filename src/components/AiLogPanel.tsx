@@ -26,7 +26,8 @@ const FLOW_DISPLAY_NAMES: { [key: string]: string } = {
     getEnvironmentalData: 'Environmental Analysis',
     aiSearchPlantData: 'Plant Data Search',
     createDataset: 'AI Dataset Creation',
-    getViabilityReasoning: 'Viability Reasoning',
+    getAiViability: 'AI Viability Analysis',
+    localViabilityAnalysis: 'Local Viability Analysis',
 };
 
 // Helper function to render result values

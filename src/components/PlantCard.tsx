@@ -1,11 +1,10 @@
 
-
 'use client';
 
 import type { PlantingWithPlant, Conditions, StatusHistory } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ChevronDown, ArrowRight } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { ViabilityIndicator } from './ViabilityIndicator';
 import { Badge } from '@/components/ui/badge';
@@ -127,13 +126,6 @@ export function PlantCard({
                     <h4 className="font-bold text-sm mb-1 tracking-wide uppercase text-muted-foreground">Optimal Conditions</h4>
                     <p className="text-sm text-foreground/80 line-clamp-3">{plant.optimalConditions}</p>
                 </div>
-                {latestStatus?.status === 'Wishlist' && (
-                    <div className="text-center italic text-muted-foreground p-3 rounded-lg bg-accent/10 border border-dashed border-accent/30">
-                        <p className="text-xs">
-                           <span className="font-bold not-italic text-accent">Coming soon:</span> share to wants list in our new exchange market, get automatic trades set up for you.
-                        </p>
-                    </div>
-                 )}
             </CardContent>
             <CardFooter className="flex justify-between items-center">
                     <p className="text-xs text-muted-foreground">

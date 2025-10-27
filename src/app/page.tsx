@@ -25,7 +25,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, Settings, Info, Rocket, AlertCircle } from 'lucide-react';
+import { Plus, Upload, Locate, Loader2, X, Sparkles, NotebookText, Settings, Info, Rocket, AlertCircle } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -706,8 +706,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     } else if (viabilityMechanism === 'ai') {
         // For AI, we don't calculate upfront. Scores are added to viabilityData on demand.
         // We can choose to clear old local scores or keep them as fallbacks.
-        // Let's clear them for a cleaner state representation.
-        // On second thought, let's keep them as a fallback until the AI score is fetched.
+        // Let's keep them as a fallback until the AI score is fetched.
         const newViabilityData: Record<string, Viability | undefined> = { ...viabilityData };
         plantingsWithPlants.forEach(p => {
             if (!newViabilityData[p.id]) { // If no AI score yet
@@ -950,7 +949,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                           
                           <div className="flex items-center gap-2 pl-4">
                              <Button onClick={handleOpenAddSheet}>
-                                  <PlusCircle className="mr-2 h-4 w-4" />
+                                  <Plus className="mr-2 h-4 w-4" />
                                   Add Plant
                               </Button>
                               <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10">
@@ -1248,7 +1247,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                     </CardHeader>
                     <CardContent className="flex gap-4">
                        <Button onClick={handleOpenAddSheet}>
-                         <PlusCircle className="mr-2 h-4 w-4" /> Add Your First Plant
+                         <Plus className="mr-2 h-4 w-4" /> Add Your First Plant
                       </Button>
                        <Button onClick={() => setIsSettingsSheetOpen(true)} variant="secondary">
                          <Upload className="mr-2 h-4 w-4" /> Import Datasets

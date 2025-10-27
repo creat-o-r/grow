@@ -124,13 +124,11 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
       if (!form.getValues('name')) {
         let commonName = result.commonName;
         // Check for parentheses and extract name if needed
-        const parenthesisMatch = result.species.match(/\((.*?)\)/);
-        if (parenthesisMatch && parenthesisMatch[1] && !/^[a-z]/.test(parenthesisMatch[1])) {
-             // If content in parenthesis looks like a common name (starts with capital), use it.
+        const parenthesisMatch = result.commonName.match(/\((.*?)\)/);
+        if (parenthesisMatch?.[1] && !/^[a-z]/.test(parenthesisMatch[1])) {
              commonName = parenthesisMatch[1];
-        } else if (result.species.includes('(')) {
-            // Otherwise, use the part before the parenthesis
-            commonName = result.species.split('(')[0].trim();
+        } else if (result.commonName.includes('(')) {
+            commonName = result.commonName.split('(')[0].trim();
         }
         form.setValue('name', commonName, { shouldValidate: true });
       }
