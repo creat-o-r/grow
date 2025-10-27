@@ -754,10 +754,11 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         const justSwitchedToAi = previousViabilityMechanism === 'local' && viabilityMechanism === 'ai';
         const conditionsChangedInAiMode =
             viabilityMechanism === 'ai' &&
-            (activeLocation?.conditions.temperature !== usePrevious(activeLocation?.conditions.temperature) ||
-             activeLocation?.conditions.sunlight !== usePrevious(activeLocation?.conditions.sunlight) ||
-             activeLocation?.conditions.soil !== usePrevious(activeLocation?.conditions.soil) ||
-             activeLocation?.conditions.currentSeason !== usePrevious(activeLocation?.conditions.currentSeason));
+            activeLocation?.conditions &&
+            (activeLocation.conditions.temperature !== usePrevious(activeLocation.conditions.temperature) ||
+             activeLocation.conditions.sunlight !== usePrevious(activeLocation.conditions.sunlight) ||
+             activeLocation.conditions.soil !== usePrevious(activeLocation.conditions.soil) ||
+             activeLocation.conditions.currentSeason !== usePrevious(activeLocation.conditions.currentSeason));
 
 
         if (viabilityMechanism === 'local') {
@@ -782,10 +783,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         viabilityMechanism,
         plantingsWithPlants,
         handleBatchAiViabilityAnalysis,
-        activeLocation?.conditions.temperature,
-        activeLocation?.conditions.sunlight,
-        activeLocation?.conditions.soil,
-        activeLocation?.conditions.currentSeason,
+        activeLocation?.conditions,
         previousViabilityMechanism,
     ]);
 
