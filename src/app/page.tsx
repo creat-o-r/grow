@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useState, useEffect, useCallback, MouseEvent, useMemo, useRef, KeyboardEvent } from 'react';
+import React, { useState, useEffect, useCallback, MouseEvent, useMemo, useRef, KeyboardEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, GardenViewMode } from '@/lib/types';
@@ -38,13 +37,103 @@ import { Progress } from '@/components/ui/progress';
 
 
 type PlantStatus = StatusHistory['status'];
-type NominatimResult = {
-  display_name: string;
-  lat: string;
-  lon: string;
-};
 
 const REPO_URL = 'https://github.com/creat-o-r/grow';
+
+type GardenEditorProps = {
+  loc: GardenLocation;
+  handleLocationFieldChange: (e: React.FocusEvent<HTMLInputElement> | React.KeyboardEvent<HTMLInputElement>) => void;
+  handleConditionChange: (value: string, field: keyof Conditions, locationId: string) => void;
+  handleGetCurrentLocation: (locationId: string) => void;
+  isLocating: boolean;
+  handleAnalyzeConditions: (locationId: string) => Promise<void>;
+  isAnalyzing: string | null;
+};
+
+const GardenEditor = React.memo(function GardenEditor({
+  loc,
+  handleLocationFieldChange,
+  handleConditionChange,
+  handleGetCurrentLocation,
+  isLocating,
+  handleAnalyzeConditions,
+  isAnalyzing,
+}: GardenEditorProps) {
+  return (
+    <div key={loc.id} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end border-b pb-6 last:border-b-0 last:pb-0">
+      <div className="sm:col-span-2 lg:col-span-1 relative">
+        <Label htmlFor={`location-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">{loc.name}</Label>
+        <div className="flex items-center gap-2">
+          <div className="relative w-full">
+            <Input
+              id={`location-${loc.id}`}
+              name="location"
+              defaultValue={loc.location}
+              onBlur={handleLocationFieldChange}
+              onKeyDown={handleLocationFieldChange}
+              autoComplete="off"
+            />
+          </div>
+          <Button size="icon" variant="outline" onClick={() => handleGetCurrentLocation(loc.id)} disabled={isLocating}>
+            {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
+      <div>
+        <Label htmlFor={`season-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Current Season</Label>
+        <Select
+          value={loc.conditions.currentSeason || ''}
+          onValueChange={(value) => handleConditionChange(value, 'currentSeason', loc.id)}
+        >
+          <SelectTrigger id={`season-${loc.id}`}>
+            <SelectValue placeholder="Select season" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Spring">Spring</SelectItem>
+            <SelectItem value="Summer">Summer</SelectItem>
+            <SelectItem value="Autumn">Autumn</SelectItem>
+            <SelectItem value="Winter">Winter</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor={`temperature-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
+        <Input 
+          id={`temperature-${loc.id}`} 
+          name="temperature"
+          defaultValue={loc.conditions.temperature || ''} 
+          onBlur={handleLocationFieldChange} 
+          onKeyDown={handleLocationFieldChange}
+        />
+      </div>
+      <div>
+        <Label htmlFor={`sunlight-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
+        <Input 
+          id={`sunlight-${loc.id}`} 
+          name="sunlight"
+          defaultValue={loc.conditions.sunlight || ''} 
+          onBlur={handleLocationFieldChange} 
+          onKeyDown={handleLocationFieldChange}
+        />
+      </div>
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <Label htmlFor={`soil-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
+          <Input 
+            id={`soil-${loc.id}`} 
+            name="soil"
+            defaultValue={loc.conditions.soil || ''} 
+            onBlur={handleLocationFieldChange} 
+            onKeyDown={handleLocationFieldChange}
+          />
+        </div>
+        <Button size="icon" variant="outline" onClick={() => handleAnalyzeConditions(loc.id)} disabled={isAnalyzing === loc.id}>
+          {isAnalyzing === loc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+        </Button>
+      </div>
+    </div>
+  );
+});
 
 
 export default function Home() {
@@ -56,13 +145,7 @@ export default function Home() {
   const [isLocating, setIsLocating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState<string | null>(null);
   const [wishlistSortOrder, setWishlistSortOrder] = useState<'season' | 'viability'>('season');
-
-  const [locationSearchQuery, setLocationSearchQuery] = useState('');
-  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
-  const [locationSuggestions, setLocationSuggestions] = useState<NominatimResult[]>([]);
-  const debouncedSearchQuery = useDebounce(locationSearchQuery, 300);
-  const [showLocationSuggestions, setShowLocationSuggestions] = useState(true);
-
+  
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [selectedGardenIds, setSelectedGardenIds] = useState<string[]>([]);
   const [gardenViewMode, setGardenViewMode] = useState<GardenViewMode>('one');
@@ -184,36 +267,13 @@ export default function Home() {
     });
   }
 
-  // Effect for location search
   useEffect(() => {
-    if (debouncedSearchQuery && debouncedSearchQuery !== activeLocation?.location && showLocationSuggestions) {
-      setIsSearchingLocation(true);
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${debouncedSearchQuery}`)
-        .then(response => response.json())
-        .then(data => {
-          setLocationSuggestions(data);
-          setIsSearchingLocation(false);
-        })
-        .catch(error => {
-          console.error("Error fetching location suggestions:", error);
-          setIsSearchingLocation(false);
-          setLocationSuggestions([]);
-        });
-    } else if (!debouncedSearchQuery) {
-        setLocationSuggestions([]);
-    }
-  }, [debouncedSearchQuery, activeLocation?.location, showLocationSuggestions]);
-
-
-  useEffect(() => {
-    if (activeLocation) {
-      setLocationSearchQuery(activeLocation.location);
-    } else if (locations && locations.length > 0 && !activeLocationId) {
+    if (locations && locations.length > 0 && !activeLocationId) {
       const firstLocation = locations[0];
       setActiveLocationId(firstLocation.id);
       setSelectedGardenIds([firstLocation.id]);
     }
-  }, [activeLocation, locations, activeLocationId]);
+  }, [locations, activeLocationId]);
 
   const handleAddPlant = async (plantingData: Omit<Planting, 'id'>, plantData: Omit<Plant, 'id'>) => {
     let plantId = (await db.plants.where('species').equalsIgnoreCase(plantData.species).first())?.id;
@@ -281,42 +341,48 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
   const importData = async (data: AiDataset, name: string) => {
     await db.transaction('rw', db.plants, db.plantings, db.locations, async () => {
-      await db.plants.clear();
-      await db.plantings.clear();
-      await db.locations.clear();
+        await db.plants.clear();
+        await db.plantings.clear();
+        await db.locations.clear();
 
-      if (data.locations && data.locations.length > 0) {
-        await db.locations.bulkAdd(data.locations);
-      }
-      if (data.plants) {
-        await db.plants.bulkAdd(data.plants);
-      }
-      if (data.plantings) {
-        const firstLocationId = data.locations[0]?.id;
-        const plantingsWithGardenId = data.plantings.map(p => ({
-          ...p,
-          gardenId: firstLocationId,
-        }))
-        await db.plantings.bulkAdd(plantingsWithGardenId);
-      }
+        if (data.locations && data.locations.length > 0) {
+            await db.locations.bulkAdd(data.locations);
+        }
+        if (data.plants && data.plants.length > 0) {
+            await db.plants.bulkAdd(data.plants);
+        }
+        if (data.plantings && data.plantings.length > 0) {
+            // Use the first location from the dataset as the gardenId for all plantings
+            const gardenId = data.locations?.[0]?.id;
+            if (gardenId) {
+                const plantingsWithGardenId = data.plantings.map(p => ({
+                    ...p,
+                    gardenId: gardenId,
+                }));
+                await db.plantings.bulkAdd(plantingsWithGardenId);
+            } else {
+                // If no location, add plantings without gardenId (or handle as error)
+                await db.plantings.bulkAdd(data.plantings);
+            }
+        }
     });
 
     const firstLocation = data.locations?.[0];
     if (firstLocation) {
-      setActiveLocationId(firstLocation.id);
-      setSelectedGardenIds([firstLocation.id]);
-      setGardenViewMode('one');
+        setActiveLocationId(firstLocation.id);
+        setSelectedGardenIds([firstLocation.id]);
+        setGardenViewMode('one');
     } else {
-      setActiveLocationId(null);
-      setSelectedGardenIds([]);
+        setActiveLocationId(null);
+        setSelectedGardenIds([]);
     }
 
     toast({
-      title: 'Data Imported',
-      description: `The "${name}" dataset has been loaded.`,
+        title: 'Data Imported',
+        description: `The "${name}" dataset has been loaded.`,
     });
     setIsSettingsSheetOpen(false);
-  };
+};
 
   const handleImport = async (datasetKey: string) => {
     try {
@@ -349,22 +415,37 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     });
   };
 
-  const handleConditionChange = useCallback(async (locationId: string, field: keyof Conditions, value: string) => {
-    const location = await db.locations.get(locationId);
-    if (location) {
-        const newConditions = { ...location.conditions, [field]: value };
-        await db.locations.update(locationId, { conditions: newConditions });
-    }
+  const handleConditionChange = useCallback((value: string, field: keyof Conditions, locationId: string) => {
+    db.locations.get(locationId).then(location => {
+      if (location) {
+          const newConditions = { ...location.conditions, [field]: value };
+          db.locations.update(locationId, { conditions: newConditions });
+      }
+    });
   }, []);
   
-  const handleLocationFieldChange = useCallback(async (locationId: string, value: string) => {
-    const location = await db.locations.get(locationId);
-    if (!location) return;
+  const handleLocationFieldChange = useCallback((e: React.FocusEvent<HTMLInputElement> | React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.type === 'keydown' && (e as React.KeyboardEvent).key !== 'Enter') {
+      return;
+    }
+    const target = e.currentTarget;
+    const locationId = target.id.replace(/^(location|temperature|sunlight|soil)-/, '');
+    const field = target.name as keyof GardenLocation | keyof Conditions;
+    const value = target.value;
+  
+    db.locations.get(locationId).then(location => {
+      if (!location) return;
 
-    const trimmedValue = value.trim();
-    if (trimmedValue === location.location) return;
-
-    await db.locations.update(locationId, { location: trimmedValue });
+      if (field === 'location') {
+        const trimmedValue = value.trim();
+        if (trimmedValue !== location.location) {
+          db.locations.update(locationId, { [field]: trimmedValue });
+        }
+      } else {
+        const newConditions = { ...location.conditions, [field]: value };
+        db.locations.update(locationId, { conditions: newConditions });
+      }
+    });
   }, []);
 
   
@@ -431,76 +512,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     setIsDeleteAlertOpen(false);
   };
 
-
-  const handleGetCurrentLocation = (locationId: string) => {
-    if (!navigator.geolocation) {
-      toast({
-        title: 'Geolocation Not Supported',
-        description: 'Your browser does not support geolocation.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        try {
-          // Using a free, open-source reverse geocoding API
-          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-          const data = await response.json();
-          const locationName = data.address?.city || data.address?.town || data.display_name || 'Unknown Location';
-          
-          handleLocationFieldChange(locationId, locationName);
-          handleAnalyzeConditions(locationId, locationName);
-
-          toast({
-            title: 'Location Found',
-            description: `Set to ${locationName} and analyzed conditions.`,
-          });
-        } catch (error) {
-          console.error("Error fetching location name:", error);
-          handleLocationFieldChange(locationId, 'Current Location');
-          toast({
-            title: 'Could Not Get Location Name',
-            description: 'Location set to your current position.',
-            variant: 'destructive',
-          });
-        } finally {
-          setIsLocating(false);
-        }
-      },
-      (error) => {
-        toast({
-          title: 'Geolocation Error',
-          description: error.message,
-          variant: 'destructive',
-        });
-        setIsLocating(false);
-      }
-    );
-  };
-
-  const handleLocationSuggestionSelect = (locationId: string, locationName: string) => {
-    handleLocationFieldChange(locationId, locationName);
-    setLocationSuggestions([]);
-    setShowLocationSuggestions(false);
-    // Briefly set focus away and back to prevent immediate re-opening of suggestions
-    setTimeout(() => {
-        const activeEl = document.activeElement as HTMLElement;
-        if(activeEl) activeEl.blur();
-    }, 0);
-  };
-
-  const handleClearLocationSearch = (e: MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    setLocationSearchQuery('');
-    setShowLocationSuggestions(true);
-    document.getElementById('location')?.focus();
-  }
-
-  const handleAnalyzeConditions = async (locationId: string, locationOverride?: string) => {
+  const handleAnalyzeConditions = useCallback(async (locationId: string, locationOverride?: string) => {
     if (!areApiKeysSet) {
       toast({
         title: 'API Key Required',
@@ -562,7 +574,56 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     } finally {
       setIsAnalyzing(null);
     }
-  };
+  }, [areApiKeysSet, apiKeys, locations, toast]);
+
+  const handleGetCurrentLocation = useCallback((locationId: string) => {
+    if (!navigator.geolocation) {
+      toast({
+        title: 'Geolocation Not Supported',
+        description: 'Your browser does not support geolocation.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          const data = await response.json();
+          const locationName = data.address?.city || data.address?.town || data.display_name || 'Unknown Location';
+          
+          await db.locations.update(locationId, { location: locationName });
+          handleAnalyzeConditions(locationId, locationName);
+
+          toast({
+            title: 'Location Found',
+            description: `Set to ${locationName} and analyzed conditions.`,
+          });
+        } catch (error) {
+          console.error("Error fetching location name:", error);
+          await db.locations.update(locationId, { location: 'Current Location'});
+          toast({
+            title: 'Could Not Get Location Name',
+            description: 'Location set to your current position.',
+            variant: 'destructive',
+          });
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      (error) => {
+        toast({
+          title: 'Geolocation Error',
+          description: error.message,
+          variant: 'destructive',
+        });
+        setIsLocating(false);
+      }
+    );
+  }, [handleAnalyzeConditions, toast]);
 
   const handleGetViability = async (planting: PlantingWithPlant) => {
     if (viabilityMechanism === 'ai' && !areApiKeysSet) {
@@ -848,7 +909,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             }
         } else if (viabilityMechanism === 'ai' && areApiKeysSet) {
             const plantingsToAnalyze = plantingsWithPlants.filter(p => p.gardenId === activeLocationId);
-
             if ((justSwitchedToAi || conditionsChangedInAiMode) && plantingsToAnalyze.length > 0) {
                  handleBatchAiViabilityAnalysis(plantingsToAnalyze);
             }
@@ -857,14 +917,12 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         viabilityMechanism,
         previousViabilityMechanism,
         activeLocationId,
-        activeLocation?.conditions.temperature,
-        activeLocation?.conditions.sunlight,
-        activeLocation?.conditions.soil,
-        activeLocation?.conditions.currentSeason,
+        activeLocation?.conditions,
         previousActiveConditions,
         areApiKeysSet,
         handleBatchAiViabilityAnalysis,
-        plantingsWithPlants,
+        plantings,
+        plants
     ]);
 
 
@@ -1126,7 +1184,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                     <div className="flex flex-col items-start text-sm text-muted-foreground font-normal">
                                         {selectedLocations.map((loc) => (
                                             <div key={loc.id} className="truncate">
-                                                <span><span className="font-semibold">{loc.name}:</span> {loc.conditions.temperature || 'N/A'}</span>
+                                                <span className="font-semibold">{loc.name}:</span> {loc.conditions.temperature || 'N/A'}
                                             </div>
                                         ))}
                                     </div>
@@ -1148,59 +1206,16 @@ const unspecifiedSeasonCount = useMemo(() => {
 
                       <AccordionContent className="p-6 pt-2 space-y-6">
                         {selectedLocations.map(loc => (
-                          <div key={loc.id} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end border-b pb-6 last:border-b-0 last:pb-0">
-                              <div className="sm:col-span-2 lg:col-span-1 relative">
-                                  <Label htmlFor={`location-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">{loc.name}</Label>
-                                  <div className="flex items-center gap-2">
-                                    <div className="relative w-full">
-                                      <Input 
-                                        id={`location-${loc.id}`} 
-                                        defaultValue={loc.location} 
-                                        onBlur={(e) => handleLocationFieldChange(loc.id, e.target.value)}
-                                        onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleLocationFieldChange(loc.id, (e.target as HTMLInputElement).value)}
-                                        autoComplete="off"
-                                      />
-                                    </div>
-                                  <Button size="icon" variant="outline" onClick={() => handleGetCurrentLocation(loc.id)} disabled={isLocating}>
-                                      {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
-                                  </Button>
-                                  </div>
-                              </div>
-                               <div>
-                                  <Label htmlFor={`season-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Current Season</Label>
-                                  <Select 
-                                    value={loc.conditions.currentSeason || ''} 
-                                    onValueChange={(value) => handleConditionChange(loc.id, 'currentSeason', value)}
-                                  >
-                                      <SelectTrigger id={`season-${loc.id}`}>
-                                          <SelectValue placeholder="Select season" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                          <SelectItem value="Spring">Spring</SelectItem>
-                                          <SelectItem value="Summer">Summer</SelectItem>
-                                          <SelectItem value="Autumn">Autumn</SelectItem>
-                                          <SelectItem value="Winter">Winter</SelectItem>
-                                      </SelectContent>
-                                  </Select>
-                               </div>
-                              <div>
-                              <Label htmlFor={`temperature-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
-                              <Input id={`temperature-${loc.id}`} defaultValue={loc.conditions.temperature || ''} onBlur={(e) => handleConditionChange(loc.id, 'temperature', e.target.value)} onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleConditionChange(loc.id, 'temperature', (e.target as HTMLInputElement).value)} />
-                              </div>
-                              <div>
-                              <Label htmlFor={`sunlight-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
-                              <Input id={`sunlight-${loc.id}`} defaultValue={loc.conditions.sunlight || ''} onBlur={(e) => handleConditionChange(loc.id, 'sunlight', e.target.value)} onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleConditionChange(loc.id, 'sunlight', (e.target as HTMLInputElement).value)} />
-                              </div>
-                              <div className="flex gap-2">
-                                  <div className="flex-1">
-                                      <Label htmlFor={`soil-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
-                                      <Input id={`soil-${loc.id}`} defaultValue={loc.conditions.soil || ''} onBlur={(e) => handleConditionChange(loc.id, 'soil', e.target.value)} onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleConditionChange(loc.id, 'soil', (e.target as HTMLInputElement).value)} />
-                                  </div>
-                                  <Button size="icon" variant="outline" onClick={() => handleAnalyzeConditions(loc.id)} disabled={isAnalyzing === loc.id}>
-                                      {isAnalyzing === loc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                                  </Button>
-                              </div>
-                          </div>
+                          <GardenEditor
+                            key={loc.id}
+                            loc={loc}
+                            handleLocationFieldChange={handleLocationFieldChange}
+                            handleConditionChange={handleConditionChange}
+                            handleGetCurrentLocation={handleGetCurrentLocation}
+                            isLocating={isLocating}
+                            handleAnalyzeConditions={handleAnalyzeConditions}
+                            isAnalyzing={isAnalyzing}
+                          />
                         ))}
                       </AccordionContent>
                   </AccordionItem>
@@ -1546,5 +1561,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
