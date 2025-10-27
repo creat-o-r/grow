@@ -94,10 +94,14 @@ export function PlantCard({
                      )}
                      {suitableSeasons.length === 4 ? (
                         <Badge variant="outline" className="font-normal">Year-Round</Badge>
-                     ) : (
+                     ) : suitableSeasons.length > 0 ? (
                         suitableSeasons.map(season => (
                             <Badge key={season} variant="outline" className="font-normal">{season}</Badge>
                         ))
+                     ) : (
+                        <button onClick={onEdit} className="text-xs text-muted-foreground hover:text-foreground hover:underline">
+                            No seasons found. Edit to add.
+                        </button>
                      )}
                 </div>
             </CardHeader>
