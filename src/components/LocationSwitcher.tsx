@@ -138,6 +138,9 @@ export function LocationSwitcher({
     onSelectedGardenIdsChange([locationId]);
     setIsOpen(false);
   }
+  
+  const showToggles = locations.length > 1;
+  const showSelectedToggle = locations.length > 2;
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={(open) => {
@@ -212,41 +215,45 @@ export function LocationSwitcher({
           )})}
         
         <DropdownMenuSeparator />
-        <div className="p-2 pt-1">
-            <div className="flex items-center justify-center rounded-md bg-muted p-1">
-                <Button 
-                    variant={gardenViewMode === 'one' ? 'secondary' : 'ghost'} 
-                    size="sm" 
-                    className="flex-1 h-7 text-xs" 
-                    onClick={() => onGardenViewModeChange('one')}
-                >
-                    One
-                </Button>
-                <Button 
-                    variant={gardenViewMode === 'selected' ? 'secondary' : 'ghost'} 
-                    size="sm" 
-                    className="flex-1 h-7 text-xs" 
-                    onClick={() => {
-                        onGardenViewModeChange('selected');
-                        if (activeLocationId && !selectedGardenIds.includes(activeLocationId)) {
-                             onSelectedGardenIdsChange([...selectedGardenIds, activeLocationId]);
-                        } else if (selectedGardenIds.length === 0 && activeLocationId) {
-                            onSelectedGardenIdsChange([activeLocationId]);
-                        }
-                    }}
-                >
-                    Selected
-                </Button>
-                <Button 
-                    variant={gardenViewMode === 'all' ? 'secondary' : 'ghost'} 
-                    size="sm" 
-                    className="flex-1 h-7 text-xs" 
-                    onClick={() => onGardenViewModeChange('all')}
-                >
-                    All
-                </Button>
+         {showToggles && (
+            <div className="p-2 pt-1">
+                <div className="flex items-center justify-center rounded-md bg-muted p-1">
+                    <Button 
+                        variant={gardenViewMode === 'one' ? 'secondary' : 'ghost'} 
+                        size="sm" 
+                        className="flex-1 h-7 text-xs" 
+                        onClick={() => onGardenViewModeChange('one')}
+                    >
+                        One
+                    </Button>
+                    {showSelectedToggle && (
+                         <Button 
+                            variant={gardenViewMode === 'selected' ? 'secondary' : 'ghost'} 
+                            size="sm" 
+                            className="flex-1 h-7 text-xs" 
+                            onClick={() => {
+                                onGardenViewModeChange('selected');
+                                if (activeLocationId && !selectedGardenIds.includes(activeLocationId)) {
+                                    onSelectedGardenIdsChange([...selectedGardenIds, activeLocationId]);
+                                } else if (selectedGardenIds.length === 0 && activeLocationId) {
+                                    onSelectedGardenIdsChange([activeLocationId]);
+                                }
+                            }}
+                        >
+                            Selected
+                        </Button>
+                    )}
+                    <Button 
+                        variant={gardenViewMode === 'all' ? 'secondary' : 'ghost'} 
+                        size="sm" 
+                        className="flex-1 h-7 text-xs" 
+                        onClick={() => onGardenViewModeChange('all')}
+                    >
+                        All
+                    </Button>
+                </div>
             </div>
-        </div>
+        )}
         <DropdownMenuSeparator />
         <div className="p-2 space-y-2">
             <p className="text-xs font-medium text-muted-foreground px-2">Add New Garden</p>
