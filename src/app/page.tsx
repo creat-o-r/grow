@@ -1169,7 +1169,10 @@ const unspecifiedSeasonCount = useMemo(() => {
                               </div>
                                <div>
                                   <Label htmlFor={`season-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Current Season</Label>
-                                  <Select value={loc.conditions.currentSeason || ''} onValueChange={(value) => handleConditionChange(loc.id, 'currentSeason', value)}>
+                                  <Select 
+                                    value={loc.conditions.currentSeason || ''} 
+                                    onValueChange={(value) => handleConditionChange(loc.id, 'currentSeason', value)}
+                                  >
                                       <SelectTrigger id={`season-${loc.id}`}>
                                           <SelectValue placeholder="Select season" />
                                       </SelectTrigger>
@@ -1544,8 +1547,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
-
-    
-
