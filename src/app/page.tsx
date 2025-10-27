@@ -31,7 +31,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 
 
 type PlantStatus = StatusHistory['status'];
@@ -882,7 +881,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                         key={group.groupTitle}
                                         ref={group.groupTitle === 'Season Not Specified' ? unspecifiedSeasonSectionRef : null}
                                       >
-                                          <div className="flex justify-between items-center mb-4">
+                                          <div className="flex justify-between items-center mb-4 sticky top-0 bg-background py-2 z-10">
                                             <h2 className="text-2xl font-headline capitalize">
                                                 {group.groupTitle.toLowerCase()}
                                             </h2>
