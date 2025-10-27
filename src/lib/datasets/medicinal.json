@@ -9,7 +9,8 @@
             "conditions": {
                 "temperature": "20°C",
                 "sunlight": "4-6 hours (Partial Shade)",
-                "soil": "Well-drained with organic matter"
+                "soil": "Well-drained with organic matter",
+                "currentSeason": "Spring"
             }
         }
     ],

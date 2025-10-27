@@ -9,7 +9,8 @@
             "conditions": {
                 "temperature": "15°C",
                 "sunlight": "Shade / Indirect light",
-                "soil": "Hardwood Logs & Sawdust"
+                "soil": "Hardwood Logs & Sawdust",
+                "currentSeason": "Autumn"
             }
         }
     ],

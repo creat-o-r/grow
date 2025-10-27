@@ -9,7 +9,8 @@
             "conditions": {
                 "temperature": "16°C",
                 "sunlight": "5-7 hours",
-                "soil": "Clay loam, improved with compost"
+                "soil": "Clay loam, improved with compost",
+                "currentSeason": "Summer"
             }
         }
     ],

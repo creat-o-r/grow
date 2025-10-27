@@ -9,7 +9,8 @@
             "conditions": {
                 "temperature": "22°C",
                 "sunlight": "6-8 hours",
-                "soil": "Well-drained, slightly alkaline"
+                "soil": "Well-drained, slightly alkaline",
+                "currentSeason": "Summer"
             }
         }
     ],

@@ -90,15 +90,16 @@ Your primary goal is to generate a list of plant species and a corresponding 'pl
 The plantings must be perfectly suited to the provided active garden location and the theme.
 The provided location already exists, so you MUST return it as the single item in the 'locations' array in your output. Do not create a new location.
 For the 'name' field of the location, generate a NEW, creative name for the garden that fits the theme and location (e.g., "Balcony Bounty," "Shady Oasis," "Urban Jungle"). Do not just use the existing name.
+If the provided location is missing a 'currentSeason', you MUST determine and set it based on the location and a plausible current date.
 Active Location:
 - Name: {{{activeLocation.name}}}
 - Location: {{{activeLocation.location}}}
-- Conditions: Temp: {{{activeLocation.conditions.temperature}}}, Sunlight: {{{activeLocation.conditions.sunlight}}}, Soil: {{{activeLocation.conditions.soil}}}
+- Conditions: Temp: {{{activeLocation.conditions.temperature}}}, Sunlight: {{{activeLocation.conditions.sunlight}}}, Soil: {{{activeLocation.conditions.soil}}}, Season: {{{activeLocation.conditions.currentSeason}}}
 - Growing Systems: {{{activeLocation.growingSystems}}}
 - Growing Methods: {{{activeLocation.growingMethods}}}
 {{else}}
 Your task is to generate a dataset containing:
-1.  A single garden location object that fits the theme. It must have a creative name (e.g., "Balcony Bounty," "Shady Oasis," "Urban Jungle"), a plausible real-world city/country, and realistic environmental conditions. Use Fahrenheit for US locations and Celsius otherwise. Also consider plausible growing systems and methods based on the theme. You must also determine and set the 'currentSeason' based on the location's hemisphere and a plausible time of year.
+1.  A single garden location object that fits the theme. It must have a creative name (e.g., "Balcony Bounty," "Shady Oasis," "Urban Jungle"), a plausible real-world city/country, and realistic environmental conditions. You MUST determine and set the 'currentSeason' based on the location's hemisphere and a plausible time of year (e.g., if it's a UK location, summer is a plausible season). Use Fahrenheit for US locations and Celsius otherwise. Also consider plausible growing systems and methods based on the theme.
 2.  A list of plant species objects that are well-suited to the theme and the location you created, following the quantity instruction above.
 3.  A corresponding list of 'planting' objects, one for each plant species.
 {{/if}}

@@ -9,7 +9,8 @@
             "conditions": {
                 "temperature": "68°F",
                 "sunlight": "6-8 hours",
-                "soil": "Rich, well-drained compost"
+                "soil": "Rich, well-drained compost",
+                "currentSeason": "Spring"
             }
         }
     ],

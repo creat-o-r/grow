@@ -9,7 +9,8 @@
             "conditions": {
                 "temperature": "65°F",
                 "sunlight": "8+ hours",
-                "soil": "Well-drained sandy loam, pH 6.5"
+                "soil": "Well-drained sandy loam, pH 6.5",
+                "currentSeason": "Summer"
             }
         }
     ],
