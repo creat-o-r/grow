@@ -1045,7 +1045,7 @@ const unspecifiedSeasonCount = useMemo(() => {
        return activeLocation?.name || 'Select Garden';
     }
     if (gardenViewMode === 'selected') {
-        if (selectedGardenIds.length === locations?.length) return 'All Gardens Selected';
+        if (locations && selectedGardenIds.length === locations.length) return 'All Gardens Selected';
         return `${selectedGardenIds.length} Garden(s) Selected`;
     }
     if (gardenViewMode === 'all') return 'All Gardens';
