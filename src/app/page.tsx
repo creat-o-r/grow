@@ -690,7 +690,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       .filter(p => p.plant); // Filter out plantings with no matching plant
   }, [plantings, plants]);
 
-  // Update viability data when dependencies change
+  // Consolidated effect for viability calculation
   useEffect(() => {
     if (viabilityMechanism === 'local') {
       if (activeLocation?.conditions && plantingsWithPlants) {
@@ -701,26 +701,12 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         setViabilityData(newViabilityData);
       }
     } else if (viabilityMechanism === 'ai') {
-        // Clear data only when switching to 'ai' mode
-        setViabilityData({});
+      // Clear data only when switching to 'ai' mode
+      setViabilityData({});
     }
   }, [
     plantingsWithPlants, 
-    viabilityMechanism
-  ]);
-  
-  // Separate effect for local calculation updates when conditions change
-  useEffect(() => {
-    if (viabilityMechanism === 'local') {
-      if (activeLocation?.conditions && plantingsWithPlants) {
-        const newViabilityData: Record<string, Viability> = {};
-        plantingsWithPlants.forEach(p => {
-          newViabilityData[p.id] = analyzeViability(p.plant, activeLocation.conditions!);
-        });
-        setViabilityData(newViabilityData);
-      }
-    }
-  }, [
+    viabilityMechanism,
     activeLocation?.conditions?.temperature,
     activeLocation?.conditions?.sunlight,
     activeLocation?.conditions?.soil,
@@ -883,17 +869,15 @@ const unspecifiedSeasonCount = useMemo(() => {
 
     const viabilityCounts = useMemo(() => {
         const counts: Record<Viability, number> = { High: 0, Medium: 0, Low: 0 };
-        if (!plantingsWithPlants) return counts;
-
-        plantingsWithPlants.forEach(p => {
-            const viability = viabilityData[p.id];
+        
+        Object.values(viabilityData).forEach(viability => {
             if (viability) {
               counts[viability]++;
             }
         });
 
         return counts;
-    }, [plantingsWithPlants, viabilityData]);
+    }, [viabilityData]);
 
 
   const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
@@ -1395,3 +1379,4 @@ const unspecifiedSeasonCount = useMemo(() => {
     
 
     
+
