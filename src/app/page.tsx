@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { loadDataset } from '@/lib/datasets';
-import { analyzeViability, Viability } from '@/lib/viability';
+import { analyzeViability, Viability, getSuitableSeasons } from '@/lib/viability';
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
@@ -557,13 +557,25 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
   const seasonallySortedWishlist = useMemo(() => {
     if (!plantingsWithPlants || !activeLocation?.conditions) return null;
 
-    const getPlantSeason = (plant: Plant): string => {
-        const text = `${plant.germinationNeeds} ${plant.optimalConditions}`.toLowerCase();
-        if (text.includes('spring')) return 'Spring';
-        if (text.includes('summer')) return 'Summer';
-        if (text.includes('autumn') || text.includes('fall')) return 'Autumn';
-        if (text.includes('winter')) return 'Winter';
-        return 'Any';
+    const getBestPlantSeason = (plant: Plant): string => {
+        const seasons = getSuitableSeasons(plant);
+        if (seasons.length === 0) return 'Any';
+
+        const seasonOrder = ['Spring', 'Summer', 'Autumn', 'Winter'];
+        const currentSeason = activeLocation.conditions.currentSeason;
+        const currentSeasonIndex = currentSeason ? seasonOrder.indexOf(currentSeason) : -1;
+
+        if (currentSeasonIndex === -1) return seasons[0]; // Default if current season isn't set
+
+        // Find the next best season, starting from the current one
+        for (let i = 0; i < seasonOrder.length; i++) {
+            const seasonIndex = (currentSeasonIndex + i) % seasonOrder.length;
+            const season = seasonOrder[seasonIndex];
+            if (seasons.includes(season)) {
+                return season;
+            }
+        }
+        return 'Any'; // Fallback
     };
 
     const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
@@ -580,8 +592,8 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     const wishlistPlantings = plantingsWithPlants.filter(p => p.history?.slice(-1)[0]?.status === 'Wishlist');
 
     wishlistPlantings.sort((a, b) => {
-        const seasonA = getPlantSeason(a.plant);
-        const seasonB = getPlantSeason(b.plant);
+        const seasonA = getBestPlantSeason(a.plant);
+        const seasonB = getBestPlantSeason(b.plant);
         const seasonScoreA = getSeasonScore(seasonA);
         const seasonScoreB = getSeasonScore(seasonB);
 
@@ -596,14 +608,12 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     
     const groupedBySeason: { [season: string]: PlantingWithPlant[] } = {};
     wishlistPlantings.forEach(p => {
-        const season = getPlantSeason(p.plant);
-        const seasonScore = getSeasonScore(season);
-        const orderedSeasonName = seasonScore === 0 && currentSeason ? currentSeason : season;
-
-        if (!groupedBySeason[orderedSeasonName]) {
-            groupedBySeason[orderedSeasonName] = [];
+        const bestSeason = getBestPlantSeason(p.plant);
+        
+        if (!groupedBySeason[bestSeason]) {
+            groupedBySeason[bestSeason] = [];
         }
-        groupedBySeason[orderedSeasonName].push(p);
+        groupedBySeason[bestSeason].push(p);
     });
 
     const orderedGroupNames = Object.keys(groupedBySeason).sort((a, b) => {
@@ -1053,3 +1063,5 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     </div>
   );
 }
+
+    

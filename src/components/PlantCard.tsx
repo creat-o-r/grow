@@ -10,6 +10,7 @@ import { ViabilityIndicator } from './ViabilityIndicator';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
+import { getSuitableSeasons } from '@/lib/viability';
 
 type PlantCardProps = {
   planting: PlantingWithPlant;
@@ -34,6 +35,8 @@ export function PlantCard({
 }: PlantCardProps) {
     const { plant } = planting;
     const latestStatus = planting.history && planting.history.length > 0 ? planting.history[planting.history.length - 1] : null;
+    const suitableSeasons = getSuitableSeasons(plant);
+
 
     const statusConfig: { [key: string]: string } = {
         Wishlist: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800',
@@ -88,6 +91,9 @@ export function PlantCard({
                             {planting.seedsOnHand} seeds on hand
                         </Badge>
                      )}
+                     {suitableSeasons.length > 0 && suitableSeasons.map(season => (
+                        <Badge key={season} variant="outline" className="font-normal">{season}</Badge>
+                     ))}
                 </div>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
@@ -155,3 +161,5 @@ export function PlantCard({
         </Card>
     );
 }
+
+    

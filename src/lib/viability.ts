@@ -2,6 +2,7 @@
 import type { Plant, PlantingWithPlant, Conditions } from '@/lib/types';
 
 export type Viability = 'High' | 'Medium' | 'Low';
+export type Season = 'Spring' | 'Summer' | 'Autumn' | 'Winter';
 
 // A very simplified analysis function
 export const analyzeViability = (plant: Plant, conditions: Conditions): Viability => {
@@ -27,3 +28,16 @@ export const analyzeViability = (plant: Plant, conditions: Conditions): Viabilit
   if (score === 1) return 'Medium';
   return 'Low';
 };
+
+
+export const getSuitableSeasons = (plant: Plant): string[] => {
+    const text = `${plant.germinationNeeds} ${plant.optimalConditions}`.toLowerCase();
+    const seasons: string[] = [];
+    if (text.includes('spring')) seasons.push('Spring');
+    if (text.includes('summer')) seasons.push('Summer');
+    if (text.includes('autumn') || text.includes('fall')) seasons.push('Autumn');
+    if (text.includes('winter')) seasons.push('Winter');
+    return seasons;
+};
+
+    
