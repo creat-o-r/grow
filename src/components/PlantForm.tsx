@@ -22,7 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Command, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Check, ChevronsUpDown } from "lucide-react"
 
 const statusHistorySchema = z.object({
@@ -120,24 +120,26 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     try {
       const result = await aiSearchPlantData({ searchTerm: aiSearchTerm, apiKeys });
       
+      let commonName = result.species;
       const parenthesisMatch = result.species.match(/\(([^)]+)\)/);
-      let commonName = result.species.split(',')[0].trim();
 
       if (parenthesisMatch && parenthesisMatch[1]) {
         const contentInParenthesis = parenthesisMatch[1];
         const contentOutside = result.species.substring(0, parenthesisMatch.index).trim();
         
-        // If content outside looks like a latin name, use the content inside parenthesis as common name
-        if (contentOutside.split(' ').length >= 2 && contentInParenthesis.split(' ').length > 0) {
+        // Very basic check: if the "outside" part has more than one word, it's likely the scientific name
+        // and the part in parentheses is the common name.
+        if (contentOutside.includes(' ')) {
              commonName = contentInParenthesis;
         } else {
-            commonName = contentOutside;
+             commonName = contentOutside;
         }
       }
       
       if (!form.getValues('name')) {
         form.setValue('name', commonName, { shouldValidate: true });
       }
+
       form.setValue('species', result.species, { shouldValidate: true });
       form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
       form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });
