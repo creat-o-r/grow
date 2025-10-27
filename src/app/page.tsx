@@ -855,6 +855,31 @@ const unspecifiedSeasonCount = useMemo(() => {
                                   </Button>
                               </div>
                           </div>
+                           {statusFilter === 'Wishlist' && (
+                                <div className="flex items-center gap-4 pt-4 mt-4 border-t">
+                                    {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 gap-2 text-muted-foreground"
+                                            onClick={() => unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                                        >
+                                            <AlertCircle className="h-4 w-4" />
+                                            <span className="font-mono">{unspecifiedSeasonCount}</span>
+                                        </Button>
+                                    )}
+                                    <div className="flex items-center space-x-2 ml-auto">
+                                        <Label htmlFor="sort-order" className='text-sm font-medium text-muted-foreground'>
+                                            Sort by {wishlistSortOrder}
+                                        </Label>
+                                        <Switch
+                                            id="sort-order"
+                                            checked={wishlistSortOrder === 'viability'}
+                                            onCheckedChange={(checked) => setWishlistSortOrder(checked ? 'viability' : 'season')}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                       </AccordionContent>
                   </AccordionItem>
                 </Accordion>
@@ -876,31 +901,6 @@ const unspecifiedSeasonCount = useMemo(() => {
                             </Button>
                         ))}
                     </div>
-                    {statusFilter === 'Wishlist' && (
-                        <div className="flex items-center gap-4">
-                            {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 gap-2 text-muted-foreground"
-                                    onClick={() => unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                                >
-                                    <AlertCircle className="h-4 w-4" />
-                                    <span className="font-mono">{unspecifiedSeasonCount}</span>
-                                </Button>
-                            )}
-                            <div className="flex items-center space-x-2">
-                                <Label htmlFor="sort-order" className='text-sm font-medium text-muted-foreground'>
-                                    Sort by {wishlistSortOrder}
-                                </Label>
-                                <Switch
-                                    id="sort-order"
-                                    checked={wishlistSortOrder === 'viability'}
-                                    onCheckedChange={(checked) => setWishlistSortOrder(checked ? 'viability' : 'season')}
-                                />
-                            </div>
-                        </div>
-                    )}
                 </div>
                 
                 {plantings && plantings.length > 0 ? (
