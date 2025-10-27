@@ -286,19 +286,13 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       await db.locations.clear();
 
       if (data.locations && data.locations.length > 0) {
-        const newLocationId = data.locations[0].id;
         await db.locations.bulkAdd(data.locations);
-
-        if (data.plants) {
-          await db.plants.bulkAdd(data.plants);
-        }
-        if (data.plantings) {
-          const plantingsWithGardenId = data.plantings.map(p => ({
-            ...p,
-            gardenId: newLocationId
-          }));
-          await db.plantings.bulkAdd(plantingsWithGardenId);
-        }
+      }
+      if (data.plants) {
+        await db.plants.bulkAdd(data.plants);
+      }
+      if (data.plantings) {
+        await db.plantings.bulkAdd(data.plantings);
       }
     });
 
@@ -1046,8 +1040,9 @@ const unspecifiedSeasonCount = useMemo(() => {
        return activeLocation?.name || 'Select Garden';
     }
     if (gardenViewMode === 'selected') {
-        if (locations && selectedGardenIds.length === locations.length) return 'All Gardens Selected';
-        return `${selectedGardenIds.length} Garden(s) Selected`;
+        if (locations && selectedGardenIds.length === locations.length) return 'All Gardens';
+        if (selectedGardenIds.length > 1) return `${selectedGardenIds.length} Gardens Selected`;
+        return `${selectedGardenIds.length} Garden Selected`;
     }
     if (gardenViewMode === 'all') return 'All Gardens';
     return activeLocation?.name || 'Select Garden';
@@ -1124,10 +1119,9 @@ const unspecifiedSeasonCount = useMemo(() => {
                                     </span>
                                 ) : (
                                     <div className="flex flex-col items-start text-sm text-muted-foreground font-normal">
-                                        {selectedLocations.map((loc, index) => (
+                                        {selectedLocations.map((loc) => (
                                             <div key={loc.id} className="truncate">
                                                 <span><span className="font-semibold">{loc.name}:</span> {loc.conditions.temperature || 'N/A'}</span>
-                                                {index < selectedLocations.length - 1 && <span className="mx-1">|</span>}
                                             </div>
                                         ))}
                                     </div>
@@ -1547,3 +1541,5 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    
