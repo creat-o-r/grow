@@ -760,7 +760,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         } else if (viabilityMechanism === 'ai') {
             // When switching to AI, clear data and run batch analysis
             setViabilityData({});
-            if (plantingsWithPlants.length > 0) {
+            if (plantingsWithPlants && plantingsWithPlants.length > 0) {
                 handleBatchAiViabilityAnalysis(plantingsWithPlants);
             }
         }
@@ -1430,5 +1430,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
