@@ -689,29 +689,91 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       .map(p => ({ ...p, plant: plantMap.get(p.plantId)! }))
       .filter(p => p.plant); // Filter out plantings with no matching plant
   }, [plantings, plants]);
+  
+  const wishlistPlantings = useMemo(() => {
+    if (!plantingsWithPlants) return [];
+    return plantingsWithPlants.filter(p => p.history?.slice(-1)[0]?.status === 'Wishlist');
+  }, [plantingsWithPlants]);
 
-  // Consolidated effect for viability calculation
-  useEffect(() => {
-    if (viabilityMechanism === 'local') {
-      if (activeLocation?.conditions && plantingsWithPlants) {
-        const newViabilityData: Record<string, Viability> = {};
-        plantingsWithPlants.forEach(p => {
-          newViabilityData[p.id] = analyzeViability(p.plant, activeLocation.conditions!);
+    const handleBatchAiViabilityAnalysis = useCallback(async (plantingsToAnalyze: PlantingWithPlant[]) => {
+        if (!activeLocation?.conditions || plantingsToAnalyze.length === 0 || !areApiKeysSet) {
+            return;
+        }
+
+        toast({
+            title: 'Starting Batch AI Analysis...',
+            description: `Analyzing ${plantingsToAnalyze.length} plants. This may take a moment.`,
         });
-        setViabilityData(newViabilityData);
-      }
-    } else if (viabilityMechanism === 'ai') {
-      // Clear data only when switching to 'ai' mode
-      setViabilityData({});
-    }
-  }, [
-    plantingsWithPlants, 
-    viabilityMechanism,
-    activeLocation?.conditions?.temperature,
-    activeLocation?.conditions?.sunlight,
-    activeLocation?.conditions?.soil,
-    activeLocation?.conditions?.currentSeason
-  ]);
+
+        const newViabilityData: Record<string, Viability> = {};
+        const newLogs: AiLog[] = [];
+
+        for (const planting of plantingsToAnalyze) {
+            try {
+                const promptData = {
+                    plant: planting.plant,
+                    gardenConditions: {
+                        ...activeLocation.conditions,
+                        currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
+                    },
+                    apiKeys,
+                };
+                const result = await getAiViability(promptData);
+                newViabilityData[planting.id] = result.viability;
+                newLogs.push({
+                    id: `${Date.now()}-${planting.id}`,
+                    timestamp: new Date().toISOString(),
+                    flow: 'getAiViability',
+                    prompt: promptData,
+                    results: result,
+                    viabilityType: 'ai',
+                });
+            } catch (error: any) {
+                console.error(`AI analysis failed for ${planting.name}:`, error);
+                // Continue with the next plant
+            }
+        }
+        
+        setViabilityData(prev => ({ ...prev, ...newViabilityData }));
+        if (newLogs.length > 0) {
+            await db.aiLogs.bulkAdd(newLogs);
+        }
+
+        toast({
+            title: 'Batch Analysis Complete',
+            description: `Analyzed ${newLogs.length} out of ${plantingsToAnalyze.length} plants.`,
+        });
+
+    }, [activeLocation?.conditions, apiKeys, areApiKeysSet, toast]);
+
+
+    // Consolidated effect for viability calculation and batch analysis
+    useEffect(() => {
+        if (viabilityMechanism === 'local') {
+            if (activeLocation?.conditions && plantingsWithPlants) {
+                const newViabilityData: Record<string, Viability> = {};
+                plantingsWithPlants.forEach(p => {
+                    newViabilityData[p.id] = analyzeViability(p.plant, activeLocation.conditions!);
+                });
+                setViabilityData(newViabilityData);
+            }
+        } else if (viabilityMechanism === 'ai') {
+            // When switching to AI, clear data and run batch analysis
+            setViabilityData({});
+            if (wishlistPlantings.length > 0) {
+                handleBatchAiViabilityAnalysis(wishlistPlantings);
+            }
+        }
+    }, [
+        viabilityMechanism,
+        plantingsWithPlants,
+        wishlistPlantings,
+        handleBatchAiViabilityAnalysis,
+        activeLocation?.conditions?.temperature,
+        activeLocation?.conditions?.sunlight,
+        activeLocation?.conditions?.soil,
+        activeLocation?.conditions?.currentSeason,
+    ]);
 
 
   const sortedAndFilteredPlantings = useMemo(() => {
@@ -736,10 +798,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     return filtered;
   }, [plantingsWithPlants, statusFilter, activeLocation?.conditions, viabilityData]);
   
-  const wishlistPlantings = useMemo(() => {
-    if (!plantingsWithPlants) return [];
-    return plantingsWithPlants.filter(p => p.history?.slice(-1)[0]?.status === 'Wishlist');
-  }, [plantingsWithPlants]);
 
   const organizedWishlist = useMemo(() => {
     if (!wishlistPlantings || !activeLocation?.conditions) return null;
@@ -1373,11 +1431,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
-
-    
-
-    
-
-
