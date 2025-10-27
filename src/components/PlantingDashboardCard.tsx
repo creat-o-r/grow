@@ -123,7 +123,7 @@ export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlan
             setTimeout(() => setIsSavingPlannedQty(false), 1000); // Show checkmark briefly
         } else if (plannedQty === '' && planting.plannedQty !== undefined) {
             await db.plantings.update(planting.id, { plannedQty: undefined });
-        } else {
+        } else if (plannedQty !== '' && isNaN(qty)) {
              toast({
                 title: 'Invalid Quantity',
                 description: 'Please enter a valid number for planned quantity.',
@@ -137,66 +137,68 @@ export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlan
     return (
         <Card className="flex flex-col bg-muted/50">
             <CardHeader>
-                <div className="flex justify-between items-start">
-                    <div>
-                        <CardTitle className="font-headline text-lg leading-tight mb-1 pr-2">{planting.name}</CardTitle>
-                        <CardDescription>{planting.plant.species}</CardDescription>
-                    </div>
-                    <a href={`https://www.google.com/search?q=${encodeURIComponent(planting.plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center -mt-1 -mr-2" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                            <ExternalLink className="h-4 w-4" />
-                            <span className="sr-only">Search for {planting.plant.species}</span>
-                        </Button>
+                <CardTitle className="font-headline text-lg leading-tight mb-1 pr-2">{planting.name}</CardTitle>
+                <CardDescription className="flex items-center gap-2">
+                    <span>{planting.plant.species}</span>
+                    <a href={`https://www.google.com/search?q=${encodeURIComponent(planting.plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
+                        <ExternalLink className="h-3 w-3" />
+                        <span className="sr-only">Search for {planting.plant.species}</span>
                     </a>
-                </div>
+                </CardDescription>
                 {latestStatus && (
-                    <Badge variant="outline" className={cn("font-normal w-fit mt-2", statusConfig[latestStatus.status])}>
-                        {latestStatus.status}
-                    </Badge>
+                    <div className="pt-2">
+                        <Badge variant="outline" className={cn("font-normal w-fit", statusConfig[latestStatus.status])}>
+                            {latestStatus.status}
+                        </Badge>
+                    </div>
                 )}
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
-                 <div className="space-y-2">
-                    <Label htmlFor={`seeds-on-hand-${planting.id}`}>Seeds on Hand</Label>
-                    <div className="flex gap-2">
-                        <Input
-                            id={`seeds-on-hand-${planting.id}`}
-                            type="number"
-                            placeholder="e.g., 50"
-                            value={seedsOnHand}
-                            onChange={(e) => setSeedsOnHand(e.target.value)}
-                        />
-                        <Button onClick={handleSetSeeds} disabled={!seedsOnHand}>Set</Button>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor={`seeds-on-hand-${planting.id}`}>Seeds on Hand</Label>
+                        <div className="flex gap-2">
+                            <Input
+                                id={`seeds-on-hand-${planting.id}`}
+                                type="number"
+                                placeholder="e.g., 50"
+                                value={seedsOnHand}
+                                onChange={(e) => setSeedsOnHand(e.target.value)}
+                                className="h-9"
+                            />
+                            <Button onClick={handleSetSeeds} disabled={!seedsOnHand} size="sm" className="h-9">Set</Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Sets status to "Planting".</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">Entering a quantity will mark this plant as "Planting".</p>
-                </div>
-                 <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                        <Label htmlFor={`planned-qty-${planting.id}`}>Planned Planting Qty</Label>
-                        {isSavingPlannedQty && <CheckCircle className="h-4 w-4 text-green-500 animate-in fade-in" />}
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                            <Label htmlFor={`planned-qty-${planting.id}`}>Planned Qty</Label>
+                            {isSavingPlannedQty && <CheckCircle className="h-4 w-4 text-green-500 animate-in fade-in" />}
+                        </div>
+                        <div className="flex gap-2">
+                            <Input
+                                id={`planned-qty-${planting.id}`}
+                                type="number"
+                                placeholder="e.g., 20"
+                                value={plannedQty}
+                                onChange={(e) => setPlannedQty(e.target.value)}
+                                className="h-9"
+                            />
+                            <Button onClick={handleSetPlannedQty} size="sm" className="h-9">Set</Button>
+                        </div>
+                         {planting.plannedQty !== undefined && planting.plannedQty > 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                                Seeds on hand: {planting.seedsOnHand || 0}. 
+                                <span className="font-bold"> Needs: {seedsRequired}</span>
+                            </p>
+                         ) : (
+                            <p className="text-xs text-muted-foreground">
+                                 Seeds on hand: {planting.seedsOnHand || 0}.
+                            </p>
+                         )
+                        }
                     </div>
-                    <div className="flex gap-2">
-                        <Input
-                            id={`planned-qty-${planting.id}`}
-                            type="number"
-                            placeholder="e.g., 20"
-                            value={plannedQty}
-                            onChange={(e) => setPlannedQty(e.target.value)}
-                        />
-                        <Button onClick={handleSetPlannedQty}>Set</Button>
-                    </div>
-                     {planting.plannedQty !== undefined && planting.plannedQty > 0 ? (
-                        <p className="text-xs text-muted-foreground">
-                            Currently planned: {planting.plannedQty}. Seeds on hand: {planting.seedsOnHand || 0}. 
-                            <span className="font-bold"> Seeds required: {seedsRequired}</span>
-                        </p>
-                     ) : (
-                        <p className="text-xs text-muted-foreground">
-                             Seeds on hand: {planting.seedsOnHand || 0}.
-                        </p>
-                     )
-                    }
-                </div>
+                 </div>
                  <div className="flex gap-2">
                     <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Planting')}>Mark as Planting</Button>
                     <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Growing')}>Mark as Growing</Button>
