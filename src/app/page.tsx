@@ -693,6 +693,19 @@ const unspecifiedSeasonCount = useMemo(() => {
     return counts;
   }, [plantings]);
 
+    const viabilityCounts = useMemo(() => {
+        const counts: Record<Viability, number> = { High: 0, Medium: 0, Low: 0 };
+        if (!plantingsWithPlants || !activeLocation?.conditions) return counts;
+
+        plantingsWithPlants.forEach(p => {
+            const viability = analyzeViability(p.plant, activeLocation.conditions!);
+            counts[viability]++;
+        });
+
+        return counts;
+    }, [plantingsWithPlants, activeLocation?.conditions]);
+
+
   const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
 
 
@@ -861,9 +874,17 @@ const unspecifiedSeasonCount = useMemo(() => {
                                 className="h-8"
                             >
                                 {status}
-                                <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
-                                    {statusCounts[status]}
-                                </Badge>
+                                {status === 'All' ? (
+                                    <div className="flex items-center gap-1.5 ml-2">
+                                        <Badge className="bg-green-500/20 text-green-700 dark:bg-green-500/10 dark:text-green-400 px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
+                                        <Badge className="bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
+                                        <Badge className="bg-red-500/20 text-red-700 dark:bg-red-500/10 dark:text-red-400 px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
+                                    </div>
+                                ) : (
+                                    <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
+                                        {statusCounts[status]}
+                                    </Badge>
+                                )}
                             </Button>
                         ))}
                     </div>
@@ -874,7 +895,63 @@ const unspecifiedSeasonCount = useMemo(() => {
                     <>
                       {statusFilter === 'Wishlist' ? (
                           wishlistPlantings.length > 0 ? (
-                            wishlistSortOrder === 'season' ? (
+                            wishlistSortOrder === 'viability' ? (
+                                <div>
+                                    <div className="flex justify-end items-center mb-4 sticky top-0 bg-background py-2 z-10">
+                                        <div className="flex items-center gap-4">
+                                            {unspecifiedSeasonCount > 0 && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 gap-2 text-muted-foreground"
+                                                    onClick={() => {
+                                                        setWishlistSortOrder('season');
+                                                        setTimeout(() => {
+                                                            unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+                                                        }, 100);
+                                                    }}
+                                                >
+                                                    <AlertCircle className="h-4 w-4" />
+                                                    <span className="font-mono">{unspecifiedSeasonCount}</span>
+                                                </Button>
+                                            )}
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant={wishlistSortOrder === 'season' ? 'default' : 'outline'}
+                                                    onClick={() => setWishlistSortOrder('season')}
+                                                    className="h-8"
+                                                >
+                                                    Season
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant={wishlistSortOrder === 'viability' ? 'default' : 'outline'}
+                                                    onClick={() => setWishlistSortOrder('viability')}
+                                                    className="h-8"
+                                                >
+                                                    Viability
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                        {sortedWishlistByViability.map(p => (
+                                            <PlantCard
+                                                key={p.id}
+                                                planting={p}
+                                                gardenConditions={activeLocation?.conditions}
+                                                onEdit={() => handleEditPlanting(p)}
+                                                onDelete={() => promptDelete(p)}
+                                                onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                                isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                                isSelectionMode={!!duplicateSelectionMode}
+                                                onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
                               <div className="space-y-8">
                                   {organizedWishlist && organizedWishlist.map((group, index) => (
                                       <section 
@@ -937,57 +1014,6 @@ const unspecifiedSeasonCount = useMemo(() => {
                                       </section>
                                   ))}
                               </div>
-                            ) : (
-                                <div>
-                                    <div className="flex justify-end items-center mb-4">
-                                        <div className="flex items-center gap-4">
-                                            {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 gap-2 text-muted-foreground"
-                                                    onClick={() => unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                                                >
-                                                    <AlertCircle className="h-4 w-4" />
-                                                    <span className="font-mono">{unspecifiedSeasonCount}</span>
-                                                </Button>
-                                            )}
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant={wishlistSortOrder === 'season' ? 'default' : 'outline'}
-                                                    onClick={() => setWishlistSortOrder('season')}
-                                                    className="h-8"
-                                                >
-                                                    Season
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant={wishlistSortOrder === 'viability' ? 'default' : 'outline'}
-                                                    onClick={() => setWishlistSortOrder('viability')}
-                                                    className="h-8"
-                                                >
-                                                    Viability
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                        {sortedWishlistByViability.map(p => (
-                                            <PlantCard
-                                                key={p.id}
-                                                planting={p}
-                                                gardenConditions={activeLocation?.conditions}
-                                                onEdit={() => handleEditPlanting(p)}
-                                                onDelete={() => promptDelete(p)}
-                                                onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
-                                                isDuplicateSource={duplicateSelectionMode?.id === p.id}
-                                                isSelectionMode={!!duplicateSelectionMode}
-                                                onSelectDuplicate={() => handleDuplicateSelection(p)}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
                             )
                           ) : (
                               <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
@@ -1146,7 +1172,7 @@ const unspecifiedSeasonCount = useMemo(() => {
             setIsSettingsSheetOpen(false);
             setIsAiImportSheetOpen(true);
         }}
-        onPublish={handlePublish}
+        onPublish={onPublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
         onDuplicateReviewOpen={() => {
