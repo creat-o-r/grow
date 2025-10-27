@@ -793,90 +793,80 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     return plantingsWithPlants.filter(p => p.history?.slice(-1)[0]?.status === 'Wishlist');
   }, [plantingsWithPlants]);
 
-    const handleBatchAiViabilityAnalysis = useCallback(async (plantingsToAnalyze: PlantingWithPlant[]) => {
-        if (!activeLocation?.conditions || plantingsToAnalyze.length === 0 || !areApiKeysSet) {
-            return;
-        }
+  const handleBatchAiViabilityAnalysis = useCallback(async (plantingsToAnalyze: PlantingWithPlant[]) => {
+    if (!activeLocation?.conditions || plantingsToAnalyze.length === 0 || !areApiKeysSet) {
+        return;
+    }
 
-        const { id: toastId } = toast({
-            title: 'Starting Batch AI Analysis...',
-            description: (
-                <div className="w-full">
-                    <p>Analyzing {plantingsToAnalyze.length} plants. This may take a moment.</p>
-                    <Progress value={0} className="mt-2" />
-                </div>
-            ),
-            duration: Infinity,
-        });
+    const { id: toastId } = toast({
+        title: 'Starting Batch AI Analysis...',
+        description: (
+            <div className="w-full">
+                <p>Analyzing {plantingsToAnalyze.length} plants. This may take a moment.</p>
+                <Progress value={0} className="mt-2" />
+            </div>
+        ),
+        duration: Infinity,
+    });
 
-        let completedCount = 0;
-        setAnalysisProgress(0);
+    let completedCount = 0;
+    setAnalysisProgress(0);
 
-        const newViabilityData: Record<string, Viability> = {};
+    const newViabilityData: Record<string, Viability> = {};
 
-        const analysisPromises = plantingsToAnalyze.map(async (planting) => {
-            try {
-                const promptData = {
-                    plant: planting.plant,
-                    gardenConditions: {
-                        ...activeLocation.conditions,
-                        currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
-                    },
-                    apiKeys,
-                };
-                const result = await getAiViability(promptData);
-                
-                return { status: 'fulfilled', plantingId: planting.id, viability: result.viability };
-            } catch (error: any) {
-                console.error(`AI analysis failed for ${planting.name}:`, error);
-                return { status: 'rejected', plantingId: planting.id, error };
-            } finally {
-                completedCount++;
-                const progress = (completedCount / plantingsToAnalyze.length) * 100;
-                setAnalysisProgress(progress);
-                 toast({
-                    id: toastId,
-                    title: 'Analyzing...',
-                    description: (
-                        <div className="w-full">
-                            <p>{completedCount} of {plantingsToAnalyze.length} plants analyzed.</p>
-                            <Progress value={progress} className="mt-2" />
-                        </div>
-                    ),
-                    duration: Infinity,
-                });
-            }
-        });
-
-        const results = await Promise.allSettled(analysisPromises);
-        let successfulAnalyses = 0;
-        results.forEach(result => {
-             if (result.status === 'fulfilled' && result.value?.status === 'fulfilled') {
-                const { plantingId, viability } = result.value;
-                newViabilityData[plantingId] = viability;
-                successfulAnalyses++;
-            }
-        });
-        
-        setViabilityData(prev => ({ ...prev, ...newViabilityData }));
-
-        dismiss(toastId);
-        toast({
-            title: 'Batch Analysis Complete',
-            description: `Analyzed ${successfulAnalyses} out of ${plantingsToAnalyze.length} plants.`,
-        });
-
-    }, [activeLocation?.conditions, apiKeys, areApiKeysSet, toast, dismiss]);
-
-    const localViabilityData = useMemo(() => {
-        const newViabilityData: Record<string, Viability> = {};
-        if (viabilityMechanism === 'local' && activeLocation?.conditions && plantingsWithPlants) {
-            plantingsWithPlants.forEach(p => {
-                newViabilityData[p.id] = analyzeViability(p.plant, activeLocation.conditions!);
+    const analysisPromises = plantingsToAnalyze.map(async (planting) => {
+        try {
+            const promptData = {
+                plant: planting.plant,
+                gardenConditions: {
+                    ...activeLocation.conditions,
+                    currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
+                },
+                apiKeys,
+            };
+            const result = await getAiViability(promptData);
+            
+            return { status: 'fulfilled', plantingId: planting.id, viability: result.viability };
+        } catch (error: any) {
+            console.error(`AI analysis failed for ${planting.name}:`, error);
+            return { status: 'rejected', plantingId: planting.id, error };
+        } finally {
+            completedCount++;
+            const progress = (completedCount / plantingsToAnalyze.length) * 100;
+            setAnalysisProgress(progress);
+             toast({
+                id: toastId,
+                title: 'Analyzing...',
+                description: (
+                    <div className="w-full">
+                        <p>{completedCount} of {plantingsToAnalyze.length} plants analyzed.</p>
+                        <Progress value={progress} className="mt-2" />
+                    </div>
+                ),
+                duration: Infinity,
             });
         }
-        return newViabilityData;
-    }, [viabilityMechanism, activeLocation?.conditions, plantingsWithPlants]);
+    });
+
+    const results = await Promise.allSettled(analysisPromises);
+    let successfulAnalyses = 0;
+    results.forEach(result => {
+         if (result.status === 'fulfilled' && result.value?.status === 'fulfilled') {
+            const { plantingId, viability } = result.value;
+            newViabilityData[plantingId] = viability;
+            successfulAnalyses++;
+        }
+    });
+    
+    setViabilityData(prev => ({ ...prev, ...newViabilityData }));
+
+    dismiss(toastId);
+    toast({
+        title: 'Batch Analysis Complete',
+        description: `Analyzed ${successfulAnalyses} out of ${plantingsToAnalyze.length} plants.`,
+    });
+
+}, [activeLocation?.conditions, apiKeys, areApiKeysSet, toast, dismiss]);
 
     useEffect(() => {
         const justSwitchedToAi = previousViabilityMechanism === 'local' && viabilityMechanism === 'ai';
@@ -903,6 +893,16 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         handleBatchAiViabilityAnalysis,
         plantingsWithPlants
     ]);
+
+    const localViabilityData = useMemo(() => {
+        const newViabilityData: Record<string, Viability> = {};
+        if (viabilityMechanism === 'local' && activeLocation?.conditions && plantingsWithPlants) {
+            plantingsWithPlants.forEach(p => {
+                newViabilityData[p.id] = analyzeViability(p.plant, activeLocation.conditions!);
+            });
+        }
+        return newViabilityData;
+    }, [viabilityMechanism, activeLocation?.conditions, plantingsWithPlants]);
 
     const currentViabilityData = viabilityMechanism === 'ai' ? viabilityData : localViabilityData;
 
@@ -1487,7 +1487,7 @@ const unspecifiedSeasonCount = useMemo(() => {
             setIsSettingsSheetOpen(false);
             setIsAiImportSheetOpen(true);
         }}
-        onPublish={onPublish}
+        onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
         viabilityMechanism={viabilityMechanism}
@@ -1537,5 +1537,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
