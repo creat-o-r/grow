@@ -861,24 +861,22 @@ const unspecifiedSeasonCount = useMemo(() => {
                 
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-2">
-                      {allFilters.map(status => (
-                          <Button
-                              key={status}
-                              variant={statusFilter === status ? 'default' : 'outline'}
-                              size="sm"
-                              onClick={() => setStatusFilter(status)}
-                              className="h-8"
-                          >
-                              {status}
-                              <Badge variant="secondary" className={cn(
-                                  "ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono"
-                                  )}>
-                                  {statusCounts[status]}
-                              </Badge>
-                          </Button>
-                      ))}
+                        {allFilters.map(status => (
+                            <Button
+                                key={status}
+                                variant={statusFilter === status ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setStatusFilter(status)}
+                                className="h-8"
+                            >
+                                {status}
+                                <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
+                                    {statusCounts[status]}
+                                </Badge>
+                            </Button>
+                        ))}
                     </div>
-                     {statusFilter === 'Wishlist' && (
+                    {statusFilter === 'Wishlist' && (
                         <div className="flex items-center gap-4">
                             {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
                                 <Button
