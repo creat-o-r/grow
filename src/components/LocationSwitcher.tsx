@@ -9,6 +9,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -107,12 +108,16 @@ export function LocationSwitcher({
     }
   }
 
-  const handleItemSelect = (e: MouseEvent, locationId: string) => {
+  const handleItemSelect = (locationId: string) => {
     if (gardenViewMode === 'selected') {
-        e.preventDefault();
         const newSelectedIds = selectedGardenIds.includes(locationId)
             ? selectedGardenIds.filter((id) => id !== locationId)
             : [...selectedGardenIds, locationId];
+
+        if (newSelectedIds.length === 1) {
+            handleSelectOneShortcut(newSelectedIds[0]);
+            return;
+        }
 
         if (newSelectedIds.length === 0 && locations.length > 0) {
             onSelectedGardenIdsChange([locations[0].id]);
@@ -127,7 +132,9 @@ export function LocationSwitcher({
 
   const handleSelectOneShortcut = (locationId: string) => {
     onLocationChange(locationId);
-    onGardenViewModeChange('one');
+    if (gardenViewMode === 'selected') {
+        onGardenViewModeChange('one');
+    }
     setSelectedGardenIds([locationId]);
     setIsOpen(false);
   }
@@ -151,7 +158,7 @@ export function LocationSwitcher({
               <DropdownMenuItem 
                 key={location.id} 
                 onSelect={(e) => e.preventDefault()} // Prevent default close behavior
-                className="p-0"
+                className={cn("p-0", isActive && gardenViewMode === 'one' && 'bg-accent/50')}
               >
                   {editingLocationId === location.id ? (
                       <div className="flex items-center gap-1 w-full px-2 py-1.5">
@@ -166,12 +173,13 @@ export function LocationSwitcher({
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancelEdit}><X className="h-4 w-4 text-destructive"/></Button>
                       </div>
                     ) : (
-                      <div className={cn("flex items-center w-full justify-between px-2 py-1.5 cursor-pointer", isActive && gardenViewMode === 'one' && 'bg-accent/50')}>
+                      <div className={cn("flex items-center w-full justify-between px-2 py-1.5 cursor-pointer")}>
                           <div className={cn("flex items-center gap-3 flex-1")} onClick={() => handleSelectOneShortcut(location.id)}>
                              {gardenViewMode === 'selected' && (
-                                <div onClick={(e) => { e.stopPropagation(); handleItemSelect(e, location.id); }} className="p-1 -ml-1">
+                                <div onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleItemSelect(location.id); }} className="p-1 -ml-1">
                                     <Checkbox
                                         checked={isSelectedForMulti}
+                                        aria-label={`Select ${location.name}`}
                                     />
                                 </div>
                              )}
@@ -203,7 +211,7 @@ export function LocationSwitcher({
               </DropdownMenuItem>
           )})}
         
-        
+        <DropdownMenuSeparator />
         <div className="p-2 pt-1">
             <div className="flex items-center justify-center rounded-md bg-muted p-1">
                 <Button 
