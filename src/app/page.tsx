@@ -842,24 +842,28 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
                 });
                 setViabilityData(newViabilityData);
             }
-        } else if (viabilityMechanism === 'ai' && plantingsWithPlants && plantingsWithPlants.length > 0) {
-            if (justSwitchedToAi) {
+        } else if (viabilityMechanism === 'ai' && areApiKeysSet) {
+            const plantingsToAnalyze = plantingsWithPlants.filter(p => p.gardenId === activeLocationId);
+
+            if (justSwitchedToAi && plantingsToAnalyze.length > 0) {
                 setViabilityData({}); // Clear old data for a clean slate
-                handleBatchAiViabilityAnalysis(plantingsWithPlants);
-            } else if (conditionsChangedInAiMode) {
-                 handleBatchAiViabilityAnalysis(plantingsWithPlants);
+                handleBatchAiViabilityAnalysis(plantingsToAnalyze);
+            } else if (conditionsChangedInAiMode && plantingsToAnalyze.length > 0) {
+                 handleBatchAiViabilityAnalysis(plantingsToAnalyze);
             }
         }
     }, [
         viabilityMechanism,
-        plantingsWithPlants,
-        handleBatchAiViabilityAnalysis,
+        previousViabilityMechanism,
+        activeLocationId,
         activeLocation?.conditions.temperature,
         activeLocation?.conditions.sunlight,
         activeLocation?.conditions.soil,
         activeLocation?.conditions.currentSeason,
-        previousViabilityMechanism,
         previousActiveConditions,
+        areApiKeysSet,
+        handleBatchAiViabilityAnalysis,
+        // plantingsWithPlants is intentionally omitted to prevent loop
     ]);
 
 
