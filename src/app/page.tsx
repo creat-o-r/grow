@@ -870,12 +870,8 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     useEffect(() => {
         const justSwitchedToAi = previousViabilityMechanism === 'local' && viabilityMechanism === 'ai';
-        const conditionsChangedInAiMode = viabilityMechanism === 'ai' && (
-            activeLocation?.conditions.temperature !== previousActiveConditions?.temperature ||
-            activeLocation?.conditions.sunlight !== previousActiveConditions?.sunlight ||
-            activeLocation?.conditions.soil !== previousActiveConditions?.soil ||
-            activeLocation?.conditions.currentSeason !== previousActiveConditions?.currentSeason
-        );
+        // Poor man's deep object comparison
+        const conditionsChangedInAiMode = viabilityMechanism === 'ai' && JSON.stringify(activeLocation?.conditions) !== JSON.stringify(previousActiveConditions);
 
         if (viabilityMechanism === 'ai' && areApiKeysSet && plantingsWithPlants) {
             const plantingsToAnalyze = plantingsWithPlants.filter(p => p.gardenId === activeLocationId);
