@@ -44,7 +44,7 @@ export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet,
                 <CardHeader className="px-0 pb-4">
                     <CardTitle className="font-headline">Planting Possibilities</CardTitle>
                     <CardDescription>
-                        Here are plantings from your Wishlist and completed Harvests, prioritized by their viability in your current garden.
+                        Here are plantings from your Wishlist and Harvests, prioritised by their viability now.
                     </CardDescription>
                 </CardHeader>
                 

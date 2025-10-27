@@ -27,6 +27,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { PlusCircle, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, Settings, Info, Rocket } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 
 type PlantStatus = StatusHistory['status'];
@@ -564,6 +566,13 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
   }, [plantings]);
 
   const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
+  const statusConfig: { [key: string]: string } = {
+    All: 'bg-primary-foreground/20 text-primary-foreground',
+    Wishlist: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
+    Planting: 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300',
+    Growing: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
+    Harvest: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300',
+  };
 
 
   if (!isClient || !plantings || !plants || !locations || !aiLogs) {
@@ -724,9 +733,17 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                                 className="h-8"
                             >
                                 {status}
-                                <span className="ml-2 bg-primary-foreground/20 text-primary-foreground rounded-full px-1.5 py-0.5 text-xs font-mono">
+                                <Badge 
+                                    variant="secondary" 
+                                    className={cn(
+                                        "ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono",
+                                        statusFilter === status 
+                                            ? 'bg-background/20 text-foreground'
+                                            : statusConfig[status]
+                                    )}
+                                >
                                     {displayCount}
-                                </span>
+                                </Badge>
                             </Button>
                         );
                     })}
