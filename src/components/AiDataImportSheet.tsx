@@ -62,7 +62,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     if (!theme.trim() || !areApiKeysSet) return;
     
     setIsGenerating(true);
-    if(!isRefinement) {
+    if (!isRefinement) {
         setGeneratedData(null);
     }
     setError(null);
@@ -127,7 +127,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
         gardenId: generatedData?.locations[0].id || '',
         name: result.species,
         createdAt: new Date().toISOString(),
-        history: [{ id: 'new-1', status: 'Wishlist', date: new Date().toISOString(), notes: `Suggested as similar to ${plant.species}` }],
+        history: [{ id: 'new-1', 'status': 'Wishlist', date: new Date().toISOString(), notes: `Suggested as similar to ${plant.species}` }],
       }
 
       if (generatedData) {

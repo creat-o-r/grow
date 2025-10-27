@@ -78,9 +78,9 @@ export async function createDataset(
     output: {schema: CreateDatasetOutputSchema},
     prompt: `You are a world-class horticulturist and garden designer. Your task is to generate a dataset based on the provided theme.
 
-Theme: {{{theme}}}
+**FIRST, check the quantity**: Look for a specific number of plants requested in the theme (e.g., "create 10 plants"). If no number is specified, generate a list of 5 to 8 plant species.
 
-**Quantity**: Look for a specific number of plants requested in the theme (e.g., "create 10 plants"). If no number is specified, generate a list of 5 to 8 plant species.
+Theme: {{{theme}}}
 
 {{#if activeLocation}}
 Your primary goal is to generate a list of plant species and a corresponding 'planting' for each, based on the quantity instruction above.
