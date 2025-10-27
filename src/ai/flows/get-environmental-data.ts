@@ -23,6 +23,7 @@ const GetEnvironmentalDataOutputSchema = z.object({
   soilTemperature: z.string().describe('The current soil temperature.'),
   sunlightHours: z.string().describe('The current daily hours of sunlight.'),
   soilDescription: z.string().describe('A brief description of typical soil in the area. Omit the word "soil" from the description.'),
+  currentSeason: z.enum(['Spring', 'Summer', 'Autumn', 'Winter']).describe('The current season in the Northern or Southern Hemisphere for the given location.'),
   reasoning: z.string().describe('A detailed explanation of how the data was determined based on the location.'),
   references: z.any().describe('A full list of references or sources used to determine the data.'),
 });
@@ -48,6 +49,7 @@ Based on general knowledge for the provided location, provide the current enviro
 Location: {{{location}}}
 
 Provide the current soil temperature, average daily sunlight hours, and a description of the typical soil composition.
+Determine the current season (Spring, Summer, Autumn, or Winter) based on the location's hemisphere and the current date.
 For the soilDescription, return only the key characteristics of the soil type (e.g., "Well-drained, sandy loam, pH 6.5"). Do not include any descriptive words, location information, or the word "soil".
 In the reasoning field, provide a detailed explanation for why you chose the values based on the location's geography and current season.
 In the references field, cite the full list of any general sources or knowledge bases you are using.

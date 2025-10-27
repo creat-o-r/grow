@@ -452,6 +452,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
             temperature: result.soilTemperature,
             sunlight: result.sunlightHours,
             soil: result.soilDescription,
+            currentSeason: result.currentSeason,
         }
       });
       
@@ -522,7 +523,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
 
     const getStatus = (p: Planting) => p.history && p.history.length > 0 ? p.history[p.history.length - 1].status : null;
 
-    const filtered = statusFilter === 'All' || statusFilter === 'Planting'
+    const filtered = statusFilter === 'All'
         ? plantingsWithPlants 
         : plantingsWithPlants.filter(p => getStatus(p) === statusFilter);
 
@@ -538,6 +539,69 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     
     return filtered;
   }, [plantingsWithPlants, statusFilter, activeLocation?.conditions]);
+  
+  const seasonallySortedWishlist = useMemo(() => {
+    if (!plantingsWithPlants || !activeLocation?.conditions) return null;
+
+    const getPlantSeason = (plant: Plant): string => {
+        const text = `${plant.germinationNeeds} ${plant.optimalConditions}`.toLowerCase();
+        if (text.includes('spring')) return 'Spring';
+        if (text.includes('summer')) return 'Summer';
+        if (text.includes('autumn') || text.includes('fall')) return 'Autumn';
+        if (text.includes('winter')) return 'Winter';
+        return 'Any';
+    };
+
+    const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
+    const seasonOrder = ['Spring', 'Summer', 'Autumn', 'Winter'];
+    const currentSeason = activeLocation.conditions.currentSeason;
+    const currentSeasonIndex = currentSeason ? seasonOrder.indexOf(currentSeason) : 0;
+
+    const getSeasonScore = (season: string) => {
+        if (season === 'Any') return 4;
+        const seasonIndex = seasonOrder.indexOf(season);
+        return (seasonIndex - currentSeasonIndex + 4) % 4;
+    };
+    
+    const wishlistPlantings = plantingsWithPlants.filter(p => p.history?.slice(-1)[0]?.status === 'Wishlist');
+
+    wishlistPlantings.sort((a, b) => {
+        const seasonA = getPlantSeason(a.plant);
+        const seasonB = getPlantSeason(b.plant);
+        const seasonScoreA = getSeasonScore(seasonA);
+        const seasonScoreB = getSeasonScore(seasonB);
+
+        if (seasonScoreA !== seasonScoreB) {
+            return seasonScoreA - seasonScoreB;
+        }
+
+        const viabilityA = analyzeViability(a.plant, activeLocation.conditions!);
+        const viabilityB = analyzeViability(b.plant, activeLocation.conditions!);
+        return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
+    });
+    
+    const groupedBySeason: { [season: string]: PlantingWithPlant[] } = {};
+    wishlistPlantings.forEach(p => {
+        const season = getPlantSeason(p.plant);
+        const seasonScore = getSeasonScore(season);
+        const orderedSeasonName = seasonScore === 0 && currentSeason ? currentSeason : season;
+
+        if (!groupedBySeason[orderedSeasonName]) {
+            groupedBySeason[orderedSeasonName] = [];
+        }
+        groupedBySeason[orderedSeasonName].push(p);
+    });
+
+    const orderedGroupNames = Object.keys(groupedBySeason).sort((a, b) => {
+        return getSeasonScore(a) - getSeasonScore(b);
+    });
+
+    return orderedGroupNames.map(seasonName => ({
+        season: seasonName,
+        plantings: groupedBySeason[seasonName]
+    }));
+
+  }, [plantingsWithPlants, activeLocation?.conditions]);
 
   const plantingsInPlantingStatus = useMemo(() => {
       if (!plantingsWithPlants) return [];
@@ -709,40 +773,61 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                 </Accordion>
                 
                 <div className="flex items-center gap-2 mb-6">
-                    {allFilters.map(status => {
-                        const count = statusCounts[status];
-                        let displayCount: string | number = count;
-
-                        if (status === 'Planting' && plantingDashboardPlantings.length > 0) {
-                            displayCount = `${count}+${plantingDashboardPlantings.length}`;
-                        }
-
-                        return (
-                            <Button
-                                key={status}
-                                variant={statusFilter === status ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => setStatusFilter(status)}
-                                className="h-8"
-                            >
-                                {status}
-                                <Badge 
-                                    variant="secondary" 
-                                    className={cn(
-                                        "ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono",
-                                        statusFilter === status && 'bg-background/20 text-foreground'
-                                    )}
-                                >
-                                    {displayCount}
-                                </Badge>
-                            </Button>
-                        );
-                    })}
+                    {allFilters.map(status => (
+                        <Button
+                            key={status}
+                            variant={statusFilter === status ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setStatusFilter(status)}
+                            className="h-8"
+                        >
+                            {status}
+                            <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono", statusFilter === status && 'bg-background/20 text-foreground')}>
+                                {statusCounts[status]}
+                            </Badge>
+                        </Button>
+                    ))}
                 </div>
                 
                 {plantings && plantings.length > 0 ? (
                     <>
-                      {statusFilter === 'Planting' ? (
+                      {statusFilter === 'Wishlist' ? (
+                          seasonallySortedWishlist && seasonallySortedWishlist.length > 0 ? (
+                              <div className="space-y-8">
+                                  {seasonallySortedWishlist.map(group => (
+                                      <section key={group.season}>
+                                          <h2 className="text-2xl font-headline mb-4">
+                                              {group.season === activeLocation.conditions.currentSeason ? `Current Season: ${group.season}` : group.season}
+                                          </h2>
+                                          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                              {group.plantings.map(p => (
+                                                  <PlantCard
+                                                      key={p.id}
+                                                      planting={p}
+                                                      gardenConditions={activeLocation?.conditions}
+                                                      onEdit={() => handleEditPlanting(p)}
+                                                      onDelete={() => promptDelete(p)}
+                                                      onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                                      isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                                      isSelectionMode={!!duplicateSelectionMode}
+                                                      onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                                  />
+                                              ))}
+                                          </div>
+                                      </section>
+                                  ))}
+                              </div>
+                          ) : (
+                              <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
+                                  <CardHeader>
+                                      <CardTitle className="font-headline">No Wishlist Items</CardTitle>
+                                      <CardDescription>
+                                          Add some plants to your wishlist to get started.
+                                      </CardDescription>
+                                  </CardHeader>
+                              </Card>
+                          )
+                      ) : statusFilter === 'Planting' ? (
                           <div className="space-y-8">
                               {plantingsInPlantingStatus.length > 0 && (
                                 <div>

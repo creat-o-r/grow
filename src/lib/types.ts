@@ -30,6 +30,7 @@ export type Conditions = {
   temperature: string;
   sunlight: string;
   soil: string;
+  currentSeason?: 'Spring' | 'Summer' | 'Autumn' | 'Winter';
 };
 
 export type GardenLocation = {
