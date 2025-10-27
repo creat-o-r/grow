@@ -387,7 +387,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     try {
         const dataset = await loadDataset(datasetKey);
         await importData(dataset, dataset.name);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Failed to import dataset:', error);
         toast({
             title: 'Import Failed',
@@ -1244,7 +1244,18 @@ const unspecifiedSeasonCount = useMemo(() => {
                                 {status}
                                 {status === 'All' ? (
                                     <div className="flex items-center gap-1.5 ml-2">
-                                        {hasDuplicates && <span className="text-destructive font-bold text-lg">!</span>}
+                                        {hasDuplicates && (
+                                            <Button 
+                                                variant="destructive" 
+                                                className="h-6 w-6 p-0"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsDuplicateReviewSheetOpen(true);
+                                                }}
+                                            >
+                                                <span className="font-bold text-lg">!</span>
+                                            </Button>
+                                        )}
                                         <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
                                         <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
                                         <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
