@@ -154,8 +154,8 @@ export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlan
                     </div>
                 )}
             </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
+            <CardContent className="flex flex-col flex-grow">
+                <div className="space-y-4 flex-grow">
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor={`seeds-on-hand-${planting.id}`}>Seeds on Hand</Label>
@@ -207,21 +207,16 @@ export function PlantingDashboardCard({ planting }: { planting: PlantingWithPlan
                         <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Planting')}>Mark as Planting</Button>
                         <Button variant="secondary" className="w-full" onClick={() => updatePlantingStatus('Growing')}>Mark as Growing</Button>
                     </div>
-                    <Accordion type="single" collapsible className="w-full pt-2">
-                        <AccordionItem value="item-1" className="border-0">
-                            <AccordionTrigger className="text-xs text-muted-foreground hover:no-underline p-0 justify-start">Show Details</AccordionTrigger>
-                             <AccordionContent className="text-xs text-muted-foreground space-y-2 pt-2">
-                                <div>
-                                    <p className="font-semibold text-foreground/80">Germination</p>
-                                    <p>{planting.plant.germinationNeeds}</p>
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-foreground/80">Conditions</p>
-                                    <p>{planting.plant.optimalConditions}</p>
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
+                    <div className="text-xs text-muted-foreground space-y-2 pt-2">
+                        <div>
+                            <p className="font-semibold text-foreground/80">Germination</p>
+                            <p>{planting.plant.germinationNeeds}</p>
+                        </div>
+                        <div>
+                            <p className="font-semibold text-foreground/80">Conditions</p>
+                            <p>{planting.plant.optimalConditions}</p>
+                        </div>
+                    </div>
                 </div>
             </CardContent>
         </Card>
