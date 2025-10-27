@@ -18,25 +18,48 @@
             "id": "fungi-1",
             "species": "Shiitake Mushroom (Lentinula edodes)",
             "germinationNeeds": "Inoculate hardwood logs (oak, beech) with plug spawn. Mycelium takes 6-18 months to colonize the log (spawn run).",
-            "optimalConditions": "Fruiting triggered by soaking logs in cool water after full colonization. Prefers shaded, humid environments. Temp: 10-24°C.",
-            "history": [
-                { "id": "h1", "status": "Growing", "date": "2023-09-15T12:00:00.000Z", "notes": "Logs are colonizing well." }
-            ]
+            "optimalConditions": "Fruiting triggered by soaking logs in cool water after full colonization. Prefers shaded, humid environments. Temp: 10-24°C."
         },
         {
             "id": "fungi-2",
             "species": "Oyster Mushroom (Pleurotus ostreatus)",
             "germinationNeeds": "Can be grown on various substrates like straw, coffee grounds, or sawdust. Quick colonization (2-4 weeks).",
-            "optimalConditions": "High humidity (85-95%) and fresh air exchange needed for fruiting. Tolerates a wide temperature range depending on the strain.",
-            "history": [
-                { "id": "h2", "status": "Harvest", "date": "2024-06-01T12:00:00.000Z", "notes": "Harvested first flush from straw bags." }
-            ]
+            "optimalConditions": "High humidity (85-95%) and fresh air exchange needed for fruiting. Tolerates a wide temperature range depending on the strain."
         },
         {
             "id": "fungi-3",
             "species": "Lion's Mane Mushroom (Hericium erinaceus)",
             "germinationNeeds": "Typically grown on supplemented hardwood sawdust blocks. Colonization takes about 2-3 weeks.",
-            "optimalConditions": "Fruiting requires high humidity and cooler temperatures (15-21°C). Grows 'teeth' instead of caps.",
+            "optimalConditions": "Fruiting requires high humidity and cooler temperatures (15-21°C). Grows 'teeth' instead of caps."
+        }
+    ],
+    "plantings": [
+        {
+            "id": "fungi-p-1",
+            "plantId": "fungi-1",
+            "gardenId": "fungi-loc-1",
+            "name": "Oak Log Shiitake",
+            "createdAt": "2023-09-15T12:00:00.000Z",
+            "history": [
+                { "id": "h1", "status": "Growing", "date": "2023-09-15T12:00:00.000Z", "notes": "Logs are colonizing well." }
+            ]
+        },
+        {
+            "id": "fungi-p-2",
+            "plantId": "fungi-2",
+            "gardenId": "fungi-loc-1",
+            "name": "Straw Bale Oysters",
+            "createdAt": "2024-06-01T12:00:00.000Z",
+            "history": [
+                { "id": "h2", "status": "Harvest", "date": "2024-06-01T12:00:00.000Z", "notes": "Harvested first flush from straw bags." }
+            ]
+        },
+        {
+            "id": "fungi-p-3",
+            "plantId": "fungi-3",
+            "gardenId": "fungi-loc-1",
+            "name": "Lion's Mane Kit",
+            "createdAt": "2024-08-01T12:00:00.000Z",
             "history": [
                 { "id": "h3", "status": "Wishlist", "date": "2024-08-01T12:00:00.000Z", "notes": "Ordered a ready-to-fruit block." }
             ]
