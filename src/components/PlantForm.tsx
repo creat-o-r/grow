@@ -33,7 +33,7 @@ const statusHistorySchema = z.object({
 });
 
 const formSchema = z.object({
-  name: z.string().min(3, 'Planting name is required.'),
+  name: z.string().min(3, 'Plant name is required.'),
   species: z.string().min(3, 'Species name is required.'),
   germinationNeeds: z.string().min(10, 'Germination needs are required.'),
   optimalConditions: z.string().min(10, 'Optimal conditions are required.'),
@@ -122,7 +122,17 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
       
       form.setValue('species', result.species, { shouldValidate: true });
       if (!form.getValues('name')) {
-        form.setValue('name', result.commonName, { shouldValidate: true });
+        let commonName = result.commonName;
+        // Check for parentheses and extract name if needed
+        const parenthesisMatch = result.species.match(/\((.*?)\)/);
+        if (parenthesisMatch && parenthesisMatch[1] && !/^[a-z]/.test(parenthesisMatch[1])) {
+             // If content in parenthesis looks like a common name (starts with capital), use it.
+             commonName = parenthesisMatch[1];
+        } else if (result.species.includes('(')) {
+            // Otherwise, use the part before the parenthesis
+            commonName = result.species.split('(')[0].trim();
+        }
+        form.setValue('name', commonName, { shouldValidate: true });
       }
       form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
       form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });
@@ -239,7 +249,7 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
             name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Planting Name</FormLabel>
+                <FormLabel>Plant Name</FormLabel>
                 <FormControl>
                   <Input placeholder="e.g., Spring Carrots" {...field} />
                 </FormControl>
@@ -491,7 +501,7 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
           </div>
 
           <Button type="submit" className="w-full">
-            {plantingToEdit ? 'Save Changes' : 'Add Planting'}
+            {plantingToEdit ? 'Save Changes' : 'Add Plant'}
           </Button>
         </form>
       </Form>
@@ -512,5 +522,3 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     </div>
   );
 }
-
-    

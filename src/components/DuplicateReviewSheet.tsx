@@ -84,7 +84,7 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange, plantings }: { isOp
 
   const handleDeleteSelected = async () => {
     if (plantingsToDelete.size === 0) {
-        toast({ title: "Nothing to delete", description: "No plantings were selected for deletion." });
+        toast({ title: "Nothing to delete", description: "No plants were selected for deletion." });
         return;
     }
     
@@ -94,14 +94,14 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange, plantings }: { isOp
         await db.plantings.bulkDelete(idsToDelete);
         toast({
             title: "Duplicates Removed",
-            description: `${idsToDelete.length} planting(s) have been deleted.`,
+            description: `${idsToDelete.length} plant(s) have been deleted.`,
         });
         onOpenChange(false);
     } catch (error) {
         console.error("Failed to delete duplicates:", error);
         toast({
             title: "Error",
-            description: "Could not remove the selected plantings. Please check the console.",
+            description: "Could not remove the selected plants. Please check the console.",
             variant: "destructive",
         });
     } finally {
@@ -116,7 +116,7 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange, plantings }: { isOp
           <SheetHeader className="text-left">
             <SheetTitle className="font-headline">Review & Merge Duplicates</SheetTitle>
             <SheetDescription>
-              Multiple plantings were found for the same plant species. Select which ones to remove. The most recently updated is suggested to be kept.
+              Multiple entries were found for the same plant species. Select which ones to remove. The most recently updated is suggested to be kept.
             </SheetDescription>
           </SheetHeader>
           <SheetClose asChild>
@@ -166,7 +166,7 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange, plantings }: { isOp
                 ) : (
                     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-20 gap-4 text-center">
                         <CardTitle className="font-headline">No Duplicates Found</CardTitle>
-                        <CardDescription>Your plantings collection is clean and tidy!</CardDescription>
+                        <CardDescription>Your collection is clean and tidy!</CardDescription>
                     </div>
                 )}
             </div>
@@ -190,7 +190,7 @@ export function DuplicateReviewSheet({ isOpen, onOpenChange, plantings }: { isOp
                     disabled={isDeleting || plantingsToDelete.size === 0}
                 >
                     {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}
-                    Delete {plantingsToDelete.size} Planting(s)
+                    Delete {plantingsToDelete.size} Plant(s)
                 </Button>
             </div>
           </div>

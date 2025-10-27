@@ -216,7 +216,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                 
                 toast({
                     title: 'Import Successful',
-                    description: `${plantingsToAdd.length} new plantings added.`,
+                    description: `${plantingsToAdd.length} new plants added.`,
                 });
             }
         });
@@ -246,7 +246,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     <Sheet open={isOpen} onOpenChange={handleClose}>
       <SheetContent className="sm:max-w-2xl w-[90vw] flex flex-col">
         <SheetHeader>
-          <SheetTitle className="font-headline">Generate Data Import list</SheetTitle>
+          <SheetTitle className="font-headline">Generate Data with AI</SheetTitle>
           <SheetDescription>
             Describe a garden theme, and the AI will generate a dataset for you. You can then refine it conversationally.
           </SheetDescription>
@@ -323,7 +323,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                 </CardContent>
                             </Card>
                              <div className="space-y-2">
-                                <h4 className="font-medium text-sm">Generated Plantings ({generatedData.plantings.length})</h4>
+                                <h4 className="font-medium text-sm">Generated Plants ({generatedData.plantings.length})</h4>
                                 <ScrollArea className="h-64 rounded-md border">
                                     <Accordion type="single" collapsible className="w-full">
                                         {generatedData.plantings.map(planting => {
@@ -403,14 +403,14 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                     <RadioGroupItem value="new" id="r3" />
                                     <div className="flex flex-col">
                                         <span className="font-bold flex items-center gap-2"><Wand2/> Create as New Garden</span>
-                                        <span className="text-sm text-muted-foreground">Adds the new location and plantings without affecting existing data.</span>
+                                        <span className="text-sm text-muted-foreground">Adds the new location and plants without affecting existing data.</span>
                                     </div>
                                 </Label>
                                 <Label htmlFor="r2" className="flex items-start space-x-3 space-y-0 rounded-md border p-4 cursor-pointer hover:bg-accent has-[[data-state=checked]]:border-primary">
                                     <RadioGroupItem value="add" id="r2" />
                                     <div className="flex flex-col">
-                                        <span className="font-bold flex items-center gap-2"><PlusCircle/> Add Plantings to Active Garden</span>
-                                        <span className="text-sm text-muted-foreground">Adds new plantings to your active garden. Skips duplicates and ignores the new location.</span>
+                                        <span className="font-bold flex items-center gap-2"><PlusCircle/> Add Plants to Active Garden</span>
+                                        <span className="text-sm text-muted-foreground">Adds new plants to your active garden. Skips duplicates and ignores the new location.</span>
                                     </div>
                                 </Label>
                             </RadioGroup>

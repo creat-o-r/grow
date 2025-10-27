@@ -136,7 +136,7 @@ export function SettingsSheet({
                         )}
                         <Button onClick={onAiImportOpen} disabled={!areApiKeysSet} className="w-full">
                             <Sparkles className="mr-2 h-4 w-4" />
-                            Generate Data Import list
+                            Generate Data with AI
                         </Button>
                     </div>
                     <div className="border-t pt-4 space-y-2">

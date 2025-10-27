@@ -173,7 +173,7 @@ export default function Home() {
     }
   }, [activeLocation, locations]);
 
-  const handleAddPlanting = async (plantingData: Omit<Planting, 'id'>, plantData: Omit<Plant, 'id'>) => {
+  const handleAddPlant = async (plantingData: Omit<Planting, 'id'>, plantData: Omit<Plant, 'id'>) => {
     let plantId = (await db.plants.where('species').equalsIgnoreCase(plantData.species).first())?.id;
 
     if (!plantId) {
@@ -191,19 +191,19 @@ export default function Home() {
 
     setIsSheetOpen(false);
     toast({
-      title: 'Planting Added',
+      title: 'Plant Added',
       description: `${plantingData.name} has been added to your collection.`,
     });
 };
 
-const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Plant) => {
+const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant) => {
     await db.plantings.put(updatedPlanting);
     await db.plants.put(updatedPlant);
 
     setPlantingToEdit(null);
     setIsSheetOpen(false);
     toast({
-        title: 'Planting Updated',
+        title: 'Plant Updated',
         description: `${updatedPlanting.name} has been updated.`,
     });
 };
@@ -212,7 +212,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     if (!plantingToDelete) return;
     await db.plantings.delete(plantingToDelete.id);
     toast({
-      title: 'Planting Removed',
+      title: 'Plant Removed',
       description: `${plantingToDelete.name} has been removed.`,
       variant: 'destructive',
     });
@@ -831,7 +831,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                         <div className="flex items-center gap-3">
                             <Info className="h-5 w-5 text-blue-400" />
                             <p className="text-sm font-medium">
-                                Select a planting to mark as a duplicate of <span className="font-bold text-white">{duplicateSelectionMode.name}</span>.
+                                Select a plant to mark as a duplicate of <span className="font-bold text-white">{duplicateSelectionMode.name}</span>.
                             </p>
                         </div>
                         <Button variant="ghost" size="icon" onClick={() => setDuplicateSelectionMode(null)}>
@@ -880,7 +880,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                           <div className="flex items-center gap-2 pl-4">
                              <Button onClick={handleOpenAddSheet}>
                                   <PlusCircle className="mr-2 h-4 w-4" />
-                                  Add Planting
+                                  Add Plant
                               </Button>
                               <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10">
                                 <Settings className="h-4 w-4" />
@@ -1158,9 +1158,9 @@ const unspecifiedSeasonCount = useMemo(() => {
                           ) : (
                               <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                                   <CardHeader>
-                                      <CardTitle className="font-headline">No Plantings Found</CardTitle>
+                                      <CardTitle className="font-headline">No Plants Found</CardTitle>
                                       <CardDescription>
-                                          No plantings with the status "{statusFilter}".
+                                          No plants with the status "{statusFilter}".
                                       </CardDescription>
                                   </CardHeader>
                               </Card>
@@ -1177,7 +1177,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                     </CardHeader>
                     <CardContent className="flex gap-4">
                        <Button onClick={handleOpenAddSheet}>
-                         <PlusCircle className="mr-2 h-4 w-4" /> Add Your First Planting
+                         <PlusCircle className="mr-2 h-4 w-4" /> Add Your First Plant
                       </Button>
                        <Button onClick={() => setIsSettingsSheetOpen(true)} variant="secondary">
                          <Upload className="mr-2 h-4 w-4" /> Import Datasets
@@ -1223,7 +1223,7 @@ const unspecifiedSeasonCount = useMemo(() => {
             )}
             {plantingToDelete && (
                  <AlertDialogDescription>
-                    This will permanently delete the planting "{plantingToDelete.name}". This action cannot be undone.
+                    This will permanently delete the plant "{plantingToDelete.name}". This action cannot be undone.
                 </AlertDialogDescription>
             )}
           </AlertDialogHeader>
@@ -1287,11 +1287,11 @@ const unspecifiedSeasonCount = useMemo(() => {
       <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
         <SheetContent className="sm:max-w-lg w-[90vw] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="font-headline">{plantingToEdit ? 'Edit Planting' : 'Add a New Planting'}</SheetTitle>
+            <SheetTitle className="font-headline">{plantingToEdit ? 'Edit Plant' : 'Add a New Plant'}</SheetTitle>
           </SheetHeader>
           <PlantForm 
             plantingToEdit={plantingToEdit} 
-            onSubmit={plantingToEdit ? handleUpdatePlanting : handleAddPlanting}
+            onSubmit={plantingToEdit ? handleUpdatePlant : handleAddPlant}
             onConfigureApiKey={() => {
               handleSheetOpenChange(false);
               setIsSettingsSheetOpen(true);
@@ -1305,5 +1305,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
