@@ -5,7 +5,7 @@ import type { PlantingWithPlant, Conditions, StatusHistory } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { ViabilityIndicator } from './ViabilityIndicator';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -87,6 +87,10 @@ export function PlantCard({
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">Delete</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                                    {latestStatus ? `Last update: ${format(parseISO(latestStatus.date), 'MMM d, yyyy')}` : 'No history'}
+                                </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
@@ -127,10 +131,7 @@ export function PlantCard({
                     <p className="text-sm text-foreground/80 line-clamp-3">{plant.optimalConditions}</p>
                 </div>
             </CardContent>
-            <CardFooter className="flex justify-between items-center">
-                    <p className="text-xs text-muted-foreground">
-                        {latestStatus ? `Last update: ${format(parseISO(latestStatus.date), 'MMM d, yyyy')}` : 'No history'}
-                    </p>
+            <CardFooter>
             </CardFooter>
         </>
     );
