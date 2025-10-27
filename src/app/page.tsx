@@ -751,6 +751,15 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     // Consolidated effect for viability calculation and batch analysis
     useEffect(() => {
+        const justSwitchedToAi = previousViabilityMechanism === 'local' && viabilityMechanism === 'ai';
+        const conditionsChangedInAiMode =
+            viabilityMechanism === 'ai' &&
+            (activeLocation?.conditions.temperature !== usePrevious(activeLocation?.conditions.temperature) ||
+             activeLocation?.conditions.sunlight !== usePrevious(activeLocation?.conditions.sunlight) ||
+             activeLocation?.conditions.soil !== usePrevious(activeLocation?.conditions.soil) ||
+             activeLocation?.conditions.currentSeason !== usePrevious(activeLocation?.conditions.currentSeason));
+
+
         if (viabilityMechanism === 'local') {
             if (activeLocation?.conditions && plantingsWithPlants) {
                 const newViabilityData: Record<string, Viability> = {};
@@ -760,25 +769,13 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
                 setViabilityData(newViabilityData);
             }
         } else if (viabilityMechanism === 'ai') {
-            // Only run batch analysis if the mode was just switched from local to ai
-            const justSwitchedToAi = previousViabilityMechanism === 'local';
             if (justSwitchedToAi) {
                 setViabilityData({}); // Clear old data for a clean slate
                 if (plantingsWithPlants && plantingsWithPlants.length > 0) {
                     handleBatchAiViabilityAnalysis(plantingsWithPlants);
                 }
-            } else {
-                // If already in 'ai' mode, check if conditions changed to re-trigger
-                const didConditionsChange =
-                    previousViabilityMechanism === 'ai' &&
-                    (activeLocation?.conditions.temperature !== usePrevious(activeLocation?.conditions.temperature) ||
-                     activeLocation?.conditions.sunlight !== usePrevious(activeLocation?.conditions.sunlight) ||
-                     activeLocation?.conditions.soil !== usePrevious(activeLocation?.conditions.soil) ||
-                     activeLocation?.conditions.currentSeason !== usePrevious(activeLocation?.conditions.currentSeason));
-
-                if (didConditionsChange && plantingsWithPlants && plantingsWithPlants.length > 0) {
-                     handleBatchAiViabilityAnalysis(plantingsWithPlants);
-                }
+            } else if (conditionsChangedInAiMode) {
+                 handleBatchAiViabilityAnalysis(plantingsWithPlants);
             }
         }
     }, [
