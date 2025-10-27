@@ -170,7 +170,7 @@ export function SettingsSheet({
                           </div>
                         </Label>
                         {!localApiKeys.gemini && (
-                            <a href="https://ai.google.dev/gemini-api/docs/api-key" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                            <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
                                 Get API Key <ExternalLink className="h-3 w-3" />
                             </a>
                         )}

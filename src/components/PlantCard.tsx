@@ -48,15 +48,15 @@ export function PlantCard({
                 <div className="flex justify-between items-start">
                     <div>
                         <CardTitle className="font-headline text-xl leading-tight mb-1 pr-2">{planting.name}</CardTitle>
-                        <CardDescription>{plant.species}</CardDescription>
+                         <CardDescription className="flex items-center gap-2">
+                            <span>{plant.species}</span>
+                            <a href={`https://www.google.com/search?q=${encodeURIComponent(plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
+                                <ExternalLink className="h-3 w-3" />
+                                <span className="sr-only">Search for {plant.species}</span>
+                            </a>
+                        </CardDescription>
                     </div>
                     <div className="flex items-center -mt-1 -mr-2">
-                        <a href={`https://www.google.com/search?q=${encodeURIComponent(plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                                <ExternalLink className="h-4 w-4" />
-                                <span className="sr-only">Search for {plant.species}</span>
-                            </Button>
-                        </a>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
