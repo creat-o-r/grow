@@ -100,7 +100,7 @@ export function PlantCard({
                         ))
                      ) : (
                         <button onClick={onEdit} className="text-xs text-muted-foreground hover:text-foreground hover:underline">
-                            No seasons found. Edit to add.
+                            No seasons found. Edit plant to add its seasons.
                         </button>
                      )}
                 </div>
