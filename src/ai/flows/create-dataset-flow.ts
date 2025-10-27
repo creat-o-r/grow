@@ -125,7 +125,7 @@ Ensure the output is structured exactly according to the provided Zod output sch
       outputSchema: CreateDatasetOutputSchema,
     },
     async (flowInput) => {
-      const {output} = await prompt(flowInput, { model: 'googleai/gemini-1.5-pro-latest' });
+      const {output} = await prompt(flowInput, { model: 'googleai/gemini-2.5-flash' });
       return output!;
     }
   );
