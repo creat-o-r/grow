@@ -93,6 +93,11 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     } catch (err: any) {
       console.error('AI dataset creation failed:', err);
       setError(err.message || 'Could not create the dataset. Please try again.');
+      toast({
+        title: 'AI Generation Failed',
+        description: `An error occurred: ${err.message}`,
+        variant: 'destructive',
+      });
     } finally {
         setIsGenerating(false);
     }
@@ -140,7 +145,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
 
     } catch (err: any) {
       console.error('Fetch more failed:', err);
-      toast({ title: 'Error', description: 'Could not fetch a similar plant.', variant: 'destructive' });
+      toast({ title: 'Error', description: `Could not fetch a similar plant: ${err.message}`, variant: 'destructive' });
     } finally {
       setIsFetchingMore(null);
     }
@@ -444,4 +449,5 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
   );
 }
 
+    
     

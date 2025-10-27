@@ -469,7 +469,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       console.error('AI analysis failed:', error);
       toast({
         title: 'AI Analysis Failed',
-        description: error.message || 'Could not retrieve environmental data. Please try again.',
+        description: `An error occurred during AI analysis: ${error.message}`,
         variant: 'destructive',
       });
     } finally {
@@ -689,7 +689,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       console.error('Viability analysis failed:', error);
       toast({
         title: 'Analysis Failed',
-        description: error.message || 'Could not retrieve analysis. Please try again.',
+        description: `An error occurred during analysis: ${error.message}`,
         variant: 'destructive',
       });
     }
@@ -852,21 +852,36 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     const results = await Promise.allSettled(analysisPromises);
     let successfulAnalyses = 0;
+    let firstError: any = null;
+
     results.forEach(result => {
          if (result.status === 'fulfilled' && result.value?.status === 'fulfilled') {
             const { plantingId, viability } = result.value;
             newViabilityData[plantingId] = viability;
             successfulAnalyses++;
+        } else if (result.status === 'fulfilled' && result.value?.status === 'rejected') {
+            if (!firstError) firstError = result.value.error;
+        } else if (result.status === 'rejected') {
+            if (!firstError) firstError = result.reason;
         }
     });
     
     setViabilityData(prev => ({ ...prev, ...newViabilityData }));
 
     dismiss(toastId);
-    toast({
-        title: 'Batch Analysis Complete',
-        description: `Analyzed ${successfulAnalyses} out of ${plantingsToAnalyze.length} plants.`,
-    });
+
+    if (successfulAnalyses < plantingsToAnalyze.length && firstError) {
+         toast({
+            title: 'Batch Analysis Partially Failed',
+            description: `Analyzed ${successfulAnalyses} of ${plantingsToAnalyze.length} plants. Error: ${firstError.message}`,
+            variant: 'destructive',
+        });
+    } else {
+        toast({
+            title: 'Batch Analysis Complete',
+            description: `Analyzed ${successfulAnalyses} out of ${plantingsToAnalyze.length} plants.`,
+        });
+    }
 
 }, [activeLocation?.conditions, apiKeys, areApiKeysSet, toast, dismiss]);
 
@@ -1535,3 +1550,5 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    

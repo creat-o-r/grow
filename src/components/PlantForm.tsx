@@ -143,7 +143,7 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
       console.error('AI search failed:', error);
       toast({
         title: 'AI Search Failed',
-        description: error.message || 'Could not retrieve plant data. Please try again.',
+        description: `An error occurred: ${error.message}`,
         variant: 'destructive',
       });
     } finally {
@@ -520,3 +520,5 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     </div>
   );
 }
+
+    
