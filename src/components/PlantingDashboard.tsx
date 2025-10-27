@@ -48,9 +48,9 @@ export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet,
                         <CardTitle className="font-headline">Planting Possibilities</CardTitle>
                         {hasAnyPlants && (
                             <div className="flex items-center gap-1.5">
-                                <Badge className="bg-green-500/20 text-green-700 dark:bg-green-500/10 dark:text-green-400 px-1.5 py-0.5 text-xs font-mono">{viabilityGroups.High.length}</Badge>
-                                <Badge className="bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 px-1.5 py-0.5 text-xs font-mono">{viabilityGroups.Medium.length}</Badge>
-                                <Badge className="bg-red-500/20 text-red-700 dark:bg-red-500/10 dark:text-red-400 px-1.5 py-0.5 text-xs font-mono">{viabilityGroups.Low.length}</Badge>
+                                <Badge className="bg-green-600 text-green-50 dark:bg-green-500/20 dark:text-green-300 px-1.5 py-0.5 text-xs font-mono">{viabilityGroups.High.length}</Badge>
+                                <Badge className="bg-yellow-500 text-yellow-50 dark:bg-yellow-500/20 dark:text-yellow-300 px-1.5 py-0.5 text-xs font-mono">{viabilityGroups.Medium.length}</Badge>
+                                <Badge className="bg-red-600 text-red-50 dark:bg-red-500/20 dark:text-red-300 px-1.5 py-0.5 text-xs font-mono">{viabilityGroups.Low.length}</Badge>
                             </div>
                         )}
                     </div>
@@ -107,3 +107,5 @@ export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet,
         </div>
     );
 }
+
+    

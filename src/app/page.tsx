@@ -876,9 +876,9 @@ const unspecifiedSeasonCount = useMemo(() => {
                                 {status}
                                 {status === 'All' ? (
                                     <div className="flex items-center gap-1.5 ml-2">
-                                        <Badge className="bg-green-500/20 text-green-700 dark:bg-green-500/10 dark:text-green-400 px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
-                                        <Badge className="bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
-                                        <Badge className="bg-red-500/20 text-red-700 dark:bg-red-500/10 dark:text-red-400 px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
+                                        <Badge className="bg-green-600 text-green-50 dark:bg-green-500/20 dark:text-green-300 px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
+                                        <Badge className="bg-yellow-500 text-yellow-50 dark:bg-yellow-500/20 dark:text-yellow-300 px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
+                                        <Badge className="bg-red-600 text-red-50 dark:bg-red-500/20 dark:text-red-300 px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
                                     </div>
                                 ) : (
                                     <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
@@ -1221,5 +1221,7 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    
 
     
