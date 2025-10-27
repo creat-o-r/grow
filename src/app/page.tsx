@@ -34,6 +34,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToastAction } from '@/components/ui/toast';
+import { Progress } from '@/components/ui/progress';
 
 
 type PlantStatus = StatusHistory['status'];
@@ -90,6 +91,7 @@ export default function Home() {
   const [areApiKeysSet, setAreApiKeysSet] = useState(false);
   const [viabilityMechanism, setViabilityMechanism] = useState<ViabilityAnalysisMode>('local');
   const [viabilityData, setViabilityData] = useState<Record<string, Viability | undefined>>({});
+  const [analysisProgress, setAnalysisProgress] = useState(0);
 
   const previousViabilityMechanism = usePrevious(viabilityMechanism);
   const activeLocation = locations?.find(loc => loc.id === activeLocationId);
@@ -703,15 +705,24 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             return;
         }
 
-        toast({
+        const { id: toastId } = toast({
             title: 'Starting Batch AI Analysis...',
-            description: `Analyzing ${plantingsToAnalyze.length} plants. This may take a moment.`,
+            description: (
+                <div className="w-full">
+                    <p>Analyzing {plantingsToAnalyze.length} plants. This may take a moment.</p>
+                    <Progress value={0} className="mt-2" />
+                </div>
+            ),
+            duration: Infinity,
         });
+
+        let completedCount = 0;
+        setAnalysisProgress(0);
 
         const newViabilityData: Record<string, Viability> = {};
         const newLogs: AiLog[] = [];
 
-        for (const planting of plantingsToAnalyze) {
+        const analysisPromises = plantingsToAnalyze.map(async (planting) => {
             try {
                 const promptData = {
                     plant: planting.plant,
@@ -722,26 +733,52 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
                     apiKeys,
                 };
                 const result = await getAiViability(promptData);
-                newViabilityData[planting.id] = result.viability;
-                newLogs.push({
+                
+                return { status: 'fulfilled', plantingId: planting.id, viability: result.viability, log: {
                     id: `${Date.now()}-${planting.id}`,
                     timestamp: new Date().toISOString(),
                     flow: 'getAiViability',
                     prompt: promptData,
                     results: result,
                     viabilityType: 'ai',
-                });
+                }};
             } catch (error: any) {
                 console.error(`AI analysis failed for ${planting.name}:`, error);
-                // Continue with the next plant
+                return { status: 'rejected', plantingId: planting.id, error };
+            } finally {
+                completedCount++;
+                const progress = (completedCount / plantingsToAnalyze.length) * 100;
+                setAnalysisProgress(progress);
+                 toast({
+                    id: toastId,
+                    title: 'Analyzing...',
+                    description: (
+                        <div className="w-full">
+                            <p>{completedCount} of {plantingsToAnalyze.length} plants analyzed.</p>
+                            <Progress value={progress} className="mt-2" />
+                        </div>
+                    ),
+                    duration: Infinity,
+                });
             }
-        }
+        });
+
+        const results = await Promise.allSettled(analysisPromises);
+        
+        results.forEach(result => {
+             if (result.status === 'fulfilled' && result.value?.status === 'fulfilled') {
+                const { plantingId, viability, log } = result.value;
+                newViabilityData[plantingId] = viability;
+                newLogs.push(log);
+            }
+        });
         
         setViabilityData(prev => ({ ...prev, ...newViabilityData }));
         if (newLogs.length > 0) {
             await db.aiLogs.bulkAdd(newLogs);
         }
 
+        toast.dismiss(toastId);
         toast({
             title: 'Batch Analysis Complete',
             description: `Analyzed ${newLogs.length} out of ${plantingsToAnalyze.length} plants.`,
@@ -768,12 +805,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
                 });
                 setViabilityData(newViabilityData);
             }
-        } else if (viabilityMechanism === 'ai') {
+        } else if (viabilityMechanism === 'ai' && plantingsWithPlants && plantingsWithPlants.length > 0) {
             if (justSwitchedToAi) {
                 setViabilityData({}); // Clear old data for a clean slate
-                if (plantingsWithPlants && plantingsWithPlants.length > 0) {
-                    handleBatchAiViabilityAnalysis(plantingsWithPlants);
-                }
+                handleBatchAiViabilityAnalysis(plantingsWithPlants);
             } else if (conditionsChangedInAiMode) {
                  handleBatchAiViabilityAnalysis(plantingsWithPlants);
             }
@@ -786,6 +821,8 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         activeLocation?.conditions.sunlight,
         activeLocation?.conditions.soil,
         activeLocation?.conditions.currentSeason,
+        previousViabilityMechanism,
+        previousActiveConditions,
     ]);
 
 
@@ -1445,4 +1482,5 @@ const unspecifiedSeasonCount = useMemo(() => {
   );
 }
 
+    
     
