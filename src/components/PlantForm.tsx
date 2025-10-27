@@ -188,7 +188,7 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
       <Card>
         <CardHeader>
           <CardTitle className="font-headline text-lg">AI-Powered Search</CardTitle>
-          <CardDescription>Enter a plant name to automatically fill the form with a new species.</CardDescription>
+          <CardDescription>Enter a plant name to search for a species and automatically fill the form.</CardDescription>
         </CardHeader>
         <CardContent>
           {!areApiKeysSet && (
@@ -250,7 +250,17 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
             name="species"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Species</FormLabel>
+                <FormLabel>
+                   <div className="flex items-center gap-2">
+                      <span>Species</span>
+                      {field.value && (
+                        <a href={`https://www.google.com/search?q=${encodeURIComponent(field.value)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
+                            <ExternalLink className="h-3 w-3" />
+                            <span className="sr-only">Search for {field.value}</span>
+                        </a>
+                      )}
+                    </div>
+                </FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
@@ -273,8 +283,16 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
                   </PopoverTrigger>
                   <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
                     <Command>
-                      <CommandInput placeholder="Search species..." />
-                      <CommandEmpty>No species found.</CommandEmpty>
+                      <CommandInput 
+                        placeholder="Search species or type to create new..." 
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      />
+                      <CommandEmpty>
+                        <CommandItem onSelect={() => form.setValue('species', field.value)}>
+                            Create "{field.value}"
+                        </CommandItem>
+                      </CommandEmpty>
                       <CommandGroup>
                         {plants.map((plant) => (
                           <CommandItem
@@ -477,3 +495,5 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     </div>
   );
 }
+
+    
