@@ -17,7 +17,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 
 type PlantingDashboardCardProps = {
     planting: PlantingWithPlant;
-    onQuickStatusChange: (newStatus: StatusHistory['status']) => void;
+    onQuickStatusChange: (planting: PlantingWithPlant, newStatus: StatusHistory['status']) => void;
 };
 
 export function PlantingDashboardCard({ planting, onQuickStatusChange }: PlantingDashboardCardProps) {
@@ -69,43 +69,12 @@ export function PlantingDashboardCard({ planting, onQuickStatusChange }: Plantin
 
 
     const updatePlantingStatus = async (status: 'Planting' | 'Growing' | 'Wishlist', seeds?: number) => {
-        // Capture current state before changing it
-        setPreviousPlantingState({
-            history: planting.history,
-            seedsOnHand: planting.seedsOnHand,
-            plannedQty: planting.plannedQty,
-        });
-
-        const newHistoryEntry = {
-            id: `hist-${Date.now()}`,
-            status,
-            date: new Date().toISOString(),
-            notes: `Status changed from Planting Dashboard.`,
-        };
-        try {
-            const updatePayload: Partial<PlantingWithPlant> = {
-                history: [...(planting.history || []), newHistoryEntry],
-            };
-            if (seeds !== undefined) {
-                updatePayload.seedsOnHand = seeds;
-            }
-
-            await db.plantings.update(planting.id, updatePayload);
-            
-            toast({
-                title: 'Planting Updated',
-                description: `${planting.name} has been marked as ${status}.`,
-                action: <ToastAction altText="Undo" onClick={handleUndo}>Undo</ToastAction>,
-            });
-            
+        onQuickStatusChange(planting, status);
+        if (seeds !== undefined) {
+             await db.plantings.update(planting.id, { seedsOnHand: seeds });
+        }
+        if (status === 'Planting') {
             setSeedsOnHand('');
-
-        } catch (error) {
-            toast({
-                title: 'Error',
-                description: `Could not update ${planting.name}.`,
-                variant: 'destructive',
-            });
         }
     };
 
@@ -211,10 +180,10 @@ export function PlantingDashboardCard({ planting, onQuickStatusChange }: Plantin
                     </div>
                     <div className="flex gap-2">
                         {latestStatus?.status === 'Harvest' 
-                            ? <Button variant="secondary" className="w-full" onClick={() => onQuickStatusChange('Wishlist')}>Move to Wishlist</Button>
-                            : <Button variant="secondary" className="w-full" onClick={() => onQuickStatusChange('Planting')}>Mark as Planting</Button>
+                            ? <Button variant="secondary" className="w-full" onClick={() => onQuickStatusChange(planting, 'Wishlist')}>Move to Wishlist</Button>
+                            : <Button variant="secondary" className="w-full" onClick={() => onQuickStatusChange(planting, 'Planting')}>Mark as Planting</Button>
                         }
-                        <Button variant="secondary" className="w-full" onClick={() => onQuickStatusChange('Growing')}>Mark as Growing</Button>
+                        <Button variant="secondary" className="w-full" onClick={() => onQuickStatusChange(planting, 'Growing')}>Mark as Growing</Button>
                     </div>
                     <div className="text-xs text-muted-foreground space-y-2 pt-2">
                         <div>
@@ -231,5 +200,3 @@ export function PlantingDashboardCard({ planting, onQuickStatusChange }: Plantin
         </Card>
     );
 }
-
-    
