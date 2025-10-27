@@ -119,6 +119,7 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     setIsAiSearching(true);
     try {
       const result = await aiSearchPlantData({ searchTerm: aiSearchTerm, apiKeys });
+      form.setValue('name', result.species, { shouldValidate: true });
       form.setValue('species', result.species, { shouldValidate: true });
       form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
       form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });
@@ -248,16 +249,22 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
             name="species"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                 <FormLabel>
-                   <div className="flex items-center gap-2">
-                      <span>Species</span>
-                      {field.value && (
-                        <a href={`https://www.google.com/search?q=${encodeURIComponent(field.value)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
-                            <ExternalLink className="h-3 w-3" />
-                            <span className="sr-only">Search for {field.value}</span>
-                        </a>
-                      )}
-                    </div>
+                <FormLabel>
+                  <div className="flex items-center gap-2">
+                    <span>Species</span>
+                    {field.value && (
+                      <a
+                        href={`https://www.google.com/search?q=${encodeURIComponent(field.value)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        <span className="sr-only">Search for {field.value}</span>
+                      </a>
+                    )}
+                  </div>
                 </FormLabel>
                 <Popover open={isSpeciesPopoverOpen} onOpenChange={setIsSpeciesPopoverOpen}>
                   <PopoverTrigger asChild>
@@ -273,7 +280,7 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
                         {field.value
                           ? plants.find(
                               (plant) => plant.species.toLowerCase() === field.value.toLowerCase()
-                            )?.species
+                            )?.species || field.value
                           : "Select a species or create a new one"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
@@ -283,18 +290,21 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
                     <Command>
                       <CommandInput 
                         placeholder="Search species or type to create new..."
-                        onValueChange={field.onChange}
+                        onValueChange={(currentValue) => form.setValue('species', currentValue)}
+                        value={field.value}
                       />
                       <CommandEmpty>
-                        <CommandItem 
-                          onSelect={() => {
-                            form.setValue('species', field.value, { shouldValidate: true });
-                            setIsSpeciesPopoverOpen(false);
-                          }}
-                          value={field.value}
-                        >
-                            Create "{field.value}"
-                        </CommandItem>
+                          {field.value && (
+                            <CommandItem 
+                                onSelect={() => {
+                                    form.setValue('species', field.value, { shouldValidate: true });
+                                    setIsSpeciesPopoverOpen(false);
+                                }}
+                                value={field.value}
+                                >
+                                Create "{field.value}"
+                            </CommandItem>
+                          )}
                       </CommandEmpty>
                       <CommandGroup>
                         {plants.map((plant) => (
