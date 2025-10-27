@@ -350,13 +350,13 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     });
   };
 
-  const handleConditionChange = async (locationId: string, field: keyof Conditions, value: string) => {
+  const handleConditionChange = useCallback(async (locationId: string, field: keyof Conditions, value: string) => {
     if (!locationId) return;
     const location = await db.locations.get(locationId);
     if (location) {
         await db.locations.update(locationId, { conditions: { ...location.conditions, [field]: value } });
     }
-  };
+  }, []);
   
   const handleLocationFieldChange = useCallback(async (locationId: string, value: string) => {
     if (!locationId) return;
@@ -1548,3 +1548,4 @@ const unspecifiedSeasonCount = useMemo(() => {
     
 
     
+
