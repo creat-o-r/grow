@@ -701,7 +701,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                               </div>
                               <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
                                   <span className='text-sm text-muted-foreground font-normal truncate'>
-                                      {activeLocation.conditions.currentSeason || 'Season'}, {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
+                                      {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
                                   </span>
                               </AccordionTrigger>
                           </div>
