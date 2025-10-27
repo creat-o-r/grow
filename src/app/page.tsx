@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, MouseEvent, useMemo } from 'react';
+import { useState, useEffect, useCallback, MouseEvent, useMemo, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, AiDataset } from '@/lib/types';
@@ -25,12 +25,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PlusCircle, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, Settings, Info, Rocket } from 'lucide-react';
+import { PlusCircle, Upload, Locate, Loader2, X, Sparkles, NotebookText, Plus, Settings, Info, Rocket, AlertCircle } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 
 type PlantStatus = StatusHistory['status'];
@@ -51,6 +52,7 @@ export default function Home() {
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
   const [isLocating, setIsLocating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [wishlistSortOrder, setWishlistSortOrder] = useState<'season' | 'viability'>('season');
 
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
@@ -71,6 +73,8 @@ export default function Home() {
   const [isDuplicateReviewSheetOpen, setIsDuplicateReviewSheetOpen] = useState(false);
 
   const [duplicateSelectionMode, setDuplicateSelectionMode] = useState<PlantingWithPlant | null>(null);
+  
+  const unspecifiedSeasonSectionRef = useRef<HTMLDivElement>(null);
 
 
   const { toast } = useToast();
@@ -559,9 +563,33 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     return filtered;
   }, [plantingsWithPlants, statusFilter, activeLocation?.conditions]);
   
-  const seasonallySortedWishlist = useMemo(() => {
-    if (!plantingsWithPlants || !activeLocation?.conditions) return null;
+  const wishlistPlantings = useMemo(() => {
+    if (!plantingsWithPlants) return [];
+    return plantingsWithPlants.filter(p => p.history?.slice(-1)[0]?.status === 'Wishlist');
+  }, [plantingsWithPlants]);
 
+  const organizedWishlist = useMemo(() => {
+    if (!wishlistPlantings || !activeLocation?.conditions) return null;
+
+    if (wishlistSortOrder === 'viability') {
+        const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
+        const groupedByViability: Record<Viability, PlantingWithPlant[]> = { High: [], Medium: [], Low: [] };
+        
+        wishlistPlantings.forEach(p => {
+            const viability = analyzeViability(p.plant, activeLocation.conditions!);
+            groupedByViability[viability].push(p);
+        });
+
+        // Sort within each group by name for consistent ordering
+        Object.values(groupedByViability).forEach(group => group.sort((a, b) => a.name.localeCompare(b.name)));
+
+        return (Object.keys(groupedByViability) as Viability[]).sort((a,b) => viabilityOrder[a] - viabilityOrder[b]).map(viability => ({
+            groupTitle: `${viability} Viability`,
+            plantings: groupedByViability[viability]
+        }));
+    }
+
+    // Default to 'season' sort
     const getBestPlantSeason = (plant: Plant): string => {
         const suitableSeasons = getSuitableSeasons(plant);
         if (suitableSeasons.length === 4 && activeLocation.conditions.currentSeason) {
@@ -583,7 +611,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                 return season;
             }
         }
-        return suitableSeasons[0]; // Fallback
+        return 'Season Not Specified';
     };
 
     const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
@@ -593,11 +621,9 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
 
     const getSeasonScore = (season: string) => {
         const seasonIndex = seasonOrder.indexOf(season);
-        if (seasonIndex === -1 || season === 'Season Not Specified') return 4; 
+        if (seasonIndex === -1 || season === 'Season Not Specified') return 4;
         return (seasonIndex - currentSeasonIndex + seasonOrder.length) % seasonOrder.length;
     };
-    
-    const wishlistPlantings = plantingsWithPlants.filter(p => p.history?.slice(-1)[0]?.status === 'Wishlist');
 
     wishlistPlantings.sort((a, b) => {
         const seasonA = getBestPlantSeason(a.plant);
@@ -613,11 +639,10 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
         const viabilityB = analyzeViability(b.plant, activeLocation.conditions!);
         return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
     });
-    
+
     const groupedBySeason: { [season: string]: PlantingWithPlant[] } = {};
     wishlistPlantings.forEach(p => {
         const bestSeason = getBestPlantSeason(p.plant);
-        
         if (!groupedBySeason[bestSeason]) {
             groupedBySeason[bestSeason] = [];
         }
@@ -628,12 +653,25 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
         return getSeasonScore(a) - getSeasonScore(b);
     });
 
-    return orderedGroupNames.map(seasonName => ({
-        season: seasonName,
-        plantings: groupedBySeason[seasonName]
-    }));
+    return orderedGroupNames.map(seasonName => {
+        let groupTitle = seasonName;
+        if (seasonName === activeLocation.conditions.currentSeason) {
+            groupTitle = `Current Season: ${seasonName}`;
+        }
+        return {
+            groupTitle: groupTitle,
+            plantings: groupedBySeason[seasonName]
+        };
+    });
 
-  }, [plantingsWithPlants, activeLocation?.conditions]);
+}, [wishlistPlantings, activeLocation?.conditions, wishlistSortOrder]);
+
+const unspecifiedSeasonCount = useMemo(() => {
+    if (wishlistSortOrder !== 'season' || !organizedWishlist) return 0;
+    const unspecifiedGroup = organizedWishlist.find(g => g.groupTitle === 'Season Not Specified');
+    return unspecifiedGroup ? unspecifiedGroup.plantings.length : 0;
+}, [organizedWishlist, wishlistSortOrder]);
+
 
   const plantingsInPlantingStatus = useMemo(() => {
       if (!plantingsWithPlants) return [];
@@ -819,33 +857,63 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                 </Accordion>
                 
                 <div className="flex items-center gap-2 mb-6">
-                    {allFilters.map(status => (
-                        <Button
-                            key={status}
-                            variant={statusFilter === status ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setStatusFilter(status)}
-                            className="h-8"
-                        >
-                            {status}
-                            <Badge variant="secondary" className={cn(
-                                "ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono"
-                                )}>
-                                {statusCounts[status]}
-                            </Badge>
-                        </Button>
-                    ))}
+                    <div className="flex items-center gap-2">
+                      {allFilters.map(status => (
+                          <Button
+                              key={status}
+                              variant={statusFilter === status ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => setStatusFilter(status)}
+                              className="h-8"
+                          >
+                              {status}
+                              <Badge variant="secondary" className={cn(
+                                  "ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono"
+                                  )}>
+                                  {statusCounts[status]}
+                              </Badge>
+                          </Button>
+                      ))}
+                    </div>
+                     {statusFilter === 'Wishlist' && (
+                        <div className="flex items-center gap-4 ml-auto">
+                            {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 gap-2 text-muted-foreground"
+                                    onClick={() => unspecifiedSeasonSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                                >
+                                    <AlertCircle className="h-4 w-4" />
+                                    <span className="font-mono">{unspecifiedSeasonCount}</span>
+                                </Button>
+                            )}
+                            <div className="flex items-center space-x-2">
+                                <Label htmlFor="sort-order" className='text-sm font-medium text-muted-foreground'>
+                                    Sort by {wishlistSortOrder}
+                                </Label>
+                                <Switch
+                                    id="sort-order"
+                                    checked={wishlistSortOrder === 'viability'}
+                                    onCheckedChange={(checked) => setWishlistSortOrder(checked ? 'viability' : 'season')}
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
                 
                 {plantings && plantings.length > 0 ? (
                     <>
                       {statusFilter === 'Wishlist' ? (
-                          seasonallySortedWishlist && seasonallySortedWishlist.length > 0 ? (
+                          organizedWishlist && organizedWishlist.length > 0 ? (
                               <div className="space-y-8">
-                                  {seasonallySortedWishlist.map(group => (
-                                      <section key={group.season}>
-                                          <h2 className="text-2xl font-headline mb-4">
-                                              {group.season === activeLocation.conditions.currentSeason ? `Current Season: ${group.season}` : group.season}
+                                  {organizedWishlist.map(group => (
+                                      <section 
+                                        key={group.groupTitle}
+                                        ref={group.groupTitle === 'Season Not Specified' ? unspecifiedSeasonSectionRef : null}
+                                      >
+                                          <h2 className="text-2xl font-headline mb-4 capitalize">
+                                              {group.groupTitle.toLowerCase()}
                                           </h2>
                                           <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                               {group.plantings.map(p => (
@@ -1071,3 +1139,5 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     </div>
   );
 }
+
+    
