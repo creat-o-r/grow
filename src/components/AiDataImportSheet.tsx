@@ -73,7 +73,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
 
     const promptData = { 
         theme: fullTheme,
-        ...(activeLocation && { activeLocation }) // Add active location to prompt if it exists
+        ...(activeLocation && (importMode === 'add' || importMode === 'replace') && { activeLocation })
     };
 
     try {
@@ -172,12 +172,10 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     try {
       await db.transaction('rw', db.plants, db.plantings, db.locations, async () => {
         if (importMode === 'replace') {
-          // Clear all existing data
           await db.plants.clear();
           await db.plantings.clear();
           await db.locations.clear();
   
-          // Add the new data
           await db.locations.bulkAdd(generatedData.locations);
           await db.plants.bulkAdd(generatedData.plants);
           await db.plantings.bulkAdd(generatedData.plantings);
@@ -188,7 +186,6 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
           });
   
         } else if (importMode === 'new') {
-          // Add a new location and its associated plants/plantings
           await db.locations.bulkAdd(generatedData.locations);
           await db.plants.bulkAdd(generatedData.plants);
           await db.plantings.bulkAdd(generatedData.plantings);
@@ -199,15 +196,11 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
   
         } else if (importMode === 'add' && activeLocation) {
           const existingPlants = await db.plants.toArray();
-          const existingSpecies = new Set(existingPlants.map(p => p.species.toLowerCase().trim()));
-  
-          const plantsToAdd: Plant[] = [];
-          const plantingsToAdd: Planting[] = [];
           const plantIdMap = new Map<string, string>(); // Maps old AI-generated plantId to new DB plantId
   
-          // Find or create plants and build map
+          const plantsToAdd: Plant[] = [];
           for (const newPlant of generatedData.plants) {
-            const existingPlant = existingPlants.find(p => p.species.toLowerCase().trim() === newPlant.species.toLowerCase().trim());
+            let existingPlant = existingPlants.find(p => p.species.toLowerCase().trim() === newPlant.species.toLowerCase().trim());
             if (existingPlant) {
               plantIdMap.set(newPlant.id, existingPlant.id);
             } else {
@@ -217,7 +210,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
             }
           }
   
-          // Create plantings with correct plantId and gardenId
+          const plantingsToAdd: Planting[] = [];
           for (const newPlanting of generatedData.plantings) {
             const newPlantId = plantIdMap.get(newPlanting.plantId);
             if (newPlantId) {
@@ -225,7 +218,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                 ...newPlanting,
                 id: `planting-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                 plantId: newPlantId,
-                gardenId: activeLocation.id, // Add to active garden
+                gardenId: activeLocation.id,
               });
             }
           }
@@ -302,7 +295,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                         </Button>
                     </div>
                      {activeLocation && (
-                        <p className="text-xs text-muted-foreground">Using your active garden "{activeLocation.name}" as context.</p>
+                        <p className="text-xs text-muted-foreground">Using your active garden "{activeLocation.name}" as context for some import modes.</p>
                      )}
                     </div>
                 )}
@@ -450,3 +443,5 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     </Sheet>
   );
 }
+
+    
