@@ -100,6 +100,31 @@ export const analyzeViability = (plant: Plant, conditions: Conditions): Viabilit
 };
 
 
+export const generateLocalViabilityReasoning = (plant: Plant, conditions: Conditions): string => {
+    if (!conditions) return "No garden conditions provided for analysis.";
+
+    const plantInfo = `${plant.optimalConditions} ${plant.germinationNeeds}`.toLowerCase();
+
+    const sunScore = getSunlightScore(plantInfo, conditions.sunlight || '');
+    const tempScore = getTemperatureScore(plantInfo, conditions.temperature || '');
+    const soilScore = getSoilScore(plantInfo, conditions.soil || '');
+    const totalScore = sunScore + tempScore + soilScore;
+
+    const finalViability = totalScore >= 5 ? 'High' : totalScore >= 3 ? 'Medium' : 'Low';
+    
+    const reasoning = `
+Local Viability Analysis Report:
+- Sunlight Score: ${sunScore}/2. (Plant needs found in description vs. Garden has '${conditions.sunlight || 'N/A'}').
+- Temperature Score: ${tempScore}/2. (Plant needs found in description vs. Garden has '${conditions.temperature || 'N/A'}').
+- Soil Score: ${soilScore}/2. (Plant needs found in description vs. Garden has '${conditions.soil || 'N/A'}').
+---
+Total Score: ${totalScore}/6. Final Viability: ${finalViability}.
+    `.trim();
+
+    return reasoning;
+}
+
+
 export const getSuitableSeasons = (plant: Plant): string[] => {
     const text = `${plant.germinationNeeds} ${plant.optimalConditions}`.toLowerCase();
     const seasons: string[] = [];

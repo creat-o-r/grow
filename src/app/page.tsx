@@ -1,16 +1,17 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, MouseEvent, useMemo, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, AiDataset, ViabilityAnalysisMode } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
 import { loadDataset } from '@/lib/datasets';
-import { analyzeViability, Viability, getSuitableSeasons } from '@/lib/viability';
+import { analyzeViability, Viability, getSuitableSeasons, generateLocalViabilityReasoning } from '@/lib/viability';
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
@@ -573,13 +574,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       } else {
         // Local reasoning
         const viability = analyzeViability(planting.plant, activeLocation.conditions);
-        const reasoning = `
-          Based on local analysis:
-          - Viability Score: ${viability}
-          - Plant Needs: ${planting.plant.optimalConditions} ${planting.plant.germinationNeeds}
-          - Garden Conditions: Sun: ${activeLocation.conditions.sunlight}, Temp: ${activeLocation.conditions.temperature}, Soil: ${activeLocation.conditions.soil}
-          This is a simplified, non-AI analysis based on keyword matching.
-        `.trim();
+        const reasoning = generateLocalViabilityReasoning(planting.plant, activeLocation.conditions);
         const result = { viability, reasoning };
         logData = { flow: 'localViabilityAnalysis', prompt: { plant: planting.plant.species, conditions: activeLocation.conditions }, results: result, viabilityType: 'local' };
         finalViability = viability;
