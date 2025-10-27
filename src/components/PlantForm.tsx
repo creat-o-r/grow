@@ -119,11 +119,33 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     setIsAiSearching(true);
     try {
       const result = await aiSearchPlantData({ searchTerm: aiSearchTerm, apiKeys });
-      const commonName = result.species.split('(')[0].trim();
+      
+      let commonName = result.species;
+      const parenthesisMatch = result.species.match(/\(([^)]+)\)/);
+      
+      if (parenthesisMatch) {
+          const contentInParenthesis = parenthesisMatch[1].toLowerCase();
+          const contentOutside = result.species.substring(0, parenthesisMatch.index).trim().toLowerCase();
+          
+          // Heuristic: if content in parenthesis has fewer words and no dots, it's likely the common name.
+          // Or if the content outside looks like a latin name (two words)
+          const isContentOutsideLatin = contentOutside.split(' ').length === 2 && !contentInParenthesis.includes(' ');
+          const isContentInsideCommon = !contentInParenthesis.includes('.') && contentInParenthesis.split(' ').length <= 3;
+
+          if (isContentInsideCommon && !isContentOutsideLatin) {
+             commonName = parenthesisMatch[1].trim();
+          } else {
+             commonName = result.species.substring(0, parenthesisMatch.index).trim();
+          }
+      } else {
+          commonName = result.species.split(',')[0].trim();
+      }
+
       form.setValue('name', commonName, { shouldValidate: true });
       form.setValue('species', result.species, { shouldValidate: true });
       form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
       form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });
+
       toast({
         title: 'AI Search Successful',
         description: `Data for ${result.species} has been populated.`,
