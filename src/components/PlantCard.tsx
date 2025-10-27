@@ -91,24 +91,20 @@ export function PlantCard({
                 </div>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
-                 {latestStatus?.status === 'Wishlist' ? (
-                    <div className="text-center italic text-muted-foreground p-4 rounded-lg bg-accent/20 border border-dashed border-accent/50">
-                        <Sparkles className="h-4 w-4 mx-auto mb-2 text-accent" />
+                <div>
+                    <h4 className="font-bold text-sm mb-1 tracking-wide uppercase text-muted-foreground">Germination Needs</h4>
+                    <p className="text-sm text-foreground/80 line-clamp-3">{plant.germinationNeeds}</p>
+                </div>
+                <div>
+                    <h4 className="font-bold text-sm mb-1 tracking-wide uppercase text-muted-foreground">Optimal Conditions</h4>
+                    <p className="text-sm text-foreground/80 line-clamp-3">{plant.optimalConditions}</p>
+                </div>
+                {latestStatus?.status === 'Wishlist' && (
+                    <div className="text-center italic text-muted-foreground p-3 rounded-lg bg-accent/10 border border-dashed border-accent/30">
                         <p className="text-xs">
-                           Coming soon: share to wants list in our new exchange market, get automatic trades set up for you.
+                           <span className="font-bold not-italic text-accent">Coming soon:</span> share to wants list in our new exchange market, get automatic trades set up for you.
                         </p>
                     </div>
-                 ) : (
-                    <>
-                        <div>
-                        <h4 className="font-bold text-sm mb-1 tracking-wide uppercase text-muted-foreground">Germination Needs</h4>
-                        <p className="text-sm text-foreground/80 line-clamp-3">{plant.germinationNeeds}</p>
-                        </div>
-                        <div>
-                        <h4 className="font-bold text-sm mb-1 tracking-wide uppercase text-muted-foreground">Optimal Conditions</h4>
-                        <p className="text-sm text-foreground/80 line-clamp-3">{plant.optimalConditions}</p>
-                        </div>
-                    </>
                  )}
             </CardContent>
             {latestStatus && (
