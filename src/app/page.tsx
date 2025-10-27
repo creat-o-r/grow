@@ -856,7 +856,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                   </AccordionItem>
                 </Accordion>
                 
-                <div className="flex items-center gap-2 mb-6">
+                <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-2">
                       {allFilters.map(status => (
                           <Button
@@ -876,7 +876,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                       ))}
                     </div>
                      {statusFilter === 'Wishlist' && (
-                        <div className="flex items-center gap-4 ml-auto">
+                        <div className="flex items-center gap-4">
                             {unspecifiedSeasonCount > 0 && wishlistSortOrder === 'season' && (
                                 <Button
                                     variant="ghost"
