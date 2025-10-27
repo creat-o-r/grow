@@ -110,11 +110,41 @@ export function LocationSwitcher({
 
   const handleCheckboxChange = (e: MouseEvent, locationId: string) => {
     e.preventDefault();
-    const newSelectedIds = selectedGardenIds.includes(locationId)
+
+    const isCurrentlySelected = selectedGardenIds.includes(locationId);
+
+    if (isCurrentlySelected && selectedGardenIds.length === 1) {
+        // If it's the last one, do nothing (or maybe revert to 'one' mode?)
+        // For now, prevent de-selecting the last item.
+        return;
+    }
+
+    const newSelectedIds = isCurrentlySelected
       ? selectedGardenIds.filter(id => id !== locationId)
       : [...selectedGardenIds, locationId];
-    onSelectedGardenIdsChange(newSelectedIds);
+
+     onSelectedGardenIdsChange(newSelectedIds);
   };
+
+    const handleItemSelect = (locationId: string) => {
+        if (gardenViewMode === 'selected') {
+            const isSelected = selectedGardenIds.includes(locationId);
+            const newSelectedIds = isSelected ? selectedGardenIds.filter(id => id !== locationId) : [...selectedGardenIds, locationId];
+
+            if (newSelectedIds.length === 1) {
+                // If only one is selected, switch to 'one' mode
+                onLocationChange(newSelectedIds[0]);
+                onGardenViewModeChange('one');
+                setIsOpen(false);
+            } else {
+                onSelectedGardenIdsChange(newSelectedIds);
+            }
+        } else {
+            onLocationChange(locationId);
+            setIsOpen(false);
+        }
+    };
+
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={(open) => {
@@ -129,16 +159,14 @@ export function LocationSwitcher({
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64" align="start">
           {locations.map(location => {
-            const isSelected = selectedGardenIds.includes(location.id);
+            const isSelected = gardenViewMode === 'selected' && selectedGardenIds.includes(location.id);
+            const isActive = location.id === activeLocationId;
             return (
               <DropdownMenuItem 
                 key={location.id} 
                 onSelect={(e) => {
-                    if (gardenViewMode === 'selected') {
-                        e.preventDefault();
-                    } else {
-                       onLocationChange(location.id);
-                    }
+                    e.preventDefault(); // Prevent default close behavior
+                    handleItemSelect(location.id);
                 }}
                 className="p-0"
               >
@@ -155,16 +183,16 @@ export function LocationSwitcher({
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancelEdit}><X className="h-4 w-4 text-destructive"/></Button>
                       </div>
                     ) : (
-                      <div className="flex items-center w-full justify-between px-2 py-1.5">
-                          <div className={cn("flex items-center gap-3 flex-1 cursor-pointer")} onClick={() => onLocationChange(location.id)}>
+                      <div className={cn("flex items-center w-full justify-between px-2 py-1.5", isActive && gardenViewMode === 'one' && 'bg-accent/50')}>
+                          <div className={cn("flex items-center gap-3 flex-1 cursor-pointer")}>
                              {gardenViewMode === 'selected' && (
-                                <div onClick={(e) => handleCheckboxChange(e, location.id)}>
+                                <div onClick={(e) => {e.stopPropagation(); handleItemSelect(location.id)}}>
                                     <Checkbox
                                         checked={isSelected}
                                     />
                                 </div>
                              )}
-                              <span className="flex-1">{location.name}</span>
+                              <span className="flex-1" onClick={() => handleItemSelect(location.id)}>{location.name}</span>
                           </div>
 
                         <div className="flex items-center">
@@ -191,7 +219,8 @@ export function LocationSwitcher({
                   )}
               </DropdownMenuItem>
           )})}
-          <div className="p-2">
+          
+        <div className="p-2">
             <div className="flex items-center justify-center rounded-md bg-muted p-1">
                 <Button 
                     variant={gardenViewMode === 'one' ? 'secondary' : 'ghost'} 
@@ -205,7 +234,15 @@ export function LocationSwitcher({
                     variant={gardenViewMode === 'selected' ? 'secondary' : 'ghost'} 
                     size="sm" 
                     className="flex-1 h-7 text-xs" 
-                    onClick={() => onGardenViewModeChange('selected')}
+                    onClick={() => {
+                        onGardenViewModeChange('selected');
+                        // When switching to selected, ensure at least the active garden is selected.
+                        if (activeLocationId && !selectedGardenIds.includes(activeLocationId)) {
+                             onSelectedGardenIdsChange([...selectedGardenIds, activeLocationId]);
+                        } else if (selectedGardenIds.length === 0 && activeLocationId) {
+                            onSelectedGardenIdsChange([activeLocationId]);
+                        }
+                    }}
                 >
                     Selected
                 </Button>
@@ -218,7 +255,7 @@ export function LocationSwitcher({
                     All
                 </Button>
             </div>
-          </div>
+        </div>
         <DropdownMenuSeparator />
         <div className="p-2 space-y-2">
             <p className="text-xs font-medium text-muted-foreground px-2">Add New Garden</p>
@@ -241,3 +278,5 @@ export function LocationSwitcher({
     </DropdownMenu>
   );
 }
+
+    

@@ -699,8 +699,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     }
   };
 
-  const isEffectivelySingleView = useMemo(() => {
-      return gardenViewMode === 'one' || (gardenViewMode === 'selected' && selectedGardenIds.length <= 1);
+  const effectivelySingleGardenView = useMemo(() => {
+      if (gardenViewMode === 'one') return true;
+      if (gardenViewMode === 'selected' && selectedGardenIds.length <= 1) return true;
+      return false;
   }, [gardenViewMode, selectedGardenIds]);
 
   const plantingsWithPlants = useMemo((): PlantingWithPlant[] => {
@@ -1019,10 +1021,10 @@ const unspecifiedSeasonCount = useMemo(() => {
 
   const selectedLocations = useMemo(() => {
       if (!locations) return [];
-      if (isEffectivelySingleView) return activeLocation ? [activeLocation] : [];
+      if (effectivelySingleGardenView) return activeLocation ? [activeLocation] : [];
       if (gardenViewMode === 'all') return locations;
       return locations.filter(loc => selectedGardenIds.includes(loc.id));
-  }, [locations, selectedGardenIds, gardenViewMode, activeLocation, isEffectivelySingleView]);
+  }, [locations, selectedGardenIds, gardenViewMode, activeLocation, effectivelySingleGardenView]);
 
   const locationSwitcherTriggerText = useMemo(() => {
     if (gardenViewMode === 'selected') {
@@ -1085,7 +1087,13 @@ const unspecifiedSeasonCount = useMemo(() => {
                                   <LocationSwitcher 
                                     locations={locations || []}
                                     activeLocationId={activeLocationId}
-                                    onLocationChange={setActiveLocationId}
+                                    onLocationChange={(id) => {
+                                        setActiveLocationId(id);
+                                        // If in selected mode and we pick a new active one, maybe it should be the only selected?
+                                        if (gardenViewMode === 'selected') {
+                                            setSelectedGardenIds([id]);
+                                        }
+                                    }}
                                     onAddLocation={handleAddLocation}
                                     onDeleteLocation={(loc) => promptDelete(loc)}
                                     gardenViewMode={gardenViewMode}
@@ -1095,7 +1103,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                     triggerText={locationSwitcherTriggerText}
                                   />
                               </div>
-                               {isEffectivelySingleView && activeLocation && (
+                               {effectivelySingleGardenView && activeLocation && (
                                 <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
                                     <span className='text-sm text-muted-foreground font-normal truncate'>
                                         {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
@@ -1258,7 +1266,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                               isSelectionMode={!!duplicateSelectionMode}
                                               onSelectDuplicate={() => handleDuplicateSelection(p)}
                                               onGetViability={() => handleGetViability(p)}
-                                              showGardenLabel={!isEffectivelySingleView}
+                                              showGardenLabel={!effectivelySingleGardenView}
                                           />
                                       ))}
                                   </div>
@@ -1288,7 +1296,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                                         isSelectionMode={!!duplicateSelectionMode}
                                                         onSelectDuplicate={() => handleDuplicateSelection(p)}
                                                         onGetViability={() => handleGetViability(p)}
-                                                        showGardenLabel={!isEffectivelySingleView}
+                                                        showGardenLabel={!effectivelySingleGardenView}
                                                     />
                                                 ))}
                                             </div>
@@ -1326,7 +1334,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                                 isSelectionMode={!!duplicateSelectionMode}
                                                 onSelectDuplicate={() => handleDuplicateSelection(p)}
                                                 onGetViability={() => handleGetViability(p)}
-                                                showGardenLabel={!isEffectivelySingleView}
+                                                showGardenLabel={!effectivelySingleGardenView}
                                             />
                                         ))}
                                     </div>
@@ -1356,7 +1364,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                                           isSelectionMode={!!duplicateSelectionMode}
                                           onSelectDuplicate={() => handleDuplicateSelection(p)}
                                           onGetViability={() => handleGetViability(p)}
-                                          showGardenLabel={!isEffectivelySingleView}
+                                          showGardenLabel={!effectivelySingleGardenView}
                                       />
                                   ))}
                               </div>
@@ -1512,3 +1520,5 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    
