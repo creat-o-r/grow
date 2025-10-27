@@ -5,14 +5,18 @@ import type { AiLog } from '@/lib/types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, parseISO } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Settings, AlertTriangle } from 'lucide-react';
+import { Settings, AlertTriangle, ThumbsDown, ThumbsUp, Medal } from 'lucide-react';
 import {
   Alert,
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert"
+import { db } from '@/lib/db';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+
 
 type AiLogPanelProps = {
   logs: AiLog[];
@@ -46,6 +50,25 @@ const toTitleCase = (str: string) => {
 }
 
 export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiKeysSet }: AiLogPanelProps) {
+    const { toast } = useToast();
+    
+    const handleFeedback = async (logId: string, feedback: 'bad' | 'ok' | 'great') => {
+        try {
+            await db.aiLogs.update(logId, { feedback });
+            toast({
+                title: 'Feedback Submitted',
+                description: `You rated this analysis as "${feedback}".`,
+            });
+        } catch (error) {
+            console.error("Failed to submit feedback", error);
+            toast({
+                title: 'Error',
+                description: 'Could not save your feedback.',
+                variant: 'destructive',
+            });
+        }
+    };
+    
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-2xl w-[90vw] flex flex-col">
@@ -86,6 +109,7 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                   }
 
                   const displayName = FLOW_DISPLAY_NAMES[log.flow] || log.flow;
+                  const isViabilityAnalysis = log.flow === 'getAiViability' || log.flow === 'localViabilityAnalysis';
 
                   return (
                     <Card key={log.id} className="text-sm">
@@ -135,6 +159,36 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                           </div>
                         )}
                       </CardContent>
+                      {isViabilityAnalysis && (
+                        <CardFooter className="flex flex-col items-start gap-3">
+                            <h4 className="text-xs font-semibold text-muted-foreground">Was this analysis helpful?</h4>
+                            <div className="flex gap-2">
+                                <Button 
+                                    size="sm" 
+                                    variant={log.feedback === 'bad' ? 'destructive' : 'outline'}
+                                    onClick={() => handleFeedback(log.id, 'bad')}
+                                >
+                                    <ThumbsDown className={cn("mr-2 h-4 w-4", log.feedback === 'bad' && 'text-destructive-foreground')} /> Bad
+                                </Button>
+                                <Button 
+                                    size="sm" 
+                                    variant={log.feedback === 'ok' ? 'secondary' : 'outline'}
+                                    className={cn(log.feedback === 'ok' && 'bg-yellow-500/80 text-secondary-foreground hover:bg-yellow-500')}
+                                    onClick={() => handleFeedback(log.id, 'ok')}
+                                >
+                                    <ThumbsUp className="mr-2 h-4 w-4" /> OK
+                                </Button>
+                                <Button 
+                                    size="sm" 
+                                    variant={log.feedback === 'great' ? 'secondary' : 'outline'}
+                                    className={cn(log.feedback === 'great' && 'bg-green-600/80 text-secondary-foreground hover:bg-green-600')}
+                                    onClick={() => handleFeedback(log.id, 'great')}
+                                >
+                                    <Medal className="mr-2 h-4 w-4" /> Great
+                                </Button>
+                            </div>
+                        </CardFooter>
+                      )}
                     </Card>
                   )
                 }) : (

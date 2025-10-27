@@ -47,6 +47,7 @@ export type AiLog = {
     flow: string;
     prompt: any;
     results: any;
+    feedback?: 'bad' | 'ok' | 'great';
 }
 
 export type AiDataset = {
