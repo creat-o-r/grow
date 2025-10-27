@@ -53,7 +53,7 @@ export default function Home() {
   const [accordionValue, setAccordionValue] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
   const [isLocating, setIsLocating] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState<string | null>(null);
   const [wishlistSortOrder, setWishlistSortOrder] = useState<'season' | 'viability'>('season');
 
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
@@ -332,22 +332,28 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     });
   };
 
-  const handleConditionChange = async (field: keyof Conditions, value: string) => {
-    if (!activeLocationId) return;
-    await db.locations.update(activeLocationId, { conditions: { ...activeLocation?.conditions, [field]: value } });
+  const handleConditionChange = async (locationId: string, field: keyof Conditions, value: string) => {
+    if (!locationId) return;
+    const location = await db.locations.get(locationId);
+    if (location) {
+        await db.locations.update(locationId, { conditions: { ...location.conditions, [field]: value } });
+    }
   };
   
-  const handleLocationFieldChange = useCallback(async (field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
-    if (!activeLocationId) return;
-    const trimmedValue = value.trim();
-    if (trimmedValue === activeLocation?.location) return;
+  const handleLocationFieldChange = useCallback(async (locationId: string, field: keyof Omit<GardenLocation, 'id' | 'conditions'>, value: string) => {
+    if (!locationId) return;
+    const location = await db.locations.get(locationId);
+    if (!location) return;
 
-    await db.locations.update(activeLocationId, { [field]: trimmedValue });
+    const trimmedValue = value.trim();
+    if (trimmedValue === location.location) return;
+
+    await db.locations.update(locationId, { [field]: trimmedValue });
     // After changing the location, automatically re-analyze conditions
     if (field === 'location' && trimmedValue) {
-      handleAnalyzeConditions(trimmedValue);
+      handleAnalyzeConditions(locationId, trimmedValue);
     }
-  }, [activeLocationId, activeLocation?.location]);
+  }, []);
 
   
   const handleAddLocation = async (name: string) => {
@@ -366,7 +372,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     setActiveLocationId(newId.toString());
     setAccordionValue('item-1');
     setTimeout(() => {
-      const locationInput = document.getElementById('location');
+      const locationInput = document.getElementById(`location-${newId}`);
       if (locationInput) {
         locationInput.focus();
       }
@@ -414,7 +420,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   };
 
 
-  const handleGetCurrentLocation = () => {
+  const handleGetCurrentLocation = (locationId: string) => {
     if (!navigator.geolocation) {
       toast({
         title: 'Geolocation Not Supported',
@@ -434,8 +440,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           const data = await response.json();
           const locationName = data.address?.city || data.address?.town || data.display_name || 'Unknown Location';
           
-          setLocationSearchQuery(locationName); // Update search query as well
-          handleLocationFieldChange('location', locationName);
+          handleLocationFieldChange(locationId, 'location', locationName);
 
           toast({
             title: 'Location Found',
@@ -443,7 +448,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           });
         } catch (error) {
           console.error("Error fetching location name:", error);
-          handleLocationFieldChange('location', 'Current Location');
+          handleLocationFieldChange(locationId, 'location', 'Current Location');
           toast({
             title: 'Could Not Get Location Name',
             description: 'Location set to your current position.',
@@ -464,9 +469,8 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     );
   };
 
-  const handleLocationSuggestionSelect = (locationName: string) => {
-    setLocationSearchQuery(locationName);
-    handleLocationFieldChange('location', locationName);
+  const handleLocationSuggestionSelect = (locationId: string, locationName: string) => {
+    handleLocationFieldChange(locationId, 'location', locationName);
     setLocationSuggestions([]);
     setShowLocationSuggestions(false);
     // Briefly set focus away and back to prevent immediate re-opening of suggestions
@@ -483,7 +487,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     document.getElementById('location')?.focus();
   }
 
-  const handleAnalyzeConditions = async (locationOverride?: string) => {
+  const handleAnalyzeConditions = async (locationId: string, locationOverride?: string) => {
     if (!areApiKeysSet) {
       toast({
         title: 'API Key Required',
@@ -493,8 +497,8 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       setIsSettingsSheetOpen(true);
       return;
     }
-
-    const locationToAnalyze = locationOverride || activeLocation?.location;
+    
+    const locationToAnalyze = locationOverride || locations?.find(l => l.id === locationId)?.location;
 
     if (!locationToAnalyze || !locationToAnalyze.trim()) {
       toast({
@@ -505,23 +509,21 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       return;
     }
 
-    setIsAnalyzing(true);
+    setIsAnalyzing(locationId);
     const currentMonth = new Date().toLocaleString('default', { month: 'long' });
     const promptData = { location: locationToAnalyze, currentMonth, apiKeys };
 
     try {
       const result = await getEnvironmentalData(promptData);
       
-      if (activeLocationId) {
-        await db.locations.update(activeLocationId, {
-          conditions: {
-              temperature: result.soilTemperature,
-              sunlight: result.sunlightHours,
-              soil: result.soilDescription,
-              currentSeason: result.currentSeason,
-          }
-        });
-      }
+      await db.locations.update(locationId, {
+        conditions: {
+            temperature: result.soilTemperature,
+            sunlight: result.sunlightHours,
+            soil: result.soilDescription,
+            currentSeason: result.currentSeason,
+        }
+      });
       
       const newLog: AiLog = {
         id: Date.now().toString(),
@@ -545,7 +547,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         variant: 'destructive',
       });
     } finally {
-      setIsAnalyzing(false);
+      setIsAnalyzing(null);
     }
   };
 
@@ -1013,9 +1015,19 @@ const unspecifiedSeasonCount = useMemo(() => {
 
   const selectedLocations = useMemo(() => {
       if (!locations) return [];
+      if (gardenViewMode === 'one') return activeLocation ? [activeLocation] : [];
       if (gardenViewMode === 'all') return locations;
       return locations.filter(loc => selectedGardenIds.includes(loc.id));
-  }, [locations, selectedGardenIds, gardenViewMode]);
+  }, [locations, selectedGardenIds, gardenViewMode, activeLocation]);
+
+  const locationSwitcherTriggerText = useMemo(() => {
+    if (gardenViewMode === 'selected') {
+        if (selectedGardenIds.length === locations?.length) return 'All Gardens Selected';
+        return `${selectedGardenIds.length} Garden(s) Selected`;
+    }
+    if (gardenViewMode === 'all') return 'All Gardens';
+    return activeLocation?.name || 'Select Garden';
+}, [gardenViewMode, activeLocation, selectedGardenIds.length, locations?.length]);
 
 
   if (!isClient || !plantings || !plants || !locations || !aiLogs) {
@@ -1073,9 +1085,10 @@ const unspecifiedSeasonCount = useMemo(() => {
                                     onGardenViewModeChange={setGardenViewMode}
                                     selectedGardenIds={selectedGardenIds}
                                     onSelectedGardenIdsChange={setSelectedGardenIds}
+                                    triggerText={locationSwitcherTriggerText}
                                   />
                               </div>
-                               {gardenViewMode === 'one' && activeLocation && (
+                               {(gardenViewMode === 'one' && activeLocation) && (
                                 <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
                                     <span className='text-sm text-muted-foreground font-normal truncate'>
                                         {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
@@ -1096,56 +1109,29 @@ const unspecifiedSeasonCount = useMemo(() => {
                           </div>
                       </div>
 
-                      <AccordionContent className="p-6 pt-2">
-                           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end">
+                      <AccordionContent className="p-6 pt-2 space-y-6">
+                        {selectedLocations.map(loc => (
+                          <div key={loc.id} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end border-b pb-6 last:border-b-0 last:pb-0">
                               <div className="sm:col-span-2 lg:col-span-1 relative">
-                                  <Label htmlFor="location" className="text-xs font-semibold uppercase text-muted-foreground">Location</Label>
+                                  <Label htmlFor={`location-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">{loc.name}</Label>
                                   <div className="flex items-center gap-2">
                                     <div className="relative w-full">
                                       <Input 
-                                        id="location" 
-                                        value={locationSearchQuery || ''} 
-                                        onChange={(e) => {
-                                            setLocationSearchQuery(e.target.value);
-                                            setShowLocationSuggestions(true);
-                                        }}
-                                        onBlur={() => handleLocationFieldChange('location', locationSearchQuery)}
-                                        onFocus={() => {
-                                            setShowLocationSuggestions(true);
-                                        }}
+                                        id={`location-${loc.id}`} 
+                                        value={loc.location} 
+                                        onChange={(e) => handleLocationFieldChange(loc.id, 'location', e.target.value)}
                                         autoComplete="off"
                                       />
-                                      {locationSearchQuery && (
-                                        <button onClick={handleClearLocationSearch} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                                          <X className="h-4 w-4"/>
-                                        </button>
-                                      )}
                                     </div>
-                                  <Button size="icon" variant="outline" onClick={handleGetCurrentLocation} disabled={isLocating}>
+                                  <Button size="icon" variant="outline" onClick={() => handleGetCurrentLocation(loc.id)} disabled={isLocating}>
                                       {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
                                   </Button>
                                   </div>
-                                  { showLocationSuggestions && (isSearchingLocation || locationSuggestions.length > 0) && (
-                                      <Card className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto">
-                                          <CardContent className="p-2">
-                                              {isSearchingLocation && <div className="p-2 text-sm text-muted-foreground">Searching...</div>}
-                                              {!isSearchingLocation && locationSuggestions.map((suggestion, index) => (
-                                                  <button
-                                                      key={`${suggestion.lat}-${suggestion.lon}-${index}`}
-                                                      className="block w-full text-left p-2 text-sm rounded-md hover:bg-accent"
-                                                      onClick={() => handleLocationSuggestionSelect(suggestion.display_name)}
-                                                  >
-                                                      {suggestion.display_name}
-                                                  </button>
-                                              ))}
-                                          </CardContent>
-                                      </Card>
-                                  )}
                               </div>
                                <div>
-                                  <Label htmlFor="season" className="text-xs font-semibold uppercase text-muted-foreground">Current Season</Label>
-                                  <Select value={activeLocation?.conditions.currentSeason || ''} onValueChange={(value) => handleConditionChange('currentSeason', value)}>
-                                      <SelectTrigger id="season">
+                                  <Label htmlFor={`season-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Current Season</Label>
+                                  <Select value={loc.conditions.currentSeason || ''} onValueChange={(value) => handleConditionChange(loc.id, 'currentSeason', value)}>
+                                      <SelectTrigger id={`season-${loc.id}`}>
                                           <SelectValue placeholder="Select season" />
                                       </SelectTrigger>
                                       <SelectContent>
@@ -1157,28 +1143,29 @@ const unspecifiedSeasonCount = useMemo(() => {
                                   </Select>
                                </div>
                               <div>
-                              <Label htmlFor="temperature" className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
-                              <Input id="temperature" value={activeLocation?.conditions.temperature || ''} onChange={(e) => handleConditionChange('temperature', e.target.value)} />
+                              <Label htmlFor={`temperature-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
+                              <Input id={`temperature-${loc.id}`} value={loc.conditions.temperature || ''} onChange={(e) => handleConditionChange(loc.id, 'temperature', e.target.value)} />
                               </div>
                               <div>
-                              <Label htmlFor="sunlight" className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
-                              <Input id="sunlight" value={activeLocation?.conditions.sunlight || ''} onChange={(e) => handleConditionChange('sunlight', e.target.value)} />
+                              <Label htmlFor={`sunlight-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
+                              <Input id={`sunlight-${loc.id}`} value={loc.conditions.sunlight || ''} onChange={(e) => handleConditionChange(loc.id, 'sunlight', e.target.value)} />
                               </div>
                               <div className="flex gap-2">
                                   <div className="flex-1">
-                                      <Label htmlFor="soil" className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
-                                      <Input id="soil" value={activeLocation?.conditions.soil || ''} onChange={(e) => handleConditionChange('soil', e.target.value)} />
+                                      <Label htmlFor={`soil-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
+                                      <Input id={`soil-${loc.id}`} value={loc.conditions.soil || ''} onChange={(e) => handleConditionChange(loc.id, 'soil', e.target.value)} />
                                   </div>
-                                  <Button size="icon" variant="outline" onClick={() => handleAnalyzeConditions()} disabled={isAnalyzing}>
-                                      {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                  <Button size="icon" variant="outline" onClick={() => handleAnalyzeConditions(loc.id)} disabled={isAnalyzing === loc.id}>
+                                      {isAnalyzing === loc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                   </Button>
                               </div>
                           </div>
+                        ))}
                       </AccordionContent>
                   </AccordionItem>
                 </Accordion>
                 
-                 {(gardenViewMode === 'selected' || gardenViewMode === 'all') && selectedLocations.length > 0 && (
+                 {(gardenViewMode === 'selected' || gardenViewMode === 'all') && selectedLocations.length > 1 && (
                     <Accordion type="single" collapsible className="w-full mb-6" defaultValue="item-1">
                         <AccordionItem value="item-1" className="border rounded-lg bg-muted/30">
                             <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">

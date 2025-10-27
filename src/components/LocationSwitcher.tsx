@@ -29,6 +29,7 @@ type LocationSwitcherProps = {
   onGardenViewModeChange: (mode: GardenViewMode) => void;
   selectedGardenIds: string[];
   onSelectedGardenIdsChange: (ids: string[]) => void;
+  triggerText: string;
 };
 
 export function LocationSwitcher({
@@ -41,6 +42,7 @@ export function LocationSwitcher({
   onGardenViewModeChange,
   selectedGardenIds,
   onSelectedGardenIdsChange,
+  triggerText,
 }: LocationSwitcherProps) {
   const [newLocationName, setNewLocationName] = useState('');
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
@@ -115,9 +117,6 @@ export function LocationSwitcher({
     onSelectedGardenIdsChange(newSelectedIds);
   };
 
-  const triggerText = activeLocation ? activeLocation.name : 'Select Garden';
-
-
   return (
     <DropdownMenu open={isOpen} onOpenChange={(open) => {
         setIsOpen(open);
@@ -134,12 +133,13 @@ export function LocationSwitcher({
               <DropdownMenuItem 
                 key={location.id} 
                 onSelect={(e) => {
-                  e.preventDefault();
-                  if (gardenViewMode !== 'selected') {
-                      onLocationChange(location.id);
-                  }
+                    if (gardenViewMode === 'selected') {
+                        e.preventDefault();
+                    } else {
+                        onLocationChange(location.id);
+                    }
                 }}
-                className={cn("p-0", gardenViewMode !== 'selected' && 'cursor-pointer')}
+                className="p-0"
               >
                   {editingLocationId === location.id ? (
                       <div className="flex items-center gap-1 w-full px-2 py-1.5">
@@ -155,17 +155,16 @@ export function LocationSwitcher({
                       </div>
                     ) : (
                       <div className="flex items-center w-full justify-between px-2 py-1.5">
-                        {gardenViewMode === 'selected' ? (
-                          <label className="flex items-center gap-2 cursor-pointer flex-1">
-                             <Checkbox
+                          <label className={cn("flex items-center gap-3 flex-1", gardenViewMode !== 'selected' ? 'cursor-pointer' : '')}>
+                             {gardenViewMode === 'selected' && (
+                               <Checkbox
                                 checked={selectedGardenIds.includes(location.id)}
                                 onCheckedChange={() => handleCheckboxChange(location.id)}
+                                onClick={(e) => e.stopPropagation()}
                               />
+                             )}
                               <span onClick={() => onLocationChange(location.id)} className="flex-1">{location.name}</span>
                           </label>
-                        ) : (
-                          <span onClick={() => onLocationChange(location.id)} className="flex-1">{location.name}</span>
-                        )}
 
                         <div className="flex items-center">
                             <Button 
