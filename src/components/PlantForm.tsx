@@ -120,30 +120,9 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     try {
       const result = await aiSearchPlantData({ searchTerm: aiSearchTerm, apiKeys });
       
-      let commonName = result.species;
-      const parenthesisMatch = result.species.match(/\(([^)]+)\)/);
-
-      if (parenthesisMatch && parenthesisMatch[1]) {
-        // If there are parentheses, check if the content inside seems more like a common name
-        const contentInParenthesis = parenthesisMatch[1];
-        const contentOutside = result.species.substring(0, parenthesisMatch.index).trim();
-        
-        // Simple heuristic: if the outside is two words (likely Latin name), use the inside.
-        // Or if the inside is not just a single word.
-        if (contentOutside.split(' ').length === 2 && contentInParenthesis.split(' ').length > 0) {
-             commonName = contentInParenthesis;
-        } else {
-            // Otherwise, assume the part before parenthesis is the common name.
-            commonName = contentOutside;
-        }
-      } else {
-          // If no parentheses, just take the part before any comma
-          commonName = result.species.split(',')[0].trim();
-      }
-
       form.setValue('species', result.species, { shouldValidate: true });
       if (!form.getValues('name')) {
-        form.setValue('name', commonName, { shouldValidate: true });
+        form.setValue('name', result.commonName, { shouldValidate: true });
       }
       form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
       form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });
