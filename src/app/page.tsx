@@ -760,14 +760,13 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         } else if (viabilityMechanism === 'ai') {
             // When switching to AI, clear data and run batch analysis
             setViabilityData({});
-            if (wishlistPlantings.length > 0) {
-                handleBatchAiViabilityAnalysis(wishlistPlantings);
+            if (plantingsWithPlants.length > 0) {
+                handleBatchAiViabilityAnalysis(plantingsWithPlants);
             }
         }
     }, [
         viabilityMechanism,
         plantingsWithPlants,
-        wishlistPlantings,
         handleBatchAiViabilityAnalysis,
         activeLocation?.conditions?.temperature,
         activeLocation?.conditions?.sunlight,
@@ -1431,3 +1430,5 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    
