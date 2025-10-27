@@ -1,13 +1,13 @@
 
 'use client';
 
-import type { AiLog } from '@/lib/types';
+import type { AiLog, ViabilityAnalysisMode } from '@/lib/types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Settings, AlertTriangle, ThumbsDown, ThumbsUp, Medal } from 'lucide-react';
+import { Settings, AlertTriangle, ThumbsDown, ThumbsUp, Medal, BrainCircuit, Cpu } from 'lucide-react';
 import {
   Alert,
   AlertDescription,
@@ -114,9 +114,17 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                   return (
                     <Card key={log.id} className="text-sm">
                       <CardHeader className='pb-3'>
-                        <CardTitle className="text-base font-medium flex justify-between items-center">
-                            <span className='font-mono text-primary'>{displayName}</span>
-                            <span className="font-sans font-normal text-xs text-muted-foreground">{format(parseISO(log.timestamp), 'MMM d, yyyy, h:mm:ss a')}</span>
+                        <CardTitle className="text-base font-medium flex justify-between items-start">
+                            <div className="flex flex-col gap-1.5">
+                                <span className='font-mono text-primary'>{displayName}</span>
+                                {isViabilityAnalysis && log.viabilityType && (
+                                    <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
+                                        {log.viabilityType === 'ai' ? <BrainCircuit className="h-3 w-3" /> : <Cpu className="h-3 w-3" />}
+                                        {log.viabilityType === 'ai' ? 'AI-Powered Analysis' : 'Local Analysis'}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="font-sans font-normal text-xs text-muted-foreground flex-shrink-0 ml-4">{format(parseISO(log.timestamp), 'MMM d, yyyy, h:mm:ss a')}</span>
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">

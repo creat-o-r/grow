@@ -48,6 +48,7 @@ export type AiLog = {
     prompt: any;
     results: any;
     feedback?: 'bad' | 'ok' | 'great';
+    viabilityType?: ViabilityAnalysisMode;
 }
 
 export type AiDataset = {

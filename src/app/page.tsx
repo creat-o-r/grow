@@ -568,7 +568,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         };
 
         const result = await getAiViability(promptData);
-        logData = { flow: 'getAiViability', prompt: promptData, results: result };
+        logData = { flow: 'getAiViability', prompt: promptData, results: result, viabilityType: 'ai' };
         finalViability = result.viability;
       } else {
         // Local reasoning
@@ -581,7 +581,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           This is a simplified, non-AI analysis based on keyword matching.
         `.trim();
         const result = { viability, reasoning };
-        logData = { flow: 'localViabilityAnalysis', prompt: { plant: planting.plant.species, conditions: activeLocation.conditions }, results: result };
+        logData = { flow: 'localViabilityAnalysis', prompt: { plant: planting.plant.species, conditions: activeLocation.conditions }, results: result, viabilityType: 'local' };
         finalViability = viability;
       }
       
