@@ -88,6 +88,21 @@ export const availableDatasets: DatasetInfo[] = [
                 plantings: data.plantings
             };
         },
+    },
+    {
+        key: 'all-seasons',
+        name: 'All Seasons',
+        description: 'Hardy plants for year-round harvests.',
+        loader: async () => {
+            const data = await import('./all-seasons.json');
+             return {
+                name: 'All Seasons',
+                description: 'Hardy plants for year-round harvests.',
+                locations: data.locations,
+                plants: data.plants,
+                plantings: data.plantings
+            };
+        },
     }
 ];
 

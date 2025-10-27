@@ -1,0 +1,84 @@
+
+{
+    "locations": [
+        {
+            "id": "all-seasons-loc-1",
+            "name": "The Perpetual Patch",
+            "location": "Mild Climate, Zone 9b",
+            "temperatureUnit": "F",
+            "conditions": {
+                "temperature": "68°F",
+                "sunlight": "6-8 hours",
+                "soil": "Rich, well-drained compost"
+            }
+        }
+    ],
+    "plants": [
+        {
+            "id": "as-1",
+            "species": "Radish (Raphanus sativus)",
+            "germinationNeeds": "Direct sow seeds in spring, summer, autumn, or winter in mild climates. Fast-growing, matures in 3-4 weeks.",
+            "optimalConditions": "Full sun to partial shade. Prefers cool, moist soil but is highly adaptable. Best to sow in succession for a continuous harvest year-round."
+        },
+        {
+            "id": "as-2",
+            "species": "Kale (Brassica oleracea var. sabellica)",
+            "germinationNeeds": "Sow seeds directly in the garden in spring, summer, or autumn for harvests through winter. Tolerates frost well.",
+            "optimalConditions": "Full sun to partial shade. Fertile, well-drained soil. Flavor improves after a light frost. A true multi-season plant."
+        },
+        {
+            "id": "as-3",
+            "species": "Swiss Chard (Beta vulgaris subsp. vulgaris)",
+            "germinationNeeds": "Sow from spring through late summer. Can be overwintered in mild climates. Soak seeds before planting to aid germination.",
+            "optimalConditions": "Full sun to light shade. Tolerant of both heat and cold. Rich, moisture-retentive soil. Can be harvested continuously through all seasons."
+        },
+        {
+            "id": "as-4",
+            "species": "Scallion / Bunching Onion (Allium fistulosum)",
+            "germinationNeeds": "Sow seeds from early spring to late autumn. Can be grown year-round in many climates. Perennial.",
+            "optimalConditions": "Full sun. Fertile, well-drained soil. Very cold-hardy. Will multiply into clumps. Can be harvested in any season."
+        }
+    ],
+    "plantings": [
+        {
+            "id": "as-p-1",
+            "plantId": "as-1",
+            "gardenId": "all-seasons-loc-1",
+            "name": "Quick-Snack Radishes",
+            "createdAt": "2024-01-01T12:00:00.000Z",
+            "history": [
+                { "id": "h1", "status": "Wishlist", "date": "2024-01-01T12:00:00.000Z", "notes": "Cherry Belle variety, good for all seasons." }
+            ]
+        },
+        {
+            "id": "as-p-2",
+            "plantId": "as-2",
+            "gardenId": "all-seasons-loc-1",
+            "name": "Winterbor Kale",
+            "createdAt": "2024-01-01T12:00:00.000Z",
+            "history": [
+                { "id": "h2", "status": "Wishlist", "date": "2024-01-01T12:00:00.000Z", "notes": "A very frost-tolerant variety for year-round greens." }
+            ]
+        },
+        {
+            "id": "as-p-3",
+            "plantId": "as-3",
+            "gardenId": "all-seasons-loc-1",
+            "name": "Rainbow Chard",
+            "createdAt": "2024-01-01T12:00:00.000Z",
+            "history": [
+                { "id": "h3", "status": "Wishlist", "date": "2024-01-01T12:00:00.000Z", "notes": "Colorful and productive through heat and cold." }
+            ]
+        },
+        {
+            "id": "as-p-4",
+            "plantId": "as-4",
+            "gardenId": "all-seasons-loc-1",
+            "name": "Evergreen Scallions",
+            "createdAt": "2024-01-01T12:00:00.000Z",
+            "history": [
+                { "id": "h4", "status": "Wishlist", "date": "2024-01-01T12:00:00.000Z", "notes": "Perennial onions for a never-ending supply." }
+            ]
+        }
+    ]
+}
