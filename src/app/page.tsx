@@ -459,10 +459,10 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
 
     setIsAnalyzing(true);
     const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-    const promptData = { location: locationToAnalyze, currentMonth };
+    const promptData = { location: locationToAnalyze, currentMonth, apiKeys };
 
     try {
-      const result = await getEnvironmentalData({ ...promptData, apiKeys });
+      const result = await getEnvironmentalData(promptData);
       
       if (activeLocationId) {
         await db.locations.update(activeLocationId, {
@@ -479,7 +479,7 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
         flow: 'getEnvironmentalData',
-        prompt: promptData,
+        prompt: { location: promptData.location, currentMonth: promptData.currentMonth },
         results: result,
       };
       
@@ -565,10 +565,9 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
     const getBestPlantSeason = (plant: Plant): string => {
         const suitableSeasons = getSuitableSeasons(plant);
         if (suitableSeasons.length === 4 && activeLocation.conditions.currentSeason) {
-            // If it's year-round, show it under the current season
             return activeLocation.conditions.currentSeason;
         }
-        if (suitableSeasons.length === 0) return 'Year-Round';
+        if (suitableSeasons.length === 0) return 'Season Not Specified';
 
         const seasonOrder = ['Spring', 'Summer', 'Autumn', 'Winter'];
         const currentSeason = activeLocation.conditions.currentSeason;
@@ -584,17 +583,17 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
                 return season;
             }
         }
-        return suitableSeasons[0]; // Fallback to the first suitable season if no match is found
+        return suitableSeasons[0]; // Fallback
     };
 
     const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
-    const seasonOrder = ['Spring', 'Summer', 'Autumn', 'Winter', 'Year-Round'];
+    const seasonOrder = ['Spring', 'Summer', 'Autumn', 'Winter', 'Season Not Specified'];
     const currentSeason = activeLocation.conditions.currentSeason;
     const currentSeasonIndex = currentSeason ? seasonOrder.indexOf(currentSeason) : 0;
 
     const getSeasonScore = (season: string) => {
         const seasonIndex = seasonOrder.indexOf(season);
-        if (seasonIndex === -1 || season === 'Year-Round') return 4; // 'Year-Round' or others at the end
+        if (seasonIndex === -1 || season === 'Season Not Specified') return 4; 
         return (seasonIndex - currentSeasonIndex + seasonOrder.length) % seasonOrder.length;
     };
     
@@ -1065,12 +1064,10 @@ const handleUpdatePlanting = async (updatedPlanting: Planting, updatedPlant: Pla
             }}
             areApiKeysSet={areApiKeysSet}
             apiKeys={apiKeys}
-            plants={plants}
+            plants={plants || []}
           />
         </SheetContent>
       </Sheet>
     </div>
   );
 }
-
-    
