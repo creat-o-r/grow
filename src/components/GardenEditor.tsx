@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React from 'react';
@@ -34,21 +33,23 @@ export const GardenEditor = React.memo(function GardenEditor({
   return (
     <div key={loc.id} className="grid gap-6">
       {showNameAsHeader && (
-        <h2 className="text-xl font-headline sticky top-0 bg-background py-2 -mt-2 z-10 border-b">
+        <h2 className="text-xl font-headline sticky top-0 bg-background py-2 -mt-2 z-10 border-b -mx-6 px-6">
             {loc.name}
         </h2>
       )}
-       <div className="space-y-1">
-            <Label htmlFor={`name-${loc.id}`}>Garden Name</Label>
-            <Input
-                id={`name-${loc.id}`}
-                name="name"
-                defaultValue={loc.name}
-                onBlur={handleLocationFieldChange}
-                onKeyDown={handleLocationFieldChange}
-                className="text-lg font-headline h-auto"
-            />
-        </div>
+       {!showNameAsHeader && (
+        <div className="space-y-1 hidden">
+              <Label htmlFor={`name-${loc.id}`}>Garden Name</Label>
+              <Input
+                  id={`name-${loc.id}`}
+                  name="name"
+                  defaultValue={loc.name}
+                  onBlur={handleLocationFieldChange}
+                  onKeyDown={handleLocationFieldChange}
+                  className="text-lg font-headline h-auto"
+              />
+          </div>
+       )}
        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
           <div className="sm:col-span-2 lg:col-span-1 relative">
             <Label htmlFor={`location-${loc.id}`}>Location</Label>
