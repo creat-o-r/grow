@@ -5,7 +5,7 @@
  *
  * - diagnosePlant - A function that handles the plant diagnosis process.
  * - DiagnosePlantInput - The input type for the diagnosePlant function.
- * - DiagnosePlantOutput - The return type for the diagnosePlant function.
+ * - DiagnosePlantOutput - The return type for the function.
  */
 
 import {ai} from '@/ai/genkit';

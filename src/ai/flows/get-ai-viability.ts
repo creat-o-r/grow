@@ -86,7 +86,7 @@ Return your final analysis in the specified output format.
       outputSchema: GetAiViabilityOutputSchema,
     },
     async (flowInput) => {
-      const {output} = await prompt(flowInput, { model: 'googleai/gemini-1.5-pro-latest' });
+      const {output} = await prompt(flowInput, { model: 'googleai/gemini-2.5-flash' });
       return output!;
     }
   );
