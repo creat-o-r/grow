@@ -1240,24 +1240,26 @@ const unspecifiedSeasonCount = useMemo(() => {
                                     triggerText={locationSwitcherTriggerText}
                                   />
                               </div>
-                              <AccordionTrigger className="p-0 flex-1 hover:no-underline justify-start gap-2 min-w-0">
-                                {effectivelySingleGardenView && activeLocation ? (
-                                    <span className='text-sm text-muted-foreground font-normal truncate'>
-                                        {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
-                                    </span>
-                                ) : (
-                                    <div className="flex flex-col items-start text-sm text-muted-foreground font-normal">
-                                        {selectedLocations.map((loc, index) => (
-                                            <React.Fragment key={loc.id}>
-                                                <div className="truncate">
-                                                    <span className="font-semibold">{loc.name}:</span> {loc.conditions.temperature || 'N/A'}
-                                                </div>
-                                                {index < selectedLocations.length - 1 && <hr className="w-full border-t border-border my-1" />}
-                                            </React.Fragment>
-                                        ))}
-                                    </div>
-                                )}
+                              <div className="flex-1 min-w-0">
+                                <AccordionTrigger className="p-0 hover:no-underline justify-start gap-2 w-full">
+                                    {effectivelySingleGardenView && activeLocation ? (
+                                        <span className='text-sm text-muted-foreground font-normal truncate'>
+                                            {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
+                                        </span>
+                                    ) : (
+                                        <div className="flex flex-col items-start text-sm text-muted-foreground font-normal">
+                                            {selectedLocations.map((loc, index) => (
+                                                <React.Fragment key={loc.id}>
+                                                    <div className="truncate">
+                                                        <span className="font-semibold">{loc.name}:</span> {loc.conditions.temperature || 'N/A'}
+                                                    </div>
+                                                    {index < selectedLocations.length - 1 && <hr className="w-full border-t border-border my-1" />}
+                                                </React.Fragment>
+                                            ))}
+                                        </div>
+                                    )}
                                 </AccordionTrigger>
+                              </div>
                           </div>
                           
                           <div className="flex items-center gap-2 pl-0 md:pl-4 w-full md:w-auto">
@@ -1646,3 +1648,5 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    
