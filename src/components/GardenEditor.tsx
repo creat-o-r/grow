@@ -30,9 +30,10 @@ export const GardenEditor = React.memo(function GardenEditor({
 }: GardenEditorProps) {
   return (
     <div key={loc.id} className="grid gap-6">
+       <h3 className="font-headline text-lg -mb-2">{loc.name}</h3>
        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
           <div className="sm:col-span-2 lg:col-span-1 relative">
-            <Label htmlFor={`location-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">{loc.name}</Label>
+            <Label htmlFor={`location-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Location</Label>
             <div className="flex items-center gap-2">
               <div className="relative w-full">
                 <Input
