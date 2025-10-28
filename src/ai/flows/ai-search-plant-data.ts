@@ -15,9 +15,11 @@ import { googleAI } from '@genkit-ai/google-genai';
 const AISearchPlantDataInputSchema = z.object({
   searchTerm: z
     .string()
+    .optional()
     .describe('The name or description of the plant to search for.'),
+  image: z.string().optional().describe('A base64-encoded image of the plant.'),
   apiKeys: z.object({
-      gemini: z.string().optional(),
+    gemini: z.string().optional(),
   }).optional(),
 });
 type AISearchPlantDataInput = z.infer<typeof AISearchPlantDataInputSchema>;
@@ -42,17 +44,34 @@ export async function aiSearchPlantData(
 
   const prompt = ai.definePrompt({
     name: 'aiSearchPlantDataPrompt',
-    input: {schema: AISearchPlantDataInputSchema},
-    output: {schema: AISearchPlantDataOutputSchema},
-    prompt: `You are an expert botanist. Extract plant data based on the search term provided.
-
-Search Term: {{{searchTerm}}}
+    input: { schema: AISearchPlantDataInputSchema },
+    output: { schema: AISearchPlantDataOutputSchema },
+    prompt: (input) => {
+      const basePrompt = `You are an expert botanist. Extract plant data based on the provided input.
 
 Return the plant's common name, scientific species name, germination needs, and optimal conditions.
 - commonName should be the common/everyday name (e.g., "Sunflower", "Tomato")
 - species should be the scientific/botanical name (e.g., "Helianthus annuus", "Solanum lycopersicum")
 Ensure the output is structured according to the provided output schema, with the Zod descriptions.
-If there is no definitive answer based on the search term, make your best guess.`,
+If there is no definitive answer, make your best guess.`;
+
+      if (input.image) {
+        return {
+          role: 'user',
+          content: [
+            { text: basePrompt },
+            {
+              media: {
+                url: `data:image/jpeg;base64,${input.image}`,
+                contentType: 'image/jpeg',
+              },
+            },
+          ],
+        };
+      } else {
+        return `${basePrompt}\n\nSearch Term: ${input.searchTerm}`;
+      }
+    },
   });
 
   const aiSearchPlantDataFlow = ai.defineFlow(
@@ -62,7 +81,10 @@ If there is no definitive answer based on the search term, make your best guess.
       outputSchema: AISearchPlantDataOutputSchema,
     },
     async (flowInput) => {
-      const {output} = await prompt(flowInput, { model: 'googleai/gemini-2.5-flash' });
+      const model = flowInput.image
+        ? 'googleai/gemini-1.5-flash-latest'
+        : 'googleai/gemini-1.5-flash-latest';
+      const { output } = await prompt(flowInput, { model });
       return output!;
     }
   );

@@ -56,6 +56,7 @@ type PlantFormProps = {
 export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiKeysSet, apiKeys, plants }: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [isSpeciesPopoverOpen, setIsSpeciesPopoverOpen] = useState(false);
   const { toast } = useToast();
 
@@ -105,7 +106,72 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
     }
   }, [plantingToEdit, form]);
 
-  const handleAiSearch = async () => {
+  const handleImageSearch = async () => {
+    if (!areApiKeysSet) {
+      toast({
+        title: 'API Key Required',
+        description: 'Please configure your Gemini API key in the settings to use this feature.',
+        variant: 'destructive',
+      });
+      onConfigureApiKey();
+      return;
+    }
+    if (!selectedImage) {
+      toast({
+        title: 'No Image Selected',
+        description: 'Please select an image to search.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsAiSearching(true);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(selectedImage);
+      reader.onloadend = async () => {
+        const base64Image = reader.result?.toString().split(',')[1];
+        if (base64Image) {
+          const result = await aiSearchPlantData({
+            image: base64Image,
+            apiKeys,
+          });
+
+          form.setValue('species', result.species, { shouldValidate: true });
+          if (!form.getValues('name')) {
+            let commonName = result.commonName;
+            // Check for parentheses and extract name if needed
+            const parenthesisMatch = result.commonName.match(/\((.*?)\)/);
+            if (parenthesisMatch?.[1] && !/^[a-z]/.test(parenthesisMatch[1])) {
+                 commonName = parenthesisMatch[1];
+            } else if (result.commonName.includes('(')) {
+                commonName = result.commonName.split('(')[0].trim();
+            }
+            form.setValue('name', commonName, { shouldValidate: true });
+          }
+          form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
+          form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });
+
+          toast({
+            title: 'AI Search Successful',
+            description: `Data for ${result.species} has been populated.`,
+          });
+        }
+      };
+    } catch (error: any) {
+      console.error('AI image search failed:', error);
+      toast({
+        title: 'AI Search Failed',
+        description: `An error occurred: ${error.message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAiSearching(false);
+      setSelectedImage(null);
+    }
+  };
+
+
+  const handleTextSearch = async () => {
     if (!areApiKeysSet) {
       toast({
         title: 'API Key Required',
@@ -216,17 +282,46 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
               placeholder="e.g., 'Sunflower'"
               value={aiSearchTerm}
               onChange={(e) => setAiSearchTerm(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAiSearch()}
+              onKeyDown={(e) => e.key === 'Enter' && handleTextSearch()}
             />
-            <Button type="button" onClick={handleAiSearch} disabled={isAiSearching || !areApiKeysSet}>
+            <Button type="button" onClick={handleTextSearch} disabled={isAiSearching || !areApiKeysSet}>
               {isAiSearching ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Search className="h-4 w-4" />
               )}
-              <span className="sr-only">Search</span>
+              <span className="sr-only">Search by Text</span>
             </Button>
           </div>
+           <div className="relative mt-4">
+            <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t"></span>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or</span>
+            </div>
+          </div>
+            <div className="flex flex-col space-y-2 mt-4">
+                <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setSelectedImage(e.target.files?.[0] || null)}
+                className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                />
+                {selectedImage && (
+                <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">{selectedImage.name}</span>
+                    <Button type="button" onClick={handleImageSearch} disabled={isAiSearching || !areApiKeysSet}>
+                    {isAiSearching ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                        <Upload className="h-4 w-4" />
+                    )}
+                    <span className="ml-2">Search by Image</span>
+                    </Button>
+                </div>
+                )}
+            </div>
         </CardContent>
       </Card>
       
