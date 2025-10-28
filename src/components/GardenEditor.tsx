@@ -18,6 +18,7 @@ type GardenEditorProps = {
   isLocating: boolean;
   handleAnalyzeConditions: (locationId: string) => Promise<void>;
   isAnalyzing: string | null;
+  showNameAsHeader?: boolean;
 };
 
 export const GardenEditor = React.memo(function GardenEditor({
@@ -28,9 +29,15 @@ export const GardenEditor = React.memo(function GardenEditor({
   isLocating,
   handleAnalyzeConditions,
   isAnalyzing,
+  showNameAsHeader = false,
 }: GardenEditorProps) {
   return (
     <div key={loc.id} className="grid gap-6">
+      {showNameAsHeader && (
+        <h2 className="text-xl font-headline sticky top-0 bg-background py-2 -mt-2 z-10 border-b">
+            {loc.name}
+        </h2>
+      )}
        <div className="space-y-1">
             <Label htmlFor={`name-${loc.id}`}>Garden Name</Label>
             <Input
@@ -39,7 +46,7 @@ export const GardenEditor = React.memo(function GardenEditor({
                 defaultValue={loc.name}
                 onBlur={handleLocationFieldChange}
                 onKeyDown={handleLocationFieldChange}
-                className="text-lg font-headline h-auto p-0 border-0 shadow-none focus-visible:ring-0"
+                className="text-lg font-headline h-auto"
             />
         </div>
        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">

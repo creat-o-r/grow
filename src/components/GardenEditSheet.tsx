@@ -3,7 +3,7 @@
 'use client';
 
 import React from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { GardenEditor } from '@/components/GardenEditor';
 import type { GardenLocation, Conditions } from '@/lib/types';
@@ -29,13 +29,14 @@ export function GardenEditSheet({
   const count = locations.length;
   let title = "Edit Garden";
   if (count > 1) {
-    title = `Edit ${count} Gardens`
+    title = `Edit ${count} Gardens`;
+  } else if (count === 1) {
+    title = locations[0].name;
   }
-
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg flex flex-col p-0">
+      <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
         <SheetHeader className="p-6 pb-4 border-b">
           <SheetTitle className="font-headline">{title}</SheetTitle>
         </SheetHeader>
@@ -44,7 +45,11 @@ export function GardenEditSheet({
                 <div className="space-y-8 p-6">
                 {locations.map((loc) => (
                     <div key={loc.id}>
-                        <GardenEditor loc={loc} {...rest} />
+                        <GardenEditor 
+                            loc={loc} 
+                            showNameAsHeader={count > 1}
+                            {...rest} 
+                        />
                     </div>
                 ))}
                 </div>
