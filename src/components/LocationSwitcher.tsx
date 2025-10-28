@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { MouseEvent, useState, useEffect, KeyboardEvent } from 'react';
@@ -24,6 +25,7 @@ type LocationSwitcherProps = {
   onLocationChange: (id: string) => void;
   onAddLocation: (name: string) => void;
   onDeleteLocation: (location: GardenLocation) => void;
+  onEditLocation: (location: GardenLocation) => void;
   gardenViewMode: GardenViewMode;
   onGardenViewModeChange: (mode: GardenViewMode) => void;
   selectedGardenIds: string[];
@@ -37,6 +39,7 @@ export function LocationSwitcher({
   onLocationChange,
   onAddLocation,
   onDeleteLocation,
+  onEditLocation,
   gardenViewMode,
   onGardenViewModeChange,
   selectedGardenIds,
@@ -79,7 +82,13 @@ export function LocationSwitcher({
   const handleEditClick = (e: MouseEvent, location: GardenLocation) => {
     e.stopPropagation();
     e.preventDefault();
-    setEditingLocationId(location.id);
+    const isMobile = window.innerWidth < 768; // md breakpoint
+    if (isMobile) {
+      onEditLocation(location);
+      setIsOpen(false);
+    } else {
+      setEditingLocationId(location.id);
+    }
   };
 
   const handleCancelEdit = (e: MouseEvent) => {
