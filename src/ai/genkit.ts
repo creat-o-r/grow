@@ -40,11 +40,11 @@ export function initializeGenkit(apiKeys?: ApiKeys) {
         initializer: async (client) => [
           defineCompatOpenAIModel({
             client,
-            name: 'openrouter-google/gemma-2-9b-it:free',
+            name: 'openrouter-google-gemma-2-9b', // Safe Genkit name
             modelRef: compatOaiModelRef({
-              name: 'google/gemma-2-9b-it:free',
+              name: 'google/gemma-2-9b-it:free', // Full API model ID
               info: {
-                label: 'OpenRouter - google/gemma-2-9b-it:free',
+                label: 'OpenRouter: Google Gemma 2 9B',
                 supports: { media: false, tools: false, systemRole: true },
               },
             }),
@@ -58,11 +58,11 @@ export function initializeGenkit(apiKeys?: ApiKeys) {
         initializer: async (client) => [
           defineCompatOpenAIModel({
             client,
-            name: 'openrouter-mistralai/mistral-7b-instruct:free',
+            name: 'openrouter-mistral-7b-instruct', // Safe Genkit name
             modelRef: compatOaiModelRef({
-              name: 'mistralai/mistral-7b-instruct:free',
+              name: 'mistralai/mistral-7b-instruct:free', // Full API model ID
               info: {
-                label: 'OpenRouter - mistralai/mistral-7b-instruct:free',
+                label: 'OpenRouter: Mistral 7B Instruct',
                 supports: { media: false, tools: false, systemRole: true },
               },
             }),
