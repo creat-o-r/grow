@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -245,6 +244,8 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
         const searchResult = await aiSearchPlantData({ searchTerm: idResult.identification.species, apiKeys });
         form.setValue('germinationNeeds', searchResult.germinationNeeds, { shouldValidate: true });
         form.setValue('optimalConditions', searchResult.optimalConditions, { shouldValidate: true });
+        setAiSearchTerm('');
+
 
         toast({
             title: 'Details Found',
@@ -314,6 +315,8 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     capturing: 'Capturing...',
     identifying: 'Identifying...',
   };
+  
+  const imageUrlValue = form.watch('imageUrl');
 
   return (
     <div className="space-y-6 py-6">
@@ -531,7 +534,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
               <FormItem>
                 <FormLabel>Germination Needs</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="Describe germination requirements..." {...field} />
+                  <Textarea placeholder="e.g., Sow in spring, requires full sun..." {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -544,12 +547,27 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
               <FormItem>
                 <FormLabel>Optimal Conditions</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="Describe optimal growing conditions..." {...field} />
+                  <Textarea placeholder="e.g., Well-drained soil, harvest in autumn..." {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+          
+          {imageUrlValue && (
+            <Card>
+                <CardContent className="pt-6">
+                    <div className="relative aspect-video w-full rounded-md overflow-hidden">
+                        <Image src={imageUrlValue} alt="Plant image" layout="fill" objectFit="cover" />
+                        <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => form.setValue('imageUrl', '')}>
+                            <X className="h-4 w-4"/>
+                            <span className="sr-only">Remove Image</span>
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+          )}
+
 
           <div className="space-y-4 rounded-lg border p-4">
             <div className='flex justify-between items-center'>
@@ -667,6 +685,3 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     </div>
   );
 }
-
-    
-

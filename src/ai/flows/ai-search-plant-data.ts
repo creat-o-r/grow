@@ -25,8 +25,8 @@ type AISearchPlantDataInput = z.infer<typeof AISearchPlantDataInputSchema>;
 const AISearchPlantDataOutputSchema = z.object({
   commonName: z.string().describe('The common name of the plant (e.g., Sunflower, Tomato).'),
   species: z.string().describe('The scientific/botanical species name of the plant (e.g., Helianthus annuus, Solanum lycopersicum).'),
-  germinationNeeds: z.string().describe('The germination needs of the plant.'),
-  optimalConditions: z.string().describe('The optimal growing conditions for the plant.'),
+  germinationNeeds: z.string().describe('The germination needs of the plant, including ideal seasons for planting (e.g., Spring, Summer).'),
+  optimalConditions: z.string().describe('The optimal growing conditions for the plant, including ideal seasons for growth and harvest.'),
 });
 type AISearchPlantDataOutput = z.infer<typeof AISearchPlantDataOutputSchema>;
 
@@ -51,6 +51,7 @@ Search Term: {{{searchTerm}}}
 Return the plant's common name, scientific species name, germination needs, and optimal conditions.
 - commonName should be the common/everyday name (e.g., "Sunflower", "Tomato")
 - species should be the scientific/botanical name (e.g., "Helianthus annuus", "Solanum lycopersicum")
+- germinationNeeds and optimalConditions MUST include information about ideal seasons (e.g., "Sow in Spring", "Harvest in Autumn").
 Ensure the output is structured according to the provided output schema, with the Zod descriptions.
 If there is no definitive answer based on the search term, make your best guess.`,
   });
