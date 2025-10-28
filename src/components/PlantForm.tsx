@@ -127,9 +127,10 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
   }, [plantingToEdit, defaultStatus, form]);
   
   useEffect(() => {
-    let stream: MediaStream;
+    let stream: MediaStream | null = null;
+    
     const getCameraPermission = async () => {
-        if (!isScanning || hasCameraPermission === true) return;
+      if (!isScanning) return;
       try {
         stream = await navigator.mediaDevices.getUserMedia({video: true});
         setHasCameraPermission(true);
@@ -148,6 +149,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
         });
       }
     };
+    
     getCameraPermission();
 
     return () => {
@@ -155,7 +157,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
             stream.getTracks().forEach(track => track.stop());
         }
     }
-  }, [isScanning, hasCameraPermission, toast]);
+  }, [isScanning, toast]);
 
   const handleAiSearch = async () => {
     if (!areApiKeysSet) {
@@ -373,7 +375,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
                  <div className="relative aspect-video w-full bg-muted rounded-md overflow-hidden flex items-center justify-center">
                     <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
                     <canvas ref={canvasRef} className="hidden" />
-                    {hasCameraPermission === null && (
+                    {hasCameraPermission === null && !isScanning && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center gap-2 p-4">
                             <Loader2 className="h-8 w-8 animate-spin"/>
                             <p className="text-muted-foreground">Requesting camera access...</p>
