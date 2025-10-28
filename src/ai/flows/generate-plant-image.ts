@@ -21,9 +21,21 @@ const GeneratePlantImageInputSchema = z.object({
 type GeneratePlantImageInput = z.infer<typeof GeneratePlantImageInputSchema>;
 
 const GeneratePlantImageOutputSchema = z.object({
-  imageUrl: z.string().describe("The data URI of the generated image. Must include a MIME type and use Base64 encoding. Format: 'data:<mimetype>;base64,<encoded_data>'."),
+  imageUrl: z.string().describe("The URL of the generated image."),
 });
 type GeneratePlantImageOutput = z.infer<typeof GeneratePlantImageOutputSchema>;
+
+// Simple hash function to create a numeric seed from a string
+const simpleHash = (str: string) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0; // Convert to 32bit integer
+  }
+  return Math.abs(hash);
+};
+
 
 export async function generatePlantImage(
   input: GeneratePlantImageInput,
@@ -42,16 +54,9 @@ export async function generatePlantImage(
       outputSchema: GeneratePlantImageOutputSchema,
     },
     async (flowInput) => {
-      const { media } = await ai.generate({
-        model: 'googleai/imagen-4.0-fast-generate-001',
-        prompt: `A clear, vibrant, high-quality photograph of a healthy ${flowInput.species} plant. The plant should be the main focus, set against a simple, clean, light-colored background. The image should be in a square aspect ratio.`,
-      });
+      const seed = simpleHash(flowInput.species);
+      const imageUrl = `https://picsum.photos/seed/${seed}/512/512`;
       
-      const imageUrl = media.url;
-      if (!imageUrl) {
-        throw new Error('Image generation failed to produce an output.');
-      }
-
       return { imageUrl };
     }
   );

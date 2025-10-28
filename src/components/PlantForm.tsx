@@ -626,9 +626,9 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
                 </div>
                  {imageUrlValue && (
                      <div className="space-y-2">
-                        <Label htmlFor="imageUrl">Image Data URL</Label>
+                        <Label htmlFor="imageUrl">Image URL</Label>
                         <div className="flex gap-2">
-                            <Input id="imageUrl" {...form.register('imageUrl')} readOnly />
+                            <Input id="imageUrl" {...form.register('imageUrl')} />
                             <Button type="button" variant="ghost" size="icon" onClick={() => form.setValue('imageUrl', '')}>
                                 <Trash2 className="h-4 w-4" />
                             </Button>
