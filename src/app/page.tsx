@@ -1242,6 +1242,22 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                               </div>
                             );
                           }
+                          if (status === 'Planting') {
+                              return (
+                                <Button
+                                    key={status}
+                                    variant={statusFilter === status ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setStatusFilter(status)}
+                                    className="h-8 flex-shrink-0"
+                                >
+                                    {status}
+                                    <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
+                                      {statusCounts.Planting}+{plantingDashboardPlantings.length}
+                                    </Badge>
+                                </Button>
+                              )
+                          }
                           return (
                             <Button
                                 key={status}
