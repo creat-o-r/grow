@@ -51,7 +51,7 @@ Search Term: {{{searchTerm}}}
 Return the plant's common name, scientific species name, germination needs, and optimal conditions.
 - commonName should be the common/everyday name (e.g., "Sunflower", "Tomato")
 - species should be the scientific/botanical name (e.g., "Helianthus annuus", "Solanum lycopersicum")
-- germinationNeeds and optimalConditions MUST include information about ideal seasons (e.g., "Sow in Spring", "Harvest in Autumn").
+- **CRITICAL**: The germinationNeeds and optimalConditions fields MUST contain explicit information about the ideal season(s) for planting, growing, and harvesting (e.g., "Sow in early Spring", "Thrives in Summer heat", "Harvest in Autumn before first frost"). This is a mandatory requirement.
 Ensure the output is structured according to the provided output schema, with the Zod descriptions.
 If there is no definitive answer based on the search term, make your best guess.`,
   });

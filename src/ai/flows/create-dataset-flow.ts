@@ -107,8 +107,8 @@ Your task is to generate a dataset containing:
 For each plant, you must provide:
 - A unique ID (e.g., "ai-plant-1").
 - The species name.
-- A description of its germination needs.
-- A description of its optimal growing conditions.
+- A description of its germination needs. This MUST include explicit season information (e.g., "Sow in Spring").
+- A description of its optimal growing conditions. This MUST include explicit season information (e.g., "Thrives in Summer", "Harvest in Autumn").
 
 For each planting, you must provide:
 - A unique ID (e.g., "ai-planting-1").
