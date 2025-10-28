@@ -1303,11 +1303,11 @@ const unspecifiedSeasonCount = useMemo(() => {
                   </AccordionItem>
                 </Accordion>
                 
-                <div className="mb-4 flex items-center gap-4">
+                <div className="mb-4">
                   <ScrollArea className="w-full whitespace-nowrap">
                     <div className="flex w-max space-x-2">
                         {allFilters.map((status) => {
-                           if (status === 'All' && hasDuplicates) {
+                           if (status === 'All') {
                             return (
                               <div
                                 key={status}
@@ -1316,25 +1316,28 @@ const unspecifiedSeasonCount = useMemo(() => {
                                     variant: statusFilter === status ? 'default' : 'outline',
                                     size: 'sm'
                                   }),
-                                  'h-8 flex-shrink-0 cursor-pointer flex items-center gap-0 p-0'
+                                  'h-8 flex-shrink-0 cursor-pointer flex items-center gap-2 p-0'
                                 )}
+                                onClick={() => setStatusFilter(status)}
                               >
-                                <div
-                                  className="px-3 h-full flex items-center"
-                                  onClick={() => setStatusFilter(status)}
-                                >
-                                  All
+                                <div className="px-3 h-full flex items-center">All</div>
+                                <div className="flex items-center gap-1 pr-2">
+                                    <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
+                                    <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
+                                    <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
                                 </div>
-                                <Button
-                                  variant="destructive"
-                                  className="h-6 w-6 p-0 mr-1"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsDuplicateReviewSheetOpen(true);
-                                  }}
-                                >
-                                  <span className="font-bold text-lg">!</span>
-                                </Button>
+                                {hasDuplicates && (
+                                    <Button
+                                    variant="destructive"
+                                    className="h-6 w-6 p-0 mr-1 self-center"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsDuplicateReviewSheetOpen(true);
+                                    }}
+                                    >
+                                    <span className="font-bold text-lg">!</span>
+                                    </Button>
+                                )}
                               </div>
                             );
                           }
@@ -1355,11 +1358,6 @@ const unspecifiedSeasonCount = useMemo(() => {
                     </div>
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
-                    <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
-                    <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
-                  </div>
                 </div>
 
                 
