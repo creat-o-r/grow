@@ -1,12 +1,16 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { GardenEditor } from '@/components/GardenEditor';
 import type { GardenLocation, Conditions } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Edit, Check, X } from 'lucide-react';
+import { db } from '@/lib/db';
 
 
 type GardenEditSheetProps = {
@@ -27,16 +31,50 @@ export function GardenEditSheet({
   locations,
   ...rest
 }: GardenEditSheetProps) {
+
+  const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
   
   const getTitle = () => {
     if (locations.length > 1) {
-      return `Edit ${locations.length} Gardens`;
+        return `Edit ${locations.length} Gardens`;
     }
-    if (locations.length === 1) {
-      return `Edit Garden`;
-    }
-    return 'Edit Garden';
+    return `Edit Garden`;
   }
+
+  const handleEditClick = (loc: GardenLocation) => {
+    setEditingLocationId(loc.id);
+    setEditingName(loc.name);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingLocationId(null);
+    setEditingName('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (editingLocationId && editingName.trim()) {
+      await db.locations.update(editingLocationId, { name: editingName.trim() });
+      handleCancelEdit();
+    }
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveEdit();
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancelEdit();
+    }
+  }
+  
+  useEffect(() => {
+    if (!isOpen) {
+        handleCancelEdit();
+    }
+  }, [isOpen]);
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -47,14 +85,35 @@ export function GardenEditSheet({
         <div className="flex-1 overflow-hidden">
             <ScrollArea className="h-full w-full">
                 <div className="space-y-8 p-6">
-                {locations.map((loc) => (
+                {locations.map((loc, index) => (
                     <div key={loc.id}>
+                        <div className="flex items-center gap-2 mb-6">
+                            {editingLocationId === loc.id ? (
+                                <div className="flex items-center gap-2 w-full">
+                                    <Input
+                                        autoFocus
+                                        value={editingName}
+                                        onChange={(e) => setEditingName(e.target.value)}
+                                        onKeyDown={handleEditKeyDown}
+                                        className="text-xl font-headline h-auto p-0 border-0 shadow-none focus-visible:ring-0"
+                                    />
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleSaveEdit}><Check className="h-5 w-5 text-green-600"/></Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCancelEdit}><X className="h-5 w-5 text-destructive"/></Button>
+                                </div>
+                            ) : (
+                                <>
+                                    <h2 className="text-xl font-headline flex-1">{loc.name}</h2>
+                                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(loc)}>
+                                        <Edit className="h-5 w-5 text-muted-foreground" />
+                                    </Button>
+                                </>
+                            )}
+                        </div>
                         <GardenEditor 
-                            loc={loc} 
-                            showNameAsHeader={locations.length > 1}
+                            loc={loc}
                             {...rest} 
                         />
-                         {locations.length > 1 && <hr className="mt-8"/>}
+                         {locations.length > 1 && index < locations.length - 1 && <hr className="mt-8"/>}
                     </div>
                 ))}
                 </div>
