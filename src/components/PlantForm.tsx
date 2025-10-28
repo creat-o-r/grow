@@ -129,16 +129,15 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
   }, [plantingToEdit, defaultStatus, form]);
   
   useEffect(() => {
-    let stream: MediaStream | null = null;
+    if (!isScanning) return;
     
+    let stream: MediaStream | null = null;
     const getCameraPermission = async () => {
-      if (!isScanning) return;
       console.log('Requesting camera permission...');
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         console.log('Got camera stream:', stream);
         setHasCameraPermission(true);
-
         if (videoRef.current) {
             console.log('videoRef is available, setting srcObject.');
             videoRef.current.srcObject = stream;
@@ -163,6 +162,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     return () => {
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
+            console.log('Camera stream stopped.');
         }
     }
   }, [isScanning, toast]);
@@ -272,20 +272,36 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     setIdentificationState('identifying');
 
     try {
-        const result = await diagnosePlant({ photoDataUri, description: 'A plant in a home garden setting.', apiKeys });
-        form.setValue('name', result.identification.commonName, { shouldValidate: true });
-        form.setValue('species', result.identification.species, { shouldValidate: true });
-        setAiSearchTerm(result.identification.species);
+        const idResult = await diagnosePlant({ photoDataUri, description: 'A plant in a home garden setting.', apiKeys });
+        
+        if (!idResult.identification.isPlant) {
+            toast({
+                title: 'Not a Plant',
+                description: "The AI couldn't confirm this is a plant. Try a clearer picture.",
+                variant: 'destructive',
+            });
+            setIdentificationState('idle');
+            return;
+        }
+
+        form.setValue('name', idResult.identification.commonName, { shouldValidate: true });
+        form.setValue('species', idResult.identification.species, { shouldValidate: true });
         
         toast({
             title: 'Plant Identified!',
-            description: `Found ${result.identification.commonName}. Now searching for details...`,
+            description: `Found ${idResult.identification.commonName}. Now searching for details...`,
         });
 
-        // Now auto-run the text search with the identified species
-        await handleAiSearch();
+        const searchResult = await aiSearchPlantData({ searchTerm: idResult.identification.species, apiKeys });
+        form.setValue('germinationNeeds', searchResult.germinationNeeds, { shouldValidate: true });
+        form.setValue('optimalConditions', searchResult.optimalConditions, { shouldValidate: true });
+
+        toast({
+            title: 'Details Found',
+            description: `Successfully populated data for ${searchResult.species}.`,
+        });
         
-        setIsScanning(false); // Close camera view on success
+        setIsScanning(false);
 
     } catch (error: any) {
         toast({
