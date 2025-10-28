@@ -31,8 +31,8 @@ export const GardenEditor = React.memo(function GardenEditor({
 }: GardenEditorProps) {
   return (
     <div key={loc.id} className="grid gap-6">
-       <div className="space-y-1 sticky top-0 bg-background py-2 -mt-2">
-            <Label htmlFor={`name-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Garden Name</Label>
+       <div className="space-y-1">
+            <Label htmlFor={`name-${loc.id}`}>Garden Name</Label>
             <Input
                 id={`name-${loc.id}`}
                 name="name"
@@ -44,7 +44,7 @@ export const GardenEditor = React.memo(function GardenEditor({
         </div>
        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
           <div className="sm:col-span-2 lg:col-span-1 relative">
-            <Label htmlFor={`location-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Location</Label>
+            <Label htmlFor={`location-${loc.id}`}>Location</Label>
             <div className="flex items-center gap-2">
               <div className="relative w-full">
                 <Input
@@ -63,7 +63,7 @@ export const GardenEditor = React.memo(function GardenEditor({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 sm:col-span-2 lg:col-span-4 gap-4 items-end">
             <div>
-              <Label htmlFor={`season-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Current Season</Label>
+              <Label htmlFor={`season-${loc.id}`}>Current Season</Label>
               <Select
                 value={loc.conditions.currentSeason || ''}
                 onValueChange={(value) => handleConditionChange(value, 'currentSeason', loc.id)}
@@ -80,7 +80,7 @@ export const GardenEditor = React.memo(function GardenEditor({
               </Select>
             </div>
             <div>
-              <Label htmlFor={`temperature-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil Temperature</Label>
+              <Label htmlFor={`temperature-${loc.id}`}>Soil Temperature</Label>
               <Input 
                 id={`temperature-${loc.id}`} 
                 name="temperature"
@@ -90,7 +90,7 @@ export const GardenEditor = React.memo(function GardenEditor({
               />
             </div>
             <div>
-              <Label htmlFor={`sunlight-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Sunlight</Label>
+              <Label htmlFor={`sunlight-${loc.id}`}>Sunlight</Label>
               <Input 
                 id={`sunlight-${loc.id}`} 
                 name="sunlight"
@@ -101,7 +101,7 @@ export const GardenEditor = React.memo(function GardenEditor({
             </div>
             <div className="flex gap-2">
               <div className="flex-1">
-                <Label htmlFor={`soil-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Soil</Label>
+                <Label htmlFor={`soil-${loc.id}`}>Soil</Label>
                 <Input 
                   id={`soil-${loc.id}`} 
                   name="soil"
@@ -118,7 +118,7 @@ export const GardenEditor = React.memo(function GardenEditor({
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
             <div>
-                <Label htmlFor={`growing-systems-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Growing Systems</Label>
+                <Label htmlFor={`growing-systems-${loc.id}`}>Growing Systems</Label>
                 <Input
                     id={`growing-systems-${loc.id}`}
                     name="growingSystems"
@@ -129,7 +129,7 @@ export const GardenEditor = React.memo(function GardenEditor({
                 />
             </div>
             <div>
-                <Label htmlFor={`growing-methods-${loc.id}`} className="text-xs font-semibold uppercase text-muted-foreground">Growing Methods</Label>
+                <Label htmlFor={`growing-methods-${loc.id}`}>Growing Methods</Label>
                 <Input
                     id={`growing-methods-${loc.id}`}
                     name="growingMethods"
