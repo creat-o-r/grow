@@ -20,7 +20,7 @@ import { SettingsSheet } from '@/components/SettingsSheet';
 import { AiDataImportSheet } from '@/components/AiDataImportSheet';
 import { DuplicateReviewSheet } from '@/components/DuplicateReviewSheet';
 import { PlantingDashboard } from '@/components/PlantingDashboard';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1306,40 +1306,52 @@ const unspecifiedSeasonCount = useMemo(() => {
                 <div className="mb-4 flex items-center gap-4">
                   <ScrollArea className="w-full whitespace-nowrap">
                     <div className="flex w-max space-x-2">
-                        {allFilters.map((status) => (
+                        {allFilters.map((status) => {
+                           if (status === 'All' && hasDuplicates) {
+                            return (
+                              <div
+                                key={status}
+                                className={cn(
+                                  buttonVariants({
+                                    variant: statusFilter === status ? 'default' : 'outline',
+                                    size: 'sm'
+                                  }),
+                                  'h-8 flex-shrink-0 cursor-pointer flex items-center gap-0 p-0'
+                                )}
+                              >
+                                <div
+                                  className="px-3 h-full flex items-center"
+                                  onClick={() => setStatusFilter(status)}
+                                >
+                                  All
+                                </div>
+                                <Button
+                                  variant="destructive"
+                                  className="h-6 w-6 p-0 mr-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsDuplicateReviewSheetOpen(true);
+                                  }}
+                                >
+                                  <span className="font-bold text-lg">!</span>
+                                </Button>
+                              </div>
+                            );
+                          }
+                          return (
                             <Button
                                 key={status}
                                 variant={statusFilter === status ? 'default' : 'outline'}
                                 size="sm"
-                                onClick={() => {
-                                    if (status === 'All' && hasDuplicates) {
-                                        setIsDuplicateReviewSheetOpen(true);
-                                    } else {
-                                        setStatusFilter(status)
-                                    }
-                                }}
+                                onClick={() => setStatusFilter(status)}
                                 className="h-8 flex-shrink-0"
                             >
                                 {status}
-                                {status === 'All' && hasDuplicates && (
-                                    <Button
-                                        variant="destructive"
-                                        className="ml-2 h-6 w-6 p-0"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsDuplicateReviewSheetOpen(true);
-                                        }}
-                                    >
-                                        <span className="font-bold text-lg">!</span>
-                                    </Button>
-                                )}
-                                {status !== 'All' && (
-                                     <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
-                                        {statusCounts[status]}
-                                    </Badge>
-                                )}
+                                <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
+                                    {statusCounts[status]}
+                                </Badge>
                             </Button>
-                        ))}
+                        )})}
                     </div>
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>
