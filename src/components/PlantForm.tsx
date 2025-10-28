@@ -152,6 +152,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
           title: 'Camera Access Denied',
           description: 'Please enable camera permissions in your browser settings.',
         });
+        console.log('Camera toast error:', error);
       }
     };
     
@@ -266,13 +267,13 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
 
     try {
         const result = await diagnosePlant({ photoDataUri, description: 'A plant in a home garden setting.', apiKeys });
-        form.setValue('name', result.commonName, { shouldValidate: true });
-        form.setValue('species', result.species, { shouldValidate: true });
-        setAiSearchTerm(result.species);
+        form.setValue('name', result.identification.commonName, { shouldValidate: true });
+        form.setValue('species', result.identification.species, { shouldValidate: true });
+        setAiSearchTerm(result.identification.species);
         
         toast({
             title: 'Plant Identified!',
-            description: `Found ${result.commonName}. Now searching for details...`,
+            description: `Found ${result.identification.commonName}. Now searching for details...`,
         });
 
         // Now auto-run the text search with the identified species
