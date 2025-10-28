@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -67,7 +68,9 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
   const [isSpeciesPopoverOpen, setIsSpeciesPopoverOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [isIdentifying, setIsIdentifying] = useState(false);
+  const [identificationState, setIdentificationState] = useState<'idle' | 'capturing' | 'identifying'>('idle');
+  const [showCaptureFlash, setShowCaptureFlash] = useState(false);
+
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -253,7 +256,9 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
 
   const handleCaptureAndIdentify = async () => {
     if (!videoRef.current || !canvasRef.current) return;
-    setIsIdentifying(true);
+    setIdentificationState('capturing');
+    setShowCaptureFlash(true);
+    setTimeout(() => setShowCaptureFlash(false), 150); // Flash duration
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -263,6 +268,8 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     context?.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const photoDataUri = canvas.toDataURL('image/jpeg');
+    
+    setIdentificationState('identifying');
 
     try {
         const result = await diagnosePlant({ photoDataUri, description: 'A plant in a home garden setting.', apiKeys });
@@ -287,7 +294,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
             variant: 'destructive',
         });
     } finally {
-        setIsIdentifying(false);
+        setIdentificationState('idle');
     }
   }
 
@@ -336,6 +343,12 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
      setIsSpeciesPopoverOpen(false);
   }
 
+  const identificationButtonText = {
+    idle: 'Capture & Identify',
+    capturing: 'Capturing...',
+    identifying: 'Identifying...',
+  };
+
   return (
     <div className="space-y-6 py-6">
       <Card>
@@ -379,6 +392,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
             <CardContent className="space-y-4">
                  <div className="relative aspect-video w-full bg-muted rounded-md overflow-hidden flex items-center justify-center">
                     {hasCameraPermission && <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />}
+                    {showCaptureFlash && <div className="absolute inset-0 bg-white/80 animate-in fade-in-0 duration-150" />}
                     <canvas ref={canvasRef} className="hidden" />
                     {hasCameraPermission === null && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center gap-2 p-4">
@@ -397,9 +411,9 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
                     </Alert>
                 )}
                 {hasCameraPermission && (
-                    <Button onClick={handleCaptureAndIdentify} disabled={isIdentifying} className="w-full">
-                        {isIdentifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CircleDotDashed className="mr-2 h-4 w-4" />}
-                        Capture & Identify
+                    <Button onClick={handleCaptureAndIdentify} disabled={identificationState !== 'idle'} className="w-full">
+                        {identificationState !== 'idle' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CircleDotDashed className="mr-2 h-4 w-4" />}
+                        {identificationButtonText[identificationState]}
                     </Button>
                 )}
             </CardContent>
@@ -724,3 +738,5 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     </div>
   );
 }
+
+    
