@@ -1178,7 +1178,7 @@ const unspecifiedSeasonCount = useMemo(() => {
 }, [gardenViewMode, activeLocation, selectedGardenIds, locations, effectivelySingleGardenView]);
 
 
-  if (!isClient || !plantings || !plants || !locations || !aiLogs) {
+  if (!isClient) {
     return null;
   }
 
@@ -1303,9 +1303,9 @@ const unspecifiedSeasonCount = useMemo(() => {
                   </AccordionItem>
                 </Accordion>
                 
-                <div className="mb-4">
+                <div className="mb-4 flex items-center gap-4">
                   <ScrollArea className="w-full whitespace-nowrap">
-                    <div className="flex items-center gap-2 pb-2">
+                    <div className="flex w-max space-x-2">
                         {allFilters.map((status) => (
                             <Button
                                 key={status}
@@ -1321,26 +1321,20 @@ const unspecifiedSeasonCount = useMemo(() => {
                                 className="h-8 flex-shrink-0"
                             >
                                 {status}
-                                {status === 'All' ? (
-                                    <div className="flex items-center gap-1.5 ml-2">
-                                        {hasDuplicates && (
-                                            <Button
-                                                variant="destructive"
-                                                className="h-6 w-6 p-0"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setIsDuplicateReviewSheetOpen(true);
-                                                }}
-                                            >
-                                                <span className="font-bold text-lg">!</span>
-                                            </Button>
-                                        )}
-                                        <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
-                                        <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
-                                        <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
-                                    </div>
-                                ) : (
-                                    <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
+                                {status === 'All' && hasDuplicates && (
+                                    <Button
+                                        variant="destructive"
+                                        className="ml-2 h-6 w-6 p-0"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsDuplicateReviewSheetOpen(true);
+                                        }}
+                                    >
+                                        <span className="font-bold text-lg">!</span>
+                                    </Button>
+                                )}
+                                {status !== 'All' && (
+                                     <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
                                         {statusCounts[status]}
                                     </Badge>
                                 )}
@@ -1349,6 +1343,11 @@ const unspecifiedSeasonCount = useMemo(() => {
                     </div>
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>
+                  <div className="hidden sm:flex items-center gap-2">
+                    <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
+                    <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
+                    <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
+                  </div>
                 </div>
 
                 
@@ -1598,7 +1597,7 @@ const unspecifiedSeasonCount = useMemo(() => {
       </AlertDialog>
 
       <AiLogPanel 
-        logs={aiLogs}
+        logs={aiLogs || []}
         isOpen={isLogPanelOpen}
         onOpenChange={setIsLogPanelOpen}
         onOpenSettings={() => setIsSettingsSheetOpen(true)}
@@ -1663,5 +1662,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
