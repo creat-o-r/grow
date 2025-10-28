@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Locate, Loader2, Sparkles, Edit } from 'lucide-react';
+import { Locate, Loader2, Sparkles } from 'lucide-react';
 
 type GardenEditorProps = {
   loc: GardenLocation;
@@ -28,8 +28,6 @@ export const GardenEditor = React.memo(function GardenEditor({
   handleAnalyzeConditions,
   isAnalyzing,
 }: GardenEditorProps) {
-
-  const nameInputRef = React.useRef<HTMLInputElement>(null);
 
   return (
     <div key={loc.id} className="grid gap-6">

@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import React, { useState, useEffect } from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { GardenEditor } from '@/components/GardenEditor';
 import type { GardenLocation, Conditions } from '@/lib/types';
@@ -37,10 +37,16 @@ export function GardenEditSheet({
   
   const getTitle = () => {
     if (locations.length > 1) {
-        return `Edit ${locations.length} Gardens`;
+        if (locations.every(l => selectedGardenIds.includes(l.id))) {
+            return 'Edit All Gardens';
+        }
+        return `Edit ${locations.length} Selected Gardens`;
     }
-    return `Edit Garden`;
+    return locations[0]?.name ? `Edit ${locations[0].name}`: `Edit Garden`;
   }
+  
+  const selectedGardenIds = locations.map(l => l.id);
+
 
   const handleEditClick = (loc: GardenLocation) => {
     setEditingLocationId(loc.id);
@@ -75,45 +81,49 @@ export function GardenEditSheet({
         handleCancelEdit();
     }
   }, [isOpen]);
+  
+  const sheetTitle = locations.length > 1 ? `Edit ${locations.length} Gardens` : 'Edit Garden';
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
         <SheetHeader className={cn("p-6 pb-4 border-b")}>
-            <SheetTitle className="font-headline">{getTitle()}</SheetTitle>
+            <SheetTitle className="font-headline">{sheetTitle}</SheetTitle>
         </SheetHeader>
         <div className="flex-1 overflow-hidden">
             <ScrollArea className="h-full w-full">
-                <div className="space-y-8 p-6">
-                {locations.map((loc, index) => (
-                    <div key={loc.id}>
-                        <div className="flex items-center gap-2 mb-6">
-                            {editingLocationId === loc.id ? (
-                                <div className="flex items-center gap-2 w-full">
-                                    <Input
-                                        autoFocus
-                                        value={editingName}
-                                        onChange={(e) => setEditingName(e.target.value)}
-                                        onKeyDown={handleEditKeyDown}
-                                        className="text-xl font-headline h-auto p-0 border-0 shadow-none focus-visible:ring-0"
-                                    />
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleSaveEdit}><Check className="h-5 w-5 text-green-600"/></Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCancelEdit}><X className="h-5 w-5 text-destructive"/></Button>
-                                </div>
-                            ) : (
-                                <>
-                                    <h2 className="text-xl font-headline flex-1">{loc.name}</h2>
-                                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(loc)}>
-                                        <Edit className="h-5 w-5 text-muted-foreground" />
-                                    </Button>
-                                </>
-                            )}
+                <div className="divide-y divide-border">
+                {locations.map((loc) => (
+                    <div key={loc.id} className="p-6 space-y-6">
+                        <div className="sticky top-0 bg-background z-10 -mx-6 px-6 -mt-6 pt-6 pb-4 border-b">
+                            <div className="flex items-center gap-2">
+                                {editingLocationId === loc.id ? (
+                                    <div className="flex items-center gap-2 w-full">
+                                        <Input
+                                            autoFocus
+                                            value={editingName}
+                                            onChange={(e) => setEditingName(e.target.value)}
+                                            onKeyDown={handleEditKeyDown}
+                                            className="text-xl font-headline h-auto p-0 border-0 shadow-none focus-visible:ring-0"
+                                        />
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={handleSaveEdit}><Check className="h-5 w-5 text-green-600"/></Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={handleCancelEdit}><X className="h-5 w-5 text-destructive"/></Button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <h2 className="text-xl font-headline flex-1 truncate">{loc.name}</h2>
+                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(loc)}>
+                                            <Edit className="h-5 w-5 text-muted-foreground" />
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
                         </div>
+
                         <GardenEditor 
                             loc={loc}
                             {...rest} 
                         />
-                         {locations.length > 1 && index < locations.length - 1 && <hr className="mt-8"/>}
                     </div>
                 ))}
                 </div>
