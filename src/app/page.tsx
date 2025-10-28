@@ -1217,6 +1217,16 @@ const unspecifiedSeasonCount = useMemo(() => {
               </Card>
             ) : (
               <>
+                <div className="flex items-center gap-2 mb-4 md:hidden">
+                    <Button onClick={handleOpenAddSheet} className="flex-1">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Plant
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
+                      <Settings className="h-4 w-4" />
+                      <span className="sr-only">Settings</span>
+                    </Button>
+                </div>
                 <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg" value={accordionValue} onValueChange={setAccordionValue}>
                   <AccordionItem value="item-1" className="border-0">
                       <div className="flex flex-col md:flex-row items-center justify-between w-full px-4 py-3 gap-4">
@@ -1262,8 +1272,8 @@ const unspecifiedSeasonCount = useMemo(() => {
                               </div>
                           </div>
                           
-                          <div className="flex items-center gap-2 pl-0 md:pl-4 w-full md:w-auto">
-                             <Button onClick={handleOpenAddSheet} className="w-full md:w-auto">
+                          <div className="hidden md:flex items-center gap-2 pl-0 md:pl-4">
+                             <Button onClick={handleOpenAddSheet}>
                                   <Plus className="mr-2 h-4 w-4" />
                                   Add Plant
                               </Button>
@@ -1648,5 +1658,7 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
+
+    
 
     
