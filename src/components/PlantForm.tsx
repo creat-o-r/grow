@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,13 +12,14 @@ import Image from 'next/image';
 
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
 import { generatePlantImage } from '@/ai/flows/generate-plant-image';
+import { diagnosePlant } from '@/ai/flows/diagnose-plant-flow';
 import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink, Wand2 } from 'lucide-react';
+import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink, Wand2, Camera, CircleDotDashed } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -65,6 +66,13 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const [isSpeciesPopoverOpen, setIsSpeciesPopoverOpen] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [isIdentifying, setIsIdentifying] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
   const { toast } = useToast();
 
   const form = useForm<PlantFormValues>({
@@ -117,6 +125,37 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
       });
     }
   }, [plantingToEdit, defaultStatus, form]);
+  
+  useEffect(() => {
+    let stream: MediaStream;
+    const getCameraPermission = async () => {
+        if (!isScanning || hasCameraPermission === true) return;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({video: true});
+        setHasCameraPermission(true);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        setIsScanning(false);
+        toast({
+          variant: 'destructive',
+          title: 'Camera Access Denied',
+          description: 'Please enable camera permissions in your browser settings.',
+        });
+      }
+    };
+    getCameraPermission();
+
+    return () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    }
+  }, [isScanning, hasCameraPermission, toast]);
 
   const handleAiSearch = async () => {
     if (!areApiKeysSet) {
@@ -205,6 +244,46 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     }
   }
 
+  const handleCaptureAndIdentify = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    setIsIdentifying(true);
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    context?.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const photoDataUri = canvas.toDataURL('image/jpeg');
+
+    try {
+        const result = await diagnosePlant({ photoDataUri, description: 'A plant in a home garden setting.', apiKeys });
+        form.setValue('name', result.commonName, { shouldValidate: true });
+        form.setValue('species', result.species, { shouldValidate: true });
+        setAiSearchTerm(result.species);
+        
+        toast({
+            title: 'Plant Identified!',
+            description: `Found ${result.commonName}. Now searching for details...`,
+        });
+
+        // Now auto-run the text search with the identified species
+        await handleAiSearch();
+        
+        setIsScanning(false); // Close camera view on success
+
+    } catch (error: any) {
+        toast({
+            title: 'Identification Failed',
+            description: `Could not identify the plant: ${error.message}`,
+            variant: 'destructive',
+        });
+    } finally {
+        setIsIdentifying(false);
+    }
+  }
+
   const handleSubmit = (data: PlantFormValues) => {
      const sortedHistory = [...data.history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
@@ -255,7 +334,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
       <Card>
         <CardHeader>
           <CardTitle className="font-headline text-lg">AI-Powered Search</CardTitle>
-          <CardDescription>Enter a plant name to search for a species and automatically fill the form.</CardDescription>
+          <CardDescription>Enter a plant name or use your camera to identify a species and automatically fill the form.</CardDescription>
         </CardHeader>
         <CardContent>
           {!areApiKeysSet && (
@@ -263,7 +342,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>API Key Not Set</AlertTitle>
               <AlertDescription>
-                <Button variant="link" className="p-0 h-auto" onClick={onConfigureApiKey}>Configure your Gemini API key</Button> to enable AI search.
+                <Button variant="link" className="p-0 h-auto" onClick={onConfigureApiKey}>Configure your Gemini API key</Button> to enable AI features.
               </AlertDescription>
             </Alert>
           )}
@@ -274,26 +353,51 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
               onChange={(e) => setAiSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAiSearch()}
             />
-            <Button type="button" onClick={handleAiSearch} disabled={isAiSearching || !areApiKeysSet}>
-              {isAiSearching ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
-              <span className="sr-only">Search</span>
+            <Button type="button" onClick={handleAiSearch} disabled={isAiSearching || !areApiKeysSet} className="w-24">
+              {isAiSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
+            </Button>
+            <Button type="button" onClick={() => setIsScanning(!isScanning)} variant="outline" disabled={!areApiKeysSet}>
+                <Camera className="mr-2 h-4 w-4"/>
+                {isScanning ? 'Close' : 'Scan'}
             </Button>
           </div>
         </CardContent>
       </Card>
       
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t"></span>
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">Or</span>
-        </div>
-      </div>
+      {isScanning && (
+        <Card className="animate-in fade-in-50">
+            <CardHeader>
+                <CardTitle className="font-headline text-lg">Scan Plant</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <div className="relative aspect-video w-full bg-muted rounded-md overflow-hidden flex items-center justify-center">
+                    <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+                    <canvas ref={canvasRef} className="hidden" />
+                    {hasCameraPermission === null && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center gap-2 p-4">
+                            <Loader2 className="h-8 w-8 animate-spin"/>
+                            <p className="text-muted-foreground">Requesting camera access...</p>
+                        </div>
+                    )}
+                </div>
+                {hasCameraPermission === false && (
+                     <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Camera Access Denied</AlertTitle>
+                      <AlertDescription>
+                        Please enable camera permissions in your browser settings and try again.
+                      </AlertDescription>
+                    </Alert>
+                )}
+                {hasCameraPermission && (
+                    <Button onClick={handleCaptureAndIdentify} disabled={isIdentifying} className="w-full">
+                        {isIdentifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CircleDotDashed className="mr-2 h-4 w-4" />}
+                        Capture & Identify
+                    </Button>
+                )}
+            </CardContent>
+        </Card>
+      )}
 
 
       <Form {...form}>
@@ -613,5 +717,3 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     </div>
   );
 }
-
-    
