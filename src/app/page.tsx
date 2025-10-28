@@ -1556,7 +1556,7 @@ const unspecifiedSeasonCount = useMemo(() => {
           </div>
         </footer>
 
-      {(aiLogs.length > 0 || areApiKeysSet) && (
+      {(aiLogs && aiLogs.length > 0 || areApiKeysSet) && (
         <div className="fixed bottom-4 right-4 z-20">
           <Button
             size="icon"
