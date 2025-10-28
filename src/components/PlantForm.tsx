@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink, Wand2, Camera, CircleDotDashed } from 'lucide-react';
+import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink, Wand2, Camera, CircleDotDashed, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -356,9 +356,9 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
             <Button type="button" onClick={handleAiSearch} disabled={isAiSearching || !areApiKeysSet} className="w-24">
               {isAiSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
             </Button>
-            <Button type="button" onClick={() => setIsScanning(!isScanning)} variant="outline" disabled={!areApiKeysSet}>
-                <Camera className="mr-2 h-4 w-4"/>
-                {isScanning ? 'Close' : 'Scan'}
+            <Button type="button" onClick={() => setIsScanning(!isScanning)} variant="outline" size="icon" disabled={!areApiKeysSet}>
+                {isScanning ? <X className="h-4 w-4"/> : <Camera className="h-4 w-4"/>}
+                <span className="sr-only">{isScanning ? 'Close camera' : 'Scan with camera'}</span>
             </Button>
           </div>
         </CardContent>
