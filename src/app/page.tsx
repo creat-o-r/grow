@@ -1096,7 +1096,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                     <Plus className="mr-2 h-4 w-4" />
                     Add Plant
                 </Button>
-                <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
+                <Button data-testid="settings-button-mobile" variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
                   <Settings className="h-4 w-4" />
                   <span className="sr-only">Settings</span>
                 </Button>
@@ -1180,7 +1180,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                   <Plus className="mr-2 h-4 w-4" />
                                   Add Plant
                               </Button>
-                              <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
+                              <Button data-testid="settings-button-desktop" variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
                                 <Settings className="h-4 w-4" />
                                 <span className="sr-only">Settings</span>
                               </Button>
@@ -1535,6 +1535,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
       />
 
       <SettingsSheet 
+        locations={locations || []}
         isOpen={isSettingsSheetOpen}
         onOpenChange={setIsSettingsSheetOpen}
         onImport={handleImport}

@@ -70,4 +70,14 @@ export type PlantingWithPlant extends Planting {
 export type ViabilityAnalysisMode = 'local' | 'ai';
 export type GardenViewMode = 'one' | 'selected' | 'all';
 
-    
+
+// Data Sharing
+export type ShareMode = 'mirror' | 'bulk' | 'read-only';
+
+export type ShareInstance = {
+  id: string; // Unique share number
+  handle?: string; // Optional user-friendly handle
+  mode: ShareMode;
+  // Depending on the backend, might need fields for owner, participants, etc.
+  createdAt: string; // ISO String
+};

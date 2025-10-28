@@ -17,10 +17,14 @@ import type { ViabilityAnalysisMode } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/db';
-import type { AiDataset } from '@/lib/types';
+import type { AiDataset, ShareInstance, ShareMode, GardenLocation } from '@/lib/types';
+import { createShareInstance, getShareInstance, syncDataFromShare, getDataForShare, addGardenToShare } from '@/lib/share';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from "@/components/ui/checkbox";
 
 
 type SettingsSheetProps = {
+  locations: GardenLocation[];
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onImport: (datasetKey: string) => void;
@@ -47,6 +51,7 @@ const REPO_URL = 'https://github.com/creat-o-r/grow';
 
 
 export function SettingsSheet({
+  locations,
   isOpen,
   onOpenChange,
   onImport,
@@ -62,6 +67,11 @@ export function SettingsSheet({
   const [localApiKeys, setLocalApiKeys] = useState(apiKeys);
   const [isClipboardImportOpen, setIsClipboardImportOpen] = useState(false);
   const [clipboardData, setClipboardData] = useState('');
+  const [shareInstance, setShareInstance] = useState<ShareInstance | null>(null);
+  const [shareMode, setShareMode] = useState<ShareMode>('mirror');
+  const [joinId, setJoinId] = useState('');
+  const [shareHandle, setShareHandle] = useState('');
+  const [selectedGardens, setSelectedGardens] = useState<string[]>([]);
 
   const { toast } = useToast();
 
@@ -137,6 +147,45 @@ export function SettingsSheet({
     }
   };
 
+  const handleCreateShare = async () => {
+    const instance = await createShareInstance({ mode: shareMode, handle: shareHandle });
+    if (shareMode === 'bulk') {
+      await Promise.all(selectedGardens.map(gardenId => addGardenToShare(instance.id, gardenId)));
+    }
+    setShareInstance(instance);
+  };
+
+  const handleJoinShare = async () => {
+    const instance = await getShareInstance(joinId);
+    if (instance) {
+      const data = await getDataForShare(joinId);
+      if (data) {
+        await syncDataFromShare(joinId, data);
+        setShareInstance(instance);
+        toast({
+          title: 'Sync Successful',
+          description: `Successfully joined and synced with share: ${instance.handle || instance.id}`,
+        });
+        window.location.reload();
+      }
+    } else {
+      toast({
+        title: 'Share Not Found',
+        description: 'The share ID you entered was not found.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCopyShareId = () => {
+    if (shareInstance) {
+      navigator.clipboard.writeText(shareInstance.id);
+      toast({
+        title: 'Copied to Clipboard',
+        description: 'The share ID has been copied to your clipboard.',
+      });
+    }
+  };
 
   const getConfirmationDialogContent = () => {
     if (!confirmationState) return { title: '', description: '', action: '' };
@@ -231,6 +280,70 @@ export function SettingsSheet({
                             Review & Merge Duplicates
                         </Button>
                     </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-headline text-lg">Data Sharing</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {shareInstance ? (
+                    <div className="space-y-2">
+                      <Label>Your Share ID</Label>
+                      <div className="flex items-center gap-2">
+                        <Input value={shareInstance.id} readOnly />
+                        <Button onClick={handleCopyShareId} variant="outline">Copy</Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Share this ID with others to let them join your share.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Create a new share</Label>
+                        <Select value={shareMode} onValueChange={(v: ShareMode) => setShareMode(v)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a share mode" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="mirror">Mirror</SelectItem>
+                            <SelectItem value="bulk">Bulk</SelectItem>
+                            <SelectItem value="read-only">Read-only</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input placeholder="Optional: add a handle" className="mt-2" value={shareHandle} onChange={(e) => setShareHandle(e.target.value)} />
+                        {shareMode === 'bulk' && (
+                          <div className="space-y-2 mt-2">
+                            <Label>Select gardens to share</Label>
+                            {locations.map(location => (
+                              <div key={location.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`garden-${location.id}`}
+                                  checked={selectedGardens.includes(location.id)}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedGardens(prev =>
+                                      checked ? [...prev, location.id] : prev.filter(id => id !== location.id)
+                                    );
+                                  }}
+                                />
+                                <label htmlFor={`garden-${location.id}`}>{location.name}</label>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <Button onClick={handleCreateShare} className="w-full">Create Share</Button>
+                      </div>
+                      <div className="border-t pt-4 space-y-2">
+                        <Label>Join a share</Label>
+                        <div className="flex items-center gap-2">
+                          <Input placeholder="Enter share ID" value={joinId} onChange={(e) => setJoinId(e.target.value)} />
+                          <Button onClick={handleJoinShare} disabled={!joinId.trim()}>Join</Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

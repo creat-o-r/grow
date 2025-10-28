@@ -1,21 +1,36 @@
 
 
 import Dexie, { type EntityTable } from 'dexie';
-import type { Plant, Planting, GardenLocation, AiLog } from '@/lib/types';
+import type { Plant, Planting, GardenLocation, AiLog, ShareInstance } from '@/lib/types';
 
 const db = new Dexie('growDB') as Dexie & {
   plants: EntityTable<Plant, 'id'>;
   plantings: EntityTable<Planting, 'id'>;
   locations: EntityTable<GardenLocation, 'id'>;
   aiLogs: EntityTable<AiLog, 'id'>;
+  shareInstances: EntityTable<ShareInstance, 'id'>;
+  sharedGardens: EntityTable<{ id: string; shareId: string; gardenId: string }, 'id'>;
 };
 
 // Latest version
+db.version(5).stores({
+  plants: '++id, species',
+  plantings: '++id, plantId, gardenId',
+  locations: '++id, name',
+  aiLogs: '++id, timestamp',
+  shareInstances: '++id, handle',
+  sharedGardens: '++id, shareId, gardenId',
+});
+
+// Upgrade from version 4 to 5
 db.version(4).stores({
   plants: '++id, species',
   plantings: '++id, plantId, gardenId',
   locations: '++id, name',
   aiLogs: '++id, timestamp',
+}).upgrade(async tx => {
+    // This schema change adds the shareInstances and sharedGardens tables.
+    // No data migration is needed for existing objects.
 });
 
 
