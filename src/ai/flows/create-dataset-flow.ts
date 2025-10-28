@@ -99,7 +99,7 @@ Active Location:
 - Growing Methods: {{{activeLocation.growingMethods}}}
 {{else}}
 Your task is to generate a dataset containing:
-1.  A single garden location object that fits the theme. It must have a creative name (e.g., "Balcony Bounty," "Shady Oasis," "Urban Jungle"), a plausible real-world city/country, and realistic environmental conditions. You MUST determine and set the 'currentSeason' based on the location's hemisphere and a plausible time of year (e.g., if it's a UK location, summer is a plausible season). Use Fahrenheit for US locations and Celsius otherwise. Also consider plausible growing systems and methods based on the theme.
+1.  A single garden location object that fits the theme. It must have a creative name (e.g., "Balcony Bounty," "Shady Oasis," "Urban Jungle"), a plausible real-world city/country, and realistic environmental conditions. You MUST determine and set the 'currentSeason' based on the location's hemisphere and a plausible time of year (e.g., if it's a UK location, summer is a plausible season). The 'currentSeason' field MUST be one of the following exact strings: 'Spring', 'Summer', 'Autumn', or 'Winter'. Use Fahrenheit for US locations and Celsius otherwise. Also consider plausible growing systems and methods based on the theme.
 2.  A list of plant species objects that are well-suited to the theme and the location you created, following the quantity instruction above.
 3.  A corresponding list of 'planting' objects, one for each plant species.
 {{/if}}
