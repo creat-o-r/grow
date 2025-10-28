@@ -1,4 +1,5 @@
 
+
 import Dexie, { type EntityTable } from 'dexie';
 import type { Plant, Planting, GardenLocation, AiLog } from '@/lib/types';
 
@@ -10,11 +11,23 @@ const db = new Dexie('growDB') as Dexie & {
 };
 
 // Latest version
+db.version(4).stores({
+  plants: '++id, species',
+  plantings: '++id, plantId, gardenId',
+  locations: '++id, name',
+  aiLogs: '++id, timestamp',
+});
+
+
+// Upgrade from version 3 to 4
 db.version(3).stores({
   plants: '++id, species',
   plantings: '++id, plantId, gardenId',
   locations: '++id, name',
   aiLogs: '++id, timestamp',
+}).upgrade(async tx => {
+    // This schema change adds an optional imageUrl property to plants,
+    // so no data migration is needed for existing plant objects.
 });
 
 // Upgrade from version 2 to 3

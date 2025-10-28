@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,15 +8,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { Plant, Planting, PlantingWithPlant, StatusHistory } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
+import Image from 'next/image';
 
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
+import { generatePlantImage } from '@/ai/flows/generate-plant-image';
 import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink } from 'lucide-react';
+import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink, Wand2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -42,6 +45,7 @@ const formSchema = z.object({
   history: z.array(statusHistorySchema),
   seedsOnHand: z.coerce.number().optional(),
   plannedQty: z.coerce.number().optional(),
+  imageUrl: z.string().optional(),
 });
 
 type PlantFormValues = z.infer<typeof formSchema>;
@@ -58,6 +62,7 @@ type PlantFormProps = {
 
 export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit, onConfigureApiKey, areApiKeysSet, apiKeys, plants }: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const [isSpeciesPopoverOpen, setIsSpeciesPopoverOpen] = useState(false);
   const { toast } = useToast();
@@ -72,6 +77,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
       history: [],
       seedsOnHand: 0,
       plannedQty: 0,
+      imageUrl: '',
     },
   });
   
@@ -81,6 +87,8 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
   });
   
   const historyValue = form.watch('history');
+  const imageUrlValue = form.watch('imageUrl');
+  const speciesValue = form.watch('species');
   const lastStatus = historyValue?.slice(-1)[0]?.status;
 
 
@@ -94,6 +102,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
         history: plantingToEdit.history,
         seedsOnHand: plantingToEdit.seedsOnHand || 0,
         plannedQty: plantingToEdit.plannedQty || 0,
+        imageUrl: plantingToEdit.plant.imageUrl || '',
       });
     } else {
       form.reset({
@@ -104,6 +113,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
         history: [{ id: 'new-1', status: defaultStatus, date: new Date().toISOString(), notes: '' }],
         seedsOnHand: 0,
         plannedQty: 0,
+        imageUrl: '',
       });
     }
   }, [plantingToEdit, defaultStatus, form]);
@@ -154,6 +164,47 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     }
   };
 
+  const handleGenerateImage = async () => {
+     if (!areApiKeysSet) {
+      toast({
+        title: 'API Key Required',
+        description: 'Please configure your Gemini API key in the settings.',
+        variant: 'destructive',
+      });
+      onConfigureApiKey();
+      return;
+    }
+    if (!speciesValue) {
+        toast({
+            title: 'Species Required',
+            description: 'Please enter a species name before generating an image.',
+            variant: 'destructive',
+        });
+        return;
+    }
+    setIsGeneratingImage(true);
+    try {
+        const result = await generatePlantImage({ species: speciesValue, apiKeys });
+        if (result.imageUrl) {
+            form.setValue('imageUrl', result.imageUrl, { shouldValidate: true });
+            toast({
+                title: 'Image Generated',
+                description: `An image for ${speciesValue} has been successfully generated.`
+            });
+        } else {
+            throw new Error('AI did not return an image.');
+        }
+    } catch (error: any) {
+        toast({
+            title: 'Image Generation Failed',
+            description: `An error occurred: ${error.message}`,
+            variant: 'destructive',
+        });
+    } finally {
+        setIsGeneratingImage(false);
+    }
+  }
+
   const handleSubmit = (data: PlantFormValues) => {
      const sortedHistory = [...data.history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
@@ -161,6 +212,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
         species: data.species,
         germinationNeeds: data.germinationNeeds,
         optimalConditions: data.optimalConditions,
+        imageUrl: data.imageUrl,
     };
 
     const plantingData: Omit<Planting, 'id'> = {
@@ -194,6 +246,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
      form.setValue('species', plant.species, { shouldValidate: true });
      form.setValue('germinationNeeds', plant.germinationNeeds, { shouldValidate: true });
      form.setValue('optimalConditions', plant.optimalConditions, { shouldValidate: true });
+     form.setValue('imageUrl', plant.imageUrl || '', { shouldValidate: true });
      setIsSpeciesPopoverOpen(false);
   }
 
@@ -406,6 +459,43 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
               </FormItem>
             )}
           />
+          
+          <Card>
+            <CardHeader>
+                <CardTitle className="text-lg font-medium">Plant Image</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex items-center gap-4">
+                    <div className="w-24 h-24 bg-muted rounded-md flex-shrink-0">
+                        {isGeneratingImage ? (
+                             <div className="w-full h-full flex items-center justify-center">
+                                <Loader2 className="h-6 w-6 animate-spin" />
+                            </div>
+                        ) : imageUrlValue ? (
+                            <Image src={imageUrlValue} alt={speciesValue || 'Plant image'} width={96} height={96} className="w-full h-full object-cover rounded-md" />
+                        ) : null}
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">Enter a species name, then generate an image.</p>
+                         <Button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage || !speciesValue}>
+                            {isGeneratingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4"/>}
+                            Generate Image
+                        </Button>
+                    </div>
+                </div>
+                 {imageUrlValue && (
+                     <div className="space-y-2">
+                        <Label htmlFor="imageUrl">Image Data URL</Label>
+                        <div className="flex gap-2">
+                            <Input id="imageUrl" {...form.register('imageUrl')} readOnly />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => form.setValue('imageUrl', '')}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+          </Card>
 
           <div className="space-y-4 rounded-lg border p-4">
             <div className='flex justify-between items-center'>

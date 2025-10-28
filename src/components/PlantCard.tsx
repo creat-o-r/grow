@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { getSuitableSeasons } from '@/lib/viability';
 import { Viability } from '@/lib/viability';
+import Image from 'next/image';
 
 type PlantCardProps = {
   planting: PlantingWithPlant;
@@ -55,7 +56,12 @@ export function PlantCard({
     
     const cardContent = (
         <>
-            <CardHeader>
+            {plant.imageUrl && (
+                 <div className="relative w-full h-40">
+                    <Image src={plant.imageUrl} alt={`Image of ${plant.species}`} layout="fill" objectFit="cover" className="rounded-t-lg" />
+                 </div>
+            )}
+            <CardHeader className={cn(!plant.imageUrl && "pb-2")}>
                 <div className="flex justify-between items-start">
                     <div>
                         <CardTitle className="font-headline text-xl leading-tight mb-1 pr-2">{planting.name}</CardTitle>

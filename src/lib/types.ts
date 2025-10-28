@@ -13,6 +13,7 @@ export type Plant = {
   species: string;
   germinationNeeds: string;
   optimalConditions: string;
+  imageUrl?: string;
 };
 
 // Represents a specific instance or "lot" of a plant being grown
