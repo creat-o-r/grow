@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -379,7 +378,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
             </CardHeader>
             <CardContent className="space-y-4">
                  <div className="relative aspect-video w-full bg-muted rounded-md overflow-hidden flex items-center justify-center">
-                    <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+                    {hasCameraPermission && <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />}
                     <canvas ref={canvasRef} className="hidden" />
                     {hasCameraPermission === null && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center gap-2 p-4">

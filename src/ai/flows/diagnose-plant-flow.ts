@@ -60,7 +60,9 @@ Return the plant's common name and its scientific/botanical species name.
 - species should be the scientific/botanical name (e.g., "Helianthus annuus", "Solanum lycopersicum")
 
 Description: {{{description}}}
-Photo: {{media url=photoDataUri}}`,
+{{#if photoDataUri}}
+Photo: {{media url=photoDataUri}}
+{{/if}}`,
   });
 
   const diagnosePlantFlow = ai.defineFlow(
