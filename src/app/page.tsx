@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToastAction } from '@/components/ui/toast';
 import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 
 type PlantStatus = StatusHistory['status'];
@@ -1202,6 +1202,17 @@ const unspecifiedSeasonCount = useMemo(() => {
                 </Card>
             )}
           <div>
+            <div className="flex items-center gap-2 mb-4 md:hidden">
+                <Button onClick={handleOpenAddSheet} className="flex-1">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Plant
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
+                  <Settings className="h-4 w-4" />
+                  <span className="sr-only">Settings</span>
+                </Button>
+            </div>
+
             {(!activeLocation && locations && locations.length === 0) ? (
               <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
                 <CardHeader>
@@ -1218,16 +1229,6 @@ const unspecifiedSeasonCount = useMemo(() => {
               </Card>
             ) : (
               <>
-                <div className="flex items-center gap-2 mb-4 md:hidden">
-                    <Button onClick={handleOpenAddSheet} className="flex-1">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Plant
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
-                      <Settings className="h-4 w-4" />
-                      <span className="sr-only">Settings</span>
-                    </Button>
-                </div>
                 <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg" value={accordionValue} onValueChange={setAccordionValue}>
                   <AccordionItem value="item-1" className="border-0">
                       <div className="flex flex-col md:flex-row items-center justify-between w-full px-4 py-3 gap-4">
@@ -1303,7 +1304,8 @@ const unspecifiedSeasonCount = useMemo(() => {
                 </Accordion>
                 
                 <div className="mb-4">
-                    <div className="flex flex-wrap items-center gap-2 pb-2">
+                  <ScrollArea className="w-full whitespace-nowrap">
+                    <div className="flex items-center gap-2 pb-2">
                         {allFilters.map((status) => (
                             <Button
                                 key={status}
@@ -1345,6 +1347,8 @@ const unspecifiedSeasonCount = useMemo(() => {
                             </Button>
                         ))}
                     </div>
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
                 </div>
 
                 
