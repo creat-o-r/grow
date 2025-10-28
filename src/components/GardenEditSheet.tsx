@@ -82,7 +82,7 @@ export function GardenEditSheet({
     }
   }, [isOpen]);
   
-  const sheetTitle = locations.length > 1 ? `Edit ${locations.length} Gardens` : 'Edit Garden';
+  const sheetTitle = locations.length > 1 ? `Edit ${locations.length} Gardens` : `Edit ${locations[0]?.name || 'Garden'}`;
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -94,8 +94,8 @@ export function GardenEditSheet({
             <ScrollArea className="h-full w-full">
                 <div className="divide-y divide-border">
                 {locations.map((loc) => (
-                    <div key={loc.id} className="p-6 space-y-6">
-                        <div className="sticky top-0 bg-background z-10 -mx-6 px-6 -mt-6 pt-6 pb-4 border-b">
+                    <div key={loc.id} className="relative">
+                        <div className="sticky top-0 bg-background z-10 px-6 pt-4 pb-4 border-b -mt-px">
                             <div className="flex items-center gap-2">
                                 {editingLocationId === loc.id ? (
                                     <div className="flex items-center gap-2 w-full">
@@ -112,18 +112,20 @@ export function GardenEditSheet({
                                 ) : (
                                     <>
                                         <h2 className="text-xl font-headline flex-1 truncate">{loc.name}</h2>
-                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(loc)}>
-                                            <Edit className="h-5 w-5 text-muted-foreground" />
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(loc)}>
+                                            <Edit className="h-4 w-4 text-muted-foreground" />
                                         </Button>
                                     </>
                                 )}
                             </div>
                         </div>
 
-                        <GardenEditor 
-                            loc={loc}
-                            {...rest} 
-                        />
+                        <div className="p-6 space-y-6">
+                            <GardenEditor 
+                                loc={loc}
+                                {...rest} 
+                            />
+                        </div>
                     </div>
                 ))}
                 </div>
