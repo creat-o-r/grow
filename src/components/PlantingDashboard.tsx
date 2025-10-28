@@ -46,7 +46,10 @@ export function PlantingDashboard({ plantings, gardenConditions, onOpenAddSheet,
             <div>
                 <CardHeader className="px-0 pb-4">
                     <div className="flex justify-between items-center">
-                        <CardTitle className="font-headline">Planting Possibilities</CardTitle>
+                        <CardTitle className="font-headline flex items-center gap-2">
+                            <span>Planting Possibilities</span>
+                            {hasAnyPlants && <span className="text-lg font-normal text-muted-foreground">({plantings.length})</span>}
+                        </CardTitle>
                         {hasAnyPlants && (
                             <div className="flex items-center gap-1.5">
                                 <Badge className="bg-green-600 dark:bg-green-500 text-white dark:text-white px-1.5 py-0.5 text-xs font-mono">{viabilityGroups.High.length}</Badge>
