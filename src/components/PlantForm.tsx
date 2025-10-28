@@ -11,7 +11,6 @@ import { format, parseISO } from 'date-fns';
 import Image from 'next/image';
 
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
-import { generatePlantImage } from '@/ai/flows/generate-plant-image';
 import { diagnosePlant } from '@/ai/flows/diagnose-plant-flow';
 import { useToast } from '@/hooks/use-toast';
 
@@ -64,7 +63,6 @@ type PlantFormProps = {
 
 export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit, onConfigureApiKey, areApiKeysSet, apiKeys, plants }: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const [isSpeciesPopoverOpen, setIsSpeciesPopoverOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -98,8 +96,6 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
   });
   
   const historyValue = form.watch('history');
-  const imageUrlValue = form.watch('imageUrl');
-  const speciesValue = form.watch('species');
   const lastStatus = historyValue?.slice(-1)[0]?.status;
 
 
@@ -134,16 +130,11 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     
     let stream: MediaStream | null = null;
     const getCameraPermission = async () => {
-      console.log('Requesting camera permission...');
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        console.log('Got camera stream:', stream);
         setHasCameraPermission(true);
         if (videoRef.current) {
-            console.log('videoRef is available, setting srcObject.');
             videoRef.current.srcObject = stream;
-        } else {
-            console.log('videoRef is NOT available when setting srcObject.');
         }
       } catch (error) {
         console.error('Error accessing camera:', error);
@@ -154,7 +145,6 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
           title: 'Camera Access Denied',
           description: 'Please enable camera permissions in your browser settings.',
         });
-        console.log('Camera toast error:', error);
       }
     };
     
@@ -163,7 +153,6 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     return () => {
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
-            console.log('Camera stream stopped.');
         }
     }
   }, [isScanning, toast]);
@@ -214,47 +203,6 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     }
   };
 
-  const handleGenerateImage = async () => {
-     if (!areApiKeysSet) {
-      toast({
-        title: 'API Key Required',
-        description: 'Please configure your Gemini API key in the settings.',
-        variant: 'destructive',
-      });
-      onConfigureApiKey();
-      return;
-    }
-    if (!speciesValue) {
-        toast({
-            title: 'Species Required',
-            description: 'Please enter a species name before generating an image.',
-            variant: 'destructive',
-        });
-        return;
-    }
-    setIsGeneratingImage(true);
-    try {
-        const result = await generatePlantImage({ species: speciesValue, apiKeys });
-        if (result.imageUrl) {
-            form.setValue('imageUrl', result.imageUrl, { shouldValidate: true });
-            toast({
-                title: 'Image Generated',
-                description: `An image for ${speciesValue} has been successfully generated.`
-            });
-        } else {
-            throw new Error('AI did not return an image.');
-        }
-    } catch (error: any) {
-        toast({
-            title: 'Image Generation Failed',
-            description: `An error occurred: ${error.message}`,
-            variant: 'destructive',
-        });
-    } finally {
-        setIsGeneratingImage(false);
-    }
-  }
-
   const handleCaptureAndIdentify = async () => {
     if (!videoRef.current || !canvasRef.current) return;
     setIdentificationState('capturing');
@@ -269,6 +217,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     context?.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const photoDataUri = canvas.toDataURL('image/jpeg');
+    form.setValue('imageUrl', photoDataUri, { shouldValidate: true });
     
     setIdentificationState('identifying');
 
@@ -601,43 +550,6 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
               </FormItem>
             )}
           />
-          
-          <Card>
-            <CardHeader>
-                <CardTitle className="text-lg font-medium">Plant Image</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex items-center gap-4">
-                    <div className="w-24 h-24 bg-muted rounded-md flex-shrink-0">
-                        {isGeneratingImage ? (
-                             <div className="w-full h-full flex items-center justify-center">
-                                <Loader2 className="h-6 w-6 animate-spin" />
-                            </div>
-                        ) : imageUrlValue ? (
-                            <Image src={imageUrlValue} alt={speciesValue || 'Plant image'} width={96} height={96} className="w-full h-full object-cover rounded-md" />
-                        ) : null}
-                    </div>
-                    <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">Enter a species name, then generate an image.</p>
-                         <Button type="button" onClick={handleGenerateImage} disabled={isGeneratingImage || !speciesValue}>
-                            {isGeneratingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4"/>}
-                            Generate Image
-                        </Button>
-                    </div>
-                </div>
-                 {imageUrlValue && (
-                     <div className="space-y-2">
-                        <Label htmlFor="imageUrl">Image URL</Label>
-                        <div className="flex gap-2">
-                            <Input id="imageUrl" {...form.register('imageUrl')} />
-                            <Button type="button" variant="ghost" size="icon" onClick={() => form.setValue('imageUrl', '')}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
-                )}
-            </CardContent>
-          </Card>
 
           <div className="space-y-4 rounded-lg border p-4">
             <div className='flex justify-between items-center'>
@@ -757,3 +669,4 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
 }
 
     
+
