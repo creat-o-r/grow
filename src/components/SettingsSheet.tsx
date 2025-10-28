@@ -211,14 +211,17 @@ export function SettingsSheet({
                         </Button>
                     </div>
                     <div className="border-t pt-4 space-y-2">
-                       <h4 className="font-medium text-sm text-muted-foreground">Backup & Restore</h4>
+                       <h4 className="font-medium text-sm text-muted-foreground">Backup & Sync Between Devices</h4>
+                       <p className="text-xs text-muted-foreground">
+                        Use these tools to manually move your data between browsers or computers.
+                       </p>
                        <Button onClick={() => setIsClipboardImportOpen(true)} variant="outline" className="w-full">
                            <ClipboardPaste className="mr-2 h-4 w-4" />
                            Import from Clipboard
                        </Button>
                       <Button onClick={onPublish} variant="outline" className="w-full">
                         <Upload className="mr-2 h-4 w-4" />
-                        Publish All Data to Clipboard
+                        Export to Clipboard
                       </Button>
                     </div>
                     <div className="border-t pt-4 space-y-2">
@@ -286,14 +289,25 @@ export function SettingsSheet({
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-headline text-lg">Software & Support</CardTitle>
-                  <CardDescription>Version information and support channels.</CardDescription>
+                  <CardTitle className="font-headline text-lg">About & Support</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
+                      <h4 className="font-medium text-sm text-muted-foreground">Deploy Your Own Instance</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Click below to deploy your own copy of this application for free on Vercel. This gives you a permanent URL to access your garden from any device.
+                       </p>
+                       <a href={vercelDeployUrl} target="_blank" rel="noopener noreferrer" className="w-full">
+                          <Button variant="outline" className="w-full">
+                              <Rocket className="mr-2 h-4 w-4" />
+                              Deploy Free on Vercel
+                          </Button>
+                       </a>
+                   </div>
+                  <div className="border-t pt-4 space-y-2">
                     <h4 className="font-medium text-sm text-muted-foreground">Version</h4>
                     <div className="flex items-center justify-between text-sm p-3 bg-muted rounded-md">
-                      <span>You are running version <strong>{CURRENT_VERSION}</strong>.</span>
+                      <span>Version <strong>{CURRENT_VERSION}</strong></span>
                        {isUpdateAvailable && (
                         <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-semibold">
                           Update to {LATEST_VERSION}
@@ -310,15 +324,6 @@ export function SettingsSheet({
                           </Button>
                         </a>
                    </div>
-                   <div className="border-t pt-4 space-y-2">
-                      <h4 className="font-medium text-sm text-muted-foreground">Deploy Your Own</h4>
-                       <a href={vercelDeployUrl} target="_blank" rel="noopener noreferrer" className="w-full">
-                          <Button variant="outline" className="w-full">
-                              <Rocket className="mr-2 h-4 w-4" />
-                              Deploy a Copy on Vercel
-                          </Button>
-                       </a>
-                   </div>
                 </CardContent>
               </Card>
           </div>
@@ -330,7 +335,7 @@ export function SettingsSheet({
             <DialogHeader>
                 <DialogTitle>Import from Clipboard</DialogTitle>
                 <DialogDescription>
-                    Paste the data you exported from the "Publish All Data to Clipboard" action to restore your garden. This will overwrite your current data.
+                    Paste the data you exported from the "Export to Clipboard" action to restore your garden. This will overwrite your current data.
                 </DialogDescription>
             </DialogHeader>
             <Textarea
