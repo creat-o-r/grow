@@ -33,6 +33,7 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToastAction } from '@/components/ui/toast';
 import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 type PlantStatus = StatusHistory['status'];
@@ -1301,49 +1302,51 @@ const unspecifiedSeasonCount = useMemo(() => {
                   </AccordionItem>
                 </Accordion>
                 
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                        {allFilters.map((status) => (
-                            <Button
-                                key={status}
-                                variant={statusFilter === status ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => {
-                                    if (status === 'All' && hasDuplicates) {
-                                        setIsDuplicateReviewSheetOpen(true);
-                                    } else {
-                                        setStatusFilter(status)
-                                    }
-                                }}
-                                className="h-8 flex-shrink-0"
-                            >
-                                {status}
-                                {status === 'All' ? (
-                                    <div className="flex items-center gap-1.5 ml-2">
-                                        {hasDuplicates && (
-                                            <Button
-                                                variant="destructive"
-                                                className="h-6 w-6 p-0"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setIsDuplicateReviewSheetOpen(true);
-                                                }}
-                                            >
-                                                <span className="font-bold text-lg">!</span>
-                                            </Button>
-                                        )}
-                                        <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono hidden sm:inline-block">{viabilityCounts.High}</Badge>
-                                        <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono hidden sm:inline-block">{viabilityCounts.Medium}</Badge>
-                                        <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono hidden sm:inline-block">{viabilityCounts.Low}</Badge>
-                                    </div>
-                                ) : (
-                                    <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
-                                        {statusCounts[status]}
-                                    </Badge>
-                                )}
-                            </Button>
-                        ))}
-                    </div>
+                <div className="mb-4">
+                    <ScrollArea className="w-full whitespace-nowrap">
+                        <div className="flex items-center gap-2 pb-2">
+                            {allFilters.map((status) => (
+                                <Button
+                                    key={status}
+                                    variant={statusFilter === status ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => {
+                                        if (status === 'All' && hasDuplicates) {
+                                            setIsDuplicateReviewSheetOpen(true);
+                                        } else {
+                                            setStatusFilter(status)
+                                        }
+                                    }}
+                                    className="h-8 flex-shrink-0"
+                                >
+                                    {status}
+                                    {status === 'All' ? (
+                                        <div className="flex items-center gap-1.5 ml-2">
+                                            {hasDuplicates && (
+                                                <Button
+                                                    variant="destructive"
+                                                    className="h-6 w-6 p-0"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsDuplicateReviewSheetOpen(true);
+                                                    }}
+                                                >
+                                                    <span className="font-bold text-lg">!</span>
+                                                </Button>
+                                            )}
+                                            <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
+                                            <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
+                                            <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
+                                        </div>
+                                    ) : (
+                                        <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
+                                            {statusCounts[status]}
+                                        </Badge>
+                                    )}
+                                </Button>
+                            ))}
+                        </div>
+                    </ScrollArea>
                 </div>
 
                 
@@ -1658,7 +1661,3 @@ const unspecifiedSeasonCount = useMemo(() => {
     </div>
   );
 }
-
-    
-
-    
