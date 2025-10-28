@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { PlantingWithPlant, Conditions, StatusHistory } from '@/lib/types';
@@ -182,5 +183,3 @@ export function PlantCard({
         </Card>
     );
 }
-
-    
