@@ -131,12 +131,17 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     
     const getCameraPermission = async () => {
       if (!isScanning) return;
+      console.log('Requesting camera permission...');
       try {
-        stream = await navigator.mediaDevices.getUserMedia({video: true});
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        console.log('Got camera stream:', stream);
         setHasCameraPermission(true);
 
         if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+            console.log('videoRef is available, setting srcObject.');
+            videoRef.current.srcObject = stream;
+        } else {
+            console.log('videoRef is NOT available when setting srcObject.');
         }
       } catch (error) {
         console.error('Error accessing camera:', error);
@@ -375,7 +380,7 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
                  <div className="relative aspect-video w-full bg-muted rounded-md overflow-hidden flex items-center justify-center">
                     <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
                     <canvas ref={canvasRef} className="hidden" />
-                    {hasCameraPermission === null && !isScanning && (
+                    {hasCameraPermission === null && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center gap-2 p-4">
                             <Loader2 className="h-8 w-8 animate-spin"/>
                             <p className="text-muted-foreground">Requesting camera access...</p>
