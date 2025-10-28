@@ -43,7 +43,7 @@ export async function generatePlantImage(
     },
     async (flowInput) => {
       const { media } = await ai.generate({
-        model: 'googleai/imagen-2.0-fast-generate-001',
+        model: 'googleai/imagen-4.0-fast-generate-001',
         prompt: `A clear, vibrant, high-quality photograph of a healthy ${flowInput.species} plant. The plant should be the main focus, set against a simple, clean, light-colored background. The image should be in a square aspect ratio.`,
       });
       
