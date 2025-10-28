@@ -70,7 +70,7 @@ Photo: {{media url=photoDataUri}}`,
       outputSchema: DiagnosePlantOutputSchema,
     },
     async (flowInput) => {
-      const {output} = await prompt(flowInput, { model: 'gemini-1.5-flash' });
+      const {output} = await prompt(flowInput, { model: 'googleai/gemini-2.5-flash' });
       return output!;
     }
   );
