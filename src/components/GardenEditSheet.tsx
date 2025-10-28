@@ -25,7 +25,12 @@ export function GardenEditSheet({
   locations,
   ...rest
 }: GardenEditSheetProps) {
-  const title = 'Edit Garden(s)';
+  const count = locations.length;
+  let title = 'Edit Garden';
+  if (count > 1) {
+    title = `Edit ${count} Gardens`;
+  }
+
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -36,7 +41,7 @@ export function GardenEditSheet({
         <div className="flex-1 overflow-hidden">
             <ScrollArea className="h-full w-full">
                 <div className="space-y-6 p-6">
-                {locations.map(loc => (
+                {locations.map((loc, index) => (
                     <div key={loc.id}>
                         <GardenEditor loc={loc} {...rest} />
                     </div>
