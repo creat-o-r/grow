@@ -68,7 +68,7 @@ export function SettingsSheet({
   const areApiKeysSet = !!apiKeys.gemini;
   const isUpdateAvailable = CURRENT_VERSION !== LATEST_VERSION;
   const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(REPO_URL)}`;
-  const feedbackMailto = `mailto:?subject=${encodeURIComponent('Feedback for grow App')}&body=${encodeURIComponent('Hi team, I have some feedback:\n\n')}`;
+  const feedbackUrl = `${REPO_URL}/issues/new/choose`;
 
 
   const handleImportClick = (datasetKey: string) => {
@@ -317,7 +317,7 @@ export function SettingsSheet({
                   </div>
                    <div className="border-t pt-4 space-y-2">
                       <h4 className="font-medium text-sm text-muted-foreground">Support</h4>
-                        <a href={feedbackMailto} className="w-full">
+                        <a href={feedbackUrl} target="_blank" rel="noopener noreferrer" className="w-full">
                           <Button variant="outline" className="w-full">
                               <MessageSquare className="mr-2 h-4 w-4" />
                               Send Feedback / Bug Report
