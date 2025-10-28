@@ -146,9 +146,9 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                             <h4 className="font-semibold mb-2">Results</h4>
                             <div className="text-sm p-3 bg-muted rounded-md text-foreground space-y-2">
                                {Object.entries(resultsToShow).map(([key, value]) => (
-                                    <div key={key} className="grid grid-cols-3 gap-2">
+                                    <div key={key} className="grid grid-cols-1 md:grid-cols-3 gap-2">
                                         <span className='font-semibold text-muted-foreground col-span-1'>{toTitleCase(key)}</span>
-                                        <div className='col-span-2'>{renderResultValue(value)}</div>
+                                        <div className='md:col-span-2'>{renderResultValue(value)}</div>
                                     </div>
                                ))}
                             </div>

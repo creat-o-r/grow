@@ -392,16 +392,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                                             <span className="text-sm text-muted-foreground">{plant.species}</span>
                                                         </div>
                                                     </AccordionTrigger>
-                                                    <div className="flex items-center gap-2 pl-4" onClick={(e) => e.stopPropagation()}>
-                                                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleFetchMoreLikeThis(plant)} disabled={!!isFetchingMore}>
-                                                            {isFetchingMore === plant.id ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <RefreshCw className="mr-2 h-3 w-3"/>}
-                                                            More like this
-                                                        </Button>
-                                                        <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => handleRemovePlanting(planting.id)}>
-                                                            <Trash2 className="mr-2 h-3 w-3"/>
-                                                            Remove
-                                                        </Button>
-                                                    </div>
+                                                    
                                                 </div>
                                                 <AccordionContent className="pb-4 space-y-4">
                                                     <div className="text-xs text-muted-foreground space-y-2 mt-2">
@@ -413,6 +404,16 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
                                                             <p className="font-semibold text-foreground/80">Conditions</p>
                                                             <p>{plant.optimalConditions}</p>
                                                         </div>
+                                                    </div>
+                                                     <div className="flex items-center gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
+                                                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleFetchMoreLikeThis(plant)} disabled={!!isFetchingMore}>
+                                                            {isFetchingMore === plant.id ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <RefreshCw className="mr-2 h-3 w-3"/>}
+                                                            More like this
+                                                        </Button>
+                                                        <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => handleRemovePlanting(planting.id)}>
+                                                            <Trash2 className="mr-2 h-3 w-3"/>
+                                                            Remove
+                                                        </Button>
                                                     </div>
                                                 </AccordionContent>
                                             </AccordionItem>
