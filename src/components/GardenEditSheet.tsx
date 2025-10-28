@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -26,22 +27,22 @@ export function GardenEditSheet({
   ...rest
 }: GardenEditSheetProps) {
   const count = locations.length;
-  let title = 'Edit Garden';
+  let title = "Edit Garden";
   if (count > 1) {
-    title = `Edit ${count} Gardens`;
+    title = `Edit ${count} Gardens`
   }
 
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg flex flex-col p-0">
+      <SheetContent className="w-full sm:max-w-lg flex flex-col">
         <SheetHeader className="p-6 pb-4 border-b">
           <SheetTitle className="font-headline">{title}</SheetTitle>
         </SheetHeader>
         <div className="flex-1 overflow-hidden">
             <ScrollArea className="h-full w-full">
                 <div className="space-y-6 p-6">
-                {locations.map((loc, index) => (
+                {locations.map((loc) => (
                     <div key={loc.id}>
                         <GardenEditor loc={loc} {...rest} />
                     </div>

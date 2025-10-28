@@ -459,14 +459,14 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       return;
     }
     const target = e.currentTarget;
-    const locationId = target.id.replace(/^(location|temperature|sunlight|soil|growing-systems|growing-methods)-/, '');
+    const locationId = target.id.replace(/^(name|location|temperature|sunlight|soil|growing-systems|growing-methods)-/, '');
     const field = target.name as keyof GardenLocation | keyof Conditions;
     const value = target.value;
   
     db.locations.get(locationId).then(location => {
       if (!location) return;
-
-      if (['location', 'growingSystems', 'growingMethods'].includes(field)) {
+  
+      if (['name', 'location', 'growingSystems', 'growingMethods'].includes(field)) {
         const trimmedValue = value.trim();
         if (trimmedValue !== (location as any)[field]) {
           db.locations.update(locationId, { [field]: trimmedValue });
@@ -1307,21 +1307,20 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                               {wishlistSortOrder === 'viability' ? (
                                   <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                       {sortedWishlistByViability.map(p => (
-                                          <div key={p.id} onClick={() => handleEditPlanting(p)} className="cursor-pointer">
-                                            <PlantCard
-                                                planting={p}
-                                                viability={currentViabilityData[p.id]}
-                                                onEdit={() => handleEditPlanting(p)}
-                                                onDelete={() => promptDelete(p)}
-                                                onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
-                                                onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
-                                                isDuplicateSource={duplicateSelectionMode?.id === p.id}
-                                                isSelectionMode={!!duplicateSelectionMode}
-                                                onSelectDuplicate={() => handleDuplicateSelection(p)}
-                                                onGetViability={() => handleGetViability(p)}
-                                                showGardenLabel={!effectivelySingleGardenView}
-                                            />
-                                          </div>
+                                          <PlantCard
+                                              key={p.id}
+                                              planting={p}
+                                              viability={currentViabilityData[p.id]}
+                                              onEdit={() => handleEditPlanting(p)}
+                                              onDelete={() => promptDelete(p)}
+                                              onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                              onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
+                                              isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                              isSelectionMode={!!duplicateSelectionMode}
+                                              onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                              onGetViability={() => handleGetViability(p)}
+                                              showGardenLabel={!effectivelySingleGardenView}
+                                          />
                                       ))}
                                   </div>
                               ) : (
@@ -1338,21 +1337,20 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                             </div>
                                             <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                                 {group.plantings.map(p => (
-                                                    <div key={p.id} onClick={() => handleEditPlanting(p)} className="cursor-pointer">
-                                                      <PlantCard
-                                                          planting={p}
-                                                          viability={currentViabilityData[p.id]}
-                                                          onEdit={() => handleEditPlanting(p)}
-                                                          onDelete={() => promptDelete(p)}
-                                                          onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
-                                                          onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
-                                                          isDuplicateSource={duplicateSelectionMode?.id === p.id}
-                                                          isSelectionMode={!!duplicateSelectionMode}
-                                                          onSelectDuplicate={() => handleDuplicateSelection(p)}
-                                                          onGetViability={() => handleGetViability(p)}
-                                                          showGardenLabel={!effectivelySingleGardenView}
-                                                      />
-                                                    </div>
+                                                    <PlantCard
+                                                        key={p.id}
+                                                        planting={p}
+                                                        viability={currentViabilityData[p.id]}
+                                                        onEdit={() => handleEditPlanting(p)}
+                                                        onDelete={() => promptDelete(p)}
+                                                        onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                                        onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
+                                                        isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                                        isSelectionMode={!!duplicateSelectionMode}
+                                                        onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                                        onGetViability={() => handleGetViability(p)}
+                                                        showGardenLabel={!effectivelySingleGardenView}
+                                                    />
                                                 ))}
                                             </div>
                                         </section>
@@ -1377,21 +1375,20 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                     <h2 className="text-2xl font-headline mb-4">Currently Planting</h2>
                                     <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                         {plantingsInPlantingStatus.map(p => (
-                                            <div key={p.id} onClick={() => handleEditPlanting(p)} className="cursor-pointer">
-                                              <PlantCard 
-                                                  planting={p} 
-                                                  viability={currentViabilityData[p.id]}
-                                                  onEdit={() => handleEditPlanting(p)}
-                                                  onDelete={() => promptDelete(p)}
-                                                  onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
-                                                  onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
-                                                  isDuplicateSource={duplicateSelectionMode?.id === p.id}
-                                                  isSelectionMode={!!duplicateSelectionMode}
-                                                  onSelectDuplicate={() => handleDuplicateSelection(p)}
-                                                  onGetViability={() => handleGetViability(p)}
-                                                  showGardenLabel={!effectivelySingleGardenView}
-                                              />
-                                            </div>
+                                            <PlantCard 
+                                                key={p.id}
+                                                planting={p} 
+                                                viability={currentViabilityData[p.id]}
+                                                onEdit={() => handleEditPlanting(p)}
+                                                onDelete={() => promptDelete(p)}
+                                                onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                                onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
+                                                isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                                isSelectionMode={!!duplicateSelectionMode}
+                                                onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                                onGetViability={() => handleGetViability(p)}
+                                                showGardenLabel={!effectivelySingleGardenView}
+                                            />
                                         ))}
                                     </div>
                                 </div>
@@ -1408,21 +1405,20 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                           sortedAndFilteredPlantings.length > 0 ? (
                               <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                   {sortedAndFilteredPlantings.map(p => (
-                                      <div key={p.id} onClick={() => handleEditPlanting(p)} className="cursor-pointer">
-                                        <PlantCard 
-                                            planting={p} 
-                                            viability={currentViabilityData[p.id]}
-                                            onEdit={() => handleEditPlanting(p)}
-                                            onDelete={() => promptDelete(p)}
-                                            onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
-                                            onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
-                                            isDuplicateSource={duplicateSelectionMode?.id === p.id}
-                                            isSelectionMode={!!duplicateSelectionMode}
-                                            onSelectDuplicate={() => handleDuplicateSelection(p)}
-                                            onGetViability={() => handleGetViability(p)}
-                                            showGardenLabel={!effectivelySingleGardenView}
-                                        />
-                                      </div>
+                                      <PlantCard 
+                                          key={p.id}
+                                          planting={p} 
+                                          viability={currentViabilityData[p.id]}
+                                          onEdit={() => handleEditPlanting(p)}
+                                          onDelete={() => promptDelete(p)}
+                                          onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                          onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
+                                          isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                          isSelectionMode={!!duplicateSelectionMode}
+                                          onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                          onGetViability={() => handleGetViability(p)}
+                                          showGardenLabel={!effectivelySingleGardenView}
+                                      />
                                   ))}
                               </div>
                           ) : (
