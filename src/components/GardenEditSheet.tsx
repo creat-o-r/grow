@@ -29,7 +29,7 @@ export function GardenEditSheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[80vh] flex flex-col">
+      <SheetContent className="w-full sm:max-w-lg flex flex-col">
         <SheetHeader>
           <SheetTitle className="font-headline">{title}</SheetTitle>
           <SheetDescription>
@@ -38,9 +38,9 @@ export function GardenEditSheet({
         </SheetHeader>
         <div className="flex-1 overflow-hidden">
             <ScrollArea className="h-full w-full pr-4">
-                <div className="space-y-6 pb-6">
+                <div className="space-y-8 pb-6">
                 {locations.map(loc => (
-                    <div key={loc.id} className="p-4 border rounded-lg bg-muted/20">
+                    <div key={loc.id}>
                         <GardenEditor loc={loc} {...rest} />
                     </div>
                 ))}
