@@ -69,4 +69,9 @@ export type PlantingWithPlant extends Planting {
 export type ViabilityAnalysisMode = 'local' | 'ai';
 export type GardenViewMode = 'one' | 'selected' | 'all';
 
-    
+export type GardenGoal = {
+  id: string;
+  name: string;
+  description: string;
+  status: 'Not Started' | 'In Progress' | 'Completed';
+};

@@ -1,15 +1,25 @@
 
 import Dexie, { type EntityTable } from 'dexie';
-import type { Plant, Planting, GardenLocation, AiLog } from '@/lib/types';
+import type { Plant, Planting, GardenLocation, AiLog, GardenGoal } from '@/lib/types';
 
 const db = new Dexie('growDB') as Dexie & {
   plants: EntityTable<Plant, 'id'>;
   plantings: EntityTable<Planting, 'id'>;
   locations: EntityTable<GardenLocation, 'id'>;
   aiLogs: EntityTable<AiLog, 'id'>;
+  gardenGoals: EntityTable<GardenGoal, 'id'>;
 };
 
 // Latest version
+db.version(4).stores({
+  plants: '++id, species',
+  plantings: '++id, plantId, gardenId',
+  locations: '++id, name',
+  aiLogs: '++id, timestamp',
+  gardenGoals: '++id, name',
+});
+
+// Upgrade from version 3 to 4
 db.version(3).stores({
   plants: '++id, species',
   plantings: '++id, plantId, gardenId',

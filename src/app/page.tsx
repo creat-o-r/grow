@@ -20,6 +20,7 @@ import { SettingsSheet } from '@/components/SettingsSheet';
 import { AiDataImportSheet } from '@/components/AiDataImportSheet';
 import { DuplicateReviewSheet } from '@/components/DuplicateReviewSheet';
 import { PlantingDashboard } from '@/components/PlantingDashboard';
+import { GardenGoalsDashboard } from '@/components/GardenGoalsDashboard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -166,6 +167,7 @@ export default function Home() {
   const [plantingToEdit, setPlantingToEdit] = useState<PlantingWithPlant | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [accordionValue, setAccordionValue] = useState<string>('item-1');
+  const [goalsAccordionValue, setGoalsAccordionValue] = useState<string>('item-1');
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
   const [isLocating, setIsLocating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState<string | null>(null);
@@ -1283,6 +1285,17 @@ const unspecifiedSeasonCount = useMemo(() => {
                           />
                         ))}
                       </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+
+                <Accordion type="single" collapsible className="w-full mb-6 bg-muted/50 rounded-lg" value={goalsAccordionValue} onValue-Change={setGoalsAccordionValue}>
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger className="px-4 py-3">
+                      <h2 className="text-lg font-headline">Garden Goals</h2>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-6">
+                      <GardenGoalsDashboard />
+                    </AccordionContent>
                   </AccordionItem>
                 </Accordion>
                 
