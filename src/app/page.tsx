@@ -47,6 +47,7 @@ const REPO_URL = 'https://github.com/creat-o-r/grow';
 export default function Home() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [plantingToEdit, setPlantingToEdit] = useState<PlantingWithPlant | null>(null);
+  const [newPlantDefaultStatus, setNewPlantDefaultStatus] = useState<PlantStatus>('Wishlist');
   const [isClient, setIsClient] = useState(false);
   const [accordionValue, setAccordionValue] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
@@ -237,8 +238,9 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     setIsSheetOpen(true);
   };
 
-  const handleOpenAddSheet = () => {
+  const handleOpenAddSheet = (defaultStatus?: PlantStatus) => {
     setPlantingToEdit(null);
+    setNewPlantDefaultStatus(defaultStatus || 'Wishlist');
     setIsSheetOpen(true);
   };
 
@@ -246,6 +248,20 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     setIsSheetOpen(open);
     if (!open) {
       setPlantingToEdit(null);
+    }
+  };
+
+  const handleImport = async (datasetKey: string) => {
+    try {
+        const dataset = await loadDataset(datasetKey);
+        await importData(dataset, dataset.name);
+    } catch (error: any) {
+        console.error('Failed to import dataset:', error);
+        toast({
+            title: 'Import Failed',
+            description: `There was an error loading the dataset: ${error.message}`,
+            variant: 'destructive',
+        });
     }
   };
 
@@ -292,20 +308,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     });
     setIsSettingsSheetOpen(false);
 };
-
-  const handleImport = async (datasetKey: string) => {
-    try {
-        const dataset = await loadDataset(datasetKey);
-        await importData(dataset, dataset.name);
-    } catch (error: any) {
-        console.error('Failed to import dataset:', error);
-        toast({
-            title: 'Import Failed',
-            description: `There was an error loading the dataset: ${error.message}`,
-            variant: 'destructive',
-        });
-    }
-  };
 
   const handlePublish = async () => {
     const plantsData = await db.plants.toArray();
@@ -1058,6 +1060,12 @@ const unspecifiedSeasonCount = useMemo(() => {
     return activeLocation?.name || 'Select Garden';
 }, [gardenViewMode, activeLocation, selectedGardenIds, locations, effectivelySingleGardenView]);
 
+const mainAddButtonDefaultStatus = useMemo(() => {
+    if (statusFilter === 'Planting' || statusFilter === 'Growing' || statusFilter === 'Harvest') {
+        return 'Planting';
+    }
+    return 'Wishlist';
+}, [statusFilter]);
 
   if (!isClient) {
     return null;
@@ -1084,7 +1092,7 @@ const unspecifiedSeasonCount = useMemo(() => {
             )}
           <div>
             <div className="flex items-center gap-2 mb-4 md:hidden">
-                <Button onClick={handleOpenAddSheet} className="flex-1">
+                <Button onClick={() => handleOpenAddSheet(mainAddButtonDefaultStatus)} className="flex-1">
                     <Plus className="mr-2 h-4 w-4" />
                     Add Plant
                 </Button>
@@ -1136,7 +1144,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div
-                                  className="p-0 hover:no-underline justify-start gap-2 w-full flex items-center text-left"
+                                  className="p-0 hover:no-underline justify-start gap-2 w-full flex items-center text-left cursor-pointer"
                                   onClick={() => {
                                       const isMobile = window.innerWidth < 768; // md breakpoint
                                       if (isMobile) {
@@ -1168,7 +1176,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                           </div>
                           
                           <div className="hidden md:flex items-center gap-2 pl-0 md:pl-4">
-                             <Button onClick={handleOpenAddSheet}>
+                             <Button onClick={() => handleOpenAddSheet(mainAddButtonDefaultStatus)}>
                                   <Plus className="mr-2 h-4 w-4" />
                                   Add Plant
                               </Button>
@@ -1202,18 +1210,18 @@ const unspecifiedSeasonCount = useMemo(() => {
                         {allFilters.map((status) => {
                            if (status === 'All') {
                             return (
-                              <div
+                               <div
                                 key={status}
                                 className={cn(
                                   buttonVariants({
                                     variant: statusFilter === status ? 'default' : 'outline',
                                     size: 'sm'
                                   }),
-                                  'h-8 flex-shrink-0 cursor-pointer flex items-center gap-2 p-0'
+                                  'h-8 flex-shrink-0 cursor-pointer flex items-center gap-2 p-0 relative'
                                 )}
                                 onClick={() => setStatusFilter(status)}
                               >
-                                <div className="px-3 h-full flex items-center">All</div>
+                                <div className="pl-3 pr-2 h-full flex items-center">All</div>
                                 <div className="flex items-center gap-1 pr-2">
                                     <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
                                     <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
@@ -1391,7 +1399,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                               <PlantingDashboard
                                   plantings={plantingDashboardPlantings}
                                   gardenConditions={activeLocation?.conditions}
-                                  onOpenAddSheet={handleOpenAddSheet}
+                                  onOpenAddSheet={() => handleOpenAddSheet('Planting')}
                                   onOpenSettings={() => setIsSettingsSheetOpen(true)}
                                   onQuickStatusChange={handleQuickStatusChange}
                               />
@@ -1438,7 +1446,7 @@ const unspecifiedSeasonCount = useMemo(() => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
-                       <Button onClick={handleOpenAddSheet} className="w-full">
+                       <Button onClick={() => handleOpenAddSheet()} className="w-full">
                          <Plus className="mr-2 h-4 w-4" /> Add Your First Plant
                       </Button>
                        <Button onClick={() => setIsSettingsSheetOpen(true)} variant="secondary" className="w-full">
@@ -1566,7 +1574,8 @@ const unspecifiedSeasonCount = useMemo(() => {
             <SheetTitle className="font-headline">{plantingToEdit ? 'Edit Plant' : 'Add a New Plant'}</SheetTitle>
           </SheetHeader>
           <PlantForm 
-            plantingToEdit={plantingToEdit} 
+            plantingToEdit={plantingToEdit}
+            defaultStatus={newPlantDefaultStatus}
             onSubmit={plantingToEdit ? handleUpdatePlant : handleAddPlant}
             onConfigureApiKey={() => {
               handleSheetOpenChange(false);

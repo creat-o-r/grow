@@ -25,6 +25,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Check, ChevronsUpDown } from "lucide-react"
 
+type PlantStatus = StatusHistory['status'];
+
 const statusHistorySchema = z.object({
   id: z.string(),
   status: z.enum(['Wishlist', 'Planting', 'Growing', 'Harvest']),
@@ -46,6 +48,7 @@ type PlantFormValues = z.infer<typeof formSchema>;
 
 type PlantFormProps = {
   plantingToEdit?: PlantingWithPlant | null;
+  defaultStatus?: PlantStatus;
   onSubmit: (plantingData: Omit<Planting, 'id'>, plantData: Omit<Plant, 'id'>) => void;
   onConfigureApiKey: () => void;
   areApiKeysSet: boolean;
@@ -53,7 +56,7 @@ type PlantFormProps = {
   plants: Plant[];
 };
 
-export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiKeysSet, apiKeys, plants }: PlantFormProps) {
+export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit, onConfigureApiKey, areApiKeysSet, apiKeys, plants }: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const [isSpeciesPopoverOpen, setIsSpeciesPopoverOpen] = useState(false);
@@ -98,12 +101,12 @@ export function PlantForm({ plantingToEdit, onSubmit, onConfigureApiKey, areApiK
         species: '',
         germinationNeeds: '',
         optimalConditions: '',
-        history: [{ id: 'new-1', status: 'Wishlist', date: new Date().toISOString(), notes: '' }],
+        history: [{ id: 'new-1', status: defaultStatus, date: new Date().toISOString(), notes: '' }],
         seedsOnHand: 0,
         plannedQty: 0,
       });
     }
-  }, [plantingToEdit, form]);
+  }, [plantingToEdit, defaultStatus, form]);
 
   const handleAiSearch = async () => {
     if (!areApiKeysSet) {
