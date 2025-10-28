@@ -35,17 +35,7 @@ export function GardenEditSheet({
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   
-  const getTitle = () => {
-    if (locations.length > 1) {
-        if (locations.every(l => selectedGardenIds.includes(l.id))) {
-            return 'Edit All Gardens';
-        }
-        return `Edit ${locations.length} Selected Gardens`;
-    }
-    return locations[0]?.name ? `Edit ${locations[0].name}`: `Edit Garden`;
-  }
-  
-  const selectedGardenIds = locations.map(l => l.id);
+  const sheetTitle = locations.length > 1 ? `Edit ${locations.length} Gardens` : `Edit ${locations[0]?.name || 'Garden'}`;
 
 
   const handleEditClick = (loc: GardenLocation) => {
@@ -82,7 +72,6 @@ export function GardenEditSheet({
     }
   }, [isOpen]);
   
-  const sheetTitle = locations.length > 1 ? `Edit ${locations.length} Gardens` : `Edit ${locations[0]?.name || 'Garden'}`;
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -111,9 +100,9 @@ export function GardenEditSheet({
                                     </div>
                                 ) : (
                                     <>
-                                        <h2 className="text-xl font-headline flex-1 truncate">{loc.name}</h2>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(loc)}>
-                                            <Edit className="h-4 w-4 text-muted-foreground" />
+                                        <h2 className="text-xl font-headline truncate">{loc.name}</h2>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditClick(loc)}>
+                                            <Edit className="h-3.5 w-3.5 text-muted-foreground" />
                                         </Button>
                                     </>
                                 )}
