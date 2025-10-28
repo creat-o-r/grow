@@ -7,12 +7,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Upload, Download, KeyRound, Sparkles, AlertTriangle, SearchCheck, Rocket, MessageSquare, GitBranch, ExternalLink, BrainCircuit, Cpu } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Upload, Download, KeyRound, Sparkles, AlertTriangle, SearchCheck, Rocket, MessageSquare, GitBranch, ExternalLink, BrainCircuit, Cpu, ClipboardPaste } from 'lucide-react';
 import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import type { ViabilityAnalysisMode } from '@/lib/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/db';
+import type { AiDataset } from '@/lib/types';
 
 
 type SettingsSheetProps = {
@@ -31,6 +36,9 @@ type SettingsSheetProps = {
 type ConfirmationState = {
   type: 'import';
   key?: string;
+} | {
+  type: 'importClipboard';
+  data: AiDataset;
 } | null;
 
 const CURRENT_VERSION = '1.0.0';
@@ -52,8 +60,12 @@ export function SettingsSheet({
 }: SettingsSheetProps) {
   const [confirmationState, setConfirmationState] = useState<ConfirmationState>(null);
   const [localApiKeys, setLocalApiKeys] = useState(apiKeys);
-  const areApiKeysSet = !!apiKeys.gemini;
+  const [isClipboardImportOpen, setIsClipboardImportOpen] = useState(false);
+  const [clipboardData, setClipboardData] = useState('');
 
+  const { toast } = useToast();
+
+  const areApiKeysSet = !!apiKeys.gemini;
   const isUpdateAvailable = CURRENT_VERSION !== LATEST_VERSION;
   const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(REPO_URL)}`;
   const feedbackMailto = `mailto:?subject=${encodeURIComponent('Feedback for grow App')}&body=${encodeURIComponent('Hi team, I have some feedback:\n\n')}`;
@@ -68,6 +80,33 @@ export function SettingsSheet({
 
     if (confirmationState.type === 'import' && confirmationState.key) {
         onImport(confirmationState.key);
+    } else if (confirmationState.type === 'importClipboard') {
+        try {
+            await db.transaction('rw', db.plants, db.plantings, db.locations, async () => {
+                await db.plants.clear();
+                await db.plantings.clear();
+                await db.locations.clear();
+
+                await db.locations.bulkAdd(confirmationState.data.locations);
+                await db.plants.bulkAdd(confirmationState.data.plants);
+                await db.plantings.bulkAdd(confirmationState.data.plantings);
+            });
+
+            // This is a bit of a heavy-handed way to reset state, but it's reliable
+             window.location.reload();
+
+            toast({
+                title: 'Import Successful',
+                description: 'Your garden data has been restored from the clipboard.',
+            });
+        } catch (err) {
+            console.error("Clipboard import failed:", err);
+            toast({
+                title: 'Import Failed',
+                description: 'The data from your clipboard was not valid. Please check the format.',
+                variant: 'destructive',
+            });
+        }
     }
     
     setConfirmationState(null);
@@ -79,6 +118,26 @@ export function SettingsSheet({
     onOpenChange(false);
   }
 
+  const handleClipboardImport = () => {
+    try {
+        const parsedData = JSON.parse(clipboardData);
+        if (parsedData.plants && parsedData.plantings && parsedData.locations) {
+             setConfirmationState({type: 'importClipboard', data: parsedData});
+             setIsClipboardImportOpen(false);
+             setClipboardData('');
+        } else {
+            throw new Error("Invalid data structure.");
+        }
+    } catch (e) {
+        toast({
+            title: 'Invalid Data',
+            description: 'The text you pasted is not valid JSON from this app. Please check your clipboard.',
+            variant: 'destructive',
+        });
+    }
+  };
+
+
   const getConfirmationDialogContent = () => {
     if (!confirmationState) return { title: '', description: '', action: '' };
     switch (confirmationState.type) {
@@ -87,6 +146,12 @@ export function SettingsSheet({
           title: 'Are you sure?',
           description: 'This action will overwrite all your existing garden data, including all plants and locations. This cannot be undone.',
           action: 'Overwrite'
+        };
+      case 'importClipboard':
+        return {
+          title: 'Are you sure you want to import from clipboard?',
+          description: 'This will overwrite all your current garden data with the data from your clipboard. This cannot be undone.',
+          action: 'Import & Overwrite'
         };
       default:
         return { title: '', description: '', action: '' };
@@ -146,15 +211,22 @@ export function SettingsSheet({
                         </Button>
                     </div>
                     <div className="border-t pt-4 space-y-2">
+                       <h4 className="font-medium text-sm text-muted-foreground">Backup & Restore</h4>
+                       <Button onClick={() => setIsClipboardImportOpen(true)} variant="outline" className="w-full">
+                           <ClipboardPaste className="mr-2 h-4 w-4" />
+                           Import from Clipboard
+                       </Button>
+                      <Button onClick={onPublish} variant="outline" className="w-full">
+                        <Upload className="mr-2 h-4 w-4" />
+                        Publish All Data to Clipboard
+                      </Button>
+                    </div>
+                    <div className="border-t pt-4 space-y-2">
                        <h4 className="font-medium text-sm text-muted-foreground">Maintenance</h4>
                        <Button onClick={onDuplicateReviewOpen} variant="outline" className="w-full">
                             <SearchCheck className="mr-2 h-4 w-4" />
                             Review & Merge Duplicates
                         </Button>
-                      <Button onClick={onPublish} variant="outline" className="w-full">
-                        <Upload className="mr-2 h-4 w-4" />
-                        Publish All Data to Clipboard
-                      </Button>
                     </div>
                 </CardContent>
               </Card>
@@ -252,6 +324,32 @@ export function SettingsSheet({
           </div>
         </SheetContent>
       </Sheet>
+      
+      <Dialog open={isClipboardImportOpen} onOpenChange={setIsClipboardImportOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Import from Clipboard</DialogTitle>
+                <DialogDescription>
+                    Paste the data you exported from the "Publish All Data to Clipboard" action to restore your garden. This will overwrite your current data.
+                </DialogDescription>
+            </DialogHeader>
+            <Textarea
+                placeholder="Paste your garden data here..."
+                className="min-h-[200px] font-mono text-xs"
+                value={clipboardData}
+                onChange={(e) => setClipboardData(e.target.value)}
+            />
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button type="button" variant="secondary">Cancel</Button>
+                </DialogClose>
+                <Button onClick={handleClipboardImport} disabled={!clipboardData.trim()}>
+                    Import
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={!!confirmationState} onOpenChange={(open) => !open && setConfirmationState(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
