@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { availableDatasets } from '@/lib/datasets';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import type { ViabilityAnalysisMode } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -41,8 +42,8 @@ type ConfirmationState = {
   data: AiDataset;
 } | null;
 
-const CURRENT_VERSION = '1.0.0';
-const LATEST_VERSION = '1.1.0'; // Simulate a newer version being available
+const CURRENT_VERSION: string = '1.0.0';
+const LATEST_VERSION: string = '1.1.0'; // Simulate a newer version being available
 const REPO_URL = 'https://github.com/creat-o-r/grow';
 
 
@@ -62,6 +63,12 @@ export function SettingsSheet({
   const [localApiKeys, setLocalApiKeys] = useState(apiKeys);
   const [isClipboardImportOpen, setIsClipboardImportOpen] = useState(false);
   const [clipboardData, setClipboardData] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setLocalApiKeys(apiKeys);
+    }
+  }, [isOpen, apiKeys]);
 
   const { toast } = useToast();
 
@@ -244,19 +251,18 @@ export function SettingsSheet({
                         <div className="flex items-center justify-between rounded-lg border p-3">
                             <div className="space-y-0.5">
                                 <Label className="text-base flex items-center gap-2">
-                                    {viabilityMechanism === 'ai' ? <BrainCircuit /> : <Cpu />}
-                                    {viabilityMechanism === 'ai' ? 'AI-Powered' : 'Local'}
+                                    <BrainCircuit className="h-4 w-4 text-primary" />
+                                    AI-Powered (Google Gemini)
                                 </Label>
                                 <div className="text-xs text-muted-foreground">
-                                    {viabilityMechanism === 'ai' 
-                                        ? 'Detailed analysis. Requires API key.' 
-                                        : 'Instant, simplified analysis.'}
+                                    {localApiKeys.gemini 
+                                        ? 'Active. Detailed plant-to-garden viability analysis powered by Gemini.' 
+                                        : 'Requires Gemini API key below.'}
                                 </div>
                             </div>
-                            <Switch
-                                checked={viabilityMechanism === 'ai'}
-                                onCheckedChange={(checked) => onViabilityMechanismChange(checked ? 'ai' : 'local')}
-                            />
+                            <Badge variant={localApiKeys.gemini ? "default" : "secondary"}>
+                                {localApiKeys.gemini ? "Active" : "Key Needed"}
+                            </Badge>
                         </div>
                     </div>
                     <div className="border-t pt-4 space-y-4">

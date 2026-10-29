@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Locate, Loader2, Sparkles } from 'lucide-react';
+import { Locate, Loader2, Sparkles, Square } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 
 type GardenEditorProps = {
@@ -17,6 +17,7 @@ type GardenEditorProps = {
   handleGetCurrentLocation: (locationId: string) => void;
   isLocating: boolean;
   handleAnalyzeConditions: (locationId: string) => Promise<void>;
+  handleStopAnalyzeConditions?: (locationId: string) => void;
   isAnalyzing: string | null;
 };
 
@@ -27,6 +28,7 @@ export const GardenEditor = React.memo(function GardenEditor({
   handleGetCurrentLocation,
   isLocating,
   handleAnalyzeConditions,
+  handleStopAnalyzeConditions,
   isAnalyzing,
 }: GardenEditorProps) {
 
@@ -60,10 +62,31 @@ export const GardenEditor = React.memo(function GardenEditor({
                     <CardTitle className="text-base font-medium">Environmental Conditions</CardTitle>
                     <CardDescription className="text-xs">Enter a location above, then click analyze to auto-fill.</CardDescription>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => handleAnalyzeConditions(loc.id)} disabled={isAnalyzing === loc.id}>
-                    {isAnalyzing === loc.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                {isAnalyzing === loc.id ? (
+                  <div className="flex items-center gap-1.5">
+                    <Button size="sm" variant="outline" disabled className="h-8 text-xs">
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Analyzing...
+                    </Button>
+                    {handleStopAnalyzeConditions && (
+                      <Button 
+                        size="sm" 
+                        variant="destructive" 
+                        className="h-8 text-xs px-2.5" 
+                        onClick={() => handleStopAnalyzeConditions(loc.id)}
+                        title="Stop analyzing conditions"
+                      >
+                        <Square className="mr-1 h-3 w-3 fill-current" />
+                        Stop
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => handleAnalyzeConditions(loc.id)}>
+                    <Sparkles className="mr-2 h-4 w-4" />
                     Analyze
-                </Button>
+                  </Button>
+                )}
             </CardHeader>
             <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">

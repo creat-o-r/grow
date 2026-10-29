@@ -11,6 +11,7 @@
 
 import { genkit, z } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { executeWithModelFallback } from '@/ai/model';
 
 const GetAiViabilityInputSchema = z.object({
     plant: z.object({
@@ -45,9 +46,14 @@ export async function getAiViability(
   input: GetAiViabilityInput,
 ): Promise<GetAiViabilityOutput> {
 
+  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Gemini API key is required. Please save your API key in Settings.');
+  }
+
   const ai = genkit({
     plugins: [
-      googleAI({ apiKey: input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY }),
+      googleAI({ apiKey }),
     ],
   });
 
@@ -86,8 +92,10 @@ Return your final analysis in the specified output format.
       outputSchema: GetAiViabilityOutputSchema,
     },
     async (flowInput) => {
-      const {output} = await prompt(flowInput, { model: 'googleai/gemini-2.5-flash' });
-      return output!;
+      return executeWithModelFallback<GetAiViabilityOutput>(
+        `getAiViability(${flowInput.plant.species})`,
+        (model) => prompt(flowInput, { model })
+      );
     }
   );
 

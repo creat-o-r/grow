@@ -18,6 +18,7 @@ import Image from 'next/image';
 type PlantCardProps = {
   planting: PlantingWithPlant;
   viability?: Viability;
+  viabilityReasoning?: string;
   onEdit: () => void;
   onDelete: () => void;
   onMarkAsDuplicate: () => void;
@@ -32,6 +33,7 @@ type PlantCardProps = {
 export function PlantCard({
     planting, 
     viability, 
+    viabilityReasoning,
     onEdit, 
     onDelete, 
     onMarkAsDuplicate,
@@ -105,7 +107,14 @@ export function PlantCard({
                     </div>
                 </div>
                  <div className="flex flex-wrap gap-2 items-center pt-2">
-                    {viability && <ViabilityIndicator viability={viability} />}
+                    {viability && (
+                      <ViabilityIndicator 
+                        viability={viability} 
+                        reasoning={viabilityReasoning || planting.viabilityReasoning} 
+                        plantName={planting.name}
+                        gardenName={planting.garden?.name}
+                      />
+                    )}
                     {latestStatus && (
                         <Badge variant="outline" className={cn("font-normal", statusConfig[latestStatus.status])}>
                             {latestStatus.status}

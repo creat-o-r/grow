@@ -18,7 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink, Wand2, Camera, CircleDotDashed, X } from 'lucide-react';
+import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink, Wand2, Camera, CircleDotDashed, X, Square } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -53,7 +53,7 @@ type PlantFormValues = z.infer<typeof formSchema>;
 type PlantFormProps = {
   plantingToEdit?: PlantingWithPlant | null;
   defaultStatus?: PlantStatus;
-  onSubmit: (plantingData: Omit<Planting, 'id'>, plantData: Omit<Plant, 'id'>) => void;
+  onSubmit: (plantingData: any, plantData: any) => void;
   onConfigureApiKey: () => void;
   areApiKeysSet: boolean;
   apiKeys: { gemini: string };
@@ -72,6 +72,8 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const aiSearchAbortRef = useRef<AbortController | null>(null);
+  const identifyAbortRef = useRef<AbortController | null>(null);
   
   const { toast } = useToast();
 
@@ -156,6 +158,22 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     }
   }, [isScanning, toast]);
 
+  const handleStopAiSearch = () => {
+    if (aiSearchAbortRef.current) {
+      aiSearchAbortRef.current.abort();
+      aiSearchAbortRef.current = null;
+    }
+    setIsAiSearching(false);
+  };
+
+  const handleStopIdentification = () => {
+    if (identifyAbortRef.current) {
+      identifyAbortRef.current.abort();
+      identifyAbortRef.current = null;
+    }
+    setIdentificationState('idle');
+  };
+
   const handleAiSearch = async () => {
     if (!areApiKeysSet) {
       toast({
@@ -167,9 +185,23 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
       return;
     }
     if (!aiSearchTerm) return;
+
+    if (aiSearchAbortRef.current) {
+      aiSearchAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    aiSearchAbortRef.current = controller;
+
     setIsAiSearching(true);
     try {
-      const result = await aiSearchPlantData({ searchTerm: aiSearchTerm, apiKeys });
+      const abortPromise = new Promise<never>((_, reject) => {
+        controller.signal.addEventListener('abort', () => reject(new Error('Search was stopped by user.')));
+      });
+
+      const result = await Promise.race([
+        aiSearchPlantData({ searchTerm: aiSearchTerm, apiKeys }),
+        abortPromise
+      ]);
       
       form.setValue('species', result.species, { shouldValidate: true });
       if (!form.getValues('name')) {
@@ -191,6 +223,13 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
         description: `Data for ${result.species} has been populated.`,
       });
     } catch (error: any) {
+      if (controller.signal.aborted || error?.message?.includes('stopped by user')) {
+        toast({
+          title: 'Search Stopped',
+          description: 'AI plant search was cancelled.',
+        });
+        return;
+      }
       console.error('AI search failed:', error);
       toast({
         title: 'AI Search Failed',
@@ -198,6 +237,9 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
         variant: 'destructive',
       });
     } finally {
+      if (aiSearchAbortRef.current === controller) {
+        aiSearchAbortRef.current = null;
+      }
       setIsAiSearching(false);
     }
   };
@@ -218,10 +260,23 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
     const photoDataUri = canvas.toDataURL('image/jpeg');
     form.setValue('imageUrl', photoDataUri, { shouldValidate: true });
     
+    if (identifyAbortRef.current) {
+      identifyAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    identifyAbortRef.current = controller;
+
     setIdentificationState('identifying');
 
     try {
-        const idResult = await diagnosePlant({ photoDataUri, description: 'A plant in a home garden setting.', apiKeys });
+        const abortPromise = new Promise<never>((_, reject) => {
+          controller.signal.addEventListener('abort', () => reject(new Error('Plant identification was stopped by user.')));
+        });
+
+        const idResult = await Promise.race([
+          diagnosePlant({ photoDataUri, description: 'A plant in a home garden setting.', apiKeys }),
+          abortPromise
+        ]);
         
         if (!idResult.identification.isPlant) {
             toast({
@@ -241,11 +296,13 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
             description: `Found ${idResult.identification.commonName}. Now searching for details...`,
         });
 
-        const searchResult = await aiSearchPlantData({ searchTerm: idResult.identification.species, apiKeys });
+        const searchResult = await Promise.race([
+          aiSearchPlantData({ searchTerm: idResult.identification.species, apiKeys }),
+          abortPromise
+        ]);
         form.setValue('germinationNeeds', searchResult.germinationNeeds, { shouldValidate: true });
         form.setValue('optimalConditions', searchResult.optimalConditions, { shouldValidate: true });
         setAiSearchTerm('');
-
 
         toast({
             title: 'Details Found',
@@ -255,12 +312,22 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
         setIsScanning(false);
 
     } catch (error: any) {
+        if (controller.signal.aborted || error?.message?.includes('stopped by user')) {
+          toast({
+            title: 'Identification Stopped',
+            description: 'Plant identification was cancelled.',
+          });
+          return;
+        }
         toast({
             title: 'Identification Failed',
             description: `Could not identify the plant: ${error.message}`,
             variant: 'destructive',
         });
     } finally {
+        if (identifyAbortRef.current === controller) {
+          identifyAbortRef.current = null;
+        }
         setIdentificationState('idle');
     }
   }
@@ -342,9 +409,15 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
               onChange={(e) => setAiSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAiSearch()}
             />
-            <Button type="button" onClick={handleAiSearch} disabled={isAiSearching || !areApiKeysSet} className="w-24">
-              {isAiSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
-            </Button>
+            {isAiSearching ? (
+              <Button type="button" variant="destructive" onClick={handleStopAiSearch} className="w-24 flex items-center justify-center gap-1 text-xs">
+                <Square className="h-3.5 w-3.5 fill-current" /> Stop
+              </Button>
+            ) : (
+              <Button type="button" onClick={handleAiSearch} disabled={isAiSearching || !areApiKeysSet} className="w-24">
+                Search
+              </Button>
+            )}
             <Button type="button" onClick={() => setIsScanning(!isScanning)} variant="outline" size="icon" disabled={!areApiKeysSet}>
                 {isScanning ? <X className="h-4 w-4"/> : <Camera className="h-4 w-4"/>}
                 <span className="sr-only">{isScanning ? 'Close camera' : 'Scan with camera'}</span>
@@ -380,10 +453,16 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
                     </Alert>
                 )}
                 {hasCameraPermission && (
-                    <Button onClick={handleCaptureAndIdentify} disabled={identificationState !== 'idle'} className="w-full">
-                        {identificationState !== 'idle' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CircleDotDashed className="mr-2 h-4 w-4" />}
-                        {identificationButtonText[identificationState]}
-                    </Button>
+                    identificationState === 'identifying' ? (
+                      <Button type="button" variant="destructive" onClick={handleStopIdentification} className="w-full flex items-center justify-center gap-2">
+                        <Square className="h-4 w-4 fill-current" /> Stop Identifying
+                      </Button>
+                    ) : (
+                      <Button onClick={handleCaptureAndIdentify} disabled={identificationState !== 'idle'} className="w-full">
+                          {identificationState !== 'idle' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CircleDotDashed className="mr-2 h-4 w-4" />}
+                          {identificationButtonText[identificationState]}
+                      </Button>
+                    )
                 )}
             </CardContent>
         </Card>

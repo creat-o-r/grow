@@ -3,6 +3,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import type { PlantingWithPlant, StatusHistory } from '@/lib/types';
+import type { Viability } from '@/lib/viability';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,13 +15,16 @@ import { ToastAction } from '@/components/ui/toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ViabilityIndicator } from './ViabilityIndicator';
 
 type PlantingDashboardCardProps = {
     planting: PlantingWithPlant;
+    viability?: Viability;
+    viabilityReasoning?: string;
     onQuickStatusChange: (planting: PlantingWithPlant, newStatus: StatusHistory['status']) => void;
 };
 
-export function PlantingDashboardCard({ planting, onQuickStatusChange }: PlantingDashboardCardProps) {
+export function PlantingDashboardCard({ planting, viability, viabilityReasoning, onQuickStatusChange }: PlantingDashboardCardProps) {
     const [seedsOnHand, setSeedsOnHand] = useState<number | string>('');
     const [plannedQty, setPlannedQty] = useState<number | string>(planting.plannedQty || '');
     const [isSavingPlannedQty, setIsSavingPlannedQty] = useState(false);
@@ -109,6 +113,7 @@ export function PlantingDashboardCard({ planting, onQuickStatusChange }: Plantin
     };
 
     const seedsRequired = Math.max(0, (Number(plannedQty) || 0) - (planting.seedsOnHand || 0));
+    const effectiveViability = viability || planting.viability;
 
     return (
         <Card className="flex flex-col bg-muted/50">
@@ -121,13 +126,20 @@ export function PlantingDashboardCard({ planting, onQuickStatusChange }: Plantin
                         <span className="sr-only">Search for {planting.plant.species}</span>
                     </a>
                 </CardDescription>
-                {latestStatus && (
-                    <div className="pt-2">
+                <div className="flex flex-wrap gap-2 items-center pt-2">
+                    {effectiveViability && (
+                        <ViabilityIndicator 
+                            viability={effectiveViability} 
+                            reasoning={viabilityReasoning || planting.viabilityReasoning} 
+                            plantName={planting.name}
+                        />
+                    )}
+                    {latestStatus && (
                         <Badge variant="outline" className={cn("font-normal w-fit", statusConfig[latestStatus.status])}>
                             {latestStatus.status}
                         </Badge>
-                    </div>
-                )}
+                    )}
+                </div>
             </CardHeader>
             <CardContent className="flex flex-col flex-grow">
                 <div className="space-y-4 flex-grow">

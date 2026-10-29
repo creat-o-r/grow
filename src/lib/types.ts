@@ -14,6 +14,9 @@ export type Plant = {
   germinationNeeds: string;
   optimalConditions: string;
   imageUrl?: string;
+  isExistingVariation?: boolean;
+  variationReason?: string;
+  relatedExistingPlant?: string;
 };
 
 // Represents a specific instance or "lot" of a plant being grown
@@ -26,6 +29,9 @@ export type Planting = {
   history: StatusHistory[];
   seedsOnHand?: number;
   plannedQty?: number;
+  viability?: 'High' | 'Medium' | 'Low';
+  viabilityReasoning?: string;
+  viabilityAssessedAt?: string;
 }
 
 export type Conditions = {
@@ -50,9 +56,12 @@ export type AiLog = {
     timestamp: string; // ISO String
     flow: string;
     prompt: any;
-    results: any;
+    results?: any;
+    status?: 'success' | 'error';
+    error?: string;
     feedback?: 'way-off' | 'bad' | 'ok' | 'spot-on';
     viabilityType?: ViabilityAnalysisMode;
+    model?: string;
 }
 
 export type AiDataset = {
@@ -62,7 +71,7 @@ export type AiDataset = {
 }
 
 // A helper type for combining Plant and Planting data for display
-export type PlantingWithPlant extends Planting {
+export interface PlantingWithPlant extends Planting {
   plant: Plant;
   garden?: GardenLocation;
 }

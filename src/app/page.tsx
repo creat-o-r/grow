@@ -5,13 +5,13 @@
 import React, { useState, useEffect, useCallback, MouseEvent, useMemo, useRef, KeyboardEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, GardenViewMode } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, GardenViewMode, AiDataset } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { usePrevious } from '@/hooks/use-previous';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
-import { loadDataset, type AiDataset } from '@/lib/datasets';
-import { analyzeViability, Viability, getSuitableSeasons, generateLocalViabilityReasoning } from '@/lib/viability';
+import { loadDataset } from '@/lib/datasets';
+import { Viability, getSuitableSeasons } from '@/lib/viability';
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
@@ -28,7 +28,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Plus, Upload, Locate, Loader2, X, Sparkles, NotebookText, Settings, Info, Rocket, AlertCircle, Fence } from 'lucide-react';
+import { Plus, Upload, Locate, Loader2, X, Sparkles, NotebookText, Settings, Info, Rocket, AlertCircle, Fence, Square } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -75,6 +75,11 @@ export default function Home() {
   const [duplicateSelectionMode, setDuplicateSelectionMode] = useState<PlantingWithPlant | null>(null);
   
   const unspecifiedSeasonSectionRef = useRef<HTMLDivElement>(null);
+  const conditionAbortRef = useRef<AbortController | null>(null);
+  const batchViabilityAbortRef = useRef<AbortController | null>(null);
+  const singleViabilityAbortRef = useRef<AbortController | null>(null);
+  const isBatchRunningRef = useRef(false);
+  const lastAnalyzedConditionsRef = useRef<string | null>(null);
 
 
   const { toast, dismiss } = useToast();
@@ -86,13 +91,12 @@ export default function Home() {
   
   const [apiKeys, setApiKeys] = useState({ gemini: '' });
   const [areApiKeysSet, setAreApiKeysSet] = useState(false);
-  const [viabilityMechanism, setViabilityMechanism] = useState<ViabilityAnalysisMode>('local');
+  const [viabilityMechanism, setViabilityMechanism] = useState<ViabilityAnalysisMode>('ai');
   const [viabilityData, setViabilityData] = useState<Record<string, Viability | undefined>>({});
   const [analysisProgress, setAnalysisProgress] = useState(0);
 
   const previousViabilityMechanism = usePrevious(viabilityMechanism);
   const activeLocation = useMemo(() => locations?.find(loc => loc.id === activeLocationId), [locations, activeLocationId]);
-  const previousActiveLocation = usePrevious(activeLocation);
   const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(REPO_URL)}`;
 
   useEffect(() => {
@@ -102,19 +106,59 @@ export default function Home() {
         const locationCount = await db.locations.count();
         if (locationCount > 0) {
              const savedActiveLocation = localStorage.getItem('grow_activeLocation');
+             let foundLocation = false;
              if (savedActiveLocation) {
                 const doesLocationExist = await db.locations.get(savedActiveLocation);
                 if (doesLocationExist) {
                     setActiveLocationId(savedActiveLocation);
                     setSelectedGardenIds([savedActiveLocation]);
-                    return;
+                    foundLocation = true;
                 }
              }
-            const firstLocation = await db.locations.toCollection().first();
-            if (firstLocation) {
-                setActiveLocationId(firstLocation.id);
-                setSelectedGardenIds([firstLocation.id]);
+             if (!foundLocation) {
+                const firstLocation = await db.locations.toCollection().first();
+                if (firstLocation) {
+                    setActiveLocationId(firstLocation.id);
+                    setSelectedGardenIds([firstLocation.id]);
+                }
+             }
+        }
+
+        // Restore any past AI viability evaluations from db.aiLogs into db.plantings
+        try {
+          const pastViabilityLogs = await db.aiLogs
+            .where('flow')
+            .equals('getAiViability')
+            .reverse()
+            .toArray();
+
+          if (pastViabilityLogs.length > 0) {
+            const allPlantings = await db.plantings.toArray();
+            const allPlants = await db.plants.toArray();
+            const plantMap = new Map(allPlants.map(p => [p.id, p]));
+
+            for (const planting of allPlantings) {
+              if (!planting.viability) {
+                const plant = plantMap.get(planting.plantId);
+                const matchingLog = pastViabilityLogs.find(log => 
+                  log.results?.viability && (
+                    log.prompt?.plant?.species === plant?.species ||
+                    log.prompt?.plant?.species === planting.name ||
+                    log.prompt?.plant === plant?.species
+                  )
+                );
+                if (matchingLog?.results?.viability) {
+                  await db.plantings.update(planting.id, {
+                    viability: matchingLog.results.viability,
+                    viabilityReasoning: matchingLog.results.reasoning,
+                    viabilityAssessedAt: matchingLog.timestamp,
+                  });
+                }
+              }
             }
+          }
+        } catch (syncErr) {
+          console.warn('Could not sync past viability logs:', syncErr);
         }
     }
     initDb();
@@ -129,8 +173,11 @@ export default function Home() {
     }
 
     const storedMechanism = localStorage.getItem('grow_viabilityMechanism') as ViabilityAnalysisMode | null;
-    if (storedMechanism) {
-      setViabilityMechanism(storedMechanism);
+    if (storedMechanism && storedMechanism === 'ai') {
+      setViabilityMechanism('ai');
+    } else {
+      setViabilityMechanism('ai');
+      localStorage.setItem('grow_viabilityMechanism', 'ai');
     }
 
   }, []);
@@ -154,29 +201,13 @@ export default function Home() {
       });
     } else {
       setAreApiKeysSet(false);
-      // If keys are removed, default back to local viability
-      setViabilityMechanism('local');
-      localStorage.setItem('grow_viabilityMechanism', 'local');
     }
   };
 
-  const handleViabilityMechanismChange = (mechanism: ViabilityAnalysisMode) => {
-    if (mechanism === 'ai' && !areApiKeysSet) {
-       toast({
-        title: 'API Key Required',
-        description: 'Please set your Gemini API key to use AI-powered analysis.',
-        variant: 'destructive',
-      });
-      setIsSettingsSheetOpen(true);
-      return;
-    }
-    setViabilityMechanism(mechanism);
-    localStorage.setItem('grow_viabilityMechanism', mechanism);
-    toast({
-        title: 'Setting Saved',
-        description: `Viability analysis is now set to ${mechanism === 'ai' ? 'AI-Powered' : 'Local'}.`,
-    });
-  }
+  const handleViabilityMechanismChange = (_mechanism: ViabilityAnalysisMode) => {
+    setViabilityMechanism('ai');
+    localStorage.setItem('grow_viabilityMechanism', 'ai');
+  };
 
   useEffect(() => {
     if (locations && locations.length > 0 && !activeLocationId) {
@@ -281,7 +312,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         if (data.plantings && data.plantings.length > 0) {
             const gardenId = data.locations?.[0]?.id;
             if (gardenId) {
-                const plantingsWithGardenId = data.plantings.map(p => ({
+                const plantingsWithGardenId = data.plantings.map((p: any) => ({
                     ...p,
                     gardenId: gardenId,
                 }));
@@ -348,12 +379,55 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       return;
     }
 
+    let effectiveKey = apiKeys?.gemini;
+    if (!effectiveKey && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('grow_apiKeys');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          effectiveKey = parsed.gemini;
+        }
+      } catch (e) {
+        console.error('Failed reading keys from localStorage', e);
+      }
+    }
+
+    if (!effectiveKey) {
+      toast({
+        title: 'API Key Required',
+        description: 'Please set your Gemini API key in Settings before analyzing conditions.',
+        variant: 'destructive',
+      });
+      setIsSettingsSheetOpen(true);
+      return;
+    }
+
+    if (conditionAbortRef.current) {
+      conditionAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    conditionAbortRef.current = controller;
+
     setIsAnalyzing(locationId);
     const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-    const promptData = { location: locationToAnalyze, currentMonth, apiKeys };
+    const promptData = { location: locationToAnalyze, currentMonth, apiKeys: { gemini: effectiveKey } };
 
     try {
-      const result = await getEnvironmentalData(promptData);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('AI environmental analysis timed out after 90 seconds. Please try again.')), 90000)
+      );
+
+      const abortPromise = new Promise<never>((_, reject) => {
+        controller.signal.addEventListener('abort', () => {
+          reject(new Error('Conditions analysis was stopped by user.'));
+        });
+      });
+
+      const result = await Promise.race([
+        getEnvironmentalData(promptData),
+        timeoutPromise,
+        abortPromise
+      ]);
       
       await db.locations.update(locationId, {
         conditions: {
@@ -370,6 +444,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         flow: 'getEnvironmentalData',
         prompt: promptData,
         results: result,
+        model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
       };
       
       await db.aiLogs.add(newLog);
@@ -379,22 +454,74 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         description: `Conditions for ${locationToAnalyze} have been populated.`,
       });
     } catch (error: any) {
+        if (controller.signal.aborted || error?.message?.includes('stopped by user')) {
+          toast({
+            title: 'Analysis Stopped',
+            description: `Conditions analysis for ${locationToAnalyze} was stopped.`,
+          });
+          return;
+        }
+
+        const errorLog: AiLog = {
+          id: Date.now().toString(),
+          timestamp: new Date().toISOString(),
+          flow: 'getEnvironmentalData',
+          prompt: promptData,
+          status: 'error',
+          error: error.message || String(error),
+          model: 'googleai/gemini-3.8-flash',
+        };
+        await db.aiLogs.add(errorLog);
+
         toast({
             title: 'AI Analysis Failed',
             description: (
                 <div className="flex flex-col gap-2">
-                    <p>An error occurred during AI analysis:</p>
-                    <pre className="text-xs whitespace-pre-wrap p-2 bg-destructive/20 rounded-md">
+                    <p className="text-xs">Google Gemini analysis encountered an issue:</p>
+                    <pre className="text-xs whitespace-pre-wrap p-2 bg-destructive/20 rounded-md max-h-36 overflow-y-auto font-mono">
                         {error.message}
                     </pre>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        className="text-xs h-7 px-2"
+                        onClick={() => {
+                          navigator.clipboard.writeText(error.message);
+                          toast({ title: 'Copied error to clipboard' });
+                        }}
+                      >
+                        Copy Error
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-xs h-7 px-2"
+                        onClick={() => setIsLogPanelOpen(true)}
+                      >
+                        Open AI Log
+                      </Button>
+                    </div>
                 </div>
             ),
             variant: 'destructive',
+            duration: Infinity,
         });
     } finally {
+      if (conditionAbortRef.current === controller) {
+        conditionAbortRef.current = null;
+      }
       setIsAnalyzing(null);
     }
   }, [areApiKeysSet, apiKeys, locations, toast]);
+
+  const handleStopAnalyzeConditions = useCallback((_locationId?: string) => {
+    if (conditionAbortRef.current) {
+      conditionAbortRef.current.abort();
+      conditionAbortRef.current = null;
+    }
+    setIsAnalyzing(null);
+  }, []);
 
   const handleGetCurrentLocation = useCallback((locationId: string) => {
     if (!navigator.geolocation) {
@@ -545,10 +672,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   };
   
   const handleGetViability = async (planting: PlantingWithPlant) => {
-    if (viabilityMechanism === 'ai' && !areApiKeysSet) {
+    if (!areApiKeysSet) {
       toast({
         title: 'API Key Required',
-        description: 'Please set your Gemini API key in the settings for AI-powered analysis.',
+        description: 'Please set your Gemini API key in Settings for AI-powered viability analysis.',
         variant: 'destructive',
       });
       setIsSettingsSheetOpen(true);
@@ -557,41 +684,75 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     if (!activeLocation) return;
 
-    toast({
+    if (singleViabilityAbortRef.current) {
+      singleViabilityAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    singleViabilityAbortRef.current = controller;
+
+    const { id: viabilityToastId } = toast({
       title: 'Generating Viability Analysis...',
-      description: `Analyzing ${planting.name} for your garden.`,
+      description: (
+        <div className="flex items-center justify-between gap-2">
+          <span>Analyzing {planting.name} for your garden.</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs text-destructive hover:bg-destructive/10"
+            onClick={() => {
+              controller.abort();
+              dismiss(viabilityToastId);
+            }}
+          >
+            <Square className="h-3 w-3 fill-current mr-1" /> Stop
+          </Button>
+        </div>
+      ),
+      duration: 90000,
     });
 
     try {
-      let logData, finalViability;
-      if (viabilityMechanism === 'ai') {
-        const promptData = {
-            plant: {
-                species: planting.plant.species,
-                germinationNeeds: planting.plant.germinationNeeds,
-                optimalConditions: planting.plant.optimalConditions,
-            },
-            garden: {
-                conditions: {
-                    ...activeLocation.conditions,
-                    currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
-                },
-                growingSystems: activeLocation.growingSystems,
-                growingMethods: activeLocation.growingMethods,
-            },
-            apiKeys,
-        };
+      const promptData = {
+          plant: {
+              species: planting.plant.species,
+              germinationNeeds: planting.plant.germinationNeeds,
+              optimalConditions: planting.plant.optimalConditions,
+          },
+          garden: {
+              conditions: {
+                  ...activeLocation.conditions,
+                  currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
+              },
+              growingSystems: activeLocation.growingSystems,
+              growingMethods: activeLocation.growingMethods,
+          },
+          apiKeys,
+      };
 
-        const result = await getAiViability(promptData);
-        logData = { flow: 'getAiViability', prompt: promptData, results: result, viabilityType: 'ai' };
-        finalViability = result.viability;
-      } else {
-        const viability = analyzeViability(planting.plant, activeLocation.conditions);
-        const reasoning = generateLocalViabilityReasoning(planting.plant, activeLocation.conditions);
-        const result = { viability, reasoning };
-        logData = { flow: 'localViabilityAnalysis', prompt: { plant: planting.plant.species, conditions: activeLocation.conditions }, results: result, viabilityType: 'local' };
-        finalViability = viability;
-      }
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout analyzing ${planting.name} after 90 seconds`)), 90000)
+      );
+
+      const abortPromise = new Promise<never>((_, reject) => {
+        controller.signal.addEventListener('abort', () => {
+          reject(new Error('Viability analysis stopped by user.'));
+        });
+      });
+
+      const result = await Promise.race([
+        getAiViability(promptData),
+        timeoutPromise,
+        abortPromise
+      ]);
+
+      const logData = { 
+        flow: 'getAiViability', 
+        prompt: promptData, 
+        results: result, 
+        viabilityType: 'ai' as const,
+        model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
+      };
+      const finalViability = result.viability;
       
       const newLog: AiLog = {
         id: Date.now().toString(),
@@ -602,9 +763,33 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       await db.aiLogs.add(newLog);
 
       if (finalViability) {
-        setViabilityData(prev => ({...prev, [planting.id]: finalViability}));
+        const assessedAt = new Date().toISOString();
+        const duplicatePlantings = plantingsWithPlants?.filter(
+          p => p.gardenId === planting.gardenId && (
+            p.id === planting.id ||
+            p.plantId === planting.plantId ||
+            (p.plant?.species && planting.plant?.species && p.plant.species === planting.plant.species)
+          )
+        ) || [planting];
+
+        for (const p of duplicatePlantings) {
+          await db.plantings.update(p.id, {
+            viability: finalViability,
+            viabilityReasoning: result.reasoning,
+            viabilityAssessedAt: assessedAt,
+          });
+        }
+
+        setViabilityData(prev => {
+          const updated = { ...prev };
+          duplicatePlantings.forEach(p => {
+            updated[p.id] = finalViability;
+          });
+          return updated;
+        });
       }
 
+      dismiss(viabilityToastId);
       toast({
         title: 'Analysis Complete',
         description: `Analysis for ${planting.name} has been added to the AI Log.`,
@@ -612,18 +797,64 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       setIsLogPanelOpen(true);
 
     } catch (error: any) {
+      dismiss(viabilityToastId);
+      if (controller.signal.aborted || error?.message?.includes('stopped by user')) {
+        toast({
+          title: 'Analysis Stopped',
+          description: `Analysis for ${planting.name} was cancelled.`,
+        });
+        return;
+      }
+
+      const errorLog: AiLog = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        flow: 'getAiViability',
+        prompt: { plant: planting.plant.species, garden: activeLocation.name },
+        status: 'error',
+        error: error.message || String(error),
+        model: 'googleai/gemini-3.8-flash',
+      };
+      await db.aiLogs.add(errorLog);
+
       toast({
         title: 'Analysis Failed',
         description: (
             <div className="flex flex-col gap-2">
-                <p>An error occurred during analysis:</p>
-                <pre className="text-xs whitespace-pre-wrap p-2 bg-destructive/20 rounded-md">
+                <p className="text-xs">An error occurred during analysis:</p>
+                <pre className="text-xs whitespace-pre-wrap p-2 bg-destructive/20 rounded-md max-h-36 overflow-y-auto font-mono">
                     {error.message}
                 </pre>
+                <div className="flex items-center gap-2 mt-1">
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    className="text-xs h-7 px-2"
+                    onClick={() => {
+                      navigator.clipboard.writeText(error.message);
+                      toast({ title: 'Copied error to clipboard' });
+                    }}
+                  >
+                    Copy Error
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-xs h-7 px-2"
+                    onClick={() => setIsLogPanelOpen(true)}
+                  >
+                    Open AI Log
+                  </Button>
+                </div>
             </div>
         ),
         variant: 'destructive',
+        duration: Infinity,
       });
+    } finally {
+      if (singleViabilityAbortRef.current === controller) {
+        singleViabilityAbortRef.current = null;
+      }
     }
   };
   
@@ -751,135 +982,307 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         return;
     }
 
+    // Prevent duplicate concurrent batch runs
+    if (isBatchRunningRef.current) {
+        console.log('Batch AI viability analysis already in progress. Skipping duplicate run.');
+        return;
+    }
+    isBatchRunningRef.current = true;
+
+    if (batchViabilityAbortRef.current) {
+      batchViabilityAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    batchViabilityAbortRef.current = controller;
+
+    const stopBatch = () => {
+      controller.abort();
+    };
+
+    // Deduplicate plantings by unique plant identity (plantId or species/name)
+    const plantGroupMap = new Map<string, PlantingWithPlant[]>();
+    for (const p of plantingsToAnalyze) {
+      const key = p.plantId || p.plant?.id || p.plant?.species || p.name || p.id;
+      const group = plantGroupMap.get(key) || [];
+      group.push(p);
+      plantGroupMap.set(key, group);
+    }
+
+    const newViabilityData: Record<string, Viability> = {};
+    let successfulAnalyses = 0;
+    const groupsToAnalyze: { key: string; plantings: PlantingWithPlant[]; samplePlanting: PlantingWithPlant }[] = [];
+
+    // Check if any duplicate group already has an existing assessment we can reuse
+    for (const [key, group] of plantGroupMap.entries()) {
+      const existing = group.find(p => p.viability && p.viabilityReasoning);
+      if (existing?.viability && existing.viabilityReasoning) {
+        for (const p of group) {
+          if (!p.viability || !p.viabilityReasoning) {
+            await db.plantings.update(p.id, {
+              viability: existing.viability,
+              viabilityReasoning: existing.viabilityReasoning,
+              viabilityAssessedAt: existing.viabilityAssessedAt || new Date().toISOString(),
+            });
+            newViabilityData[p.id] = existing.viability;
+          }
+        }
+        setViabilityData(prev => {
+          const updated = { ...prev };
+          group.forEach(p => { updated[p.id] = existing.viability; });
+          return updated;
+        });
+        successfulAnalyses += group.length;
+      } else {
+        groupsToAnalyze.push({ key, plantings: group, samplePlanting: group[0] });
+      }
+    }
+
+    // If all plants in this batch already have assessments or were satisfied by duplicates, nothing to call
+    if (groupsToAnalyze.length === 0) {
+      isBatchRunningRef.current = false;
+      return;
+    }
+
+    const totalUniquePlants = groupsToAnalyze.length;
+    const totalPlantings = plantingsToAnalyze.length;
+
     const { id: toastId } = toast({
-        title: 'Starting Batch AI Analysis...',
+        title: 'Batch AI Viability Analysis',
         description: (
-            <div className="w-full">
-                <p>Analyzing {plantingsToAnalyze.length} plants. This may take a moment.</p>
-                <Progress value={0} className="mt-2" />
+            <div className="w-full space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                    <span>Analyzing 0 of {totalUniquePlants} unique plant{totalUniquePlants > 1 ? 's' : ''} ({totalPlantings} plantings)...</span>
+                    <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        className="h-6 px-2 text-xs flex items-center gap-1 font-medium"
+                        onClick={() => {
+                            stopBatch();
+                            dismiss(toastId);
+                        }}
+                    >
+                        <Square className="h-3 w-3 fill-current" /> Stop
+                    </Button>
+                </div>
+                <Progress value={0} className="mt-1" />
             </div>
         ),
         duration: Infinity,
     });
 
     let completedCount = 0;
+    let firstError: any = null;
     setAnalysisProgress(0);
 
-    const newViabilityData: Record<string, Viability> = {};
-
-    const analysisPromises = plantingsToAnalyze.map(async (planting) => {
-        try {
-            const promptData = {
-                plant: planting.plant,
-                garden: {
-                    conditions: {
-                        ...activeLocation.conditions,
-                        currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
-                    },
-                    growingSystems: activeLocation.growingSystems,
-                    growingMethods: activeLocation.growingMethods,
-                },
-                apiKeys,
-            };
-            const result = await getAiViability(promptData);
-            
-            return { status: 'fulfilled', plantingId: planting.id, viability: result.viability };
-        } catch (error: any) {
-            console.error(`AI analysis failed for ${planting.name}:`, error);
-            return { status: 'rejected', plantingId: planting.id, error };
-        } finally {
-            completedCount++;
-            const progress = (completedCount / plantingsToAnalyze.length) * 100;
-            setAnalysisProgress(progress);
-             toast({
-                id: toastId,
-                title: 'Analyzing...',
-                description: (
-                    <div className="w-full">
-                        <p>{completedCount} of {plantingsToAnalyze.length} plants analyzed.</p>
-                        <Progress value={progress} className="mt-2" />
-                    </div>
-                ),
-                duration: Infinity,
-            });
-        }
-    });
-
-    const results = await Promise.allSettled(analysisPromises);
-    let successfulAnalyses = 0;
-    let firstError: any = null;
-
-    results.forEach(result => {
-         if (result.status === 'fulfilled' && result.value?.status === 'fulfilled') {
-            const { plantingId, viability } = result.value;
-            newViabilityData[plantingId] = viability;
-            successfulAnalyses++;
-        } else if (result.status === 'fulfilled' && result.value?.status === 'rejected') {
-            if (!firstError) firstError = result.value.error;
-        } else if (result.status === 'rejected') {
-            if (!firstError) firstError = result.reason;
-        }
-    });
-    
-    setViabilityData(prev => ({ ...prev, ...newViabilityData }));
-
-    dismiss(toastId);
-
-    if (successfulAnalyses < plantingsToAnalyze.length && firstError) {
-         toast({
-            title: 'Batch Analysis Partially Failed',
-            description: (
-                <div className="flex flex-col gap-2">
-                    <p>Analyzed {successfulAnalyses} of {plantingsToAnalyze.length} plants. An error occurred:</p>
-                    <pre className="text-xs whitespace-pre-wrap p-2 bg-destructive/20 rounded-md">
-                        {firstError.message}
-                    </pre>
-                </div>
-            ),
-            variant: 'destructive',
-        });
-    } else {
-        toast({
-            title: 'Batch Analysis Complete',
-            description: `Analyzed ${successfulAnalyses} out of ${plantingsToAnalyze.length} plants.`,
-        });
+    let effectiveKey = apiKeys?.gemini;
+    if (!effectiveKey && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('grow_apiKeys');
+        if (stored) effectiveKey = JSON.parse(stored).gemini;
+      } catch (e) {}
     }
 
-}, [activeLocation, apiKeys, areApiKeysSet, toast, dismiss]);
-
-    useEffect(() => {
-        const justSwitchedToAi = previousViabilityMechanism === 'local' && viabilityMechanism === 'ai';
-        // Poor man's deep object comparison
-        const locationChangedInAiMode = viabilityMechanism === 'ai' && JSON.stringify(activeLocation) !== JSON.stringify(previousActiveLocation);
-
-        if (viabilityMechanism === 'ai' && areApiKeysSet && plantingsWithPlants) {
-            const plantingsToAnalyze = plantingsWithPlants.filter(p => p.gardenId === activeLocationId);
-            if ((justSwitchedToAi || locationChangedInAiMode) && plantingsToAnalyze.length > 0) {
-                 handleBatchAiViabilityAnalysis(plantingsToAnalyze);
-            }
+    try {
+      for (let i = 0; i < groupsToAnalyze.length; i++) {
+        if (controller.signal.aborted) {
+          break;
         }
-    }, [
-        viabilityMechanism,
-        previousViabilityMechanism,
-        activeLocationId,
-        activeLocation,
-        previousActiveLocation,
-        areApiKeysSet,
-        handleBatchAiViabilityAnalysis,
-        plantingsWithPlants
-    ]);
 
-    const localViabilityData = useMemo(() => {
-        const newViabilityData: Record<string, Viability> = {};
-        if (viabilityMechanism === 'local' && activeLocation?.conditions && plantingsWithPlants) {
-            plantingsWithPlants.forEach(p => {
-                newViabilityData[p.id] = analyzeViability(p.plant, activeLocation.conditions!);
+        const { plantings: group, samplePlanting } = groupsToAnalyze[i];
+
+        try {
+          const promptData = {
+            plant: samplePlanting.plant,
+          garden: {
+            conditions: {
+              ...activeLocation.conditions,
+              currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
+            },
+            growingSystems: activeLocation.growingSystems,
+            growingMethods: activeLocation.growingMethods,
+          },
+          apiKeys: { gemini: effectiveKey },
+        };
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout analyzing ${samplePlanting.name} after 90 seconds`)), 90000)
+        );
+
+        const abortPromise = new Promise<never>((_, reject) => {
+          controller.signal.addEventListener('abort', () => {
+            reject(new Error('Batch analysis cancelled by user'));
+          });
+        });
+
+        const result = await Promise.race([
+          getAiViability(promptData),
+          timeoutPromise,
+          abortPromise
+        ]);
+
+        if (result?.viability) {
+          const assessedAt = new Date().toISOString();
+
+          // Apply the AI viability result to ALL duplicate plantings in this group
+          for (const planting of group) {
+            await db.plantings.update(planting.id, {
+              viability: result.viability,
+              viabilityReasoning: result.reasoning,
+              viabilityAssessedAt: assessedAt,
             });
-        }
-        return newViabilityData;
-    }, [viabilityMechanism, activeLocation?.conditions, plantingsWithPlants]);
+            newViabilityData[planting.id] = result.viability;
+          }
 
-    const currentViabilityData = viabilityMechanism === 'ai' ? viabilityData : localViabilityData;
+          const batchLog: AiLog = {
+            id: `batch-${Date.now()}-${samplePlanting.id}`,
+            timestamp: assessedAt,
+            flow: 'getAiViability',
+            prompt: promptData,
+            results: result,
+            viabilityType: 'ai' as const,
+            model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
+          };
+          await db.aiLogs.add(batchLog);
+
+          setViabilityData(prev => {
+            const updated = { ...prev };
+            group.forEach(p => { updated[p.id] = result.viability; });
+            return updated;
+          });
+          successfulAnalyses += group.length;
+        }
+      } catch (error: any) {
+        if (controller.signal.aborted) {
+          break;
+        }
+        console.error(`AI analysis failed for ${samplePlanting.name}:`, error);
+        if (!firstError) firstError = error;
+      } finally {
+        completedCount++;
+        const progress = (completedCount / groupsToAnalyze.length) * 100;
+        setAnalysisProgress(progress);
+
+        if (!controller.signal.aborted) {
+          (toast as any)({
+            id: toastId,
+            title: 'Batch AI Viability Analysis',
+            description: (
+              <div className="w-full space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span>{completedCount} of {totalUniquePlants} unique plants analyzed ({successfulAnalyses} plantings updated)</span>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    className="h-6 px-2 text-xs flex items-center gap-1 font-medium"
+                    onClick={() => {
+                      stopBatch();
+                      dismiss(toastId);
+                    }}
+                  >
+                    <Square className="h-3 w-3 fill-current" /> Stop
+                  </Button>
+                </div>
+                <Progress value={progress} className="mt-1" />
+              </div>
+            ),
+            duration: Infinity,
+          });
+        }
+      }
+    }
+  } finally {
+    dismiss(toastId);
+    isBatchRunningRef.current = false;
+    if (batchViabilityAbortRef.current === controller) {
+      batchViabilityAbortRef.current = null;
+    }
+  }
+
+    if (controller.signal.aborted) {
+      toast({
+        title: 'Batch Analysis Stopped',
+        description: `Stopped by user. Analyzed ${successfulAnalyses} of ${plantingsToAnalyze.length} plants.`,
+      });
+    } else if (successfulAnalyses < plantingsToAnalyze.length && firstError) {
+      toast({
+        title: 'Batch Analysis Partially Failed',
+        description: (
+          <div className="flex flex-col gap-2">
+            <p>Analyzed {successfulAnalyses} of {plantingsToAnalyze.length} plants. An error occurred:</p>
+            <pre className="text-xs whitespace-pre-wrap p-2 bg-destructive/20 rounded-md">
+              {firstError.message}
+            </pre>
+          </div>
+        ),
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Batch Analysis Complete',
+        description: `Analyzed ${successfulAnalyses} out of ${plantingsToAnalyze.length} plantings across ${totalUniquePlants} unique plant species.`,
+      });
+    }
+  }, [activeLocation, apiKeys, areApiKeysSet, toast, dismiss]);
+
+  useEffect(() => {
+    if (!areApiKeysSet || !plantingsWithPlants || !activeLocation?.conditions) {
+      return;
+    }
+
+    const conditionsSignature = JSON.stringify({
+      conditions: activeLocation.conditions,
+      growingSystems: activeLocation.growingSystems,
+      growingMethods: activeLocation.growingMethods,
+      gardenId: activeLocationId,
+    });
+
+    const isInitialMount = lastAnalyzedConditionsRef.current === null;
+    const conditionsChanged = !isInitialMount && lastAnalyzedConditionsRef.current !== conditionsSignature;
+
+    if (isInitialMount) {
+      lastAnalyzedConditionsRef.current = conditionsSignature;
+      // On initial load, only run for plantings that have NEVER been analyzed yet (missing viability)
+      const unanalyzedPlantings = plantingsWithPlants.filter(
+        p => p.gardenId === activeLocationId && !p.viability
+      );
+      if (unanalyzedPlantings.length > 0 && !isBatchRunningRef.current) {
+        handleBatchAiViabilityAnalysis(unanalyzedPlantings);
+      }
+    } else if (conditionsChanged) {
+      lastAnalyzedConditionsRef.current = conditionsSignature;
+      // When garden conditions genuinely change, re-analyze plantings for this garden
+      const plantingsToAnalyze = plantingsWithPlants.filter(p => p.gardenId === activeLocationId);
+      if (plantingsToAnalyze.length > 0 && !isBatchRunningRef.current) {
+        handleBatchAiViabilityAnalysis(plantingsToAnalyze);
+      }
+    }
+  }, [
+    activeLocationId,
+    activeLocation,
+    areApiKeysSet,
+    handleBatchAiViabilityAnalysis,
+    plantingsWithPlants
+  ]);
+
+    const currentViabilityData = useMemo(() => {
+        const map: Record<string, Viability | undefined> = { ...viabilityData };
+        plantingsWithPlants?.forEach(p => {
+            if (p.viability && !map[p.id]) {
+                map[p.id] = p.viability;
+            }
+        });
+        return map;
+    }, [plantingsWithPlants, viabilityData]);
+
+    const currentReasoningData = useMemo(() => {
+        const map: Record<string, string | undefined> = {};
+        plantingsWithPlants?.forEach(p => {
+            if (p.viabilityReasoning) {
+                map[p.id] = p.viabilityReasoning;
+            }
+        });
+        return map;
+    }, [plantingsWithPlants]);
 
   const sortedAndFilteredPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
@@ -1029,14 +1432,19 @@ const unspecifiedSeasonCount = useMemo(() => {
     const viabilityCounts = useMemo(() => {
         const counts: Record<Viability, number> = { High: 0, Medium: 0, Low: 0 };
         
-        Object.values(currentViabilityData).forEach(viability => {
-            if (viability) {
+        plantingsWithPlants?.forEach(p => {
+            const viability = p.viability || currentViabilityData[p.id];
+            if (viability && counts[viability] !== undefined) {
               counts[viability]++;
             }
         });
 
         return counts;
-    }, [currentViabilityData]);
+    }, [plantingsWithPlants, currentViabilityData]);
+
+    const totalAnalyzedCount = useMemo(() => {
+        return viabilityCounts.High + viabilityCounts.Medium + viabilityCounts.Low;
+    }, [viabilityCounts]);
 
   const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
 
@@ -1197,6 +1605,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                             handleGetCurrentLocation={handleGetCurrentLocation}
                             isLocating={isLocating}
                             handleAnalyzeConditions={handleAnalyzeConditions}
+                            handleStopAnalyzeConditions={handleStopAnalyzeConditions}
                             isAnalyzing={isAnalyzing}
                           />
                         ))}
@@ -1221,11 +1630,16 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                 )}
                                 onClick={() => setStatusFilter(status)}
                               >
-                                <div className="pl-3 pr-2 h-full flex items-center">All</div>
+                                <div className="pl-3 pr-1.5 h-full flex items-center font-medium">All ({statusCounts.All})</div>
                                 <div className="flex items-center gap-1 pr-2">
-                                    <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High}</Badge>
-                                    <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium}</Badge>
-                                    <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low}</Badge>
+                                    {viabilityCounts.High > 0 && <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High} High</Badge>}
+                                    {viabilityCounts.Medium > 0 && <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium} Med</Badge>}
+                                    {viabilityCounts.Low > 0 && <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low} Low</Badge>}
+                                    {statusCounts.All > totalAnalyzedCount && (
+                                      <Badge variant="outline" className="text-muted-foreground px-1.5 py-0.5 text-xs font-mono" title={`${statusCounts.All - totalAnalyzedCount} plants pending AI viability analysis`}>
+                                        {statusCounts.All - totalAnalyzedCount} pending
+                                      </Badge>
+                                    )}
                                 </div>
                                 {hasDuplicates && (
                                     <Button
@@ -1253,7 +1667,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                 >
                                     {status}
                                     <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
-                                      {statusCounts.Planting}+{plantingDashboardPlantings.length}
+                                      {statusCounts.Planting}
                                     </Badge>
                                 </Button>
                               )
@@ -1326,7 +1740,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                         <div key={p.id} role="button" onClick={() => handleEditPlanting(p)} onKeyDown={(e) => e.key === 'Enter' && handleEditPlanting(p)} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-primary rounded-lg">
                                           <PlantCard
                                               planting={p}
-                                              viability={currentViabilityData[p.id]}
+                                              viability={p.viability || currentViabilityData[p.id]}
+                                              viabilityReasoning={p.viabilityReasoning || currentReasoningData[p.id]}
                                               onEdit={() => handleEditPlanting(p)}
                                               onDelete={() => promptDelete(p)}
                                               onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1357,7 +1772,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                   <div key={p.id} role="button" onClick={() => handleEditPlanting(p)} onKeyDown={(e) => e.key === 'Enter' && handleEditPlanting(p)} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-primary rounded-lg">
                                                     <PlantCard
                                                         planting={p}
-                                                        viability={currentViabilityData[p.id]}
+                                                        viability={p.viability || currentViabilityData[p.id]}
+                                               viabilityReasoning={p.viabilityReasoning || currentReasoningData[p.id]}
                                                         onEdit={() => handleEditPlanting(p)}
                                                         onDelete={() => promptDelete(p)}
                                                         onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1396,7 +1812,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                             <div key={p.id} role="button" onClick={() => handleEditPlanting(p)} onKeyDown={(e) => e.key === 'Enter' && handleEditPlanting(p)} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-primary rounded-lg">
                                               <PlantCard 
                                                   planting={p} 
-                                                  viability={currentViabilityData[p.id]}
+                                                  viability={p.viability || currentViabilityData[p.id]}
+                                               viabilityReasoning={p.viabilityReasoning || currentReasoningData[p.id]}
                                                   onEdit={() => handleEditPlanting(p)}
                                                   onDelete={() => promptDelete(p)}
                                                   onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1414,6 +1831,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                               )}
                               <PlantingDashboard
                                   plantings={plantingDashboardPlantings}
+                                  viabilityData={currentViabilityData}
+                                   reasoningData={currentReasoningData}
                                   gardenConditions={activeLocation?.conditions}
                                   onOpenAddSheet={() => handleOpenAddSheet('Planting')}
                                   onOpenSettings={() => setIsSettingsSheetOpen(true)}
@@ -1427,7 +1846,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                       <div key={p.id} role="button" onClick={() => handleEditPlanting(p)} onKeyDown={(e) => e.key === 'Enter' && handleEditPlanting(p)} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-primary rounded-lg">
                                         <PlantCard 
                                             planting={p} 
-                                            viability={currentViabilityData[p.id]}
+                                            viability={p.viability || currentViabilityData[p.id]}
+                                            viabilityReasoning={p.viabilityReasoning || currentReasoningData[p.id]}
                                             onEdit={() => handleEditPlanting(p)}
                                             onDelete={() => promptDelete(p)}
                                             onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1562,6 +1982,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
             window.location.reload();
         }}
         activeLocation={activeLocation}
+        existingPlantings={plantingsWithPlants?.filter(p => p.gardenId === activeLocation?.id)}
       />
 
       <DuplicateReviewSheet
@@ -1580,6 +2001,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
           handleGetCurrentLocation={handleGetCurrentLocation}
           isLocating={isLocating}
           handleAnalyzeConditions={handleAnalyzeConditions}
+          handleStopAnalyzeConditions={handleStopAnalyzeConditions}
           isAnalyzing={isAnalyzing}
         />
       )}

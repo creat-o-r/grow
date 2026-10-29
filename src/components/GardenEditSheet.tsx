@@ -22,6 +22,7 @@ type GardenEditSheetProps = {
   handleGetCurrentLocation: (locationId: string) => void;
   isLocating: boolean;
   handleAnalyzeConditions: (locationId: string) => Promise<void>;
+  handleStopAnalyzeConditions?: (locationId: string) => void;
   isAnalyzing: string | null;
 };
 

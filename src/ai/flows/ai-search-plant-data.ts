@@ -11,6 +11,7 @@
 
 import { genkit, z } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { executeWithModelFallback } from '@/ai/model';
 
 const AISearchPlantDataInputSchema = z.object({
   searchTerm: z
@@ -34,9 +35,14 @@ export async function aiSearchPlantData(
   input: AISearchPlantDataInput,
 ): Promise<AISearchPlantDataOutput> {
 
+  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Gemini API key is required. Please save your API key in Settings.');
+  }
+
   const ai = genkit({
     plugins: [
-      googleAI({ apiKey: input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY }),
+      googleAI({ apiKey }),
     ],
   });
 
@@ -63,8 +69,10 @@ If there is no definitive answer based on the search term, make your best guess.
       outputSchema: AISearchPlantDataOutputSchema,
     },
     async (flowInput) => {
-      const {output} = await prompt(flowInput, { model: 'googleai/gemini-2.5-flash' });
-      return output!;
+      return executeWithModelFallback<AISearchPlantDataOutput>(
+        `aiSearchPlantData(${flowInput.searchTerm})`,
+        (model) => prompt(flowInput, { model })
+      );
     }
   );
 

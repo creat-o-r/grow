@@ -10,6 +10,7 @@
 
 import { genkit, z } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { executeWithModelFallback } from '@/ai/model';
 
 const GetEnvironmentalDataInputSchema = z.object({
   location: z.string().describe('The city and country, e.g., "San Francisco, USA"'),
@@ -21,12 +22,12 @@ const GetEnvironmentalDataInputSchema = z.object({
 type GetEnvironmentalDataInput = z.infer<typeof GetEnvironmentalDataInputSchema>;
 
 const GetEnvironmentalDataOutputSchema = z.object({
-  soilTemperature: z.string().describe('The current soil temperature.'),
-  sunlightHours: z.string().describe('The current daily hours of sunlight.'),
+  soilTemperature: z.string().describe('The current soil temperature, e.g. "16°C" or "62°F".'),
+  sunlightHours: z.string().describe('The current daily hours of sunlight, e.g. "13 hours".'),
   soilDescription: z.string().describe('A brief description of typical soil in the area. Omit the word "soil" from the description.'),
   currentSeason: z.enum(['Spring', 'Summer', 'Autumn', 'Winter']).describe('The current season in the Northern or Southern Hemisphere for the given location.'),
-  reasoning: z.string().describe('A detailed explanation of how the data was determined based on the location.'),
-  references: z.any().describe('A full list of references or sources used to determine the data.'),
+  reasoning: z.string().describe('A concise 1-2 sentence explanation of how the data was determined based on the location and season.'),
+  references: z.string().describe('A concise string citing 1-2 climate or agricultural sources/databases used.'),
 });
 type GetEnvironmentalDataOutput = z.infer<typeof GetEnvironmentalDataOutputSchema>;
 
@@ -34,9 +35,14 @@ export async function getEnvironmentalData(
   input: GetEnvironmentalDataInput,
 ): Promise<GetEnvironmentalDataOutput> {
 
+  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Gemini API key is required. Please save your API key in Settings.');
+  }
+
   const ai = genkit({
     plugins: [
-      googleAI({ apiKey: input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY }),
+      googleAI({ apiKey }),
     ],
   });
 
@@ -53,9 +59,9 @@ Current Month: {{{currentMonth}}}
 Provide the current soil temperature, average daily sunlight hours, and a description of the typical soil composition.
 You MUST determine the current season based on the location's hemisphere and the provided current month. The 'currentSeason' field MUST be one of the following exact strings: 'Spring', 'Summer', 'Autumn', or 'Winter'.
 For the soilDescription, return only the key characteristics of the soil type (e.g., "Well-drained, sandy loam, pH 6.5"). Do not include any descriptive words, location information, or the word "soil".
-In the reasoning field, provide a detailed explanation for why you chose the values based on the location's geography and current season.
-In the references field, cite the full list of any general sources or knowledge bases you are using.
-Return your response in the structured format defined by the output schema.
+For reasoning, provide a concise 1-2 sentence summary of why these values apply to this location in this month.
+For references, cite 1-2 general sources or knowledge bases used (e.g. "World Climate Data / FAO Soil Portal").
+Keep all output concise and adhere strictly to the schema.
 `,
   });
 
@@ -66,8 +72,10 @@ Return your response in the structured format defined by the output schema.
       outputSchema: GetEnvironmentalDataOutputSchema,
     },
     async (flowInput) => {
-      const {output} = await prompt(flowInput, { model: 'googleai/gemini-2.5-flash' });
-      return output!;
+      return executeWithModelFallback<GetEnvironmentalDataOutput>(
+        `getEnvironmentalData(${flowInput.location})`,
+        (model) => prompt(flowInput, { model })
+      );
     }
   );
 

@@ -111,12 +111,27 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                   const displayName = FLOW_DISPLAY_NAMES[log.flow] || log.flow;
                   const showFeedback = log.flow === 'getAiViability' || log.flow === 'localViabilityAnalysis' || log.flow === 'getEnvironmentalData';
 
+                  const isError = log.status === 'error' || !!log.error;
+
                   return (
-                    <Card key={log.id} className="text-sm">
+                    <Card key={log.id} className={cn("text-sm", isError && "border-destructive/60 bg-destructive/5")}>
                       <CardHeader className='pb-3'>
                         <CardTitle className="text-base font-medium flex justify-between items-start">
                             <div className="flex flex-col gap-1.5">
-                                <span className='font-mono text-primary'>{displayName}</span>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className={cn('font-mono font-semibold', isError ? 'text-destructive' : 'text-primary')}>{displayName}</span>
+                                    {isError ? (
+                                        <span className="text-[10px] px-2 py-0.5 rounded bg-destructive/15 text-destructive font-mono font-semibold border border-destructive/30">
+                                            FAILED
+                                        </span>
+                                    ) : (
+                                        log.model && (
+                                            <span className="text-[10px] px-2 py-0.5 rounded bg-primary/10 text-primary font-mono font-medium border border-primary/20">
+                                                {log.model.replace('googleai/', '')}
+                                            </span>
+                                        )
+                                    )}
+                                </div>
                                 {log.viabilityType && (
                                     <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
                                         {log.viabilityType === 'ai' ? <BrainCircuit className="h-3 w-3" /> : <Cpu className="h-3 w-3" />}
@@ -128,6 +143,29 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
+                        {log.error && (
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-semibold text-destructive flex items-center gap-1.5 text-xs">
+                                <AlertTriangle className="h-3.5 w-3.5" /> Error Message
+                              </h4>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 text-xs px-2"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(log.error || '');
+                                  toast({ title: 'Error copied to clipboard' });
+                                }}
+                              >
+                                Copy Error
+                              </Button>
+                            </div>
+                            <pre className="text-xs p-3 bg-destructive/10 text-destructive rounded-md whitespace-pre-wrap font-mono max-h-48 overflow-y-auto border border-destructive/20">
+                              {log.error}
+                            </pre>
+                          </div>
+                        )}
                         {log.prompt && (
                           <div>
                             <h4 className="font-semibold mb-2">Prompt</h4>

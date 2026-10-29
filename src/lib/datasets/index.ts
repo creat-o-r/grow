@@ -23,9 +23,9 @@ export const availableDatasets: DatasetInfo[] = [
             return {
                 name: 'Herbs',
                 description: 'A starter kit for a culinary herb garden.',
-                locations: data.locations,
-                plants: data.plants,
-                plantings: data.plantings
+                locations: data.locations as any,
+                plants: data.plants as any,
+                plantings: data.plantings as any
             };
         },
     },
@@ -38,9 +38,9 @@ export const availableDatasets: DatasetInfo[] = [
              return {
                 name: 'Vegetables',
                 description: 'A selection of common vegetables for your plot.',
-                locations: data.locations,
-                plants: data.plants,
-                plantings: data.plantings
+                locations: data.locations as any,
+                plants: data.plants as any,
+                plantings: data.plantings as any
             };
         },
     },
@@ -53,9 +53,9 @@ export const availableDatasets: DatasetInfo[] = [
              return {
                 name: 'Fruit',
                 description: 'A variety of fruit-bearing plants and trees.',
-                locations: data.locations,
-                plants: data.plants,
-                plantings: data.plantings
+                locations: data.locations as any,
+                plants: data.plants as any,
+                plantings: data.plantings as any
             };
         },
     },
@@ -68,9 +68,9 @@ export const availableDatasets: DatasetInfo[] = [
              return {
                 name: 'Fungi',
                 description: 'A collection of popular edible mushrooms.',
-                locations: data.locations,
-                plants: data.plants,
-                plantings: data.plantings
+                locations: data.locations as any,
+                plants: data.plants as any,
+                plantings: data.plantings as any
             };
         },
     },
@@ -83,9 +83,9 @@ export const availableDatasets: DatasetInfo[] = [
              return {
                 name: 'Medicinal',
                 description: 'Plants known for their medicinal properties.',
-                locations: data.locations,
-                plants: data.plants,
-                plantings: data.plantings
+                locations: data.locations as any,
+                plants: data.plants as any,
+                plantings: data.plantings as any
             };
         },
     },
@@ -98,9 +98,9 @@ export const availableDatasets: DatasetInfo[] = [
              return {
                 name: 'All Seasons',
                 description: 'Hardy plants for year-round harvests.',
-                locations: data.locations,
-                plants: data.plants,
-                plantings: data.plantings
+                locations: data.locations as any,
+                plants: data.plants as any,
+                plantings: data.plantings as any
             };
         },
     }

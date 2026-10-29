@@ -11,6 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z, genkit} from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { executeWithModelFallback } from '@/ai/model';
 
 const DiagnosePlantInputSchema = z.object({
   photoDataUri: z
@@ -39,9 +40,14 @@ const DiagnosePlantOutputSchema = z.object({
 export type DiagnosePlantOutput = z.infer<typeof DiagnosePlantOutputSchema>;
 
 export async function diagnosePlant(input: DiagnosePlantInput): Promise<DiagnosePlantOutput> {
+  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Gemini API key is required. Please save your API key in Settings.');
+  }
+
   const ai = genkit({
     plugins: [
-      googleAI({ apiKey: input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY }),
+      googleAI({ apiKey }),
     ],
   });
   
@@ -72,8 +78,10 @@ Photo: {{media url=photoDataUri}}
       outputSchema: DiagnosePlantOutputSchema,
     },
     async (flowInput) => {
-      const {output} = await prompt(flowInput, { model: 'googleai/gemini-2.5-flash' });
-      return output!;
+      return executeWithModelFallback<DiagnosePlantOutput>(
+        'diagnosePlant',
+        (model) => prompt(flowInput, { model })
+      );
     }
   );
 
