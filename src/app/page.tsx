@@ -11,7 +11,7 @@ import { usePrevious } from '@/hooks/use-previous';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
 import { loadDataset } from '@/lib/datasets';
-import { Viability, getSuitableSeasons } from '@/lib/viability';
+import { Viability, getSuitableSeasons, getUpcomingViability } from '@/lib/viability';
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
@@ -777,6 +777,9 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             viability: finalViability,
             viabilityReasoning: result.reasoning,
             viabilityAssessedAt: assessedAt,
+            upcomingViability: result.upcomingViability,
+            upcomingTiming: result.upcomingTiming,
+            upcomingReasoning: result.upcomingReasoning,
           });
         }
 
@@ -1022,6 +1025,9 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
               viability: existing.viability,
               viabilityReasoning: existing.viabilityReasoning,
               viabilityAssessedAt: existing.viabilityAssessedAt || new Date().toISOString(),
+              upcomingViability: existing.upcomingViability,
+              upcomingTiming: existing.upcomingTiming,
+              upcomingReasoning: existing.upcomingReasoning,
             });
             newViabilityData[p.id] = existing.viability;
           }
@@ -1129,6 +1135,9 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
               viability: result.viability,
               viabilityReasoning: result.reasoning,
               viabilityAssessedAt: assessedAt,
+              upcomingViability: result.upcomingViability,
+              upcomingTiming: result.upcomingTiming,
+              upcomingReasoning: result.upcomingReasoning,
             });
             newViabilityData[planting.id] = result.viability;
           }
@@ -1283,6 +1292,23 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         });
         return map;
     }, [plantingsWithPlants]);
+
+    const currentUpcomingData = useMemo(() => {
+        const map: Record<string, { upcomingViability?: 'High' | 'Medium'; upcomingTiming?: string; upcomingReasoning?: string }> = {};
+        plantingsWithPlants?.forEach(p => {
+            if (p.upcomingViability) {
+                map[p.id] = {
+                    upcomingViability: p.upcomingViability,
+                    upcomingTiming: p.upcomingTiming,
+                    upcomingReasoning: p.upcomingReasoning,
+                };
+            } else {
+                const currentV = p.viability || currentViabilityData[p.id];
+                map[p.id] = getUpcomingViability(p.plant, activeLocation?.conditions, currentV);
+            }
+        });
+        return map;
+    }, [plantingsWithPlants, currentViabilityData, activeLocation?.conditions]);
 
   const sortedAndFilteredPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
@@ -1742,6 +1768,10 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                               planting={p}
                                               viability={p.viability || currentViabilityData[p.id]}
                                               viabilityReasoning={p.viabilityReasoning || currentReasoningData[p.id]}
+                                              upcomingViability={currentUpcomingData[p.id]?.upcomingViability || p.upcomingViability}
+                                              upcomingTiming={currentUpcomingData[p.id]?.upcomingTiming || p.upcomingTiming}
+                                              upcomingReasoning={currentUpcomingData[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                              currentSeason={activeLocation?.conditions?.currentSeason}
                                               onEdit={() => handleEditPlanting(p)}
                                               onDelete={() => promptDelete(p)}
                                               onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1774,6 +1804,10 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                         planting={p}
                                                         viability={p.viability || currentViabilityData[p.id]}
                                                viabilityReasoning={p.viabilityReasoning || currentReasoningData[p.id]}
+                                                        upcomingViability={currentUpcomingData[p.id]?.upcomingViability || p.upcomingViability}
+                                                        upcomingTiming={currentUpcomingData[p.id]?.upcomingTiming || p.upcomingTiming}
+                                                        upcomingReasoning={currentUpcomingData[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                                        currentSeason={activeLocation?.conditions?.currentSeason}
                                                         onEdit={() => handleEditPlanting(p)}
                                                         onDelete={() => promptDelete(p)}
                                                         onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1814,6 +1848,10 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                   planting={p} 
                                                   viability={p.viability || currentViabilityData[p.id]}
                                                viabilityReasoning={p.viabilityReasoning || currentReasoningData[p.id]}
+                                                  upcomingViability={currentUpcomingData[p.id]?.upcomingViability || p.upcomingViability}
+                                                  upcomingTiming={currentUpcomingData[p.id]?.upcomingTiming || p.upcomingTiming}
+                                                  upcomingReasoning={currentUpcomingData[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                                  currentSeason={activeLocation?.conditions?.currentSeason}
                                                   onEdit={() => handleEditPlanting(p)}
                                                   onDelete={() => promptDelete(p)}
                                                   onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
@@ -1833,6 +1871,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                   plantings={plantingDashboardPlantings}
                                   viabilityData={currentViabilityData}
                                    reasoningData={currentReasoningData}
+                                  upcomingData={currentUpcomingData}
                                   gardenConditions={activeLocation?.conditions}
                                   onOpenAddSheet={() => handleOpenAddSheet('Planting')}
                                   onOpenSettings={() => setIsSettingsSheetOpen(true)}
@@ -1848,6 +1887,10 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                             planting={p} 
                                             viability={p.viability || currentViabilityData[p.id]}
                                             viabilityReasoning={p.viabilityReasoning || currentReasoningData[p.id]}
+                                            upcomingViability={currentUpcomingData[p.id]?.upcomingViability || p.upcomingViability}
+                                            upcomingTiming={currentUpcomingData[p.id]?.upcomingTiming || p.upcomingTiming}
+                                            upcomingReasoning={currentUpcomingData[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                            currentSeason={activeLocation?.conditions?.currentSeason}
                                             onEdit={() => handleEditPlanting(p)}
                                             onDelete={() => promptDelete(p)}
                                             onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}

@@ -32,6 +32,9 @@ export type Planting = {
   viability?: 'High' | 'Medium' | 'Low';
   viabilityReasoning?: string;
   viabilityAssessedAt?: string;
+  upcomingViability?: 'High' | 'Medium';
+  upcomingTiming?: string;
+  upcomingReasoning?: string;
 }
 
 export type Conditions = {

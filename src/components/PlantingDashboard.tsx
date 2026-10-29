@@ -16,13 +16,14 @@ type PlantingDashboardProps = {
     plantings: PlantingWithPlant[];
     viabilityData?: Record<string, Viability | undefined>;
     reasoningData?: Record<string, string | undefined>;
+    upcomingData?: Record<string, { upcomingViability?: 'High' | 'Medium'; upcomingTiming?: string; upcomingReasoning?: string } | undefined>;
     gardenConditions?: Conditions;
     onOpenAddSheet: () => void;
     onOpenSettings: () => void;
     onQuickStatusChange: (planting: PlantingWithPlant, newStatus: StatusHistory['status']) => void;
 };
 
-export function PlantingDashboard({ plantings, viabilityData, reasoningData, onOpenAddSheet, onOpenSettings, onQuickStatusChange }: PlantingDashboardProps) {
+export function PlantingDashboard({ plantings, viabilityData, reasoningData, upcomingData, gardenConditions, onOpenAddSheet, onOpenSettings, onQuickStatusChange }: PlantingDashboardProps) {
 
     const viabilityGroups = useMemo(() => {
         const groups: Record<Viability | 'Unanalyzed', PlantingWithPlant[]> = {
@@ -91,6 +92,10 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, onO
                                             planting={p} 
                                             viability={viabilityData?.[p.id] || p.viability}
                                             viabilityReasoning={reasoningData?.[p.id] || p.viabilityReasoning}
+                                            upcomingViability={upcomingData?.[p.id]?.upcomingViability || p.upcomingViability}
+                                            upcomingTiming={upcomingData?.[p.id]?.upcomingTiming || p.upcomingTiming}
+                                            upcomingReasoning={upcomingData?.[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                            currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
                                         />
                                     ))}
@@ -107,6 +112,10 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, onO
                                             planting={p} 
                                             viability={viabilityData?.[p.id] || p.viability}
                                             viabilityReasoning={reasoningData?.[p.id] || p.viabilityReasoning}
+                                            upcomingViability={upcomingData?.[p.id]?.upcomingViability || p.upcomingViability}
+                                            upcomingTiming={upcomingData?.[p.id]?.upcomingTiming || p.upcomingTiming}
+                                            upcomingReasoning={upcomingData?.[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                            currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
                                         />
                                     ))}
@@ -123,6 +132,10 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, onO
                                             planting={p} 
                                             viability={viabilityData?.[p.id] || p.viability}
                                             viabilityReasoning={reasoningData?.[p.id] || p.viabilityReasoning}
+                                            upcomingViability={upcomingData?.[p.id]?.upcomingViability || p.upcomingViability}
+                                            upcomingTiming={upcomingData?.[p.id]?.upcomingTiming || p.upcomingTiming}
+                                            upcomingReasoning={upcomingData?.[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                            currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
                                         />
                                     ))}
@@ -140,6 +153,10 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, onO
                                             planting={p} 
                                             viability={viabilityData?.[p.id] || p.viability}
                                             viabilityReasoning={reasoningData?.[p.id] || p.viabilityReasoning}
+                                            upcomingViability={upcomingData?.[p.id]?.upcomingViability || p.upcomingViability}
+                                            upcomingTiming={upcomingData?.[p.id]?.upcomingTiming || p.upcomingTiming}
+                                            upcomingReasoning={upcomingData?.[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                            currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
                                         />
                                     ))}

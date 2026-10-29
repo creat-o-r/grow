@@ -21,10 +21,23 @@ type PlantingDashboardCardProps = {
     planting: PlantingWithPlant;
     viability?: Viability;
     viabilityReasoning?: string;
+    upcomingViability?: 'High' | 'Medium';
+    upcomingTiming?: string;
+    upcomingReasoning?: string;
+    currentSeason?: string;
     onQuickStatusChange: (planting: PlantingWithPlant, newStatus: StatusHistory['status']) => void;
 };
 
-export function PlantingDashboardCard({ planting, viability, viabilityReasoning, onQuickStatusChange }: PlantingDashboardCardProps) {
+export function PlantingDashboardCard({ 
+    planting, 
+    viability, 
+    viabilityReasoning, 
+    upcomingViability,
+    upcomingTiming,
+    upcomingReasoning,
+    currentSeason,
+    onQuickStatusChange 
+}: PlantingDashboardCardProps) {
     const [seedsOnHand, setSeedsOnHand] = useState<number | string>('');
     const [plannedQty, setPlannedQty] = useState<number | string>(planting.plannedQty || '');
     const [isSavingPlannedQty, setIsSavingPlannedQty] = useState(false);
@@ -132,6 +145,10 @@ export function PlantingDashboardCard({ planting, viability, viabilityReasoning,
                             viability={effectiveViability} 
                             reasoning={viabilityReasoning || planting.viabilityReasoning} 
                             plantName={planting.name}
+                            upcomingViability={upcomingViability || planting.upcomingViability}
+                            upcomingTiming={upcomingTiming || planting.upcomingTiming}
+                            upcomingReasoning={upcomingReasoning || planting.upcomingReasoning}
+                            currentSeason={currentSeason}
                         />
                     )}
                     {latestStatus && (

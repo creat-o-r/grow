@@ -135,4 +135,58 @@ export const getSuitableSeasons = (plant: Plant): string[] => {
     return seasons;
 };
 
+export const getUpcomingViability = (
+    plant: Plant,
+    conditions?: Conditions,
+    currentViability?: Viability
+): { upcomingViability?: 'High' | 'Medium'; upcomingTiming?: string; upcomingReasoning?: string } => {
+    if (!conditions?.currentSeason || !currentViability || currentViability === 'High') {
+        return {};
+    }
+
+    const currentSeason = conditions.currentSeason;
+    const suitableSeasons = getSuitableSeasons(plant);
+
+    // If the plant is suitable for this season, but current viability is Low or Medium
+    if (suitableSeasons.includes(currentSeason)) {
+        const text = `${plant.optimalConditions} ${plant.germinationNeeds}`.toLowerCase();
+        const needsWarm = text.includes('warm') || text.includes('after frost') || text.includes('heat') || text.includes('summer');
+        const needsCool = text.includes('cool') || text.includes('cold') || text.includes('frost');
+
+        if (currentSeason === 'Spring' && (needsWarm || text.includes('late spring') || text.includes('mid spring'))) {
+            return {
+                upcomingViability: 'High',
+                upcomingTiming: 'Mid-to-late Spring',
+                upcomingReasoning: 'Viability increases to High as soil warms and frost risk passes later this Spring.',
+            };
+        }
+
+        if (currentSeason === 'Summer' && (needsCool || text.includes('late summer'))) {
+            return {
+                upcomingViability: 'High',
+                upcomingTiming: 'Late Summer',
+                upcomingReasoning: 'Expected to reach High viability as peak summer heat begins to moderate.',
+            };
+        }
+
+        if (currentSeason === 'Autumn' && (needsCool || text.includes('early autumn') || text.includes('early fall'))) {
+            return {
+                upcomingViability: currentViability === 'Low' ? 'Medium' : 'High',
+                upcomingTiming: 'Mid Autumn',
+                upcomingReasoning: 'Suitable for Autumn growing as seasonal temperatures stabilize.',
+            };
+        }
+
+        if (currentViability === 'Low') {
+            return {
+                upcomingViability: 'Medium',
+                upcomingTiming: `Later in ${currentSeason}`,
+                upcomingReasoning: `Plant matches ${currentSeason} calendar; conditions expected to improve as season progresses.`,
+            };
+        }
+    }
+
+    return {};
+};
+
     

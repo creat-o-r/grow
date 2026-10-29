@@ -19,6 +19,10 @@ type PlantCardProps = {
   planting: PlantingWithPlant;
   viability?: Viability;
   viabilityReasoning?: string;
+  upcomingViability?: 'High' | 'Medium';
+  upcomingTiming?: string;
+  upcomingReasoning?: string;
+  currentSeason?: string;
   onEdit: () => void;
   onDelete: () => void;
   onMarkAsDuplicate: () => void;
@@ -34,6 +38,10 @@ export function PlantCard({
     planting, 
     viability, 
     viabilityReasoning,
+    upcomingViability,
+    upcomingTiming,
+    upcomingReasoning,
+    currentSeason,
     onEdit, 
     onDelete, 
     onMarkAsDuplicate,
@@ -113,6 +121,10 @@ export function PlantCard({
                         reasoning={viabilityReasoning || planting.viabilityReasoning} 
                         plantName={planting.name}
                         gardenName={planting.garden?.name}
+                        upcomingViability={upcomingViability || planting.upcomingViability}
+                        upcomingTiming={upcomingTiming || planting.upcomingTiming}
+                        upcomingReasoning={upcomingReasoning || planting.upcomingReasoning}
+                        currentSeason={currentSeason || planting.garden?.conditions?.currentSeason}
                       />
                     )}
                     {latestStatus && (

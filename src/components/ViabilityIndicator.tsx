@@ -6,20 +6,28 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { Viability } from '@/lib/viability';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Sparkles, Info } from 'lucide-react';
+import { Sparkles, Info, TrendingUp } from 'lucide-react';
 
 type ViabilityIndicatorProps = {
   viability: Viability;
   reasoning?: string;
   plantName?: string;
   gardenName?: string;
+  upcomingViability?: 'High' | 'Medium';
+  upcomingTiming?: string;
+  upcomingReasoning?: string;
+  currentSeason?: string;
 };
 
 export function ViabilityIndicator({ 
   viability, 
   reasoning, 
   plantName, 
-  gardenName 
+  gardenName,
+  upcomingViability,
+  upcomingTiming,
+  upcomingReasoning,
+  currentSeason,
 }: ViabilityIndicatorProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -47,6 +55,10 @@ export function ViabilityIndicator({
     return null;
   }
 
+  // Check if upcoming viability is higher than current
+  const viabilityRanks: Record<Viability, number> = { High: 2, Medium: 1, Low: 0 };
+  const hasUpcomingHigher = upcomingViability && viabilityRanks[upcomingViability] > viabilityRanks[viability];
+
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
@@ -58,8 +70,8 @@ export function ViabilityIndicator({
           }}
           onMouseEnter={() => setIsOpen(true)}
           onMouseLeave={() => setIsOpen(false)}
-          className="focus:outline-none focus:ring-1 focus:ring-primary rounded"
-          title="Click or hover to view AI reasoning"
+          className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap"
+          title="Click or hover to view AI reasoning and seasonal viability"
         >
           <Badge 
             variant="outline" 
@@ -68,10 +80,25 @@ export function ViabilityIndicator({
             <span>{config.text}</span>
             <Info className="h-3 w-3 opacity-60 ml-0.5" />
           </Badge>
+
+          {hasUpcomingHigher && (
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[11px] font-medium cursor-pointer transition-colors flex items-center gap-1 select-none border-dashed",
+                upcomingViability === 'High' 
+                  ? "bg-green-50 text-green-700 border-green-400 dark:bg-green-950/40 dark:text-green-300 dark:border-green-700" 
+                  : "bg-yellow-50 text-yellow-700 border-yellow-400 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-700"
+              )}
+            >
+              <TrendingUp className="h-3 w-3 shrink-0" />
+              <span>↑ {upcomingViability} {upcomingTiming ? `(${upcomingTiming})` : 'soon'}</span>
+            </Badge>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent 
-        className={cn("w-80 sm:w-96 p-4 text-sm z-50 shadow-xl space-y-2.5 bg-popover text-popover-foreground", config.borderClass)}
+        className={cn("w-80 sm:w-96 p-4 text-sm z-50 shadow-xl space-y-3 bg-popover text-popover-foreground", config.borderClass)}
         side="top"
         align="start"
         onClick={(e) => e.stopPropagation()}
@@ -83,9 +110,11 @@ export function ViabilityIndicator({
             <Sparkles className="h-3.5 w-3.5 text-primary" />
             <span>AI Viability Analysis</span>
           </div>
-          <Badge variant="outline" className={cn("text-xs font-normal", config.className)}>
-            {viability}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            <Badge variant="outline" className={cn("text-xs font-normal", config.className)}>
+              {viability} (Current)
+            </Badge>
+          </div>
         </div>
 
         {plantName && (
@@ -94,8 +123,36 @@ export function ViabilityIndicator({
           </p>
         )}
 
-        <div className="text-xs text-muted-foreground whitespace-pre-wrap max-h-56 overflow-y-auto leading-relaxed pr-1 font-sans">
-          {reasoning ? reasoning : "No detailed reasoning saved for this plant yet. Click 'Viability Analysis' in the plant menu to generate a fresh assessment."}
+        {/* Highlight upcoming higher viability in current season */}
+        {hasUpcomingHigher && (
+          <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 space-y-1">
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="flex items-center gap-1.5 text-primary">
+                <TrendingUp className="h-3.5 w-3.5" />
+                Upcoming in {currentSeason ? currentSeason : 'Current Season'}
+              </span>
+              <Badge className={cn("text-[10px] px-1.5 py-0 font-mono", upcomingViability === 'High' ? "bg-green-600 text-white" : "bg-yellow-500 text-white")}>
+                {upcomingViability} Viability
+              </Badge>
+            </div>
+            {upcomingTiming && (
+              <p className="text-[11px] font-medium text-foreground/90">
+                Timing: {upcomingTiming}
+              </p>
+            )}
+            {upcomingReasoning && (
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                {upcomingReasoning}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="space-y-1">
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Current Assessment</span>
+          <div className="text-xs text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed pr-1 font-sans">
+            {reasoning ? reasoning : "No detailed reasoning saved for this plant yet. Click 'Viability Analysis' in the plant menu to generate a fresh assessment."}
+          </div>
         </div>
       </PopoverContent>
     </Popover>
