@@ -59,6 +59,9 @@ const CreateDatasetInputSchema = z.object({
   existingPlants: z.array(z.string()).optional().describe('List of plant species already present in the user\'s active garden.'),
   apiKeys: z.object({
       gemini: z.string().optional(),
+      groq: z.string().optional(),
+      openrouter: z.string().optional(),
+      ollamaUrl: z.string().optional(),
   }).optional(),
 });
 type CreateDatasetInput = z.infer<typeof CreateDatasetInputSchema>;
@@ -75,14 +78,21 @@ export async function createDataset(
   input: CreateDatasetInput,
 ): Promise<CreateDatasetOutput> {
 
-  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Gemini API key is required. Please save your API key in Settings.');
+  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY;
+  const hasFallbackKey = Boolean(
+    input.apiKeys?.groq ||
+    input.apiKeys?.openrouter ||
+    input.apiKeys?.ollamaUrl ||
+    process.env.GROQ_API_KEY ||
+    process.env.OPENROUTER_API_KEY
+  );
+  if (!apiKey && !hasFallbackKey) {
+    throw new Error('At least one free AI provider key (Gemini, Groq, OpenRouter, or Local Ollama) is required in Settings.');
   }
 
   const ai = genkit({
     plugins: [
-      googleAI({ apiKey }),
+      googleAI({ apiKey: apiKey || 'fallback-only-key' }),
     ],
   });
 
@@ -163,12 +173,143 @@ Ensure the output is structured exactly according to the provided Zod output sch
     },
     async (flowInput) => {
       console.log('createDataset input activeLocation:', JSON.stringify(flowInput.activeLocation));
-      const result = await executeWithModelFallback<CreateDatasetOutput>(
+      const activeLocSummary = flowInput.activeLocation
+        ? `Active Garden: Name="${flowInput.activeLocation.name}", Location="${flowInput.activeLocation.location}", TempUnit="${flowInput.activeLocation.temperatureUnit}", Conditions=${JSON.stringify(flowInput.activeLocation.conditions)}, Systems="${flowInput.activeLocation.growingSystems || ''}", Methods="${flowInput.activeLocation.growingMethods || ''}". Retain this exact active location as the single item in the "locations" array.`
+        : `Generate 1 garden location object in "locations" with id="ai-garden-1", a creative name, plausible city/country, temperatureUnit ("C" or "F"), and conditions {temperature, sunlight, soil, currentSeason ("Spring"|"Summer"|"Autumn"|"Winter")}.`;
+
+      const existingPlantsRules =
+        flowInput.existingPlants && flowInput.existingPlants.length > 0
+          ? `Existing plants in this garden: ${flowInput.existingPlants.join(', ')}. Prioritize fresh species NOT already in the garden. If you include a cultivar/variation of an existing plant for a strong horticultural reason, set "isExistingVariation": true, "variationReason": "<explanation>", and "relatedExistingPlant": "<existing plant>". Otherwise set "isExistingVariation": false.`
+          : `Set "isExistingVariation": false on all plants.`;
+
+      const rawResult = await executeWithModelFallback<CreateDatasetOutput>(
         `createDataset(${flowInput.theme})`,
-        (model) => prompt(flowInput, { model })
+        (model) => prompt(flowInput, { model }),
+        {
+          hasGeminiKey: Boolean(apiKey),
+          systemPrompt: `You are a world-class horticulturist and garden designer. Return ONLY valid JSON matching this exact structure:
+{
+  "locations": [
+    {
+      "id": "string",
+      "name": "string",
+      "location": "string",
+      "temperatureUnit": "C" | "F",
+      "conditions": {
+        "temperature": "string",
+        "sunlight": "string",
+        "soil": "string",
+        "currentSeason": "Spring" | "Summer" | "Autumn" | "Winter"
+      },
+      "growingSystems": "string",
+      "growingMethods": "string"
+    }
+  ],
+  "plants": [
+    {
+      "id": "ai-plant-1",
+      "species": "Common Name (Scientific Name)",
+      "germinationNeeds": "Detailed germination instructions including explicit season (Spring/Summer/Autumn/Winter)",
+      "optimalConditions": "Detailed optimal conditions including explicit season",
+      "isExistingVariation": false,
+      "variationReason": "optional string",
+      "relatedExistingPlant": "optional string"
+    }
+  ],
+  "plantings": [
+    {
+      "id": "ai-planting-1",
+      "plantId": "ai-plant-1",
+      "gardenId": "string matching locations[0].id",
+      "name": "Friendly planting name",
+      "createdAt": "${new Date().toISOString()}",
+      "history": [
+        { "id": "h-1", "status": "Wishlist", "date": "${new Date().toISOString()}" }
+      ]
+    }
+  ]
+}`,
+          userPrompt: `Generate a dataset of 5 to 8 distinct plants for Theme: "${flowInput.theme}" (Current Month: ${flowInput.currentMonth || 'Current'}).
+${activeLocSummary}
+${existingPlantsRules}
+CRITICAL: Every item in "plants" MUST have a corresponding item in "plantings" whose "plantId" exactly matches "plant.id".`,
+          groqApiKey: flowInput.apiKeys?.groq,
+          openrouterApiKey: flowInput.apiKeys?.openrouter,
+          ollamaUrl: flowInput.apiKeys?.ollamaUrl,
+        }
       );
-      console.log('createDataset output locations:', JSON.stringify(result.locations));
-      return result;
+
+      // Normalize fallback model output so UI always receives linked locations, plants, and plantings
+      const fallbackLoc = flowInput.activeLocation || {
+        id: 'ai-garden-1',
+        name: flowInput.theme.slice(0, 32) || 'AI Generated Garden',
+        location: '',
+        temperatureUnit: 'C' as const,
+        conditions: {
+          temperature: '18°C',
+          sunlight: 'Full sun',
+          soil: 'Well-drained loam',
+          currentSeason: 'Spring' as const,
+        },
+      };
+      const normalizedLocations =
+        Array.isArray(rawResult?.locations) && rawResult.locations.length > 0
+          ? rawResult.locations.map((loc, i) => ({
+              ...fallbackLoc,
+              ...loc,
+              id: loc.id || (i === 0 ? fallbackLoc.id : `ai-garden-${i + 1}`),
+              conditions: {
+                ...fallbackLoc.conditions,
+                ...(loc.conditions || {}),
+              },
+            }))
+          : [fallbackLoc];
+
+      const primaryGardenId = normalizedLocations[0].id;
+      const normalizedPlants = Array.isArray(rawResult?.plants)
+        ? rawResult.plants.map((p, idx) => ({
+            ...p,
+            id: p.id || `ai-plant-${idx + 1}`,
+            species: p.species || `Plant ${idx + 1}`,
+            germinationNeeds: p.germinationNeeds || 'Sow in Spring in moist soil.',
+            optimalConditions: p.optimalConditions || 'Full sun to partial shade in Spring and Summer.',
+          }))
+        : [];
+
+      const rawPlantings = Array.isArray(rawResult?.plantings) ? rawResult.plantings : [];
+      const normalizedPlantings = normalizedPlants.map((plant, idx) => {
+        const matchedPlanting =
+          rawPlantings.find((pl) => pl.plantId === plant.id) || rawPlantings[idx];
+        return {
+          id: matchedPlanting?.id || `ai-planting-${idx + 1}`,
+          plantId: plant.id,
+          gardenId: primaryGardenId,
+          name: matchedPlanting?.name || plant.species.split('(')[0].trim(),
+          createdAt: matchedPlanting?.createdAt || new Date().toISOString(),
+          history:
+            Array.isArray(matchedPlanting?.history) && matchedPlanting.history.length > 0
+              ? matchedPlanting.history
+              : [
+                  {
+                    id: `hist-${idx + 1}`,
+                    status: 'Wishlist' as const,
+                    date: new Date().toISOString(),
+                  },
+                ],
+        };
+      });
+
+      const finalResult: CreateDatasetOutput = {
+        locations: normalizedLocations,
+        plants: normalizedPlants,
+        plantings: normalizedPlantings,
+      };
+      if ((rawResult as any)?._modelUsed) {
+        (finalResult as any)._modelUsed = (rawResult as any)._modelUsed;
+      }
+
+      console.log('createDataset output locations:', JSON.stringify(finalResult.locations));
+      return finalResult;
     }
   );
 

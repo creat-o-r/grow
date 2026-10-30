@@ -22,6 +22,9 @@ const DiagnosePlantInputSchema = z.object({
   description: z.string().describe('The description of the plant.'),
   apiKeys: z.object({
       gemini: z.string().optional(),
+      groq: z.string().optional(),
+      openrouter: z.string().optional(),
+      ollamaUrl: z.string().optional(),
   }).optional(),
 });
 export type DiagnosePlantInput = z.infer<typeof DiagnosePlantInputSchema>;
@@ -40,14 +43,17 @@ const DiagnosePlantOutputSchema = z.object({
 export type DiagnosePlantOutput = z.infer<typeof DiagnosePlantOutputSchema>;
 
 export async function diagnosePlant(input: DiagnosePlantInput): Promise<DiagnosePlantOutput> {
-  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Gemini API key is required. Please save your API key in Settings.');
+  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY || '';
+  const hasAnyFreeKey = Boolean(
+    apiKey || input.apiKeys?.groq || input.apiKeys?.openrouter || input.apiKeys?.ollamaUrl
+  );
+  if (!hasAnyFreeKey) {
+    throw new Error('At least one free AI key (Gemini, Groq, OpenRouter, or Local Ollama) is required. Please save a key in Settings.');
   }
 
   const ai = genkit({
     plugins: [
-      googleAI({ apiKey }),
+      googleAI({ apiKey: apiKey || 'unused-key-fallback' }),
     ],
   });
   
@@ -80,7 +86,16 @@ Photo: {{media url=photoDataUri}}
     async (flowInput) => {
       return executeWithModelFallback<DiagnosePlantOutput>(
         'diagnosePlant',
-        (model) => prompt(flowInput, { model })
+        (model) => prompt(flowInput, { model }),
+        {
+          hasGeminiKey: Boolean(apiKey),
+          groqApiKey: input.apiKeys?.groq,
+          openrouterApiKey: input.apiKeys?.openrouter,
+          ollamaUrl: input.apiKeys?.ollamaUrl,
+          systemPrompt:
+            'You are an expert botanist. Return ONLY valid JSON with: { "identification": { "isPlant": true, "commonName": "...", "species": "..." }, "diagnosis": { "isHealthy": true, "diagnosis": "..." } }.',
+          userPrompt: `Identify and diagnose this plant description: ${flowInput.description}`,
+        }
       );
     }
   );

@@ -7,23 +7,57 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { Loader2, Sparkles, AlertTriangle, CheckCircle, Replace, PlusCircle, Wand2, RefreshCw, Trash2, ExternalLink, Square, GitMerge, Check, Eye } from 'lucide-react';
+import {
+  Loader2,
+  Sparkles,
+  AlertTriangle,
+  CheckCircle,
+  Replace,
+  PlusCircle,
+  Wand2,
+  RefreshCw,
+  Trash2,
+  ExternalLink,
+  Square,
+  GitMerge,
+  Check,
+  Eye,
+  Plus,
+  Download,
+  Upload,
+  ClipboardPaste,
+  Sprout,
+} from 'lucide-react';
 import { createDataset } from '@/ai/flows/create-dataset-flow';
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
-import type { AiDataset, AiLog, Plant, Planting, PlantingWithPlant, GardenLocation } from '@/lib/types';
+import type {
+  AiDataset,
+  AiLog,
+  Plant,
+  Planting,
+  PlantingWithPlant,
+  GardenLocation,
+  FreeLlmConfig,
+  StatusHistory,
+} from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/db';
 import { ToastAction } from '@/components/ui/toast';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { PlantForm } from '@/components/PlantForm';
+import { availableDatasets, loadDataset } from '@/lib/datasets';
+import { decodeSeedPackFromInput } from '@/lib/seed-pack';
 
 type ImportMode = 'replace' | 'add' | 'new';
+export type UnifiedImportTab = 'single' | 'ai-generate' | 'import-pack';
 
 export type DuplicateResolution = {
   newPlanting: Planting;
@@ -35,17 +69,47 @@ export type DuplicateResolution = {
 type AiDataImportSheetProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  apiKeys: { gemini: string };
+  initialTab?: UnifiedImportTab;
+  apiKeys: FreeLlmConfig;
   areApiKeysSet: boolean;
   onComplete: () => void;
   activeLocation?: GardenLocation | null;
   existingPlantings?: PlantingWithPlant[];
+  initialDataset?: { data: AiDataset; title: string } | null;
+  onClearInitialDataset?: () => void;
+  // Single Plant (PlantForm) & Export props for unified hub:
+  plantingToEdit?: PlantingWithPlant | null;
+  defaultStatus?: StatusHistory['status'];
+  onPlantSubmit?: (plantingData: any, plantData: any) => void;
+  onConfigureApiKey?: () => void;
+  plants?: Plant[];
+  onPublish?: () => void;
 };
 
-export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet, onComplete, activeLocation, existingPlantings }: AiDataImportSheetProps) {
+export function AiDataImportSheet({
+  isOpen,
+  onOpenChange,
+  initialTab = 'single',
+  apiKeys,
+  areApiKeysSet,
+  onComplete,
+  activeLocation,
+  existingPlantings,
+  initialDataset,
+  onClearInitialDataset,
+  plantingToEdit,
+  defaultStatus = 'Wishlist',
+  onPlantSubmit,
+  onConfigureApiKey,
+  plants = [],
+  onPublish,
+}: AiDataImportSheetProps) {
+  const [activeTab, setActiveTab] = useState<UnifiedImportTab>(initialTab);
   const [theme, setTheme] = useState('');
   const [refinement, setRefinement] = useState('');
   const [generatedData, setGeneratedData] = useState<AiDataset | null>(null);
+  const [loadedPackTitle, setLoadedPackTitle] = useState<string | null>(null);
+  const [clipboardInput, setClipboardInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>(activeLocation ? 'add' : 'new');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -66,8 +130,64 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
   useEffect(() => {
     if (activeLocation) {
       setImportMode('add');
+    } else {
+      setImportMode('new');
     }
   }, [activeLocation, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (plantingToEdit) {
+        setActiveTab('single');
+      } else if (initialDataset?.data) {
+        setActiveTab('import-pack');
+        setGeneratedData(initialDataset.data);
+        setLoadedPackTitle(initialDataset.title);
+        setTheme(initialDataset.title);
+        setIncludedVariationIds(new Set());
+        setError(null);
+      } else if (initialTab) {
+        setActiveTab(initialTab);
+      }
+    }
+  }, [isOpen, initialTab, plantingToEdit, initialDataset]);
+
+  const handleLoadStarterDataset = async (datasetKey: string) => {
+    try {
+      setError(null);
+      const ds = await loadDataset(datasetKey);
+      setGeneratedData(ds);
+      setLoadedPackTitle(ds.name);
+      setTheme(ds.name);
+      setIncludedVariationIds(new Set());
+      toast({
+        title: `Loaded "${ds.name}"`,
+        description: `Review ${ds.plantings.length} plants below and choose how to import them.`,
+      });
+    } catch (err: any) {
+      setError(err?.message || 'Could not load starter dataset.');
+    }
+  };
+
+  const handleDecodeClipboardPack = () => {
+    if (!clipboardInput.trim()) return;
+    try {
+      setError(null);
+      const decoded = decodeSeedPackFromInput(clipboardInput);
+      const packName = decoded.locations?.[0]?.name || 'Imported Seed Pack';
+      setGeneratedData(decoded);
+      setLoadedPackTitle(packName);
+      setTheme(packName);
+      setClipboardInput('');
+      setIncludedVariationIds(new Set());
+      toast({
+        title: `Loaded "${packName}"`,
+        description: `Review ${decoded.plantings?.length || 0} plants below and choose your garden import option.`,
+      });
+    } catch {
+      setError('Invalid Seed Pack or JSON. Paste a valid ?pack= shareable link or JSON exported from Grow.');
+    }
+  };
 
   const handleStopGeneration = () => {
     if (abortControllerRef.current) {
@@ -95,6 +215,8 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
       setTheme('');
       setRefinement('');
       setGeneratedData(null);
+      setLoadedPackTitle(null);
+      setClipboardInput('');
       setError(null);
       setImportMode(activeLocation ? 'add' : 'new');
       setIsGenerating(false);
@@ -102,6 +224,7 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
       setIncludedVariationIds(new Set());
       setPendingDuplicates([]);
       setIsMergeModalOpen(false);
+      onClearInitialDataset?.();
     }, 300);
   };
 
@@ -317,12 +440,16 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
           await db.locations.bulkAdd(generatedData.locations);
           await db.plants.bulkAdd(generatedData.plants);
           await db.plantings.bulkAdd(generatedData.plantings);
-  
+
+          if (typeof window !== 'undefined' && generatedData.locations[0]?.id) {
+            localStorage.setItem('grow_activeLocation', generatedData.locations[0].id);
+          }
+
           toast({
             title: 'Import Successful',
             description: 'Your garden has been replaced with the new dataset.',
           });
-  
+
         } else if (importMode === 'new') {
             const now = Date.now();
             const newGardenId = `garden-${now}`;
@@ -350,6 +477,10 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
           await db.locations.add(newLocation);
           await db.plants.bulkAdd(newPlants);
           await db.plantings.bulkAdd(newPlantings);
+
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('grow_activeLocation', newGardenId);
+          }
 
           toast({
             title: 'Import Successful',
@@ -585,333 +716,528 @@ export function AiDataImportSheet({ isOpen, onOpenChange, apiKeys, areApiKeysSet
     <Sheet open={isOpen} onOpenChange={handleClose}>
       <SheetContent className="sm:max-w-2xl w-[90vw] flex flex-col">
         <SheetHeader>
-          <SheetTitle className="font-headline">Generate Data with AI</SheetTitle>
+          <SheetTitle className="font-headline">
+            {plantingToEdit
+              ? `Edit Plant: ${plantingToEdit.name}`
+              : 'Add Plants & Import Garden Datasets'}
+          </SheetTitle>
           <SheetDescription>
-            Describe a garden theme, and the AI will generate a dataset for you. You can then refine it conversationally.
+            {plantingToEdit
+              ? 'Update plant details, AI search species info, or log status history.'
+              : 'Add a single plant (with AI search or camera scan), generate a custom dataset with AI, or import a starter pack / shared seed link.'}
           </SheetDescription>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto pr-6 -mr-6">
-            <div className="space-y-6">
-                 {!areApiKeysSet ? (
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => {
+            setError(null);
+            setActiveTab(val as UnifiedImportTab);
+          }}
+          className="flex-1 flex flex-col min-h-0"
+        >
+          <TabsList className="grid w-full grid-cols-3 mb-2">
+            <TabsTrigger value="single" className="text-xs sm:text-sm gap-1.5">
+              <Sprout className="h-3.5 w-3.5 shrink-0" />
+              <span>{plantingToEdit ? 'Edit Plant' : 'Single Plant'}</span>
+            </TabsTrigger>
+            <TabsTrigger value="ai-generate" className="text-xs sm:text-sm gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 shrink-0" />
+              <span>Generate with AI</span>
+            </TabsTrigger>
+            <TabsTrigger value="import-pack" className="text-xs sm:text-sm gap-1.5">
+              <Upload className="h-3.5 w-3.5 shrink-0" />
+              <span>Import Dataset</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="flex-1 overflow-y-auto pr-6 -mr-6">
+            {/* TAB 1: SINGLE PLANT (AI Search, Camera Scan, Species Selector, Status History) */}
+            <TabsContent value="single" className="mt-0">
+              {onPlantSubmit ? (
+                <PlantForm
+                  plantingToEdit={plantingToEdit}
+                  defaultStatus={defaultStatus}
+                  onSubmit={(plantingData, plantData) => {
+                    onPlantSubmit(plantingData, plantData);
+                    handleClose();
+                  }}
+                  onConfigureApiKey={() => {
+                    handleClose();
+                    onConfigureApiKey?.();
+                  }}
+                  onSwitchToAiGenerateTab={() => setActiveTab('ai-generate')}
+                  onSwitchToImportTab={() => setActiveTab('import-pack')}
+                  areApiKeysSet={areApiKeysSet}
+                  apiKeys={apiKeys}
+                  plants={plants}
+                />
+              ) : null}
+            </TabsContent>
+
+            {/* TAB 2 & TAB 3: GENERATE WITH AI & IMPORT DATASET / SEED PACK */}
+            <div className={activeTab === 'single' ? 'hidden' : 'space-y-6 py-4'}>
+              {activeTab === 'ai-generate' && (
+                <div className="space-y-4">
+                  {!areApiKeysSet ? (
                     <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>API Key Required</AlertTitle>
-                    <AlertDescription>
-                        You must save a Gemini API key in the Settings to use this feature.
-                    </AlertDescription>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>AI Key Required</AlertTitle>
+                      <AlertDescription className="flex flex-col gap-2">
+                        <span>
+                          Save a free AI provider key (Gemini, Groq, OpenRouter, or Local Ollama) in Settings to generate custom datasets with AI.
+                        </span>
+                        {onConfigureApiKey && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-fit"
+                            onClick={() => {
+                              handleClose();
+                              onConfigureApiKey();
+                            }}
+                          >
+                            Configure Free AI Key in Settings
+                          </Button>
+                        )}
+                      </AlertDescription>
                     </Alert>
-                ) : (
-                    <div className="space-y-2">
-                    <Label htmlFor="ai-theme">Garden Theme</Label>
-                    <div className="flex gap-2">
-                        <Input 
-                            id="ai-theme" 
-                            placeholder="e.g., A beginner-friendly herb garden"
-                            value={theme}
-                            onChange={(e) => setTheme(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && !isGenerating && handleGenerate()}
-                            disabled={isGenerating}
-                        />
-                        {isGenerating && !generatedData ? (
-                            <Button variant="destructive" onClick={handleStopGeneration}>
+                  ) : (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="font-headline text-lg flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-primary" />
+                          <span>Generate a Garden Dataset with AI</span>
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          Describe a garden theme, microclimate, or culinary goal and refine it conversationally.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="ai-theme">Garden Theme</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              id="ai-theme"
+                              placeholder="e.g., A beginner-friendly herb garden, shady balcony greens..."
+                              value={theme}
+                              onChange={(e) => setTheme(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && !isGenerating && handleGenerate()}
+                              disabled={isGenerating}
+                            />
+                            {isGenerating && !generatedData ? (
+                              <Button variant="destructive" onClick={handleStopGeneration}>
                                 <Square className="mr-2 h-4 w-4 fill-current" />
                                 Stop
-                            </Button>
-                        ) : (
-                            <Button onClick={() => handleGenerate()} disabled={!theme.trim() || isGenerating}>
+                              </Button>
+                            ) : (
+                              <Button onClick={() => handleGenerate()} disabled={!theme.trim() || isGenerating}>
                                 <Sparkles className="mr-2 h-4 w-4" />
                                 Generate
-                            </Button>
-                        )}
-                    </div>
-                     {activeLocation && (
-                        <div className="text-xs text-muted-foreground space-y-1">
-                          <p>
-                            Using active garden <strong>"{activeLocation.name}"</strong>
-                            {activeLocation.location ? ` (${activeLocation.location})` : ' (no city/location set)'} as context.
-                          </p>
-                          {!activeLocation.location && (
-                            <p className="text-amber-600 dark:text-amber-400">
-                              💡 Tip: Set a city on "{activeLocation.name}" and click "Analyse Conditions" so the AI generates plants for your actual climate and season.
-                            </p>
+                              </Button>
+                            )}
+                          </div>
+                          {activeLocation && (
+                            <div className="text-xs text-muted-foreground space-y-1">
+                              <p>
+                                Using active garden <strong>"{activeLocation.name}"</strong>
+                                {activeLocation.location ? ` (${activeLocation.location})` : ' (no city/location set)'} as context.
+                              </p>
+                              {!activeLocation.location && (
+                                <p className="text-amber-600 dark:text-amber-400">
+                                  💡 Tip: Set a city on "{activeLocation.name}" and click "Analyse Conditions" so the AI generates plants for your actual climate and season.
+                                </p>
+                              )}
+                            </div>
                           )}
                         </div>
-                     )}
-                    </div>
-                )}
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
 
-                {error && (
-                    <Alert variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>An Error Occurred</AlertTitle>
-                        <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                )}
+              {activeTab === 'import-pack' && (
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="font-headline text-lg">
+                        Starter & Regional Datasets
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        Select any starter dataset below to preview its plants, inspect variations against your garden, and choose how to import.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {availableDatasets.map((dataset) => {
+                          const isSelected = loadedPackTitle === dataset.name;
+                          return (
+                            <Button
+                              key={dataset.key}
+                              type="button"
+                              onClick={() => handleLoadStarterDataset(dataset.key)}
+                              variant={isSelected ? 'default' : 'outline'}
+                              size="sm"
+                              className="justify-start h-auto py-2.5 px-3 text-left flex flex-col items-start gap-0.5"
+                            >
+                              <span className="font-medium flex items-center gap-1.5 text-xs sm:text-sm">
+                                <Download className="h-3.5 w-3.5 shrink-0" />
+                                <span>{dataset.name}</span>
+                              </span>
+                              <span
+                                className={
+                                  isSelected
+                                    ? 'text-[11px] text-primary-foreground/80 line-clamp-1 font-normal'
+                                    : 'text-[11px] text-muted-foreground line-clamp-1 font-normal'
+                                }
+                              >
+                                {dataset.description}
+                              </span>
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                {(isGenerating && !generatedData) && (
-                    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 gap-4">
-                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                        <p className="text-muted-foreground text-sm">Generating plant recommendations with AI...</p>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
-                          onClick={handleStopGeneration}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="font-headline text-lg">
+                        Import from Seed Pack Link or Clipboard JSON
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        Paste a shareable <code>?pack=...</code> URL or exported JSON backup to review and import into your garden.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <Textarea
+                        placeholder="Paste ?pack=... URL or exported JSON here..."
+                        value={clipboardInput}
+                        onChange={(e) => setClipboardInput(e.target.value)}
+                        rows={3}
+                        className="font-mono text-xs"
+                      />
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Button
+                          type="button"
+                          onClick={handleDecodeClipboardPack}
+                          disabled={!clipboardInput.trim()}
+                          className="flex-1"
                         >
-                          <Square className="mr-1.5 h-3.5 w-3.5 fill-current" />
-                          Stop Generating
+                          <ClipboardPaste className="mr-2 h-4 w-4" />
+                          Load Pack for Review & Import
                         </Button>
+                        {onPublish && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onPublish}
+                            className="sm:w-auto"
+                          >
+                            <Upload className="mr-2 h-4 w-4" />
+                            Export Current Garden
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>An Error Occurred</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {isGenerating && !generatedData && (
+                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 gap-4">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                  <p className="text-muted-foreground text-sm">Generating plant recommendations with AI...</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
+                    onClick={handleStopGeneration}
+                  >
+                    <Square className="mr-1.5 h-3.5 w-3.5 fill-current" />
+                    Stop Generating
+                  </Button>
+                </div>
+              )}
+
+              {/* UNIFIED REVIEW & 3-MODE GARDEN IMPORT OPTIONS (shared by AI Generate & Dataset/Seed Pack Import) */}
+              {generatedData && (
+                <div className="space-y-6 animate-in fade-in-50 border-t pt-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold text-lg">
+                        {importMode === 'add' && activeLocation
+                          ? `Review Plants for "${activeLocation.name}"`
+                          : 'Review Your New Garden'}
+                      </h3>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-muted-foreground"
+                        onClick={() => {
+                          setGeneratedData(null);
+                          setLoadedPackTitle(null);
+                        }}
+                      >
+                        Clear Review
+                      </Button>
                     </div>
-                )}
-            
-                {generatedData && (
-                     <div className="space-y-6 animate-in fade-in-50">
-                        <div className="space-y-4">
-                            <h3 className="font-semibold text-lg">
-                                {importMode === 'add' && activeLocation 
-                                    ? `Review Plants for "${activeLocation.name}"` 
-                                    : 'Review Your New Garden'}
-                            </h3>
-                            <Card>
-                                <CardHeader>
-                                     <div className="space-y-1">
-                                        <Label htmlFor="garden-name">
-                                            {importMode === 'add' && activeLocation ? 'Target Garden' : 'Garden Name'}
-                                        </Label>
-                                        {importMode === 'add' && activeLocation ? (
-                                            <div className="text-lg font-headline font-semibold">{activeLocation.name}</div>
-                                        ) : (
-                                            <Input
-                                                id="garden-name"
-                                                value={generatedData.locations[0].name}
-                                                onChange={(e) => handleLocationNameChange(e.target.value)}
-                                                className="text-lg font-headline h-auto p-0 border-0 shadow-none focus-visible:ring-0"
-                                            />
+                    <Card>
+                      <CardHeader>
+                        <div className="space-y-1">
+                          <Label htmlFor="garden-name">
+                            {importMode === 'add' && activeLocation ? 'Target Garden' : 'Garden Name'}
+                          </Label>
+                          {importMode === 'add' && activeLocation ? (
+                            <div className="text-lg font-headline font-semibold">{activeLocation.name}</div>
+                          ) : (
+                            <Input
+                              id="garden-name"
+                              value={generatedData.locations[0].name}
+                              onChange={(e) => handleLocationNameChange(e.target.value)}
+                              className="text-lg font-headline h-auto p-0 border-0 shadow-none focus-visible:ring-0"
+                            />
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {importMode === 'add' && activeLocation ? (
+                          <>
+                            <p className="text-sm text-muted-foreground">{activeLocation.location || 'Location not set'}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {activeLocation.conditions.temperature || 'Temp not set'}, {activeLocation.conditions.sunlight || 'Sunlight not set'}, {activeLocation.conditions.soil || 'Soil not set'}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm text-muted-foreground">{generatedData.locations[0].location}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {generatedData.locations[0].conditions.temperature || 'Temp'}, {generatedData.locations[0].conditions.sunlight || 'Sunlight'}, {generatedData.locations[0].conditions.soil || 'Soil'}
+                            </p>
+                          </>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium text-sm flex items-center gap-2">
+                            <span>Recommended Plants</span>
+                            <Badge variant="outline" className="text-xs">{recommendedPlantings.length}</Badge>
+                          </h4>
+                        </div>
+                        {recommendedPlantings.length > 0 ? (
+                          <ScrollArea className="h-60 rounded-md border">
+                            <Accordion type="single" collapsible className="w-full">
+                              {recommendedPlantings.map((planting) => {
+                                const plant = generatedPlantMap.get(planting.plantId);
+                                if (!plant) return null;
+
+                                return (
+                                  <AccordionItem value={planting.id} key={planting.id} className="border-x-0 border-t-0 px-4">
+                                    <div className="flex items-center w-full py-3">
+                                      <AccordionTrigger className="p-0 hover:no-underline flex-1 justify-start text-left">
+                                        <div className="flex flex-col">
+                                          <span className="font-semibold">{planting.name}</span>
+                                          <span className="text-sm text-muted-foreground">{plant.species}</span>
+                                        </div>
+                                      </AccordionTrigger>
+                                    </div>
+                                    <AccordionContent className="pb-4 space-y-4">
+                                      <div className="text-xs text-muted-foreground space-y-2 mt-2">
+                                        <div>
+                                          <p className="font-semibold text-foreground/80">Germination</p>
+                                          <p>{plant.germinationNeeds}</p>
+                                        </div>
+                                        <div>
+                                          <p className="font-semibold text-foreground/80">Conditions</p>
+                                          <p>{plant.optimalConditions}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
+                                        {areApiKeysSet && (
+                                          isFetchingMore === plant.id ? (
+                                            <Button variant="destructive" size="sm" className="h-7 text-xs flex items-center gap-1" onClick={handleStopFetchMore}>
+                                              <Square className="h-3 w-3 fill-current" />
+                                              Stop
+                                            </Button>
+                                          ) : (
+                                            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleFetchMoreLikeThis(plant)} disabled={!!isFetchingMore}>
+                                              <RefreshCw className="mr-2 h-3 w-3" />
+                                              More like this
+                                            </Button>
+                                          )
                                         )}
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    {importMode === 'add' && activeLocation ? (
-                                        <>
-                                            <p className="text-sm text-muted-foreground">{activeLocation.location || 'Location not set'}</p>
-                                            <p className='text-sm text-muted-foreground'>
-                                                {activeLocation.conditions.temperature || 'Temp not set'}, {activeLocation.conditions.sunlight || 'Sunlight not set'}, {activeLocation.conditions.soil || 'Soil not set'}
-                                            </p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <p className="text-sm text-muted-foreground">{generatedData.locations[0].location}</p>
-                                            <p className='text-sm text-muted-foreground'>
-                                                {generatedData.locations[0].conditions.temperature || 'Temp'}, {generatedData.locations[0].conditions.sunlight || 'Sunlight'}, {generatedData.locations[0].conditions.soil || 'Soil'}
-                                            </p>
-                                        </>
-                                    )}
-                                </CardContent>
-                            </Card>
-                             <div className="space-y-4">
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <h4 className="font-medium text-sm flex items-center gap-2">
-                                      <span>Recommended Plants</span>
-                                      <Badge variant="outline" className="text-xs">{recommendedPlantings.length}</Badge>
-                                    </h4>
-                                  </div>
-                                  {recommendedPlantings.length > 0 ? (
-                                    <ScrollArea className="h-60 rounded-md border">
-                                        <Accordion type="single" collapsible className="w-full">
-                                            {recommendedPlantings.map(planting => {
-                                                const plant = generatedPlantMap.get(planting.plantId);
-                                                if (!plant) return null;
+                                        <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => handleRemovePlanting(planting.id)}>
+                                          <Trash2 className="mr-2 h-3 w-3" />
+                                          Remove
+                                        </Button>
+                                      </div>
+                                    </AccordionContent>
+                                  </AccordionItem>
+                                );
+                              })}
+                            </Accordion>
+                          </ScrollArea>
+                        ) : (
+                          <div className="p-4 text-center border rounded-md border-dashed text-xs text-muted-foreground">
+                            No new plant species in this dataset. Check the existing variations below.
+                          </div>
+                        )}
+                      </div>
 
-                                                return (
-                                                <AccordionItem value={planting.id} key={planting.id} className="border-x-0 border-t-0 px-4">
-                                                    <div className="flex items-center w-full py-3">
-                                                        <AccordionTrigger className="p-0 hover:no-underline flex-1 justify-start text-left">
-                                                            <div className="flex flex-col">
-                                                                <span className="font-semibold">{planting.name}</span>
-                                                                <span className="text-sm text-muted-foreground">{plant.species}</span>
-                                                            </div>
-                                                        </AccordionTrigger>
-                                                    </div>
-                                                    <AccordionContent className="pb-4 space-y-4">
-                                                        <div className="text-xs text-muted-foreground space-y-2 mt-2">
-                                                            <div>
-                                                                <p className="font-semibold text-foreground/80">Germination</p>
-                                                                <p>{plant.germinationNeeds}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="font-semibold text-foreground/80">Conditions</p>
-                                                                <p>{plant.optimalConditions}</p>
-                                                            </div>
-                                                        </div>
-                                                         <div className="flex items-center gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
-                                                            {isFetchingMore === plant.id ? (
-                                                              <Button variant="destructive" size="sm" className="h-7 text-xs flex items-center gap-1" onClick={handleStopFetchMore}>
-                                                                <Square className="h-3 w-3 fill-current" />
-                                                                Stop
-                                                              </Button>
-                                                            ) : (
-                                                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleFetchMoreLikeThis(plant)} disabled={!!isFetchingMore}>
-                                                                <RefreshCw className="mr-2 h-3 w-3"/>
-                                                                More like this
-                                                              </Button>
-                                                            )}
-                                                            <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => handleRemovePlanting(planting.id)}>
-                                                                <Trash2 className="mr-2 h-3 w-3"/>
-                                                                Remove
-                                                            </Button>
-                                                        </div>
-                                                    </AccordionContent>
-                                                </AccordionItem>
-                                            )})}
-                                        </Accordion>
-                                    </ScrollArea>
-                                  ) : (
-                                    <div className="p-4 text-center border rounded-md border-dashed text-xs text-muted-foreground">
-                                      No new plant species in this dataset. Check the existing variations below.
-                                    </div>
-                                  )}
-                                </div>
+                      {/* OUTSIDE USUAL RESULTS: Existing Variations & Matches */}
+                      {variationPlantings.length > 0 && (
+                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                                <Sparkles className="h-4 w-4" />
+                                Existing Plant Variations & Strong Matches
+                              </span>
+                              <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/30">
+                                {variationPlantings.length}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Placed outside the standard results. These are variations or cultivars of plants already in your garden, recommended only because of a specific horticultural match.
+                            </p>
+                          </div>
 
-                                {/* OUTSIDE USUAL RESULTS: Existing Variations & Matches */}
-                                {variationPlantings.length > 0 && (
-                                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
-                                    <div className="space-y-0.5">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-sm font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                                          <Sparkles className="h-4 w-4" />
-                                          Existing Plant Variations & Strong Matches
-                                        </span>
-                                        <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/30">
-                                          {variationPlantings.length}
+                          <div className="space-y-2.5">
+                            {variationPlantings.map((planting) => {
+                              const plant = generatedPlantMap.get(planting.plantId);
+                              if (!plant) return null;
+                              const isIncluded = includedVariationIds.has(planting.id);
+                              const matchingExisting = existingPlantings?.find(
+                                (ep) =>
+                                  (ep.plant?.species && plant.species && ep.plant.species.toLowerCase().trim() === plant.species.toLowerCase().trim()) ||
+                                  (ep.name && planting.name && ep.name.toLowerCase().trim() === planting.name.toLowerCase().trim())
+                              );
+                              const relatedTo = plant.relatedExistingPlant || matchingExisting?.name || plant.species;
+
+                              return (
+                                <div key={planting.id} className="p-3 rounded-md border bg-background/90 text-xs space-y-2">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-semibold text-sm">{planting.name}</span>
+                                        <span className="text-muted-foreground">({plant.species})</span>
+                                        <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40">
+                                          Variation of {relatedTo}
                                         </Badge>
                                       </div>
-                                      <p className="text-xs text-muted-foreground">
-                                        Placed outside the standard results. These are variations or cultivars of plants already in your garden, recommended only because of a specific horticultural match.
-                                      </p>
+                                      <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-foreground/90">
+                                        <span className="font-semibold text-amber-700 dark:text-amber-400">Strong Match: </span>
+                                        <span>{plant.variationReason || `Matches existing planting "${matchingExisting?.name}". Include if you wish to grow this variation.`}</span>
+                                      </div>
                                     </div>
-
-                                    <div className="space-y-2.5">
-                                      {variationPlantings.map(planting => {
-                                        const plant = generatedPlantMap.get(planting.plantId);
-                                        if (!plant) return null;
-                                        const isIncluded = includedVariationIds.has(planting.id);
-                                        const matchingExisting = existingPlantings?.find(ep => 
-                                          (ep.plant?.species && plant.species && ep.plant.species.toLowerCase().trim() === plant.species.toLowerCase().trim()) ||
-                                          (ep.name && planting.name && ep.name.toLowerCase().trim() === planting.name.toLowerCase().trim())
-                                        );
-                                        const relatedTo = plant.relatedExistingPlant || matchingExisting?.name || plant.species;
-
-                                        return (
-                                          <div key={planting.id} className="p-3 rounded-md border bg-background/90 text-xs space-y-2">
-                                            <div className="flex items-start justify-between gap-2">
-                                              <div className="space-y-1">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                  <span className="font-semibold text-sm">{planting.name}</span>
-                                                  <span className="text-muted-foreground">({plant.species})</span>
-                                                  <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40">
-                                                    Variation of {relatedTo}
-                                                  </Badge>
-                                                </div>
-                                                {/* Strong Reason/Match Callout */}
-                                                <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-foreground/90">
-                                                  <span className="font-semibold text-amber-700 dark:text-amber-400">Strong Match: </span>
-                                                  <span>{plant.variationReason || `Matches existing planting "${matchingExisting?.name}". Include if you wish to grow this variation.`}</span>
-                                                </div>
-                                              </div>
-                                              <div className="flex items-center gap-1.5 shrink-0">
-                                                <Button
-                                                  type="button"
-                                                  size="sm"
-                                                  variant={isIncluded ? "default" : "outline"}
-                                                  className="h-7 text-xs px-2.5"
-                                                  onClick={() => toggleVariationInclusion(planting.id)}
-                                                >
-                                                  {isIncluded ? <CheckCircle className="mr-1 h-3 w-3" /> : <PlusCircle className="mr-1 h-3 w-3" />}
-                                                  {isIncluded ? "Included" : "Include"}
-                                                </Button>
-                                                <Button
-                                                  type="button"
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                                                  onClick={() => handleRemovePlanting(planting.id)}
-                                                >
-                                                  <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant={isIncluded ? 'default' : 'outline'}
+                                        className="h-7 text-xs px-2.5"
+                                        onClick={() => toggleVariationInclusion(planting.id)}
+                                      >
+                                        {isIncluded ? <CheckCircle className="mr-1 h-3 w-3" /> : <PlusCircle className="mr-1 h-3 w-3" />}
+                                        {isIncluded ? 'Included' : 'Include'}
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                        onClick={() => handleRemovePlanting(planting.id)}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
                                     </div>
                                   </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <h3 className="font-semibold text-lg">Conversational Refinement</h3>
-                             <div className="space-y-2">
-                                <Label htmlFor="ai-refinement">Refinement Instructions</Label>
-                                <div className="flex gap-2">
-                                    <Textarea 
-                                        id="ai-refinement" 
-                                        placeholder="e.g., Add basil and parsley. Make it suitable for a shady balcony."
-                                        value={refinement}
-                                        onChange={(e) => setRefinement(e.target.value)}
-                                        disabled={isGenerating}
-                                    />
-                                    {isGenerating && generatedData ? (
-                                        <Button onClick={handleStopGeneration} variant="destructive" size="icon" title="Stop refinement">
-                                            <Square className="h-4 w-4 fill-current" />
-                                        </Button>
-                                    ) : (
-                                        <Button onClick={() => handleGenerate(true)} disabled={!refinement.trim() || isGenerating} variant="outline" size="icon">
-                                            <RefreshCw className="h-4 w-4" />
-                                            <span className="sr-only">Refine</span>
-                                        </Button>
-                                    )}
                                 </div>
-                            </div>
+                              );
+                            })}
+                          </div>
                         </div>
-
-                        <div className="space-y-4">
-                            <h3 className="font-semibold text-lg">Import Options</h3>
-                            <RadioGroup value={importMode} onValueChange={(value) => setImportMode(value as ImportMode)}>
-                                {activeLocation && (
-                                    <Label htmlFor="r2" className="flex items-start space-x-3 space-y-0 rounded-md border p-4 cursor-pointer hover:bg-accent has-[[data-state=checked]]:border-primary">
-                                        <RadioGroupItem value="add" id="r2" />
-                                        <div className="flex flex-col">
-                                            <span className="font-bold flex items-center gap-2"><PlusCircle/> Add Plants to Active Garden</span>
-                                            <span className="text-sm text-muted-foreground">Adds new plants to your active garden "{activeLocation.name}". Skips species that already exist.</span>
-                                        </div>
-                                    </Label>
-                                )}
-                                <Label htmlFor="r3" className="flex items-start space-x-3 space-y-0 rounded-md border p-4 cursor-pointer hover:bg-accent has-[[data-state=checked]]:border-primary">
-                                    <RadioGroupItem value="new" id="r3" />
-                                    <div className="flex flex-col">
-                                        <span className="font-bold flex items-center gap-2"><Wand2/> Create as New Garden</span>
-                                        <span className="text-sm text-muted-foreground">Adds the new location and plants without affecting existing data.</span>
-                                    </div>
-                                </Label>
-                                <Label htmlFor="r1" className="flex items-start space-x-3 space-y-0 rounded-md border p-4 cursor-pointer hover:bg-accent has-[[data-state=checked]]:border-primary">
-                                    <RadioGroupItem value="replace" id="r1" />
-                                    <div className="flex flex-col">
-                                        <span className="font-bold flex items-center gap-2"><Replace/> Replace Current Garden</span>
-                                        <span className="text-sm text-muted-foreground">Deletes all existing data and creates this new garden.</span>
-                                    </div>
-                                </Label>
-                            </RadioGroup>
-                            <Button onClick={handleImport} disabled={isImporting} className="w-full">
-                                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                                Confirm Import
-                            </Button>
-                        </div>
+                      )}
                     </div>
-                )}
+                  </div>
+
+                  {areApiKeysSet && (
+                    <div className="space-y-4">
+                      <h3 className="font-semibold text-lg">Conversational Refinement</h3>
+                      <div className="space-y-2">
+                        <Label htmlFor="ai-refinement">Refinement Instructions</Label>
+                        <div className="flex gap-2">
+                          <Textarea
+                            id="ai-refinement"
+                            placeholder="e.g., Add basil and parsley. Make it suitable for a shady balcony."
+                            value={refinement}
+                            onChange={(e) => setRefinement(e.target.value)}
+                            disabled={isGenerating}
+                          />
+                          {isGenerating && generatedData ? (
+                            <Button onClick={handleStopGeneration} variant="destructive" size="icon" title="Stop refinement">
+                              <Square className="h-4 w-4 fill-current" />
+                            </Button>
+                          ) : (
+                            <Button onClick={() => handleGenerate(true)} disabled={!refinement.trim() || isGenerating} variant="outline" size="icon">
+                              <RefreshCw className="h-4 w-4" />
+                              <span className="sr-only">Refine</span>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg">Garden Import Options</h3>
+                    <RadioGroup value={importMode} onValueChange={(value) => setImportMode(value as ImportMode)}>
+                      {activeLocation && (
+                        <Label htmlFor="r2" className="flex items-start space-x-3 space-y-0 rounded-md border p-4 cursor-pointer hover:bg-accent has-[[data-state=checked]]:border-primary">
+                          <RadioGroupItem value="add" id="r2" />
+                          <div className="flex flex-col">
+                            <span className="font-bold flex items-center gap-2"><PlusCircle /> Add Plants to Active Garden</span>
+                            <span className="text-sm text-muted-foreground">Adds new plants to your active garden "{activeLocation.name}". Prompts to merge or skip duplicates.</span>
+                          </div>
+                        </Label>
+                      )}
+                      <Label htmlFor="r3" className="flex items-start space-x-3 space-y-0 rounded-md border p-4 cursor-pointer hover:bg-accent has-[[data-state=checked]]:border-primary">
+                        <RadioGroupItem value="new" id="r3" />
+                        <div className="flex flex-col">
+                          <span className="font-bold flex items-center gap-2"><Wand2 /> Create as New Garden</span>
+                          <span className="text-sm text-muted-foreground">Adds the new location and plants without affecting existing data.</span>
+                        </div>
+                      </Label>
+                      <Label htmlFor="r1" className="flex items-start space-x-3 space-y-0 rounded-md border p-4 cursor-pointer hover:bg-accent has-[[data-state=checked]]:border-primary">
+                        <RadioGroupItem value="replace" id="r1" />
+                        <div className="flex flex-col">
+                          <span className="font-bold flex items-center gap-2"><Replace /> Replace Current Garden</span>
+                          <span className="text-sm text-muted-foreground">Deletes all existing data and creates this new garden.</span>
+                        </div>
+                      </Label>
+                    </RadioGroup>
+                    <Button onClick={handleImport} disabled={isImporting} className="w-full">
+                      {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                      Confirm Import
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-        </div>
+          </div>
+        </Tabs>
       </SheetContent>
 
       {/* Duplicate Detection & Merge Prompt Dialog */}

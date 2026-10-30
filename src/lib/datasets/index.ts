@@ -1,23 +1,48 @@
 
-import type { Plant, Planting, GardenLocation, AiDataset } from '../types';
+import type { Plant, Planting, GardenLocation, AiDataset, ContributorMeta } from '../types';
 
 export interface Dataset extends AiDataset {
     name: string;
     description: string;
+    region?: string;
+    contributor?: ContributorMeta;
 }
 
 export interface DatasetInfo {
     key: string;
     name: string;
     description: string;
+    region?: string;
+    contributor?: ContributorMeta;
     loader: () => Promise<Dataset>;
 }
 
 export const availableDatasets: DatasetInfo[] = [
     {
+        key: 'new-zealand',
+        name: 'Aotearoa / NZ',
+        description: 'Taewa, Kūmara, Feijoa, Kawakawa & NZ coastal loam staples.',
+        region: 'New Zealand (Zone 9-10)',
+        contributor: { name: 'Grow NZ Community', githubOrNostr: 'creat-o-r' },
+        loader: async () => {
+            const data = await import('./new-zealand.json');
+            return {
+                name: 'Aotearoa / NZ',
+                description: 'Taewa, Kūmara, Feijoa, Kawakawa & NZ coastal loam staples.',
+                region: 'New Zealand (Zone 9-10)',
+                contributor: { name: 'Grow NZ Community', githubOrNostr: 'creat-o-r' },
+                locations: data.locations as any,
+                plants: data.plants as any,
+                plantings: data.plantings as any
+            };
+        },
+    },
+    {
         key: 'herbs',
         name: 'Herbs',
         description: 'A starter kit for a culinary herb garden.',
+        region: 'Mediterranean / Temperate',
+        contributor: { name: 'Core Maintainers', githubOrNostr: 'creat-o-r' },
         loader: async () => {
             const data = await import('./herbs.json');
             return {

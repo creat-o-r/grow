@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { getSuitableSeasons } from '@/lib/viability';
 import { Viability } from '@/lib/viability';
+import { getExtensionsBySlot } from '@/extensions/registry';
 import Image from 'next/image';
 
 type PlantCardProps = {
@@ -55,6 +56,7 @@ export function PlantCard({
     const { plant } = planting;
     const latestStatus = planting.history && planting.history.length > 0 ? planting.history[planting.history.length - 1] : null;
     const suitableSeasons = getSuitableSeasons(plant);
+    const cardBadgeExtensions = getExtensionsBySlot('plant-card-badge');
 
 
     const statusConfig: { [key: string]: string } = {
@@ -138,6 +140,17 @@ export function PlantCard({
                             {planting.seedsOnHand} seeds on hand
                         </Badge>
                      )}
+                     {plant.verifiedGrowerCount && plant.verifiedGrowerCount > 0 && (
+                        <Badge variant="secondary" className="text-[11px] font-normal">
+                            ✓ {plant.verifiedGrowerCount} growers
+                        </Badge>
+                     )}
+                     {cardBadgeExtensions.map((ext) => {
+                        const BadgeComp = ext.PlantCardBadge;
+                        return BadgeComp ? (
+                            <BadgeComp key={ext.id} planting={planting} activeLocation={planting.garden} />
+                        ) : null;
+                     })}
                      {suitableSeasons.length === 4 ? (
                         <Badge variant="outline" className="font-normal">Year-Round</Badge>
                      ) : suitableSeasons.length > 0 ? (

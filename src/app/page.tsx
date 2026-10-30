@@ -5,20 +5,23 @@
 import React, { useState, useEffect, useCallback, MouseEvent, useMemo, useRef, KeyboardEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, GardenViewMode, AiDataset } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, GardenViewMode, AiDataset, FreeLlmConfig } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { usePrevious } from '@/hooks/use-previous';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
 import { loadDataset } from '@/lib/datasets';
 import { Viability, getSuitableSeasons, getUpcomingViability } from '@/lib/viability';
+import { decodeSeedPackFromInput, mergeSeedPackIntoDb } from '@/lib/seed-pack';
+import { publishCommunityViabilitySignal } from '@/lib/p2p-signals';
+import { ExtensionSlotBar } from '@/extensions/ExtensionSlotBar';
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
 import { PlantForm } from '@/components/PlantForm';
 import { AiLogPanel } from '@/components/AiLogPanel';
 import { SettingsSheet } from '@/components/SettingsSheet';
-import { AiDataImportSheet } from '@/components/AiDataImportSheet';
+import { AiDataImportSheet, type UnifiedImportTab } from '@/components/AiDataImportSheet';
 import { DuplicateReviewSheet } from '@/components/DuplicateReviewSheet';
 import { PlantingDashboard } from '@/components/PlantingDashboard';
 import { GardenEditor } from '@/components/GardenEditor';
@@ -69,6 +72,8 @@ export default function Home() {
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
   const [isGardenEditSheetOpen, setIsGardenEditSheetOpen] = useState(false);
   const [isAiImportSheetOpen, setIsAiImportSheetOpen] = useState(false);
+  const [unifiedImportTab, setUnifiedImportTab] = useState<UnifiedImportTab>('single');
+  const [preloadedDatasetForReview, setPreloadedDatasetForReview] = useState<{ data: AiDataset; title: string } | null>(null);
   const [isDuplicateReviewSheetOpen, setIsDuplicateReviewSheetOpen] = useState(false);
   const [hasDuplicates, setHasDuplicates] = useState(false);
 
@@ -89,7 +94,7 @@ export default function Home() {
   const locations = useLiveQuery(() => db.locations.toArray(), []);
   const aiLogs = useLiveQuery(() => db.aiLogs.orderBy('timestamp').reverse().limit(10).toArray(), []);
   
-  const [apiKeys, setApiKeys] = useState({ gemini: '' });
+  const [apiKeys, setApiKeys] = useState<FreeLlmConfig>({ gemini: '' });
   const [areApiKeysSet, setAreApiKeysSet] = useState(false);
   const [viabilityMechanism, setViabilityMechanism] = useState<ViabilityAnalysisMode>('ai');
   const [viabilityData, setViabilityData] = useState<Record<string, Viability | undefined>>({});
@@ -167,8 +172,35 @@ export default function Home() {
     if (storedKeys) {
       const parsedKeys = JSON.parse(storedKeys);
       setApiKeys(parsedKeys);
-      if (parsedKeys.gemini) {
+      if (parsedKeys.gemini || parsedKeys.groq || parsedKeys.openrouter || parsedKeys.ollamaUrl) {
         setAreApiKeysSet(true);
+      }
+    }
+
+    // Handle 1-click forkable ?pack= or ?dataset= deep links by opening the full Review & Garden Import Options sheet
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const packParam = params.get('pack');
+      const datasetParam = params.get('dataset');
+
+      if (packParam) {
+        try {
+          const decoded = decodeSeedPackFromInput(packParam);
+          const packTitle = decoded.locations?.[0]?.name || 'Shared Seed Pack';
+          setPreloadedDatasetForReview({ data: decoded, title: packTitle });
+          setIsAiImportSheetOpen(true);
+          window.history.replaceState({}, '', window.location.pathname);
+        } catch (err) {
+          console.warn('Could not decode ?pack= URL param:', err);
+        }
+      } else if (datasetParam) {
+        loadDataset(datasetParam)
+          .then((ds) => {
+            setPreloadedDatasetForReview({ data: ds, title: ds.name });
+            setIsAiImportSheetOpen(true);
+            window.history.replaceState({}, '', window.location.pathname);
+          })
+          .catch((err) => console.warn('Could not load ?dataset= URL param:', err));
       }
     }
 
@@ -190,14 +222,14 @@ export default function Home() {
     }
   }, [activeLocationId]);
   
-  const handleApiKeysChange = (newKeys: {gemini: string}) => {
+  const handleApiKeysChange = (newKeys: FreeLlmConfig) => {
     localStorage.setItem('grow_apiKeys', JSON.stringify(newKeys));
     setApiKeys(newKeys);
-    if (newKeys.gemini) {
+    if (newKeys.gemini || newKeys.groq || newKeys.openrouter || newKeys.ollamaUrl) {
       setAreApiKeysSet(true);
       toast({
-        title: 'API Key Saved',
-        description: 'Your Gemini API key has been saved.',
+        title: 'AI Provider Settings Saved',
+        description: 'Your free LLM cascade configuration has been updated.',
       });
     } else {
       setAreApiKeysSet(false);
@@ -234,6 +266,7 @@ export default function Home() {
     await db.plantings.add(newPlanting);
 
     setIsSheetOpen(false);
+    setIsAiImportSheetOpen(false);
     toast({
       title: 'Plant Added',
       description: `${plantingData.name} has been added to your collection.`,
@@ -246,6 +279,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     setPlantingToEdit(null);
     setIsSheetOpen(false);
+    setIsAiImportSheetOpen(false);
     toast({
         title: 'Plant Updated',
         description: `${updatedPlanting.name} has been updated.`,
@@ -266,17 +300,22 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   
   const handleEditPlanting = (planting: PlantingWithPlant) => {
     setPlantingToEdit(planting);
-    setIsSheetOpen(true);
+    setPreloadedDatasetForReview(null);
+    setUnifiedImportTab('single');
+    setIsAiImportSheetOpen(true);
   };
 
-  const handleOpenAddSheet = (defaultStatus?: PlantStatus) => {
+  const handleOpenAddSheet = (defaultStatus?: PlantStatus, tab: UnifiedImportTab = 'single') => {
     setPlantingToEdit(null);
     setNewPlantDefaultStatus(defaultStatus || 'Wishlist');
-    setIsSheetOpen(true);
+    setPreloadedDatasetForReview(null);
+    setUnifiedImportTab(tab);
+    setIsAiImportSheetOpen(true);
   };
 
   const handleSheetOpenChange = (open: boolean) => {
     setIsSheetOpen(open);
+    setIsAiImportSheetOpen(open);
     if (!open) {
       setPlantingToEdit(null);
     }
@@ -379,23 +418,29 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       return;
     }
 
-    let effectiveKey = apiKeys?.gemini;
-    if (!effectiveKey && typeof window !== 'undefined') {
+    let effectiveKeys = apiKeys;
+    if (!effectiveKeys?.gemini && !effectiveKeys?.groq && !effectiveKeys?.openrouter && !effectiveKeys?.ollamaUrl && typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('grow_apiKeys');
         if (stored) {
-          const parsed = JSON.parse(stored);
-          effectiveKey = parsed.gemini;
+          effectiveKeys = JSON.parse(stored);
         }
       } catch (e) {
         console.error('Failed reading keys from localStorage', e);
       }
     }
 
-    if (!effectiveKey) {
+    const hasAnyKey = Boolean(
+      effectiveKeys?.gemini ||
+      effectiveKeys?.groq ||
+      effectiveKeys?.openrouter ||
+      effectiveKeys?.ollamaUrl
+    );
+
+    if (!hasAnyKey) {
       toast({
-        title: 'API Key Required',
-        description: 'Please set your Gemini API key in Settings before analyzing conditions.',
+        title: 'AI Key Required',
+        description: 'Please set a free Gemini, Groq, OpenRouter, or Local Ollama key in Settings before analyzing conditions.',
         variant: 'destructive',
       });
       setIsSettingsSheetOpen(true);
@@ -410,7 +455,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     setIsAnalyzing(locationId);
     const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-    const promptData = { location: locationToAnalyze, currentMonth, apiKeys: { gemini: effectiveKey } };
+    const promptData = { location: locationToAnalyze, currentMonth, apiKeys: effectiveKeys };
 
     try {
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -902,6 +947,18 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     try {
       await db.plantings.update(planting.id, { history: newHistory });
 
+      if (newStatus === 'Harvest') {
+        await publishCommunityViabilitySignal({
+          species: planting.plant.species,
+          region: activeLocation?.location || activeLocation?.name || 'Local Microclimate',
+          season: activeLocation?.conditions?.currentSeason,
+          soil: activeLocation?.conditions?.soil,
+          verdict: 'harvest-verified',
+          viability: 'High',
+          notes: `Harvest verified for ${planting.name}`,
+        });
+      }
+
       const handleUndo = async () => {
         try {
           await db.plantings.update(planting.id, { history: originalHistory });
@@ -1080,11 +1137,11 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     let firstError: any = null;
     setAnalysisProgress(0);
 
-    let effectiveKey = apiKeys?.gemini;
-    if (!effectiveKey && typeof window !== 'undefined') {
+    let effectiveKeys: FreeLlmConfig = { ...apiKeys };
+    if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('grow_apiKeys');
-        if (stored) effectiveKey = JSON.parse(stored).gemini;
+        if (stored) effectiveKeys = { ...JSON.parse(stored), ...effectiveKeys };
       } catch (e) {}
     }
 
@@ -1107,7 +1164,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             growingSystems: activeLocation.growingSystems,
             growingMethods: activeLocation.growingMethods,
           },
-          apiKeys: { gemini: effectiveKey },
+          apiKeys: effectiveKeys,
         };
 
         const timeoutPromise = new Promise<never>((_, reject) =>
@@ -1541,12 +1598,15 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                 <CardHeader>
                   <CardTitle className="font-headline">Welcome to grow</CardTitle>
                   <CardDescription>
-                    Create a garden to find more plants you can grow.
+                    Create a garden or import a starter dataset to find plants you can grow.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex flex-col sm:flex-row gap-3">
                   <Button onClick={() => handleAddLocation('My First Garden')}>
                     <Plus className="mr-2 h-4 w-4" /> Add Your First Garden
+                  </Button>
+                  <Button variant="secondary" onClick={() => handleOpenAddSheet(undefined, 'import-pack')}>
+                    <Upload className="mr-2 h-4 w-4" /> Import Starter Dataset
                   </Button>
                 </CardContent>
               </Card>
@@ -1638,6 +1698,13 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                       </AccordionContent>
                   </AccordionItem>
                 </Accordion>
+
+                <ExtensionSlotBar
+                  plants={plants || []}
+                  plantings={plantingsWithPlants || []}
+                  activeLocation={activeLocation}
+                  conditions={activeLocation?.conditions}
+                />
                 
                 <div className="mb-4 flex items-center gap-4">
                   <ScrollArea className="w-full whitespace-nowrap">
@@ -1873,8 +1940,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                    reasoningData={currentReasoningData}
                                   upcomingData={currentUpcomingData}
                                   gardenConditions={activeLocation?.conditions}
-                                  onOpenAddSheet={() => handleOpenAddSheet('Planting')}
-                                  onOpenSettings={() => setIsSettingsSheetOpen(true)}
+                                  onOpenAddSheet={() => handleOpenAddSheet('Planting', 'single')}
+                                  onOpenSettings={() => handleOpenAddSheet('Planting', 'import-pack')}
                                   onQuickStatusChange={handleQuickStatusChange}
                               />
                           </div>
@@ -1925,10 +1992,10 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
-                       <Button onClick={() => handleOpenAddSheet()} className="w-full">
+                       <Button onClick={() => handleOpenAddSheet(undefined, 'single')} className="w-full">
                          <Plus className="mr-2 h-4 w-4" /> Add Your First Plant
                       </Button>
-                       <Button onClick={() => setIsSettingsSheetOpen(true)} variant="secondary" className="w-full">
+                       <Button onClick={() => handleOpenAddSheet(undefined, 'import-pack')} variant="secondary" className="w-full">
                          <Upload className="mr-2 h-4 w-4" /> Import Datasets
                       </Button>
                     </CardContent>
@@ -2002,9 +2069,20 @@ const mainAddButtonDefaultStatus = useMemo(() => {
         onOpenChange={setIsSettingsSheetOpen}
         onImport={handleImport}
         onAiImportOpen={() => {
+            setPlantingToEdit(null);
+            setPreloadedDatasetForReview(null);
+            setUnifiedImportTab('ai-generate');
             setIsSettingsSheetOpen(false);
             setIsAiImportSheetOpen(true);
         }}
+        onOpenDatasetReview={(dataset, title) => {
+            setPlantingToEdit(null);
+            setPreloadedDatasetForReview({ data: dataset, title });
+            setUnifiedImportTab('import-pack');
+            setIsSettingsSheetOpen(false);
+            setIsAiImportSheetOpen(true);
+        }}
+        activeLocation={activeLocation}
         onPublish={handlePublish}
         onApiKeysChange={handleApiKeysChange}
         apiKeys={apiKeys}
@@ -2018,7 +2096,13 @@ const mainAddButtonDefaultStatus = useMemo(() => {
 
       <AiDataImportSheet
         isOpen={isAiImportSheetOpen}
-        onOpenChange={setIsAiImportSheetOpen}
+        onOpenChange={(open) => {
+            setIsAiImportSheetOpen(open);
+            if (!open) {
+                setPlantingToEdit(null);
+            }
+        }}
+        initialTab={unifiedImportTab}
         apiKeys={apiKeys}
         areApiKeysSet={areApiKeysSet}
         onComplete={() => {
@@ -2026,6 +2110,17 @@ const mainAddButtonDefaultStatus = useMemo(() => {
         }}
         activeLocation={activeLocation}
         existingPlantings={plantingsWithPlants?.filter(p => p.gardenId === activeLocation?.id)}
+        initialDataset={preloadedDatasetForReview}
+        onClearInitialDataset={() => setPreloadedDatasetForReview(null)}
+        plantingToEdit={plantingToEdit}
+        defaultStatus={newPlantDefaultStatus}
+        onPlantSubmit={plantingToEdit ? handleUpdatePlant : handleAddPlant}
+        onConfigureApiKey={() => {
+            setIsAiImportSheetOpen(false);
+            setIsSettingsSheetOpen(true);
+        }}
+        plants={plants || []}
+        onPublish={handlePublish}
       />
 
       <DuplicateReviewSheet

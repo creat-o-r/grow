@@ -17,6 +17,9 @@ const GetEnvironmentalDataInputSchema = z.object({
   currentMonth: z.string().describe('The current month as a full month name, e.g., "July".'),
   apiKeys: z.object({
       gemini: z.string().optional(),
+      groq: z.string().optional(),
+      openrouter: z.string().optional(),
+      ollamaUrl: z.string().optional(),
   }).optional(),
 });
 type GetEnvironmentalDataInput = z.infer<typeof GetEnvironmentalDataInputSchema>;
@@ -35,14 +38,21 @@ export async function getEnvironmentalData(
   input: GetEnvironmentalDataInput,
 ): Promise<GetEnvironmentalDataOutput> {
 
-  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Gemini API key is required. Please save your API key in Settings.');
+  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY;
+  const hasFallbackKey = Boolean(
+    input.apiKeys?.groq ||
+    input.apiKeys?.openrouter ||
+    input.apiKeys?.ollamaUrl ||
+    process.env.GROQ_API_KEY ||
+    process.env.OPENROUTER_API_KEY
+  );
+  if (!apiKey && !hasFallbackKey) {
+    throw new Error('At least one free AI provider key (Gemini, Groq, OpenRouter, or Local Ollama) is required in Settings.');
   }
 
   const ai = genkit({
     plugins: [
-      googleAI({ apiKey }),
+      googleAI({ apiKey: apiKey || 'fallback-only-key' }),
     ],
   });
 
@@ -74,7 +84,16 @@ Keep all output concise and adhere strictly to the schema.
     async (flowInput) => {
       return executeWithModelFallback<GetEnvironmentalDataOutput>(
         `getEnvironmentalData(${flowInput.location})`,
-        (model) => prompt(flowInput, { model })
+        (model) => prompt(flowInput, { model }),
+        {
+          hasGeminiKey: Boolean(apiKey),
+          systemPrompt:
+            'You are an agricultural climate specialist. Return JSON with fields: soilTemperature (string, e.g. "18°C"), sunlightHours (string, e.g. "11 hours"), soilDescription (string, omit the word "soil"), currentSeason ("Spring" | "Summer" | "Autumn" | "Winter"), reasoning (string), references (string).',
+          userPrompt: `Provide environmental data for Location: ${flowInput.location} in Month: ${flowInput.currentMonth}. Determine currentSeason accurately based on Northern/Southern Hemisphere.`,
+          groqApiKey: flowInput.apiKeys?.groq,
+          openrouterApiKey: flowInput.apiKeys?.openrouter,
+          ollamaUrl: flowInput.apiKeys?.ollamaUrl,
+        }
       );
     }
   );

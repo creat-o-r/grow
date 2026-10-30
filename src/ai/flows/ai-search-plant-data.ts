@@ -19,6 +19,9 @@ const AISearchPlantDataInputSchema = z.object({
     .describe('The name or description of the plant to search for.'),
   apiKeys: z.object({
       gemini: z.string().optional(),
+      groq: z.string().optional(),
+      openrouter: z.string().optional(),
+      ollamaUrl: z.string().optional(),
   }).optional(),
 });
 type AISearchPlantDataInput = z.infer<typeof AISearchPlantDataInputSchema>;
@@ -35,14 +38,21 @@ export async function aiSearchPlantData(
   input: AISearchPlantDataInput,
 ): Promise<AISearchPlantDataOutput> {
 
-  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Gemini API key is required. Please save your API key in Settings.');
+  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY;
+  const hasFallbackKey = Boolean(
+    input.apiKeys?.groq ||
+    input.apiKeys?.openrouter ||
+    input.apiKeys?.ollamaUrl ||
+    process.env.GROQ_API_KEY ||
+    process.env.OPENROUTER_API_KEY
+  );
+  if (!apiKey && !hasFallbackKey) {
+    throw new Error('At least one free AI provider key (Gemini, Groq, OpenRouter, or Local Ollama) is required in Settings.');
   }
 
   const ai = genkit({
     plugins: [
-      googleAI({ apiKey }),
+      googleAI({ apiKey: apiKey || 'fallback-only-key' }),
     ],
   });
 
@@ -71,7 +81,16 @@ If there is no definitive answer based on the search term, make your best guess.
     async (flowInput) => {
       return executeWithModelFallback<AISearchPlantDataOutput>(
         `aiSearchPlantData(${flowInput.searchTerm})`,
-        (model) => prompt(flowInput, { model })
+        (model) => prompt(flowInput, { model }),
+        {
+          hasGeminiKey: Boolean(apiKey),
+          systemPrompt:
+            'You are an expert botanist. Return JSON with fields: commonName (string), species (string, scientific name), germinationNeeds (string, MUST mention explicit seasons like Spring/Summer/Autumn/Winter), optimalConditions (string, MUST mention explicit seasons).',
+          userPrompt: `Extract botanical data for search term: "${flowInput.searchTerm}".`,
+          groqApiKey: flowInput.apiKeys?.groq,
+          openrouterApiKey: flowInput.apiKeys?.openrouter,
+          ollamaUrl: flowInput.apiKeys?.ollamaUrl,
+        }
       );
     }
   );

@@ -16,6 +16,7 @@ import {
 import { db } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { publishCommunityViabilitySignal } from '@/lib/p2p-signals';
 
 
 type AiLogPanelProps = {
@@ -55,9 +56,28 @@ export function AiLogPanel({ logs, isOpen, onOpenChange, onOpenSettings, areApiK
     const handleFeedback = async (logId: string, feedback: 'way-off' | 'bad' | 'ok' | 'spot-on') => {
         try {
             await db.aiLogs.update(logId, { feedback });
+            const targetLog = logs.find((l) => l.id === logId);
+            if (targetLog && (feedback === 'spot-on' || feedback === 'way-off')) {
+                const speciesName =
+                    targetLog.prompt?.plant?.species ||
+                    (typeof targetLog.prompt?.plant === 'string' ? targetLog.prompt.plant : null) ||
+                    targetLog.flow;
+                const signal = await publishCommunityViabilitySignal({
+                    species: speciesName,
+                    region: targetLog.prompt?.location || 'Local Microclimate',
+                    season: targetLog.prompt?.garden?.conditions?.currentSeason,
+                    soil: targetLog.prompt?.garden?.conditions?.soil,
+                    verdict: feedback,
+                    viability: targetLog.results?.viability,
+                });
+                await db.aiLogs.update(logId, { sharedSignalId: signal.id });
+            }
             toast({
-                title: 'Feedback Submitted',
-                description: `You rated this analysis as "${feedback}".`,
+                title: 'Feedback & Crowd Signal Saved',
+                description:
+                    feedback === 'spot-on' || feedback === 'way-off'
+                        ? `Rated "${feedback}" and broadcasted to your P2P viability log.`
+                        : `You rated this analysis as "${feedback}".`,
             });
         } catch (error) {
             console.error("Failed to submit feedback", error);

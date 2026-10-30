@@ -5,7 +5,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { Plant, Planting, PlantingWithPlant, StatusHistory } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, StatusHistory, FreeLlmConfig } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import Image from 'next/image';
 
@@ -18,7 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink, Wand2, Camera, CircleDotDashed, X, Square } from 'lucide-react';
+import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink, Wand2, Camera, CircleDotDashed, X, Square, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -55,12 +55,24 @@ type PlantFormProps = {
   defaultStatus?: PlantStatus;
   onSubmit: (plantingData: any, plantData: any) => void;
   onConfigureApiKey: () => void;
+  onSwitchToAiGenerateTab?: () => void;
+  onSwitchToImportTab?: () => void;
   areApiKeysSet: boolean;
-  apiKeys: { gemini: string };
+  apiKeys: FreeLlmConfig;
   plants: Plant[];
 };
 
-export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit, onConfigureApiKey, areApiKeysSet, apiKeys, plants }: PlantFormProps) {
+export function PlantForm({
+  plantingToEdit,
+  defaultStatus = 'Wishlist',
+  onSubmit,
+  onConfigureApiKey,
+  onSwitchToAiGenerateTab,
+  onSwitchToImportTab,
+  areApiKeysSet,
+  apiKeys,
+  plants,
+}: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const [isSpeciesPopoverOpen, setIsSpeciesPopoverOpen] = useState(false);
@@ -396,9 +408,9 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
           {!areApiKeysSet && (
              <Alert variant="destructive" className="mb-4">
               <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>API Key Not Set</AlertTitle>
+              <AlertTitle>AI Key Not Set</AlertTitle>
               <AlertDescription>
-                <Button variant="link" className="p-0 h-auto" onClick={onConfigureApiKey}>Configure your Gemini API key</Button> to enable AI features.
+                <Button variant="link" className="p-0 h-auto" onClick={onConfigureApiKey}>Configure a free Gemini, Groq, or OpenRouter key</Button> to enable AI features.
               </AlertDescription>
             </Alert>
           )}
@@ -748,18 +760,39 @@ export function PlantForm({ plantingToEdit, defaultStatus = 'Wishlist', onSubmit
         </form>
       </Form>
       
-       <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t"></span>
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">Or</span>
-        </div>
-      </div>
-      
-      <Button type="button" variant="secondary" className="w-full" onClick={onConfigureApiKey}>
-          <Upload className="mr-2 h-4 w-4"/> Import a Dataset
-      </Button>
+      {!plantingToEdit && (
+        <>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t"></span>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or Bulk Add</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {onSwitchToAiGenerateTab && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={onSwitchToAiGenerateTab}
+              >
+                <Sparkles className="mr-2 h-4 w-4 text-primary" /> Generate with AI
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="secondary"
+              className={cn('w-full', !onSwitchToAiGenerateTab && 'sm:col-span-2')}
+              onClick={onSwitchToImportTab || onConfigureApiKey}
+            >
+              <Upload className="mr-2 h-4 w-4" /> Import a Dataset / Pack
+            </Button>
+          </div>
+        </>
+      )}
 
     </div>
   );

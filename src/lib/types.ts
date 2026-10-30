@@ -7,9 +7,48 @@ export type StatusHistory = {
   notes?: string;
 };
 
+export type ForkProvenance = {
+  instanceUrl?: string;
+  author?: string;
+  datasetKey?: string;
+  timestamp: string;
+  parentUid?: string;
+};
+
+export type ContributorMeta = {
+  name: string;
+  githubOrNostr?: string;
+  url?: string;
+};
+
+export type CommunityViabilitySignal = {
+  id: string;
+  speciesUid: string;
+  species: string;
+  region: string;
+  season?: 'Spring' | 'Summer' | 'Autumn' | 'Winter';
+  soil?: string;
+  verdict: 'spot-on' | 'way-off' | 'harvest-verified';
+  viability?: 'High' | 'Medium' | 'Low';
+  notes?: string;
+  authorPubkey?: string;
+  authorName?: string;
+  timestamp: string;
+};
+
+export type FreeLlmConfig = {
+  gemini: string;
+  groq?: string;
+  openrouter?: string;
+  ollamaUrl?: string;
+  preferLocalAi?: boolean;
+  communityMcpUrls?: string[];
+};
+
 // Represents the core, unchanging information about a plant species
 export type Plant = {
   id:string;
+  uid?: string; // Deterministic content-addressed slug for P2P & fork merging
   species: string;
   germinationNeeds: string;
   optimalConditions: string;
@@ -17,11 +56,15 @@ export type Plant = {
   isExistingVariation?: boolean;
   variationReason?: string;
   relatedExistingPlant?: string;
+  forkedFrom?: ForkProvenance;
+  contributor?: ContributorMeta;
+  verifiedGrowerCount?: number;
 };
 
 // Represents a specific instance or "lot" of a plant being grown
 export type Planting = {
   id: string;
+  uid?: string;
   plantId: string;
   gardenId: string;
   name: string; // e.g., "Spring Carrots 2024"
@@ -29,12 +72,14 @@ export type Planting = {
   history: StatusHistory[];
   seedsOnHand?: number;
   plannedQty?: number;
+  swapAvailable?: boolean;
   viability?: 'High' | 'Medium' | 'Low';
   viabilityReasoning?: string;
   viabilityAssessedAt?: string;
   upcomingViability?: 'High' | 'Medium';
   upcomingTiming?: string;
   upcomingReasoning?: string;
+  forkedFrom?: ForkProvenance;
 }
 
 export type Conditions = {
@@ -46,12 +91,15 @@ export type Conditions = {
 
 export type GardenLocation = {
   id: string;
+  uid?: string;
   name: string;
   location: string;
   temperatureUnit: 'C' | 'F';
   conditions: Conditions;
   growingSystems?: string;
   growingMethods?: string;
+  p2pRoomId?: string;
+  forkedFrom?: ForkProvenance;
 };
 
 export type AiLog = {
@@ -65,12 +113,15 @@ export type AiLog = {
     feedback?: 'way-off' | 'bad' | 'ok' | 'spot-on';
     viabilityType?: ViabilityAnalysisMode;
     model?: string;
+    sharedSignalId?: string;
 }
 
 export type AiDataset = {
   plants: Plant[];
   plantings: Planting[];
   locations: GardenLocation[];
+  forkedFrom?: ForkProvenance;
+  contributor?: ContributorMeta;
 }
 
 // A helper type for combining Plant and Planting data for display
@@ -81,5 +132,6 @@ export interface PlantingWithPlant extends Planting {
 
 export type ViabilityAnalysisMode = 'local' | 'ai';
 export type GardenViewMode = 'one' | 'selected' | 'all';
+
 
     

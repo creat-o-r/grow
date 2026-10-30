@@ -1,2 +1,149 @@
-
-    
+{
+    "locations": [
+        {
+            "id": "nz-loc-1",
+            "name": "Aotearoa Coastal Loam & Clay Plot",
+            "location": "Auckland / Northland, New Zealand",
+            "temperatureUnit": "C",
+            "conditions": {
+                "temperature": "19°C",
+                "sunlight": "Full sun (6-8 hours)",
+                "soil": "Fertile volcanic loam & well-drained clay",
+                "currentSeason": "Spring"
+            }
+        }
+    ],
+    "plants": [
+        {
+            "id": "nz-plant-1",
+            "uid": "ipomoea-batatas-owairaka-red",
+            "species": "Kūmara - Owairaka Red (Ipomoea batatas)",
+            "germinationNeeds": "Propagated from sprouted tip shoots (tipu) in Spring after frost risk passes. Needs warm soil above 15°C.",
+            "optimalConditions": "Full sun, warm Spring and Summer temperatures. Well-drained, mounded sandy loam or volcanic soil. Avoid heavy nitrogen.",
+            "verifiedGrowerCount": 18
+        },
+        {
+            "id": "nz-plant-2",
+            "uid": "piper-excelsum-kawakawa",
+            "species": "Kawakawa (Piper excelsum)",
+            "germinationNeeds": "Sow fresh ripe seeds in Spring or Autumn in moist potting mix, or propagate from semi-hardwood cuttings.",
+            "optimalConditions": "Partial shade to sheltered sun. Rich, moist, well-drained humus soil. Protect from heavy frost.",
+            "verifiedGrowerCount": 24
+        },
+        {
+            "id": "nz-plant-3",
+            "uid": "acca-sellowiana-feijoa",
+            "species": "Feijoa - Apollo & Unique (Acca sellowiana)",
+            "germinationNeeds": "Best planted as grafted cultivars in Spring or Autumn for true-to-type fruit; seeds germinate in 3-4 weeks at 20°C.",
+            "optimalConditions": "Full sun to partial shade. Tolerant of coastal wind, clay, and loam soils. Benefits from cool winter chill and warm summer.",
+            "verifiedGrowerCount": 31
+        },
+        {
+            "id": "nz-plant-4",
+            "uid": "solanum-tuberosum-taewa-tutaekuri",
+            "species": "Taewa Māori Potato - Tūtaekurī (Solanum tuberosum)",
+            "germinationNeeds": "Chit seed tubers in a bright, cool spot before planting in Spring (September-November) when soil warms.",
+            "optimalConditions": "Full sun, fertile, well-drained compost-rich soil. Mound soil progressively as foliage grows; frost-tender foliage.",
+            "verifiedGrowerCount": 15
+        },
+        {
+            "id": "nz-plant-5",
+            "uid": "beta-vulgaris-silverbeet-fordhook",
+            "species": "Silverbeet - Fordhook Giant (Beta vulgaris)",
+            "germinationNeeds": "Direct sow in Spring, Summer, or Autumn at 15-25°C. Germinates reliably in 7-14 days.",
+            "optimalConditions": "Full sun to partial shade. Adaptable and frost-tolerant across all New Zealand seasons in rich, moist compost soil.",
+            "verifiedGrowerCount": 42
+        }
+    ],
+    "plantings": [
+        {
+            "id": "nz-p-1",
+            "plantId": "nz-plant-1",
+            "gardenId": "nz-loc-1",
+            "name": "Spring Kūmara Ridge",
+            "createdAt": "2026-10-01T09:00:00.000Z",
+            "seedsOnHand": 25,
+            "plannedQty": 15,
+            "swapAvailable": true,
+            "history": [
+                {
+                    "id": "nz-h-1",
+                    "status": "Planting",
+                    "date": "2026-10-01T09:00:00.000Z",
+                    "notes": "Rooted tipu in water jars; 10 surplus slips ready for local swap."
+                }
+            ]
+        },
+        {
+            "id": "nz-p-2",
+            "plantId": "nz-plant-2",
+            "gardenId": "nz-loc-1",
+            "name": "Sheltered Kawakawa Tea Hedge",
+            "createdAt": "2026-09-15T09:00:00.000Z",
+            "seedsOnHand": 12,
+            "plannedQty": 4,
+            "swapAvailable": true,
+            "history": [
+                {
+                    "id": "nz-h-2",
+                    "status": "Growing",
+                    "date": "2026-09-15T09:00:00.000Z",
+                    "notes": "Planted under partial shade canopy; aromatic leaves thriving."
+                }
+            ]
+        },
+        {
+            "id": "nz-p-3",
+            "plantId": "nz-plant-3",
+            "gardenId": "nz-loc-1",
+            "name": "Boundary Feijoa Pair",
+            "createdAt": "2026-08-20T09:00:00.000Z",
+            "seedsOnHand": 2,
+            "plannedQty": 2,
+            "history": [
+                {
+                    "id": "nz-h-3",
+                    "status": "Growing",
+                    "date": "2026-08-20T09:00:00.000Z",
+                    "notes": "Cross-pollinating Apollo and Unique varieties."
+                }
+            ]
+        },
+        {
+            "id": "nz-p-4",
+            "plantId": "nz-plant-4",
+            "gardenId": "nz-loc-1",
+            "name": "Main Crop Tūtaekurī",
+            "createdAt": "2026-10-10T09:00:00.000Z",
+            "seedsOnHand": 30,
+            "plannedQty": 20,
+            "swapAvailable": true,
+            "history": [
+                {
+                    "id": "nz-h-4",
+                    "status": "Planting",
+                    "date": "2026-10-10T09:00:00.000Z",
+                    "notes": "10 extra seed tubers available for local seed swap."
+                }
+            ]
+        },
+        {
+            "id": "nz-p-5",
+            "plantId": "nz-plant-5",
+            "gardenId": "nz-loc-1",
+            "name": "Year-Round Silverbeet Bed",
+            "createdAt": "2026-07-01T09:00:00.000Z",
+            "seedsOnHand": 100,
+            "plannedQty": 20,
+            "swapAvailable": true,
+            "history": [
+                {
+                    "id": "nz-h-5",
+                    "status": "Harvest",
+                    "date": "2026-10-15T09:00:00.000Z",
+                    "notes": "Continuous outer-leaf harvest; zero bolting."
+                }
+            ]
+        }
+    ]
+}

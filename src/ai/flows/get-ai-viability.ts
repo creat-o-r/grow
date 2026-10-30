@@ -31,6 +31,9 @@ const GetAiViabilityInputSchema = z.object({
     }),
     apiKeys: z.object({
         gemini: z.string().optional(),
+        groq: z.string().optional(),
+        openrouter: z.string().optional(),
+        ollamaUrl: z.string().optional(),
     }).optional(),
 });
 type GetAiViabilityInput = z.infer<typeof GetAiViabilityInputSchema>;
@@ -49,14 +52,21 @@ export async function getAiViability(
   input: GetAiViabilityInput,
 ): Promise<GetAiViabilityOutput> {
 
-  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Gemini API key is required. Please save your API key in Settings.');
+  const apiKey = input.apiKeys?.gemini || process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY;
+  const hasFallbackKey = Boolean(
+    input.apiKeys?.groq ||
+    input.apiKeys?.openrouter ||
+    input.apiKeys?.ollamaUrl ||
+    process.env.GROQ_API_KEY ||
+    process.env.OPENROUTER_API_KEY
+  );
+  if (!apiKey && !hasFallbackKey) {
+    throw new Error('At least one free AI provider key (Gemini, Groq, OpenRouter, or Local Ollama) is required in Settings.');
   }
 
   const ai = genkit({
     plugins: [
-      googleAI({ apiKey }),
+      googleAI({ apiKey: apiKey || 'fallback-only-key' }),
     ],
   });
 
@@ -104,7 +114,16 @@ Return your final analysis in the specified output format.
     async (flowInput) => {
       return executeWithModelFallback<GetAiViabilityOutput>(
         `getAiViability(${flowInput.plant.species})`,
-        (model) => prompt(flowInput, { model })
+        (model) => prompt(flowInput, { model }),
+        {
+          hasGeminiKey: Boolean(apiKey),
+          systemPrompt:
+            'You are an expert horticulturalist. Return JSON with fields: viability ("High" | "Medium" | "Low"), reasoning (string), and optional upcomingViability ("High" | "Medium"), upcomingTiming (string), upcomingReasoning (string).',
+          userPrompt: `Analyze viability for Plant: ${flowInput.plant.species} (Germination: ${flowInput.plant.germinationNeeds}, Optimal: ${flowInput.plant.optimalConditions}) in Garden Conditions: Season=${flowInput.garden.conditions.currentSeason || 'N/A'}, Temp=${flowInput.garden.conditions.temperature}, Sunlight=${flowInput.garden.conditions.sunlight}, Soil=${flowInput.garden.conditions.soil}, Systems=${flowInput.garden.growingSystems || 'N/A'}, Methods=${flowInput.garden.growingMethods || 'N/A'}.`,
+          groqApiKey: flowInput.apiKeys?.groq,
+          openrouterApiKey: flowInput.apiKeys?.openrouter,
+          ollamaUrl: flowInput.apiKeys?.ollamaUrl,
+        }
       );
     }
   );
