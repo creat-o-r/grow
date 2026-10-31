@@ -66,3 +66,34 @@
     @apply bg-background text-foreground;
   }
 }
+
+.extension-toggle-card {
+  --ext-card-bg: hsl(var(--muted) / 0.35);
+  --ext-card-border: hsl(var(--border));
+  --ext-card-opacity: 0.72;
+
+  background-color: var(--ext-card-bg);
+  border: 1px solid var(--ext-card-border);
+  opacity: var(--ext-card-opacity);
+  transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.extension-toggle-card:has(.extension-toggle:checked) {
+  --ext-card-bg: hsl(var(--card));
+  --ext-card-border: hsl(var(--primary) / 0.45);
+  --ext-card-opacity: 1;
+}
+
+.extension-toggle-card:not(:has(.extension-toggle:checked)) {
+  --ext-card-bg: hsl(var(--muted) / 0.35);
+  --ext-card-border: hsl(var(--border));
+  --ext-card-opacity: 0.72;
+}
+
+@supports not selector(:has(*)) {
+  .extension-toggle-card.is-active {
+    --ext-card-bg: hsl(var(--card));
+    --ext-card-border: hsl(var(--primary) / 0.45);
+    --ext-card-opacity: 1;
+  }
+}

@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { getSuitableSeasons } from '@/lib/viability';
 import { Viability } from '@/lib/viability';
-import { getExtensionsBySlot } from '@/extensions/registry';
+import { useExtensions } from '@/extensions/use-extensions';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 
 type PlantCardProps = {
@@ -82,7 +82,8 @@ export function PlantCard({
     const activeImageUrl = !imgFailed ? (syncImageUrl || resolvedImageUrl) : undefined;
     const latestStatus = planting.history && planting.history.length > 0 ? planting.history[planting.history.length - 1] : null;
     const suitableSeasons = getSuitableSeasons(plant);
-    const cardBadgeExtensions = getExtensionsBySlot('plant-card-badge');
+    const { getBySlot } = useExtensions();
+    const cardBadgeExtensions = getBySlot('plant-card-badge');
 
 
     const statusConfig: { [key: string]: string } = {

@@ -122,7 +122,7 @@ export function AiDataImportSheet({
   const [loadedPackTitle, setLoadedPackTitle] = useState<string | null>(null);
   const [clipboardInput, setClipboardInput] = useState('');
   const [p2pRoomId, setP2pRoomId] = useState('');
-  const [shareScope, setShareScope] = useState<'active' | 'all'>('active');
+  const [shareScope, setShareScope] = useState<'active' | 'all'>('all');
   const [isP2pSyncing, setIsP2pSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>(activeLocation ? 'add' : 'new');
@@ -186,11 +186,11 @@ export function AiDataImportSheet({
 
   const buildCurrentGardenDataset = async (scope: 'active' | 'all' = shareScope): Promise<AiDataset | null> => {
     const allLocations = await db.locations.toArray();
+    const allPlants = await db.plants.toArray();
+    const allPlantings = await db.plantings.toArray();
     if (allLocations.length === 0) return null;
 
     if (scope === 'all') {
-      const allPlants = await db.plants.toArray();
-      const allPlantings = await db.plantings.toArray();
       return {
         locations: allLocations,
         plants: allPlants,
@@ -200,10 +200,23 @@ export function AiDataImportSheet({
 
     const targetLoc = activeLocation || allLocations[0];
     if (!targetLoc) return null;
-    const gardenPlantings = await db.plantings.where('gardenId').equals(targetLoc.id).toArray();
-    const plantIds = new Set(gardenPlantings.map((p) => p.plantId));
-    const allPlants = await db.plants.toArray();
-    const gardenPlants = allPlants.filter((p) => plantIds.has(p.id));
+    const gardenPlantings = allPlantings.filter(
+      (p) =>
+        String(p.gardenId) === String(targetLoc.id) ||
+        (allLocations.length === 1 && !p.gardenId)
+    );
+
+    // If the active garden has 0 plants while other gardens have plants, fall back to streaming all gardens so we never push 0 plants
+    if (gardenPlantings.length === 0 && allPlantings.length > 0) {
+      return {
+        locations: allLocations,
+        plants: allPlants,
+        plantings: allPlantings,
+      };
+    }
+
+    const plantIds = new Set(gardenPlantings.map((p) => String(p.plantId)));
+    const gardenPlants = allPlants.filter((p) => plantIds.has(String(p.id)));
     return {
       locations: [targetLoc],
       plants: gardenPlants,
@@ -251,6 +264,11 @@ export function AiDataImportSheet({
       if (!ds) {
         throw new Error('No gardens found to broadcast.');
       }
+      if (ds.plantings.length === 0) {
+        throw new Error(
+          'Your garden currently has 0 plants to stream. Add or import plants into your garden first before streaming to the room.'
+        );
+      }
       await broadcastGardenToP2PRoom(p2pRoomId, ds);
       const label =
         ds.locations.length > 1
@@ -277,19 +295,45 @@ export function AiDataImportSheet({
       if (!latest) {
         toast({
           title: 'No Snapshot Found in Room',
-          description: `No garden has been pushed to room "${p2pRoomId.trim()}" in the last 24h yet. Click "Push Active Garden" from another session first.`,
+          description: `No garden has been streamed to room "${p2pRoomId.trim()}" in the last 24h yet. Click "Stream All Gardens" from the sender session first.`,
           variant: 'destructive',
         });
         return;
       }
-      const packName = `${latest.dataset.locations?.[0]?.name || 'P2P Garden'} (${latest.peerName})`;
-      setGeneratedData(latest.dataset);
+      const normalizedDataset: AiDataset = {
+        ...latest.dataset,
+        locations: (latest.dataset.locations || []).map((l) => ({
+          ...l,
+          id: String(l.id),
+        })),
+        plants: (latest.dataset.plants || []).map((p) => ({
+          ...p,
+          id: String(p.id),
+        })),
+        plantings: (latest.dataset.plantings || []).map((pl) => ({
+          ...pl,
+          id: String(pl.id),
+          plantId: String(pl.plantId),
+          gardenId: String(pl.gardenId),
+        })),
+      };
+      const locCount = normalizedDataset.locations.length;
+      const baseTitle =
+        locCount > 1
+          ? `${locCount} Gardens (${normalizedDataset.locations.map((l) => l.name).join(', ')})`
+          : normalizedDataset.locations?.[0]?.name || 'P2P Garden';
+      const packName = `${baseTitle} — ${latest.peerName}`;
+      setGeneratedData(normalizedDataset);
       setLoadedPackTitle(packName);
       setTheme(packName);
-      setIncludedVariationIds(new Set());
+      // Pre-select all pulled plantings even if some match existing species
+      setIncludedVariationIds(new Set(normalizedDataset.plantings.map((p) => String(p.id))));
+      if (locCount > 1 || !activeLocation) {
+        setImportMode('new');
+      }
       toast({
-        title: `Pulled "${latest.dataset.locations?.[0]?.name || 'Garden'}"`,
-        description: `Loaded ${latest.dataset.plantings?.length || 0} plants from ${latest.peerName}. Review and choose your import mode below.`,
+        title: `Pulled ${baseTitle}`,
+        description: `Loaded ${normalizedDataset.plantings.length} plants across ${locCount} garden${locCount === 1 ? '' : 's'} from ${latest.peerName}. Review and click Import below.`,
       });
     } catch (err: any) {
       setError(err?.message || 'Could not pull from P2P room.');
@@ -624,7 +668,7 @@ export function AiDataImportSheet({
             const locationIdMap = new Map<string, string>();
             const newLocations: GardenLocation[] = (generatedData.locations || []).map((loc, idx) => {
               const newLocId = `garden-${now}-${idx}`;
-              locationIdMap.set(loc.id, newLocId);
+              locationIdMap.set(String(loc.id), newLocId);
               return {
                 ...loc,
                 id: newLocId,
@@ -636,15 +680,15 @@ export function AiDataImportSheet({
             const plantIdMap = new Map<string, string>();
             const newPlants: Plant[] = generatedData.plants.map((p, i) => {
               const newId = `plant${idSuffix}-${i}`;
-              plantIdMap.set(p.id, newId);
+              plantIdMap.set(String(p.id), newId);
               return { ...p, id: newId };
             });
 
             const newPlantings: Planting[] = generatedData.plantings.map((p, i) => ({
               ...p,
               id: `planting${idSuffix}-${i}`,
-              plantId: plantIdMap.get(p.plantId) || `unknown-plant${idSuffix}-${i}`,
-              gardenId: locationIdMap.get(p.gardenId) || fallbackGardenId,
+              plantId: plantIdMap.get(String(p.plantId)) || `unknown-plant${idSuffix}-${i}`,
+              gardenId: locationIdMap.get(String(p.gardenId)) || fallbackGardenId,
               seedsOnHand: p.seedsOnHand ?? 0,
               plannedQty: p.plannedQty ?? 0,
             }));
@@ -683,7 +727,7 @@ export function AiDataImportSheet({
           // Detect duplicates matching active garden plantings
           const detectedDuplicates: DuplicateResolution[] = [];
           candidatePlantings.forEach(p => {
-            const plant = generatedPlantMap.get(p.plantId);
+            const plant = generatedPlantMap.get(String(p.plantId));
             if (!plant) return;
 
             const match = existingPlantings?.find(ep => 
@@ -755,20 +799,20 @@ export function AiDataImportSheet({
           const res = resolutionMap.get(planting.id);
           if (res?.action === 'skip') continue;
 
-          const newPlant = generatedPlantMap.get(planting.plantId);
-          if (!newPlant || plantIdMap.has(newPlant.id)) continue;
+          const newPlant = generatedPlantMap.get(String(planting.plantId));
+          if (!newPlant || plantIdMap.has(String(newPlant.id))) continue;
 
           const existingPlant = existingPlants.find(p => p.species.toLowerCase().trim() === newPlant.species.toLowerCase().trim());
           const resolvedImg = newPlant.imageUrl || getCuratedPlantImage(newPlant, planting.name);
           if (existingPlant) {
-            plantIdMap.set(newPlant.id, existingPlant.id);
+            plantIdMap.set(String(newPlant.id), String(existingPlant.id));
             if (resolvedImg && !existingPlant.imageUrl) {
               await db.plants.update(existingPlant.id, { imageUrl: resolvedImg });
               existingPlant.imageUrl = resolvedImg;
             }
           } else {
             const newDbPlantId = `plant-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-            plantIdMap.set(newPlant.id, newDbPlantId);
+            plantIdMap.set(String(newPlant.id), newDbPlantId);
             plantsToAdd.push({ ...newPlant, id: newDbPlantId, ...(resolvedImg ? { imageUrl: resolvedImg } : {}) });
           }
         }
@@ -810,7 +854,7 @@ export function AiDataImportSheet({
           }
 
           // Normal add or user chose "add as separate variation"
-          const newPlantId = plantIdMap.get(newPlanting.plantId);
+          const newPlantId = plantIdMap.get(String(newPlanting.plantId));
           if (newPlantId) {
             plantingsToAdd.push({
               ...newPlanting,
@@ -854,7 +898,7 @@ export function AiDataImportSheet({
 
   const generatedPlantMap = useMemo(() => {
     if (!generatedData) return new Map();
-    return new Map(generatedData.plants.map(p => [p.id, p]));
+    return new Map(generatedData.plants.map(p => [String(p.id), p]));
   }, [generatedData]);
 
   // Split generated plantings into "Usual Results" (Recommended New Plants)
@@ -866,7 +910,7 @@ export function AiDataImportSheet({
     const vars: Planting[] = [];
 
     generatedData.plantings.forEach(planting => {
-      const plant = generatedPlantMap.get(planting.plantId);
+      const plant = generatedPlantMap.get(String(planting.plantId));
       if (!plant) return;
 
       const matchingExisting = existingPlantings?.find(ep => 
@@ -1330,7 +1374,7 @@ export function AiDataImportSheet({
                           <ScrollArea className="h-60 rounded-md border">
                             <Accordion type="single" collapsible className="w-full">
                               {recommendedPlantings.map((planting) => {
-                                const plant = generatedPlantMap.get(planting.plantId);
+                                const plant = generatedPlantMap.get(String(planting.plantId));
                                 if (!plant) return null;
                                 const previewImgUrl = plant.imageUrl || getCuratedPlantImage(plant, planting.name);
 
@@ -1418,7 +1462,7 @@ export function AiDataImportSheet({
 
                           <div className="space-y-2.5">
                             {variationPlantings.map((planting) => {
-                              const plant = generatedPlantMap.get(planting.plantId);
+                              const plant = generatedPlantMap.get(String(planting.plantId));
                               if (!plant) return null;
                               const isIncluded = includedVariationIds.has(planting.id);
                               const matchingExisting = existingPlantings?.find(

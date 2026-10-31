@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getExtensionsBySlot, type ExtensionContext } from './registry';
+import { type ExtensionContext } from './registry';
+import { useExtensions } from './use-extensions';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -20,7 +21,6 @@ import {
   Radio,
   Check,
   ExternalLink,
-  Sparkles,
   CheckCircle2,
 } from 'lucide-react';
 import {
@@ -37,7 +37,8 @@ import { useToast } from '@/hooks/use-toast';
 import type { CommunityViabilitySignal } from '@/lib/types';
 
 export function ExtensionSlotBar(props: ExtensionContext) {
-  const toolbarExtensions = getExtensionsBySlot('dashboard-toolbar');
+  const { getBySlot } = useExtensions();
+  const toolbarExtensions = getBySlot('dashboard-toolbar');
   const { toast } = useToast();
 
   const [packTitle, setPackTitle] = useState(

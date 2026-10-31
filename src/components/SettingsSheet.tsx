@@ -68,6 +68,7 @@ import {
 } from '@/lib/seed-pack';
 import { db } from '@/lib/db';
 import { registeredExtensions } from '@/extensions/registry';
+import { useExtensions, ExtensionToggleList } from '@/extensions/use-extensions';
 
 type SettingsSheetProps = {
   isOpen: boolean;
@@ -117,6 +118,7 @@ export function SettingsSheet({
   const [copiedMcp, setCopiedMcp] = useState(false);
 
   const { toast } = useToast();
+  const { enabledExtensions } = useExtensions();
 
   useEffect(() => {
     setSelectedImportMode(activeLocation ? 'add' : 'new');
@@ -579,22 +581,9 @@ export function SettingsSheet({
                 <div className="border-t pt-4 space-y-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <Puzzle className="h-3.5 w-3.5" />
-                    Loaded Crowd Extensions ({registeredExtensions.length})
+                    Loaded Crowd Extensions ({enabledExtensions.length}/{registeredExtensions.length} Active)
                   </Label>
-                  <div className="space-y-2">
-                    {registeredExtensions.map((ext) => (
-                      <div key={ext.id} className="rounded-md border p-2.5 text-xs space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold">{ext.name}</span>
-                          <Badge variant="outline">v{ext.version}</Badge>
-                        </div>
-                        <p className="text-muted-foreground">{ext.description}</p>
-                        <div className="text-[11px] text-muted-foreground">
-                          By <strong>{ext.contributor.name}</strong>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <ExtensionToggleList />
                 </div>
 
                 <div className="border-t pt-4 space-y-2">

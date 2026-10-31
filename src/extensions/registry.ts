@@ -67,6 +67,73 @@ export const registeredExtensions: GrowExtension[] = [
   browserMcpBridgeExtension,
 ];
 
-export function getExtensionsBySlot(slot: ExtensionSlot): GrowExtension[] {
-  return registeredExtensions.filter((ext) => ext.slots.includes(slot));
+export const DISABLED_EXTENSIONS_KEY = 'grow_disabled_extensions';
+export const EXTENSIONS_CHANGED_EVENT = 'grow-extensions-changed';
+
+export function getDisabledExtensionIds(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(DISABLED_EXTENSIONS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function isExtensionEnabled(id: string): boolean {
+  return !getDisabledExtensionIds().includes(id);
+}
+
+export function setExtensionEnabled(id: string, enabled: boolean): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const currentDisabled = new Set(getDisabledExtensionIds());
+    if (enabled) {
+      currentDisabled.delete(id);
+    } else {
+      currentDisabled.add(id);
+    }
+    const nextDisabled = Array.from(currentDisabled);
+    window.localStorage.setItem(DISABLED_EXTENSIONS_KEY, JSON.stringify(nextDisabled));
+    window.dispatchEvent(
+      new CustomEvent(EXTENSIONS_CHANGED_EVENT, {
+        detail: { id, enabled, disabledIds: nextDisabled },
+      })
+    );
+  } catch (err) {
+    console.warn('Failed to persist extension toggle state:', err);
+  }
+}
+
+export function toggleExtension(id: string): boolean {
+  const nextEnabled = !isExtensionEnabled(id);
+  setExtensionEnabled(id, nextEnabled);
+  return nextEnabled;
+}
+
+export function setAllExtensionsEnabled(enabled: boolean): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const nextDisabled = enabled ? [] : registeredExtensions.map((ext) => ext.id);
+    window.localStorage.setItem(DISABLED_EXTENSIONS_KEY, JSON.stringify(nextDisabled));
+    window.dispatchEvent(
+      new CustomEvent(EXTENSIONS_CHANGED_EVENT, {
+        detail: { enabled, disabledIds: nextDisabled },
+      })
+    );
+  } catch (err) {
+    console.warn('Failed to persist all-extensions state:', err);
+  }
+}
+
+export function getExtensionsBySlot(
+  slot: ExtensionSlot,
+  includeDisabled = false
+): GrowExtension[] {
+  const disabledIds = includeDisabled ? [] : getDisabledExtensionIds();
+  return registeredExtensions.filter(
+    (ext) => ext.slots.includes(slot) && !disabledIds.includes(ext.id)
+  );
 }
