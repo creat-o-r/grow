@@ -70,24 +70,9 @@ import {
 } from '@/lib/seed-pack';
 import { db } from '@/lib/db';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  APP_VERSION,
-  APP_STAGE,
   REPO_URL,
   FEEDBACK_URL,
 } from '@/lib/constants';
-import {
-  getSavedSashView,
-  setSavedSashView,
-  type SashViewMode,
-  SASH_CHANGE_EVENT,
-} from '@/components/ExperimentalVersionSash';
 import { registeredExtensions } from '@/extensions/registry';
 import {
   useExtensions,
@@ -140,19 +125,6 @@ export function SettingsSheet({
   const [copiedMcp, setCopiedMcp] = useState(false);
   const [growerHandle, setGrowerHandle] = useState('');
   const [growerRegion, setGrowerRegion] = useState('');
-  const [sashMode, setSashMode] = useState<SashViewMode>('banner');
-
-  useEffect(() => {
-    setSashMode(getSavedSashView());
-    const handleSashChange = (e: Event) => {
-      const customEvent = e as CustomEvent<{ mode: SashViewMode }>;
-      if (customEvent.detail?.mode) {
-        setSashMode(customEvent.detail.mode);
-      }
-    };
-    window.addEventListener(SASH_CHANGE_EVENT, handleSashChange);
-    return () => window.removeEventListener(SASH_CHANGE_EVENT, handleSashChange);
-  }, []);
 
   const { toast } = useToast();
   const { enabledExtensions } = useExtensions();
@@ -747,16 +719,11 @@ export function SettingsSheet({
                   </div>
                 </div>
 
-                <div className="border-t pt-4 space-y-3">
+                <div className="border-t pt-4 space-y-2">
                   <div className="flex items-center justify-between text-xs p-3 bg-muted rounded-md">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-amber-400 uppercase text-[10px] tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/30 font-headline">
-                        Experimental
-                      </span>
-                      <span>
-                        Version <strong>v{APP_VERSION}</strong>
-                      </span>
-                    </div>
+                    <span className="font-semibold text-amber-400 uppercase text-[10px] tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/30 font-headline">
+                      Experimental
+                    </span>
                     {upstreamCommit ? (
                       <a
                         href={`${REPO_URL}/commits/main`}
@@ -765,42 +732,19 @@ export function SettingsSheet({
                         className="text-primary hover:underline font-mono flex items-center gap-1"
                       >
                         <GitBranch className="h-3 w-3" />
-                        upstream @{upstreamCommit.sha} ({upstreamCommit.date})
+                        git @{upstreamCommit.sha} ({upstreamCommit.date})
                       </a>
                     ) : (
                       <a
                         href={REPO_URL}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-primary hover:underline"
+                        className="text-primary hover:underline font-mono flex items-center gap-1"
                       >
-                        View Upstream Repo
+                        <GitBranch className="h-3 w-3" />
+                        git @main
                       </a>
                     )}
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2 p-3 bg-muted/60 rounded-md text-xs">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="sash-style-select" className="text-xs font-medium">Experimental Version Sash</Label>
-                      <p className="text-[11px] text-muted-foreground">Style of the version badge &amp; feedback link.</p>
-                    </div>
-                    <Select
-                      value={sashMode}
-                      onValueChange={(val: SashViewMode) => {
-                        setSashMode(val);
-                        setSavedSashView(val);
-                      }}
-                    >
-                      <SelectTrigger id="sash-style-select" className="w-[140px] h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="banner">Top Banner</SelectItem>
-                        <SelectItem value="corner">Corner Ribbon</SelectItem>
-                        <SelectItem value="pill">Floating Badge</SelectItem>
-                        <SelectItem value="hidden">Hidden</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
 
                   <a href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer" className="block">

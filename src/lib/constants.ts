@@ -1,5 +1,5 @@
 /**
- * Central application constants for versioning, branding, and upstream links.
+ * Central application constants for branding and upstream links.
  */
 
 export const APP_NAME = 'grow';
