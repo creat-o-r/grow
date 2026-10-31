@@ -360,8 +360,8 @@ export function PlantForm({
         name: data.name,
         createdAt: plantingToEdit?.createdAt || new Date().toISOString(),
         history: sortedHistory,
-        seedsOnHand: data.seedsOnHand,
-        plannedQty: data.plannedQty,
+        seedsOnHand: data.seedsOnHand ?? 0,
+        plannedQty: data.plannedQty ?? 0,
     };
 
     if (plantingToEdit) {

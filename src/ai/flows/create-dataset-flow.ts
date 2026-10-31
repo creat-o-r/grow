@@ -28,6 +28,8 @@ const PlantingSchema = z.object({
   gardenId: z.string(),
   name: z.string().describe("A simple, friendly name for this specific planting, e.g., 'Balcony Basil' or 'Spring Radishes'"),
   createdAt: z.string().describe("The ISO 8601 date this planting was notionally created."),
+  seedsOnHand: z.number().optional().default(0),
+  plannedQty: z.number().optional().default(0),
   history: z.array(z.object({
     id: z.string(),
     status: z.enum(['Wishlist', 'Planting', 'Growing', 'Harvest']),
@@ -286,6 +288,8 @@ CRITICAL: Every item in "plants" MUST have a corresponding item in "plantings" w
           gardenId: primaryGardenId,
           name: matchedPlanting?.name || plant.species.split('(')[0].trim(),
           createdAt: matchedPlanting?.createdAt || new Date().toISOString(),
+          seedsOnHand: 0,
+          plannedQty: 0,
           history:
             Array.isArray(matchedPlanting?.history) && matchedPlanting.history.length > 0
               ? matchedPlanting.history

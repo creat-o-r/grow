@@ -53,6 +53,8 @@
             "gardenId": "fruit-loc-1",
             "name": "Dwarf Honeycrisp Apple",
             "createdAt": "2022-03-20T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h1", "status": "Growing", "date": "2022-03-20T12:00:00.000Z", "notes": "Honeycrisp dwarf variety." }
             ]
@@ -63,6 +65,8 @@
             "gardenId": "fruit-loc-1",
             "name": "Summer Strawberries",
             "createdAt": "2024-06-15T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h2", "status": "Harvest", "date": "2024-06-15T12:00:00.000Z", "notes": "June-bearing variety, huge harvest." }
             ]
@@ -73,6 +77,8 @@
             "gardenId": "fruit-loc-1",
             "name": "Blueberry Bushes",
             "createdAt": "2023-04-10T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h3", "status": "Growing", "date": "2023-04-10T12:00:00.000Z", "notes": "Two varieties planted: 'Bluecrop' and 'Duke'." }
             ]
@@ -83,6 +89,8 @@
             "gardenId": "fruit-loc-1",
             "name": "Raspberry Canes",
             "createdAt": "2024-01-15T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h4", "status": "Growing", "date": "2024-01-15T12:00:00.000Z", "notes": "Pruned floricanes after last harvest." }
             ]
@@ -93,6 +101,8 @@
             "gardenId": "fruit-loc-1",
             "name": "Future Cherry Tree",
             "createdAt": "2024-09-01T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h5", "status": "Wishlist", "date": "2024-09-01T12:00:00.000Z", "notes": "Planning to plant a 'Bing' cherry tree." }
             ]

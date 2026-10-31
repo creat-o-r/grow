@@ -24,14 +24,14 @@ import { SettingsSheet } from '@/components/SettingsSheet';
 import { AiDataImportSheet, type UnifiedImportTab } from '@/components/AiDataImportSheet';
 import { DuplicateReviewSheet } from '@/components/DuplicateReviewSheet';
 import { PlantingDashboard } from '@/components/PlantingDashboard';
-import { GardenEditor } from '@/components/GardenEditor';
+import { GardenEditor, type GardenEnvField, type FieldShareStatus } from '@/components/GardenEditor';
 import { GardenEditSheet } from '@/components/GardenEditSheet';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Plus, Upload, Locate, Loader2, X, Sparkles, NotebookText, Settings, Info, Rocket, AlertCircle, Fence, Square } from 'lucide-react';
+import { Plus, Upload, Locate, Loader2, X, Sparkles, NotebookText, Settings, Info, Rocket, AlertCircle, Fence, Square, Layers, Split, CopyCheck } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +61,7 @@ export default function Home() {
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [selectedGardenIds, setSelectedGardenIds] = useState<string[]>([]);
   const [gardenViewMode, setGardenViewMode] = useState<GardenViewMode>('one');
+  const [focusedMultiGardenId, setFocusedMultiGardenId] = useState<string | 'all'>('all');
 
 
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
@@ -1538,6 +1539,175 @@ const unspecifiedSeasonCount = useMemo(() => {
       return locations.filter(loc => selectedGardenIds.includes(loc.id));
   }, [locations, selectedGardenIds, gardenViewMode, activeLocation, effectivelySingleGardenView]);
 
+  const multiGardenEnvAnalysis = useMemo(() => {
+    const fieldDefs: { field: GardenEnvField; label: string; getValue: (l: GardenLocation) => string }[] = [
+      { field: 'location', label: 'Location', getValue: (l) => (l.location || '').trim() },
+      { field: 'currentSeason', label: 'Season', getValue: (l) => (l.conditions?.currentSeason || '').trim() },
+      { field: 'temperature', label: 'Soil Temp', getValue: (l) => (l.conditions?.temperature || '').trim() },
+      { field: 'sunlight', label: 'Sunlight', getValue: (l) => (l.conditions?.sunlight || '').trim() },
+      { field: 'soil', label: 'Soil', getValue: (l) => (l.conditions?.soil || '').trim() },
+      { field: 'growingSystems', label: 'Systems', getValue: (l) => (l.growingSystems || '').trim() },
+      { field: 'growingMethods', label: 'Methods', getValue: (l) => (l.growingMethods || '').trim() },
+    ];
+
+    const normalizeValue = (field: GardenEnvField, raw: string): string => {
+      const cleaned = (raw || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!cleaned) return '';
+      if (field === 'location') {
+        // Normalize common country abbreviations and match on primary city/region if applicable
+        const countryNormalized = cleaned
+          .replace(/\bnew zealand\b/g, 'nz')
+          .replace(/\bunited kingdom\b/g, 'uk')
+          .replace(/\bunited states( of america)?\b/g, 'usa');
+        const primarySegment = countryNormalized.split(/[,/]/)[0]?.trim() || countryNormalized;
+        return primarySegment.length >= 3 ? primarySegment : countryNormalized;
+      }
+      if (field === 'temperature') {
+        const tempMatch = cleaned.match(/-?\d+(\.\d+)?\s*°?\s*[cf]/i);
+        if (tempMatch) {
+          return tempMatch[0].replace(/\s+/g, '').toLowerCase();
+        }
+      }
+      return cleaned;
+    };
+
+    const totalCount = selectedLocations.length;
+    const valueCountsByField = new Map<
+      GardenEnvField,
+      Map<string, { displayValue: string; count: number; gardenNames: string[] }>
+    >();
+
+    for (const def of fieldDefs) {
+      const map = new Map<string, { displayValue: string; count: number; gardenNames: string[] }>();
+      for (const loc of selectedLocations) {
+        const raw = def.getValue(loc);
+        const norm = normalizeValue(def.field, raw);
+        if (!norm) continue;
+        const existing = map.get(norm);
+        if (existing) {
+          existing.count += 1;
+          existing.gardenNames.push(loc.name);
+        } else {
+          map.set(norm, { displayValue: raw, count: 1, gardenNames: [loc.name] });
+        }
+      }
+      valueCountsByField.set(def.field, map);
+    }
+
+    const shared: {
+      field: GardenEnvField;
+      label: string;
+      value: string;
+      count: number;
+      total: number;
+      isAll: boolean;
+    }[] = [];
+    const uniqueFields = new Set<GardenEnvField>();
+    const uniqueFieldLabels: string[] = [];
+
+    if (totalCount > 1) {
+      for (const def of fieldDefs) {
+        const map = valueCountsByField.get(def.field)!;
+        let hasUnique = false;
+        const nonEmptyGardensCount = Array.from(map.values()).reduce((sum, g) => sum + g.count, 0);
+
+        for (const group of map.values()) {
+          // A value is shared if 2+ gardens share it, OR if only 1 distinct value is set across all gardens that have this field populated
+          if (group.count >= 2 || (map.size === 1 && nonEmptyGardensCount >= 1 && totalCount >= 2 && group.count === nonEmptyGardensCount)) {
+            shared.push({
+              field: def.field,
+              label: def.label,
+              value: group.displayValue,
+              count: group.count,
+              total: totalCount,
+              isAll: group.count === totalCount,
+            });
+          }
+          if (group.count === 1 && map.size > 1) {
+            hasUnique = true;
+          }
+        }
+
+        if (hasUnique) {
+          uniqueFields.add(def.field);
+          uniqueFieldLabels.push(def.label);
+        }
+      }
+    }
+
+    const getFieldShareInfo = (field: GardenEnvField, value?: string): FieldShareStatus => {
+      const norm = normalizeValue(field, value || '');
+      if (!norm) {
+        return { status: 'unset', matchCount: 0, totalCount };
+      }
+      const map = valueCountsByField.get(field);
+      const group = map?.get(norm);
+      const matchCount = group?.count || 1;
+      if (matchCount === totalCount) {
+        return { status: 'shared-all', matchCount, totalCount };
+      }
+      if (matchCount >= 2 || (map && map.size === 1)) {
+        return { status: 'shared-subset', matchCount, totalCount };
+      }
+      return { status: 'unique', matchCount: 1, totalCount };
+    };
+
+    const isUniqueField = (field: GardenEnvField) => uniqueFields.has(field);
+
+    const getGardenUniqueSummary = (loc: GardenLocation): string[] => {
+      const diffs: string[] = [];
+      for (const def of fieldDefs) {
+        const val = def.getValue(loc);
+        const info = getFieldShareInfo(def.field, val);
+        if (info.status === 'unique' && val) {
+          diffs.push(`${def.label}: ${val}`);
+        }
+      }
+      if (diffs.length === 0) {
+        return ['Shares all set conditions'];
+      }
+      return diffs;
+    };
+
+    return {
+      shared,
+      uniqueFields,
+      uniqueFieldLabels,
+      isUniqueField,
+      getFieldShareInfo,
+      getGardenUniqueSummary,
+    };
+  }, [selectedLocations]);
+
+  const handleApplyFieldToAllSelectedGardens = useCallback(
+    async (field: GardenEnvField, value: string) => {
+      if (!selectedLocations || selectedLocations.length <= 1) return;
+      await db.transaction('rw', db.locations, async () => {
+        for (const loc of selectedLocations) {
+          if (field === 'location' || field === 'growingSystems' || field === 'growingMethods') {
+            await db.locations.update(loc.id, { [field]: value });
+          } else {
+            const newConditions = { ...loc.conditions, [field]: value };
+            await db.locations.update(loc.id, { conditions: newConditions });
+          }
+        }
+      });
+      toast({
+        title: 'Combined Condition Applied',
+        description: `Applied "${value}" to all ${selectedLocations.length} selected gardens.`,
+      });
+    },
+    [selectedLocations, toast]
+  );
+
+  const visibleEditorLocations = useMemo(() => {
+    if (selectedLocations.length <= 1 || focusedMultiGardenId === 'all') {
+      return selectedLocations;
+    }
+    const found = selectedLocations.find((l) => l.id === focusedMultiGardenId);
+    return found ? [found] : selectedLocations;
+  }, [selectedLocations, focusedMultiGardenId]);
+
   const locationSwitcherTriggerText = useMemo(() => {
     if (effectivelySingleGardenView) {
        return activeLocation?.name || 'Select Garden';
@@ -1653,15 +1823,51 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                           {activeLocation.conditions.temperature || 'Temp'}, {activeLocation.conditions.sunlight || 'Sunlight'}, {activeLocation.conditions.soil || 'Soil'}
                                       </span>
                                   ) : (
-                                      <div className="flex flex-col items-start text-sm text-muted-foreground font-normal">
-                                          {selectedLocations.map((loc, index) => (
-                                              <React.Fragment key={loc.id}>
-                                                  <div className="truncate">
-                                                      <span className="font-semibold">{loc.name}:</span> {loc.conditions.temperature || 'N/A'}
-                                                  </div>
-                                                  {index < selectedLocations.length - 1 && <hr className="w-full border-t border-border my-1" />}
-                                              </React.Fragment>
-                                          ))}
+                                      <div className="flex flex-col items-start gap-1.5 text-xs text-muted-foreground font-normal w-full">
+                                          {multiGardenEnvAnalysis.shared.length > 0 && (
+                                              <div className="flex items-center flex-wrap gap-1.5">
+                                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-background/80 flex items-center gap-1">
+                                                      <Layers className="h-2.5 w-2.5 text-primary" />
+                                                      <span>Combined</span>
+                                                  </Badge>
+                                                  <span className="text-foreground/90 font-medium">
+                                                      {multiGardenEnvAnalysis.shared
+                                                        .map((s) =>
+                                                          s.isAll
+                                                            ? `${s.label}: ${s.value}`
+                                                            : `${s.label}: ${s.value} (${s.count}/${s.total})`
+                                                        )
+                                                        .join(' • ')}
+                                                  </span>
+                                              </div>
+                                          )}
+                                          <div className="flex items-center flex-wrap gap-1.5 w-full">
+                                              {selectedLocations.map((loc) => {
+                                                  const uniqueTraits = multiGardenEnvAnalysis.getGardenUniqueSummary(loc);
+                                                  return (
+                                                      <div
+                                                          key={loc.id}
+                                                          onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              const isMobile = window.innerWidth < 768;
+                                                              if (isMobile) {
+                                                                  setIsGardenEditSheetOpen(true);
+                                                              } else {
+                                                                  setFocusedMultiGardenId(loc.id);
+                                                                  setAccordionValue('item-1');
+                                                              }
+                                                          }}
+                                                          className="inline-flex items-center gap-1.5 rounded-md border bg-background/80 px-2 py-0.5 text-xs hover:border-primary/60 transition-colors"
+                                                          title="Click to inspect or edit this garden's unique conditions"
+                                                      >
+                                                          <span className="font-semibold text-foreground">{loc.name}:</span>
+                                                          <span className="text-muted-foreground truncate max-w-[220px]">
+                                                              {uniqueTraits.slice(0, 2).join(' · ')}
+                                                          </span>
+                                                      </div>
+                                                  );
+                                              })}
+                                          </div>
                                       </div>
                                   )}
                                   <AccordionTrigger className="p-0 hover:no-underline md:flex hidden" />
@@ -1682,19 +1888,188 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                       </div>
 
                       <AccordionContent className="p-6 pt-2 space-y-6 hidden md:block">
-                        {selectedLocations.map(loc => (
-                          <GardenEditor
-                            key={loc.id}
-                            loc={loc}
-                            handleLocationFieldChange={handleLocationFieldChange}
-                            handleConditionChange={handleConditionChange}
-                            handleGetCurrentLocation={handleGetCurrentLocation}
-                            isLocating={isLocating}
-                            handleAnalyzeConditions={handleAnalyzeConditions}
-                            handleStopAnalyzeConditions={handleStopAnalyzeConditions}
-                            isAnalyzing={isAnalyzing}
-                          />
-                        ))}
+                        {selectedLocations.length > 1 && (
+                          <Card className="border-primary/20 bg-background/70">
+                            <CardContent className="p-4 space-y-3">
+                              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 text-sm font-semibold">
+                                    <Layers className="h-4 w-4 text-primary" />
+                                    <span>Multi-Garden Environment Manager ({selectedLocations.length} Gardens)</span>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    Shared conditions are combined below. Unique microclimate conditions are badged per garden—click <strong>Sync All</strong> on any unique field to combine it across all gardens.
+                                  </p>
+                                </div>
+                                <div className="flex items-center flex-wrap gap-2">
+                                  <Select
+                                    onValueChange={(season) => handleApplyFieldToAllSelectedGardens('currentSeason', season)}
+                                  >
+                                    <SelectTrigger className="h-8 w-[165px] text-xs">
+                                      <SelectValue placeholder="Set Season for All..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Spring">All: Spring</SelectItem>
+                                      <SelectItem value="Summer">All: Summer</SelectItem>
+                                      <SelectItem value="Autumn">All: Autumn</SelectItem>
+                                      <SelectItem value="Winter">All: Winter</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  {activeLocation?.location && multiGardenEnvAnalysis.isUniqueField('location') && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 text-xs"
+                                      onClick={() => handleApplyFieldToAllSelectedGardens('location', activeLocation.location)}
+                                    >
+                                      <CopyCheck className="mr-1.5 h-3.5 w-3.5" />
+                                      Sync Location ("{activeLocation.location}") to All
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                                <div className="rounded-md border bg-muted/30 p-2.5 space-y-1.5">
+                                  <div className="text-xs font-medium flex items-center gap-1.5">
+                                    <Layers className="h-3.5 w-3.5 text-primary" />
+                                    <span>Combined (Shared Across Gardens)</span>
+                                  </div>
+                                  {multiGardenEnvAnalysis.shared.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {multiGardenEnvAnalysis.shared.map((item, idx) => (
+                                        <Badge key={`${item.field}-${idx}`} variant="secondary" className="text-xs font-normal">
+                                          <strong className="mr-1">{item.label}:</strong> {item.value}
+                                          {!item.isAll && (
+                                            <span className="ml-1 text-muted-foreground">({item.count}/{item.total})</span>
+                                          )}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">
+                                      No identical conditions yet. Use "Sync All" on any field below to combine shared macro-climate values.
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="rounded-md border border-amber-500/25 bg-amber-500/5 p-2.5 space-y-1.5">
+                                  <div className="text-xs font-medium flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
+                                    <Split className="h-3.5 w-3.5" />
+                                    <span>Separated (Unique Per Garden)</span>
+                                  </div>
+                                  {multiGardenEnvAnalysis.uniqueFieldLabels.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {multiGardenEnvAnalysis.uniqueFieldLabels.map((label) => (
+                                        <Badge
+                                          key={label}
+                                          variant="outline"
+                                          className="text-xs font-normal border-amber-500/30 text-amber-800 dark:text-amber-300"
+                                        >
+                                          {label} varies by garden
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">
+                                      All environmental conditions are currently identical across these gardens.
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Filter bar to view all side-by-side or isolate a single garden's conditions */}
+                              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                                <span className="text-xs text-muted-foreground mr-1">Inspect Conditions:</span>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={focusedMultiGardenId === 'all' ? 'default' : 'outline'}
+                                  className="h-7 text-xs px-2.5"
+                                  onClick={() => setFocusedMultiGardenId('all')}
+                                >
+                                  Side-by-Side ({selectedLocations.length})
+                                </Button>
+                                {selectedLocations.map((loc) => (
+                                  <Button
+                                    key={loc.id}
+                                    type="button"
+                                    size="sm"
+                                    variant={focusedMultiGardenId === loc.id ? 'default' : 'outline'}
+                                    className="h-7 text-xs px-2.5"
+                                    onClick={() => setFocusedMultiGardenId(loc.id)}
+                                  >
+                                    {loc.name}
+                                  </Button>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        <div
+                          className={cn(
+                            'grid gap-6',
+                            visibleEditorLocations.length > 1 ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1'
+                          )}
+                        >
+                          {visibleEditorLocations.map((loc) => {
+                            const gardenPlantCount = plantings?.filter((p) => p.gardenId === loc.id).length || 0;
+                            return (
+                              <div
+                                key={loc.id}
+                                className={cn(
+                                  selectedLocations.length > 1 &&
+                                    'rounded-lg border bg-background/80 p-4 shadow-sm space-y-4'
+                                )}
+                              >
+                                {selectedLocations.length > 1 && (
+                                  <div className="flex items-center justify-between border-b pb-3">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <Fence className="h-4 w-4 text-primary shrink-0" />
+                                      <h3 className="font-headline font-semibold text-base truncate">{loc.name}</h3>
+                                      <Badge variant="outline" className="text-xs font-mono">
+                                        {gardenPlantCount} plant{gardenPlantCount === 1 ? '' : 's'}
+                                      </Badge>
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 text-xs"
+                                      onClick={() => {
+                                        setActiveLocationId(loc.id);
+                                        setGardenViewMode('one');
+                                        setSelectedGardenIds([loc.id]);
+                                      }}
+                                    >
+                                      Switch to Only This Garden
+                                    </Button>
+                                  </div>
+                                )}
+                                <GardenEditor
+                                  loc={loc}
+                                  handleLocationFieldChange={handleLocationFieldChange}
+                                  handleConditionChange={handleConditionChange}
+                                  handleGetCurrentLocation={handleGetCurrentLocation}
+                                  isLocating={isLocating}
+                                  handleAnalyzeConditions={handleAnalyzeConditions}
+                                  handleStopAnalyzeConditions={handleStopAnalyzeConditions}
+                                  isAnalyzing={isAnalyzing}
+                                  multiGardenContext={
+                                    selectedLocations.length > 1
+                                      ? {
+                                          getFieldShareInfo: multiGardenEnvAnalysis.getFieldShareInfo,
+                                          onApplyFieldToAll: handleApplyFieldToAllSelectedGardens,
+                                        }
+                                      : undefined
+                                  }
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
                       </AccordionContent>
                   </AccordionItem>
                 </Accordion>
@@ -2141,6 +2516,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
           handleAnalyzeConditions={handleAnalyzeConditions}
           handleStopAnalyzeConditions={handleStopAnalyzeConditions}
           isAnalyzing={isAnalyzing}
+          getFieldShareInfo={multiGardenEnvAnalysis.getFieldShareInfo}
+          onApplyFieldToAll={handleApplyFieldToAllSelectedGardens}
         />
       )}
 

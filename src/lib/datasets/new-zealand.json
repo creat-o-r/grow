@@ -62,15 +62,14 @@
             "gardenId": "nz-loc-1",
             "name": "Spring Kūmara Ridge",
             "createdAt": "2026-10-01T09:00:00.000Z",
-            "seedsOnHand": 25,
-            "plannedQty": 15,
-            "swapAvailable": true,
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 {
                     "id": "nz-h-1",
                     "status": "Planting",
                     "date": "2026-10-01T09:00:00.000Z",
-                    "notes": "Rooted tipu in water jars; 10 surplus slips ready for local swap."
+                    "notes": "Rooted tipu in water jars ready for spring planting."
                 }
             ]
         },
@@ -80,9 +79,8 @@
             "gardenId": "nz-loc-1",
             "name": "Sheltered Kawakawa Tea Hedge",
             "createdAt": "2026-09-15T09:00:00.000Z",
-            "seedsOnHand": 12,
-            "plannedQty": 4,
-            "swapAvailable": true,
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 {
                     "id": "nz-h-2",
@@ -98,8 +96,8 @@
             "gardenId": "nz-loc-1",
             "name": "Boundary Feijoa Pair",
             "createdAt": "2026-08-20T09:00:00.000Z",
-            "seedsOnHand": 2,
-            "plannedQty": 2,
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 {
                     "id": "nz-h-3",
@@ -115,15 +113,14 @@
             "gardenId": "nz-loc-1",
             "name": "Main Crop Tūtaekurī",
             "createdAt": "2026-10-10T09:00:00.000Z",
-            "seedsOnHand": 30,
-            "plannedQty": 20,
-            "swapAvailable": true,
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 {
                     "id": "nz-h-4",
                     "status": "Planting",
                     "date": "2026-10-10T09:00:00.000Z",
-                    "notes": "10 extra seed tubers available for local seed swap."
+                    "notes": "Chitted seed tubers ready for mounded compost trenches."
                 }
             ]
         },
@@ -133,9 +130,8 @@
             "gardenId": "nz-loc-1",
             "name": "Year-Round Silverbeet Bed",
             "createdAt": "2026-07-01T09:00:00.000Z",
-            "seedsOnHand": 100,
-            "plannedQty": 20,
-            "swapAvailable": true,
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 {
                     "id": "nz-h-5",

@@ -53,6 +53,8 @@
             "gardenId": "veg-loc-1",
             "name": "Spring Carrots",
             "createdAt": "2024-04-20T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h1", "status": "Planting", "date": "2024-04-20T12:00:00.000Z", "notes": "Amsterdam Forcing variety." }
             ]
@@ -63,6 +65,8 @@
             "gardenId": "veg-loc-1",
             "name": "Summer Broccoli",
             "createdAt": "2024-05-15T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h2", "status": "Growing", "date": "2024-05-15T12:00:00.000Z", "notes": "Heads are starting to form." }
             ]
@@ -73,6 +77,8 @@
             "gardenId": "veg-loc-1",
             "name": "Maincrop Potatoes",
             "createdAt": "2024-04-10T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h3", "status": "Growing", "date": "2024-04-10T12:00:00.000Z", "notes": "First Early variety." }
             ]
@@ -83,6 +89,8 @@
             "gardenId": "veg-loc-1",
             "name": "Storage Onions",
             "createdAt": "2024-08-25T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h4", "status": "Harvest", "date": "2024-08-25T12:00:00.000Z", "notes": "Curing for storage." }
             ]
@@ -93,6 +101,8 @@
             "gardenId": "veg-loc-1",
             "name": "Cut-and-Come-Again Lettuce",
             "createdAt": "2025-03-01T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h5", "status": "Wishlist", "date": "2025-03-01T12:00:00.000Z", "notes": "Planning to sow 'Tom Thumb' variety." }
             ]

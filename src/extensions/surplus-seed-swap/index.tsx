@@ -45,7 +45,7 @@ function SurplusSeedSwapWidget({ plantings, activeLocation }: ExtensionContext) 
         gardenId: i.planting.gardenId,
         name: `${i.planting.name} (Seed Swap)`,
         createdAt: new Date().toISOString(),
-        seedsOnHand: i.surplus || 10,
+        seedsOnHand: i.surplus ?? 0,
         plannedQty: 0,
         swapAvailable: true,
         history: [

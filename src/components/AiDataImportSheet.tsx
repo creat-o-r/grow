@@ -439,7 +439,13 @@ export function AiDataImportSheet({
   
           await db.locations.bulkAdd(generatedData.locations);
           await db.plants.bulkAdd(generatedData.plants);
-          await db.plantings.bulkAdd(generatedData.plantings);
+          await db.plantings.bulkAdd(
+            generatedData.plantings.map((p) => ({
+              ...p,
+              seedsOnHand: p.seedsOnHand ?? 0,
+              plannedQty: p.plannedQty ?? 0,
+            }))
+          );
 
           if (typeof window !== 'undefined' && generatedData.locations[0]?.id) {
             localStorage.setItem('grow_activeLocation', generatedData.locations[0].id);
@@ -467,6 +473,8 @@ export function AiDataImportSheet({
               id: `planting${idSuffix}-${i}`,
               plantId: plantIdMap.get(p.plantId) || `unknown-plant${idSuffix}-${i}`,
               gardenId: newGardenId,
+              seedsOnHand: p.seedsOnHand ?? 0,
+              plannedQty: p.plannedQty ?? 0,
             }));
             
             const newLocation: GardenLocation = {
@@ -620,7 +628,8 @@ export function AiDataImportSheet({
             ];
             await db.plantings.update(existing.id, {
               history: updatedHistory,
-              plannedQty: (existing.plannedQty || 0) + (newPlanting.plannedQty || 0) || existing.plannedQty,
+              plannedQty: (existing.plannedQty ?? 0) + (newPlanting.plannedQty ?? 0),
+              seedsOnHand: (existing.seedsOnHand ?? 0) + (newPlanting.seedsOnHand ?? 0),
             });
             mergedCount++;
             continue;
@@ -634,6 +643,8 @@ export function AiDataImportSheet({
               id: `planting-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
               plantId: newPlantId,
               gardenId: activeLocation.id,
+              seedsOnHand: newPlanting.seedsOnHand ?? 0,
+              plannedQty: newPlanting.plannedQty ?? 0,
             });
           }
         }

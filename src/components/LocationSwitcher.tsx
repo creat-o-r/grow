@@ -82,13 +82,8 @@ export function LocationSwitcher({
   const handleEditClick = (e: MouseEvent, location: GardenLocation) => {
     e.stopPropagation();
     e.preventDefault();
-    const isMobile = window.innerWidth < 768; // md breakpoint
-    if (isMobile) {
-      onEditLocation(location);
-      setIsOpen(false);
-    } else {
-      setEditingLocationId(location.id);
-    }
+    setEditingLocationId(location.id);
+    setEditingName(location.name);
   };
 
   const handleCancelEdit = (e: MouseEvent) => {
@@ -97,20 +92,21 @@ export function LocationSwitcher({
     setEditingLocationId(null);
   };
 
-  const handleSaveEdit = async (e: MouseEvent) => {
-     e.stopPropagation();
-     e.preventDefault();
+  const handleSaveEdit = async (e?: MouseEvent) => {
+    e?.stopPropagation();
+    e?.preventDefault();
     if (editingLocationId && editingName.trim()) {
       await db.locations.update(editingLocationId, { name: editingName.trim() });
       setEditingLocationId(null);
     }
   };
 
-  const handleEditKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleEditKeyDown = async (e: KeyboardEvent<HTMLInputElement>) => {
+    e.stopPropagation();
     if (e.key === 'Enter') {
       e.preventDefault();
       if (editingLocationId && editingName.trim()) {
-        db.locations.update(editingLocationId, { name: editingName.trim() });
+        await db.locations.update(editingLocationId, { name: editingName.trim() });
         setEditingLocationId(null);
       }
     }
@@ -118,7 +114,7 @@ export function LocationSwitcher({
       e.preventDefault();
       setEditingLocationId(null);
     }
-  }
+  };
 
   const handleItemSelect = (locationId: string) => {
     if (gardenViewMode === 'selected') {
@@ -169,60 +165,87 @@ export function LocationSwitcher({
           {locations.map(location => {
             const isSelectedForMulti = gardenViewMode === 'selected' && selectedGardenIds.includes(location.id);
             const isActive = location.id === activeLocationId;
+            if (editingLocationId === location.id) {
+              return (
+                <div
+                  key={location.id}
+                  className="flex items-center gap-1 w-full px-2 py-1.5 bg-accent/40 rounded-sm"
+                  onKeyDown={(e) => e.stopPropagation()}
+                  onPointerMove={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Input
+                    autoFocus
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onKeyDown={handleEditKeyDown}
+                    className="h-7 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={handleSaveEdit}
+                    title="Save name"
+                  >
+                    <Check className="h-4 w-4 text-green-600" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={handleCancelEdit}
+                    title="Cancel"
+                  >
+                    <X className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              );
+            }
             return (
               <DropdownMenuItem 
                 key={location.id} 
                 onSelect={(e) => e.preventDefault()} // Prevent default close behavior
                 className={cn("p-0", isActive && gardenViewMode === 'one' && 'bg-accent/50')}
               >
-                  {editingLocationId === location.id ? (
-                      <div className="flex items-center gap-1 w-full px-2 py-1.5">
-                        <Input 
-                          autoFocus
-                          value={editingName} 
-                          onChange={(e) => setEditingName(e.target.value)}
-                          onKeyDown={handleEditKeyDown}
-                          className="h-7"
-                        />
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveEdit}><Check className="h-4 w-4 text-green-600"/></Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancelEdit}><X className="h-4 w-4 text-destructive"/></Button>
+                  <div className={cn("flex items-center w-full justify-between px-2 py-1.5 cursor-pointer")}>
+                      <div className={cn("flex items-center gap-3 flex-1")} onClick={() => handleSelectOneShortcut(location.id)}>
+                         {gardenViewMode === 'selected' && (
+                            <div onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleItemSelect(location.id); }} className="p-1 -ml-1">
+                                <Checkbox
+                                    checked={isSelectedForMulti}
+                                    aria-label={`Select ${location.name}`}
+                                />
+                            </div>
+                         )}
+                          <span className="flex-1 truncate">{location.name}</span>
                       </div>
-                    ) : (
-                      <div className={cn("flex items-center w-full justify-between px-2 py-1.5 cursor-pointer")}>
-                          <div className={cn("flex items-center gap-3 flex-1")} onClick={() => handleSelectOneShortcut(location.id)}>
-                             {gardenViewMode === 'selected' && (
-                                <div onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleItemSelect(location.id); }} className="p-1 -ml-1">
-                                    <Checkbox
-                                        checked={isSelectedForMulti}
-                                        aria-label={`Select ${location.name}`}
-                                    />
-                                </div>
-                             )}
-                              <span className="flex-1">{location.name}</span>
-                          </div>
 
-                        <div className="flex items-center">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-7 w-7"
-                              onClick={(e) => handleEditClick(e, location)}
-                              aria-label={`Edit ${location.name}`}
-                            >
-                              <Edit className="h-4 w-4"/>
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-7 w-7"
-                              onClick={(e) => handleDeleteClick(e, location)}
-                              aria-label={`Delete ${location.name}`}
-                            >
-                                <Trash2 className="h-4 w-4 text-destructive"/>
-                            </Button>
-                        </div>
-                      </div>
-                  )}
+                    <div className="flex items-center">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7"
+                          onClick={(e) => handleEditClick(e, location)}
+                          aria-label={`Rename ${location.name}`}
+                          title="Rename garden"
+                        >
+                          <Edit className="h-4 w-4"/>
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7"
+                          onClick={(e) => handleDeleteClick(e, location)}
+                          aria-label={`Delete ${location.name}`}
+                          title="Delete garden"
+                        >
+                            <Trash2 className="h-4 w-4 text-destructive"/>
+                        </Button>
+                    </div>
+                  </div>
               </DropdownMenuItem>
           )})}
         
@@ -267,7 +290,7 @@ export function LocationSwitcher({
             </div>
         )}
         <DropdownMenuSeparator />
-        <div className="p-2 space-y-2">
+        <div className="p-2 space-y-2" onKeyDown={(e) => e.stopPropagation()}>
             <p className="text-xs font-medium text-muted-foreground px-2">Add New Garden</p>
             <div className="flex items-center space-x-2 px-2">
                 <Input
@@ -275,6 +298,7 @@ export function LocationSwitcher({
                     value={newLocationName}
                     onChange={e => setNewLocationName(e.target.value)}
                     onKeyDown={e => {
+                        e.stopPropagation();
                         if (e.key === 'Enter') handleAddLocation();
                     }}
                     className="h-8"

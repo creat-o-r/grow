@@ -62,9 +62,11 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import {
   decodeSeedPackFromInput,
+  encodeSeedPackToParam,
   mergeSeedPackIntoDb,
   type GardenImportMode,
 } from '@/lib/seed-pack';
+import { db } from '@/lib/db';
 import { registeredExtensions } from '@/extensions/registry';
 
 type SettingsSheetProps = {
@@ -270,13 +272,24 @@ export function SettingsSheet({
 
   const handleCopyMcpUrl = async () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    await navigator.clipboard.writeText(`${origin}/api/mcp`);
+    const [locations, plants, plantings] = await Promise.all([
+      db.locations.toArray(),
+      db.plants.toArray(),
+      db.plantings.toArray(),
+    ]);
+    const hasLiveData = locations.length > 0 || plants.length > 0 || plantings.length > 0;
+    const mcpUrl = hasLiveData
+      ? `${origin}/api/mcp?pack=${encodeSeedPackToParam({ locations, plants, plantings })}`
+      : `${origin}/api/mcp`;
+
+    await navigator.clipboard.writeText(mcpUrl);
     setCopiedMcp(true);
     setTimeout(() => setCopiedMcp(false), 2000);
     toast({
-      title: 'MCP Server URL Copied',
-      description:
-        'Add this Streamable HTTP endpoint to Claude, Cursor, Antigravity, or another Grow instance.',
+      title: hasLiveData ? 'Live IndexedDB MCP URL Copied' : 'MCP Server URL Copied',
+      description: hasLiveData
+        ? 'Copied /api/mcp?pack=... carrying your live browser IndexedDB garden for Claude, Cursor, or Antigravity.'
+        : 'Add this Streamable HTTP endpoint to Claude, Cursor, Antigravity, or another Grow instance.',
     });
   };
 

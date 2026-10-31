@@ -53,6 +53,8 @@
             "gardenId": "med-loc-1",
             "name": "Immunity Echinacea",
             "createdAt": "2024-05-01T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h1", "status": "Growing", "date": "2024-05-01T12:00:00.000Z", "notes": "Known for immune-boosting properties." }
             ]
@@ -63,6 +65,8 @@
             "gardenId": "med-loc-1",
             "name": "Tea Chamomile",
             "createdAt": "2024-06-20T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h2", "status": "Harvest", "date": "2024-06-20T12:00:00.000Z", "notes": "Flowers harvested for tea." }
             ]
@@ -73,6 +77,8 @@
             "gardenId": "med-loc-1",
             "name": "Calming Lavender",
             "createdAt": "2023-04-15T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h3", "status": "Growing", "date": "2023-04-15T12:00:00.000Z", "notes": "English Lavender variety for calming aroma." }
             ]
@@ -83,6 +89,8 @@
             "gardenId": "med-loc-1",
             "name": "Soothing Calendula",
             "createdAt": "2024-04-25T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h4", "status": "Planting", "date": "2024-04-25T12:00:00.000Z", "notes": "Used for skin-soothing oils and salves." }
             ]
@@ -93,6 +101,8 @@
             "gardenId": "med-loc-1",
             "name": "Shade-grown Ginseng",
             "createdAt": "2024-09-10T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h5", "status": "Wishlist", "date": "2024-09-10T12:00:00.000Z", "notes": "Planning to create a shade structure." }
             ]

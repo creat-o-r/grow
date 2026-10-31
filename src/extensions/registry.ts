@@ -55,6 +55,7 @@ export interface GrowExtension {
 
 import { surplusSeedSwapExtension } from './surplus-seed-swap';
 import { companionGuildExtension } from './companion-guild';
+import { browserMcpBridgeExtension } from './browser-mcp-bridge';
 
 /**
  * Central zero-conflict registry for crowd-developed extensions.
@@ -63,6 +64,7 @@ import { companionGuildExtension } from './companion-guild';
 export const registeredExtensions: GrowExtension[] = [
   surplusSeedSwapExtension,
   companionGuildExtension,
+  browserMcpBridgeExtension,
 ];
 
 export function getExtensionsBySlot(slot: ExtensionSlot): GrowExtension[] {

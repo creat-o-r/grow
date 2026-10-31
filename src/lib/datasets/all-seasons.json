@@ -47,6 +47,8 @@
             "gardenId": "all-seasons-loc-1",
             "name": "Quick-Snack Radishes",
             "createdAt": "2024-01-01T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h1", "status": "Wishlist", "date": "2024-01-01T12:00:00.000Z", "notes": "Cherry Belle variety, good for all seasons." }
             ]
@@ -57,6 +59,8 @@
             "gardenId": "all-seasons-loc-1",
             "name": "Winterbor Kale",
             "createdAt": "2024-01-01T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h2", "status": "Wishlist", "date": "2024-01-01T12:00:00.000Z", "notes": "A very frost-tolerant variety for year-round greens." }
             ]
@@ -67,6 +71,8 @@
             "gardenId": "all-seasons-loc-1",
             "name": "Rainbow Chard",
             "createdAt": "2024-01-01T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h3", "status": "Wishlist", "date": "2024-01-01T12:00:00.000Z", "notes": "Colorful and productive through heat and cold." }
             ]
@@ -77,6 +83,8 @@
             "gardenId": "all-seasons-loc-1",
             "name": "Evergreen Scallions",
             "createdAt": "2024-01-01T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h4", "status": "Wishlist", "date": "2024-01-01T12:00:00.000Z", "notes": "Perennial onions for a never-ending supply." }
             ]

@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { GardenEditor } from '@/components/GardenEditor';
+import { GardenEditor, type GardenEnvField, type FieldShareStatus } from '@/components/GardenEditor';
 import type { GardenLocation, Conditions } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
@@ -24,12 +24,16 @@ type GardenEditSheetProps = {
   handleAnalyzeConditions: (locationId: string) => Promise<void>;
   handleStopAnalyzeConditions?: (locationId: string) => void;
   isAnalyzing: string | null;
+  onApplyFieldToAll?: (field: GardenEnvField, value: string) => void;
+  getFieldShareInfo?: (field: GardenEnvField, value?: string) => FieldShareStatus;
 };
 
 export function GardenEditSheet({
   isOpen,
   onOpenChange,
   locations,
+  onApplyFieldToAll,
+  getFieldShareInfo,
   ...rest
 }: GardenEditSheetProps) {
 
@@ -94,10 +98,33 @@ export function GardenEditSheet({
                                             value={editingName}
                                             onChange={(e) => setEditingName(e.target.value)}
                                             onKeyDown={handleEditKeyDown}
-                                            className="text-xl font-headline h-auto p-0 border-0 shadow-none focus-visible:ring-0"
+                                            onBlur={handleSaveEdit}
+                                            className="text-xl font-headline h-8 px-2"
                                         />
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={handleSaveEdit}><Check className="h-5 w-5 text-green-600"/></Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={handleCancelEdit}><X className="h-5 w-5 text-destructive"/></Button>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 flex-shrink-0"
+                                            onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                handleSaveEdit();
+                                            }}
+                                        >
+                                            <Check className="h-5 w-5 text-green-600"/>
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 flex-shrink-0"
+                                            onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                handleCancelEdit();
+                                            }}
+                                        >
+                                            <X className="h-5 w-5 text-destructive"/>
+                                        </Button>
                                     </div>
                                 ) : (
                                     <>
@@ -113,6 +140,11 @@ export function GardenEditSheet({
                         <div className="p-6 space-y-6">
                             <GardenEditor 
                                 loc={loc}
+                                multiGardenContext={
+                                    locations.length > 1 && getFieldShareInfo
+                                        ? { getFieldShareInfo, onApplyFieldToAll }
+                                        : undefined
+                                }
                                 {...rest} 
                             />
                         </div>

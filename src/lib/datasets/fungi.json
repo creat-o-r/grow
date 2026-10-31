@@ -41,6 +41,8 @@
             "gardenId": "fungi-loc-1",
             "name": "Oak Log Shiitake",
             "createdAt": "2023-09-15T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h1", "status": "Growing", "date": "2023-09-15T12:00:00.000Z", "notes": "Logs are colonizing well." }
             ]
@@ -51,6 +53,8 @@
             "gardenId": "fungi-loc-1",
             "name": "Straw Bale Oysters",
             "createdAt": "2024-06-01T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h2", "status": "Harvest", "date": "2024-06-01T12:00:00.000Z", "notes": "Harvested first flush from straw bags." }
             ]
@@ -61,6 +65,8 @@
             "gardenId": "fungi-loc-1",
             "name": "Lion's Mane Kit",
             "createdAt": "2024-08-01T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [
                 { "id": "h3", "status": "Wishlist", "date": "2024-08-01T12:00:00.000Z", "notes": "Ordered a ready-to-fruit block." }
             ]

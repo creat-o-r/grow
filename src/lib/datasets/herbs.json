@@ -53,6 +53,8 @@
             "gardenId": "herbs-loc-1",
             "name": "Pesto Basil",
             "createdAt": "2024-04-15T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [ { "id": "h1", "status": "Wishlist", "date": "2024-04-15T12:00:00.000Z", "notes": "Genovese variety for pesto." } ]
         },
         {
@@ -61,6 +63,8 @@
             "gardenId": "herbs-loc-1",
             "name": "Rosemary Bush",
             "createdAt": "2023-09-01T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [ { "id": "h2", "status": "Growing", "date": "2023-09-01T12:00:00.000Z", "notes": "Established from a cutting." } ]
         },
         {
@@ -69,6 +73,8 @@
             "gardenId": "herbs-loc-1",
             "name": "Thyme Ground Cover",
             "createdAt": "2023-05-20T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [ { "id": "h3", "status": "Growing", "date": "2023-05-20T12:00:00.000Z", "notes": "Spreading well." } ]
         },
         {
@@ -77,6 +83,8 @@
             "gardenId": "herbs-loc-1",
             "name": "Pizza Oregano",
             "createdAt": "2024-07-10T12:00:00.000Z",
+            "seedsOnHand": 0,
+            "plannedQty": 0,
             "history": [ { "id": "h4", "status": "Harvest", "date": "2024-07-10T12:00:00.000Z", "notes": "Dried for winter use." } ]
         },
         {
@@ -85,9 +93,9 @@
             "gardenId": "herbs-loc-1",
             "name": "Italian Parsley",
             "createdAt": "2024-03-05T12:00:00.000Z",
-            "history": [ { "id": "h5", "status": "Planting", "date": "2024-03-05T12:00:00.000Z", "notes": "Flat-leaf variety." } ],
-            "seedsOnHand": 50,
-            "plannedQty": 100
+            "seedsOnHand": 0,
+            "plannedQty": 0,
+            "history": [ { "id": "h5", "status": "Planting", "date": "2024-03-05T12:00:00.000Z", "notes": "Flat-leaf variety." } ]
         }
     ]
 }

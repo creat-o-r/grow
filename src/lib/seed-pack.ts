@@ -250,6 +250,8 @@ export async function mergeSeedPackIntoDb(
       const plantingsWithGarden = incoming.plantings.map((pl) => ({
         ...pl,
         gardenId: locToUse.id,
+        seedsOnHand: pl.seedsOnHand ?? 0,
+        plannedQty: pl.plannedQty ?? 0,
         forkedFrom: pl.forkedFrom || provenance,
       }));
       await db.plantings.bulkAdd(plantingsWithGarden);
@@ -317,6 +319,8 @@ export async function mergeSeedPackIntoDb(
           id: `planting${idSuffix}-${addedPlantings}`,
           plantId: mappedPlantId,
           gardenId: newGardenId,
+          seedsOnHand: incomingPlanting.seedsOnHand ?? 0,
+          plannedQty: incomingPlanting.plannedQty ?? 0,
           forkedFrom: incomingPlanting.forkedFrom || provenance,
         };
         await db.plantings.add(newPlanting);
@@ -387,12 +391,8 @@ export async function mergeSeedPackIntoDb(
         ];
         await db.plantings.update(existing.id, {
           history: updatedHistory,
-          plannedQty:
-            (existing.plannedQty || 0) + (incomingPlanting.plannedQty || 0) ||
-            existing.plannedQty,
-          seedsOnHand:
-            (existing.seedsOnHand || 0) + (incomingPlanting.seedsOnHand || 0) ||
-            existing.seedsOnHand,
+          plannedQty: (existing.plannedQty ?? 0) + (incomingPlanting.plannedQty ?? 0),
+          seedsOnHand: (existing.seedsOnHand ?? 0) + (incomingPlanting.seedsOnHand ?? 0),
         });
         mergedPlants++;
         continue;
@@ -412,6 +412,8 @@ export async function mergeSeedPackIntoDb(
         id: newPlantingId,
         plantId: mappedPlantId,
         gardenId: activeLoc.id,
+        seedsOnHand: incomingPlanting.seedsOnHand ?? 0,
+        plannedQty: incomingPlanting.plannedQty ?? 0,
         forkedFrom: incomingPlanting.forkedFrom || provenance,
       };
       await db.plantings.add(newPlanting);
