@@ -5,6 +5,7 @@ import { useWebMCP } from 'use-webmcp-tool';
 import type { GrowExtension, ExtensionContext } from '../registry';
 import { db } from '@/lib/db';
 import {
+  decodeSeedPackFromInput,
   encodeSeedPackToParam,
   mergeSeedPackIntoDb,
   toSpeciesUid,
@@ -268,34 +269,118 @@ function BrowserMcpBridgeWidget({ plantings, activeLocation }: ExtensionContext)
     },
   });
 
-  // 3. Same-browser BroadcastChannel ('grow-indexeddb-mcp') so other same-origin tabs or extensions can query live IndexedDB
+  // 3. Same-browser BroadcastChannel ('grow-indexeddb-mcp') + Direct AI Push Listener (?aiPushPack= & /api/mcp?pollAiPush=default)
   useEffect(() => {
-    if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return;
-    const channel = new BroadcastChannel('grow-indexeddb-mcp');
-    const handleMessage = async (event: MessageEvent) => {
-      const msg = event.data;
-      if (!msg || msg.type !== 'mcp-request') return;
+    if (typeof window === 'undefined') return;
+
+    // 3a. Handle 1-click direct auto-import URL (?aiPushPack=<encoded>&mode=add|new)
+    const params = new URLSearchParams(window.location.search);
+    const aiPushPack = params.get('aiPushPack');
+    const modeParam = params.get('mode') === 'new' ? 'new' : 'add';
+    if (aiPushPack) {
+      window.history.replaceState({}, '', window.location.pathname);
       try {
-        const snapshot = await readLiveIndexedDbGarden(activeLocation?.id, false);
-        channel.postMessage({
-          type: 'mcp-response',
-          id: msg.id,
-          result: snapshot,
+        const dataset = decodeSeedPackFromInput(aiPushPack);
+        mergeSeedPackIntoDb(dataset, {
+          mode: modeParam,
+          targetGardenId: activeLocation?.id,
+          author: 'AI Direct Push',
+        }).then((res) => {
+          toast({
+            title: 'AI Direct Import Complete!',
+            description: `Added ${res.addedPlantings} planting(s) directly into "${res.targetGardenName}".`,
+          });
         });
       } catch (err) {
-        channel.postMessage({
-          type: 'mcp-response',
-          id: msg.id,
-          error: err instanceof Error ? err.message : String(err),
-        });
+        console.warn('Could not decode ?aiPushPack= param:', err);
+      }
+    }
+
+    // 3b. Poll /api/mcp?pollAiPush=default when tab is visible so external AI MCP calls push straight into IndexedDB
+    let cancelled = false;
+    const pollAiRelay = async () => {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      try {
+        const res = await fetch('/api/mcp?pollAiPush=default', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const pushes = Array.isArray(data?.queuedPushes) ? data.queuedPushes : [];
+        for (const item of pushes) {
+          if (!item?.dataset) continue;
+          const mergeRes = await mergeSeedPackIntoDb(item.dataset, {
+            mode: item.importMode === 'new' ? 'new' : 'add',
+            targetGardenId: activeLocation?.id,
+            author: 'AI MCP Live Push',
+          });
+          toast({
+            title: 'AI Pushed Plants to Your Garden!',
+            description: `Imported ${mergeRes.addedPlantings} planting(s) directly into "${mergeRes.targetGardenName}".`,
+          });
+        }
+      } catch {
+        // Ignore transient network errors during background polling
       }
     };
-    channel.addEventListener('message', handleMessage);
+
+    const interval = setInterval(pollAiRelay, 4000);
+    window.addEventListener('focus', pollAiRelay);
+
+    // 3c. Same-browser BroadcastChannel for instant cross-tab / extension read & push
+    let channel: BroadcastChannel | null = null;
+    if ('BroadcastChannel' in window) {
+      channel = new BroadcastChannel('grow-indexeddb-mcp');
+      channel.onmessage = async (event: MessageEvent) => {
+        const msg = event.data;
+        if (!msg) return;
+        if (msg.type === 'mcp-request') {
+          try {
+            const snapshot = await readLiveIndexedDbGarden(activeLocation?.id, false);
+            channel?.postMessage({
+              type: 'mcp-response',
+              id: msg.id,
+              result: snapshot,
+            });
+          } catch (err) {
+            channel?.postMessage({
+              type: 'mcp-response',
+              id: msg.id,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        } else if (msg.type === 'mcp-push-import' && msg.dataset) {
+          try {
+            const mergeRes = await mergeSeedPackIntoDb(msg.dataset, {
+              mode: msg.mode === 'new' ? 'new' : 'add',
+              targetGardenId: activeLocation?.id,
+              author: 'Same-Browser AI Push',
+            });
+            channel?.postMessage({
+              type: 'mcp-push-response',
+              id: msg.id,
+              result: mergeRes,
+            });
+            toast({
+              title: 'AI Pushed Plants to Your Garden!',
+              description: `Imported ${mergeRes.addedPlantings} planting(s) directly into "${mergeRes.targetGardenName}".`,
+            });
+          } catch (err) {
+            channel?.postMessage({
+              type: 'mcp-push-response',
+              id: msg.id,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        }
+      };
+    }
+
     return () => {
-      channel.removeEventListener('message', handleMessage);
-      channel.close();
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('focus', pollAiRelay);
+      channel?.close();
     };
-  }, [activeLocation?.id]);
+  }, [activeLocation?.id, toast]);
 
   const handleRunLivePreview = async () => {
     const result = await readLiveIndexedDbGarden(activeLocation?.id, true);

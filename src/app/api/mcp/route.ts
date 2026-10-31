@@ -113,7 +113,107 @@ const MCP_TOOLS = [
       readOnlyHint: true,
     },
   },
+  {
+    name: 'push-ai-seed-pack-to-garden',
+    description:
+      "Pushes an AI-generated plant dataset directly into the user's open Grow browser tab (IndexedDB) via live relay and returns a 1-click direct auto-import URL.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        importMode: {
+          type: 'string',
+          enum: ['add', 'new'],
+          default: 'add',
+          description:
+            'Whether to add plants into the active garden ("add") or create a new garden location ("new").',
+        },
+        garden: {
+          type: 'object',
+          description: 'Optional garden microclimate metadata (used when importMode is "new").',
+          properties: {
+            name: { type: 'string', description: 'Garden name.' },
+            location: { type: 'string', description: 'City, region, or country.' },
+            temperatureUnit: { type: 'string', enum: ['C', 'F'], default: 'C' },
+            conditions: {
+              type: 'object',
+              properties: {
+                temperature: { type: 'string', description: 'Average temperature (e.g. "19°C").' },
+                sunlight: { type: 'string', description: 'Sunlight exposure (e.g. "Full sun").' },
+                soil: { type: 'string', description: 'Soil type (e.g. "Volcanic loam").' },
+                currentSeason: {
+                  type: 'string',
+                  enum: ['Spring', 'Summer', 'Autumn', 'Winter'],
+                },
+              },
+            },
+          },
+        },
+        plants: {
+          type: 'array',
+          description: 'List of plants to push directly into the user garden.',
+          items: {
+            type: 'object',
+            properties: {
+              species: {
+                type: 'string',
+                description: 'Common and scientific name of the plant cultivar.',
+              },
+              germinationNeeds: {
+                type: 'string',
+                description: 'Sowing depth, moisture, season, and temperature for germination.',
+              },
+              optimalConditions: {
+                type: 'string',
+                description: 'Ideal sunlight, soil, temperature, and season for growth.',
+              },
+              plantingName: {
+                type: 'string',
+                description: 'Optional friendly label for this planting.',
+              },
+              status: {
+                type: 'string',
+                enum: ['Wishlist', 'Planting', 'Growing', 'Harvest'],
+                default: 'Wishlist',
+              },
+              notes: {
+                type: 'string',
+                description: 'Optional horticultural note for the planting history.',
+              },
+            },
+            required: ['species', 'germinationNeeds', 'optimalConditions'],
+          },
+        },
+        channel: {
+          type: 'string',
+          default: 'default',
+          description: 'Optional relay channel ID matching the user browser tab.',
+        },
+      },
+      required: ['plants'],
+    },
+    annotations: {
+      readOnlyHint: false,
+    },
+  },
 ];
+
+interface QueuedAiPush {
+  id: string;
+  createdAt: string;
+  importMode: 'add' | 'new';
+  dataset: AiDataset;
+}
+
+const globalRelay = globalThis as unknown as {
+  __growPendingAiPushes?: Map<string, QueuedAiPush[]>;
+};
+
+function getPendingAiPushMap(): Map<string, QueuedAiPush[]> {
+  if (!globalRelay.__growPendingAiPushes) {
+    globalRelay.__growPendingAiPushes = new Map<string, QueuedAiPush[]>();
+  }
+  return globalRelay.__growPendingAiPushes;
+}
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -191,6 +291,20 @@ function formatBrowserGardenReport(dataset: AiDataset, origin: string) {
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
+  const pollChannel = req.nextUrl.searchParams.get('pollAiPush');
+  if (pollChannel) {
+    const queueMap = getPendingAiPushMap();
+    const items = queueMap.get(pollChannel) || [];
+    queueMap.set(pollChannel, []);
+    return NextResponse.json(
+      {
+        channel: pollChannel,
+        queuedPushes: items,
+      },
+      { headers: CORS_HEADERS }
+    );
+  }
+
   const packParam = req.nextUrl.searchParams.get('pack');
   const resources = availableDatasets.map((d) => ({
     uri: `grow://datasets/${d.key}`,
@@ -509,6 +623,116 @@ async function handleJsonRpcMessage(
                   datasetKey: args.datasetKey,
                   plantCount: dataset.plants.length,
                   forkUrl: packUrl,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        },
+      };
+    }
+
+    if (toolName === 'push-ai-seed-pack-to-garden') {
+      const rawPlants = Array.isArray(args.plants) ? args.plants : [];
+      if (rawPlants.length === 0) {
+        return {
+          jsonrpc: '2.0',
+          id,
+          result: {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(
+                  { error: 'Pass a non-empty plants array to push to the user garden.' },
+                  null,
+                  2
+                ),
+              },
+            ],
+          },
+        };
+      }
+
+      const importMode: 'add' | 'new' = args.importMode === 'new' ? 'new' : 'add';
+      const channel = typeof args.channel === 'string' && args.channel.trim() ? args.channel.trim() : 'default';
+      const now = Date.now();
+      const gardenId = `ai-push-garden-${now}`;
+
+      const dataset: AiDataset = {
+        locations: [
+          {
+            id: gardenId,
+            name: args.garden?.name || 'AI Pushed Garden Pack',
+            location: args.garden?.location || '',
+            temperatureUnit: args.garden?.temperatureUnit === 'F' ? 'F' : 'C',
+            conditions: {
+              temperature: args.garden?.conditions?.temperature || '18°C',
+              sunlight: args.garden?.conditions?.sunlight || 'Full sun',
+              soil: args.garden?.conditions?.soil || 'Well-drained loam',
+              currentSeason: args.garden?.conditions?.currentSeason || 'Spring',
+            },
+          },
+        ],
+        plants: rawPlants.map((p: any, idx: number) => ({
+          id: `ai-push-plant-${now}-${idx}`,
+          uid: toSpeciesUid(p.species || `plant-${idx}`),
+          species: p.species || `Cultivar ${idx + 1}`,
+          germinationNeeds: p.germinationNeeds || 'Sow in moist soil.',
+          optimalConditions: p.optimalConditions || 'Full sun to partial shade.',
+        })),
+        plantings: rawPlants.map((p: any, idx: number) => ({
+          id: `ai-push-planting-${now}-${idx}`,
+          plantId: `ai-push-plant-${now}-${idx}`,
+          gardenId,
+          name: p.plantingName || String(p.species || `Plant ${idx + 1}`).split('(')[0].trim(),
+          createdAt: new Date().toISOString(),
+          seedsOnHand: 0,
+          plannedQty: 0,
+          history: [
+            {
+              id: `ai-push-hist-${now}-${idx}`,
+              status: ['Wishlist', 'Planting', 'Growing', 'Harvest'].includes(p.status)
+                ? p.status
+                : 'Wishlist',
+              date: new Date().toISOString(),
+              notes: p.notes || 'Pushed directly from AI via MCP.',
+            },
+          ],
+        })),
+      };
+
+      const queueMap = getPendingAiPushMap();
+      const existingQueue = queueMap.get(channel) || [];
+      existingQueue.push({
+        id: `push-${now}`,
+        createdAt: new Date().toISOString(),
+        importMode,
+        dataset,
+      });
+      queueMap.set(channel, existingQueue.slice(-10));
+
+      const encoded = encodeSeedPackToParam(dataset);
+      const directAutoImportUrl = `${origin}/?aiPushPack=${encoded}&mode=${importMode}`;
+      const reviewUrl = `${origin}/?pack=${encoded}`;
+
+      return {
+        jsonrpc: '2.0',
+        id,
+        result: {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  status: 'pushed',
+                  channel,
+                  importMode,
+                  plantCount: dataset.plants.length,
+                  message:
+                    'Queued for automatic live import into the open Grow browser tab (IndexedDB). You can also open directAutoImportUrl for instant 1-click import.',
+                  directAutoImportUrl,
+                  reviewUrl,
                 },
                 null,
                 2
