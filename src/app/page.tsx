@@ -59,6 +59,7 @@ export default function Home() {
   const [isClient, setIsClient] = useState(false);
   const [accordionValue, setAccordionValue] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
+  const [hoveredTab, setHoveredTab] = useState<PlantStatus | 'All' | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState<string | null>(null);
   const [wishlistSortOrder, setWishlistSortOrder] = useState<'season' | 'viability'>('season');
@@ -1565,22 +1566,50 @@ const unspecifiedSeasonCount = useMemo(() => {
     return counts;
   }, [plantingsWithPlants]);
 
-    const viabilityCounts = useMemo(() => {
-        const counts: Record<Viability, number> = { High: 0, Medium: 0, Low: 0 };
-        
-        plantingsWithPlants?.forEach(p => {
-            const viability = p.viability || currentViabilityData[p.id];
-            if (viability && counts[viability] !== undefined) {
-              counts[viability]++;
-            }
-        });
+  const tabViabilityData = useMemo(() => {
+    const data: Record<PlantStatus | 'All', { High: number; Medium: number; Low: number; pending: number }> = {
+      All: { High: 0, Medium: 0, Low: 0, pending: 0 },
+      Wishlist: { High: 0, Medium: 0, Low: 0, pending: 0 },
+      Planting: { High: 0, Medium: 0, Low: 0, pending: 0 },
+      Growing: { High: 0, Medium: 0, Low: 0, pending: 0 },
+      Harvest: { High: 0, Medium: 0, Low: 0, pending: 0 },
+    };
 
-        return counts;
-    }, [plantingsWithPlants, currentViabilityData]);
+    plantingsWithPlants?.forEach(p => {
+      const viability = p.viability || currentViabilityData[p.id];
+      const lastStatus = (p.history && p.history.length > 0 ? p.history[p.history.length - 1].status : null) as PlantStatus | null;
 
-    const totalAnalyzedCount = useMemo(() => {
-        return viabilityCounts.High + viabilityCounts.Medium + viabilityCounts.Low;
-    }, [viabilityCounts]);
+      if (viability && (viability === 'High' || viability === 'Medium' || viability === 'Low')) {
+        data.All[viability]++;
+      } else {
+        data.All.pending++;
+      }
+
+      if (lastStatus && data[lastStatus]) {
+        if (viability && (viability === 'High' || viability === 'Medium' || viability === 'Low')) {
+          data[lastStatus][viability]++;
+        } else {
+          data[lastStatus].pending++;
+        }
+      }
+    });
+
+    return data;
+  }, [plantingsWithPlants, currentViabilityData]);
+
+  const viabilityCounts = useMemo(() => {
+    return {
+      High: tabViabilityData.All.High,
+      Medium: tabViabilityData.All.Medium,
+      Low: tabViabilityData.All.Low,
+    };
+  }, [tabViabilityData]);
+
+  const totalAnalyzedCount = useMemo(() => {
+    return viabilityCounts.High + viabilityCounts.Medium + viabilityCounts.Low;
+  }, [viabilityCounts]);
+
+  const activeViabilityTab = hoveredTab ?? statusFilter;
 
   const allFilters: (PlantStatus | 'All')[] = ['All', 'Wishlist', 'Planting', 'Growing', 'Harvest'];
 
@@ -2137,75 +2166,96 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                   <ScrollArea className="w-full whitespace-nowrap">
                     <div className="flex w-max space-x-2">
                         {allFilters.map((status) => {
-                           if (status === 'All') {
-                            return (
-                               <div
-                                key={status}
-                                className={cn(
-                                  buttonVariants({
-                                    variant: statusFilter === status ? 'default' : 'outline',
-                                    size: 'sm'
-                                  }),
-                                  'h-8 flex-shrink-0 cursor-pointer flex items-center gap-2 p-0 relative'
-                                )}
-                                onClick={() => setStatusFilter(status)}
-                              >
-                                <div className="pl-3 pr-1.5 h-full flex items-center font-medium">All ({statusCounts.All})</div>
-                                <div className="flex items-center gap-1 pr-2">
-                                    {viabilityCounts.High > 0 && <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.High} High</Badge>}
-                                    {viabilityCounts.Medium > 0 && <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Medium} Med</Badge>}
-                                    {viabilityCounts.Low > 0 && <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityCounts.Low} Low</Badge>}
-                                    {statusCounts.All > totalAnalyzedCount && (
-                                      <Badge variant="outline" className="text-muted-foreground px-1.5 py-0.5 text-xs font-mono" title={`${statusCounts.All - totalAnalyzedCount} plants pending AI viability analysis`}>
-                                        {statusCounts.All - totalAnalyzedCount} pending
+                          const isDisplayingViability = activeViabilityTab === status;
+                          const tabViability = tabViabilityData[status];
+                          const hasViabilityBadges = isDisplayingViability && (
+                            tabViability.High > 0 || tabViability.Medium > 0 || tabViability.Low > 0 || tabViability.pending > 0
+                          );
+
+                          return (
+                            <div
+                              key={status}
+                              role="tab"
+                              aria-selected={statusFilter === status}
+                              tabIndex={0}
+                              className={cn(
+                                buttonVariants({
+                                  variant: statusFilter === status ? 'default' : 'outline',
+                                  size: 'sm'
+                                }),
+                                'h-8 flex-shrink-0 cursor-pointer flex items-center gap-2 p-0 relative select-none'
+                              )}
+                              onClick={() => setStatusFilter(status)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  setStatusFilter(status);
+                                }
+                              }}
+                              onMouseEnter={() => setHoveredTab(status)}
+                              onMouseLeave={() => setHoveredTab(null)}
+                              onFocus={() => setHoveredTab(status)}
+                              onBlur={() => setHoveredTab(null)}
+                            >
+                              {hasViabilityBadges ? (
+                                <>
+                                  <div className="pl-3 pr-1.5 h-full flex items-center font-medium">
+                                    {status} ({statusCounts[status]})
+                                  </div>
+                                  <div className="flex items-center gap-1 pr-2">
+                                    {tabViability.High > 0 && (
+                                      <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">
+                                        {tabViability.High} High
                                       </Badge>
                                     )}
-                                </div>
-                                {hasDuplicates && (
-                                    <Button
-                                    variant="destructive"
-                                    className="h-6 w-6 p-0 mr-1 self-center"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setIsDuplicateReviewSheetOpen(true);
-                                    }}
-                                    >
-                                    <span className="font-bold text-lg">!</span>
-                                    </Button>
-                                )}
-                              </div>
-                            );
-                          }
-                          if (status === 'Planting') {
-                              return (
-                                <Button
-                                    key={status}
-                                    variant={statusFilter === status ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => setStatusFilter(status)}
-                                    className="h-8 flex-shrink-0"
-                                >
-                                    {status}
-                                    <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
-                                      {statusCounts.Planting}
-                                    </Badge>
-                                </Button>
-                              )
-                          }
-                          return (
-                            <Button
-                                key={status}
-                                variant={statusFilter === status ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => setStatusFilter(status)}
-                                className="h-8 flex-shrink-0"
-                            >
-                                {status}
-                                <Badge variant="secondary" className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-mono")}>
+                                    {tabViability.Medium > 0 && (
+                                      <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">
+                                        {tabViability.Medium} Med
+                                      </Badge>
+                                    )}
+                                    {tabViability.Low > 0 && (
+                                      <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">
+                                        {tabViability.Low} Low
+                                      </Badge>
+                                    )}
+                                    {tabViability.pending > 0 && (
+                                      <Badge
+                                        variant="outline"
+                                        className={cn(
+                                          "px-1.5 py-0.5 text-xs font-mono",
+                                          statusFilter === status ? "border-primary-foreground/40 text-primary-foreground" : "text-muted-foreground"
+                                        )}
+                                        title={`${tabViability.pending} plants pending AI viability analysis`}
+                                      >
+                                        {tabViability.pending} pending
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="px-3 h-full flex items-center font-medium gap-2">
+                                  <span>{status}</span>
+                                  <Badge variant="secondary" className="rounded-full px-1.5 py-0.5 text-xs font-mono">
                                     {statusCounts[status]}
-                                </Badge>
-                            </Button>
-                        )})}
+                                  </Badge>
+                                </div>
+                              )}
+                              {status === 'All' && hasDuplicates && (
+                                <Button
+                                  variant="destructive"
+                                  className="h-6 w-6 p-0 mr-1 self-center"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsDuplicateReviewSheetOpen(true);
+                                  }}
+                                  title="Review duplicate plants"
+                                >
+                                  <span className="font-bold text-lg">!</span>
+                                </Button>
+                              )}
+                            </div>
+                          );
+                        })}
                     </div>
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>
