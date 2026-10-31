@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
 import {
@@ -38,6 +39,7 @@ import {
   Radio,
   Share2,
   Link2,
+  User,
 } from 'lucide-react';
 import { createDataset } from '@/ai/flows/create-dataset-flow';
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
@@ -68,6 +70,8 @@ import {
   subscribeToP2PGardenRoom,
   inspectP2PRoom,
   fingerprintDataset,
+  getOrCreateGrowerIdentity,
+  updateGrowerIdentity,
 } from '@/lib/p2p-signals';
 
 type ImportMode = 'replace' | 'add' | 'new';
@@ -131,6 +135,9 @@ export function AiDataImportSheet({
   const [p2pRoomId, setP2pRoomId] = useState('');
   const [shareScope, setShareScope] = useState<'active' | 'all'>('all');
   const [isP2pSyncing, setIsP2pSyncing] = useState(false);
+  const [growerHandle, setGrowerHandle] = useState('');
+  const [isEditingHandle, setIsEditingHandle] = useState(false);
+  const [tempHandle, setTempHandle] = useState('');
   const [lastStreamFingerprint, setLastStreamFingerprint] = useState<string | null>(null);
   const [lastPullFingerprint, setLastPullFingerprint] = useState<string | null>(null);
   const [roomStatus, setRoomStatus] = useState<{
@@ -159,6 +166,34 @@ export function AiDataImportSheet({
   // Tracks which variation plantings outside the usual results are selected for import
   const [includedVariationIds, setIncludedVariationIds] = useState<Set<string>>(new Set());
 
+  const toggleVariationInclusion = (plantingId: string) => {
+    setIncludedVariationIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(plantingId)) {
+        next.delete(plantingId);
+      } else {
+        next.add(plantingId);
+      }
+      return next;
+    });
+  };
+
+  // Tracks which plantings (both recommended and variations) are selected for import
+  const [selectedPlantingIds, setSelectedPlantingIds] = useState<Set<string>>(new Set());
+
+  // Helper to initialize selection with recommended plants (variations excluded by default)
+  const initSelectedPlantings = (dataset: AiDataset) => {
+    const recIds = new Set(
+      (dataset.plantings || [])
+        .filter((pl) => {
+          const p = dataset.plants?.find((plant) => String(plant.id) === String(pl.plantId));
+          return !p?.isExistingVariation;
+        })
+        .map((pl) => String(pl.id))
+    );
+    setSelectedPlantingIds(recIds);
+  };
+
   // Merge Prompt Dialog state for duplicate detection
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [pendingDuplicates, setPendingDuplicates] = useState<DuplicateResolution[]>([]);
@@ -178,6 +213,10 @@ export function AiDataImportSheet({
   useEffect(() => {
     if (isOpen) {
       setP2pRoomId(getSavedP2PRoomId());
+      const identity = getOrCreateGrowerIdentity();
+      setGrowerHandle(identity.displayName);
+      setTempHandle(identity.displayName);
+      setIsEditingHandle(false);
       if (plantingToEdit) {
         setActiveTab('single');
       } else if (initialDataset?.data) {
@@ -185,7 +224,7 @@ export function AiDataImportSheet({
         setGeneratedData(initialDataset.data);
         setLoadedPackTitle(initialDataset.title);
         setTheme(initialDataset.title);
-        setIncludedVariationIds(new Set());
+        initSelectedPlantings(initialDataset.data);
         setError(null);
       } else if (initialTab) {
         setActiveTab(initialTab);
@@ -246,7 +285,7 @@ export function AiDataImportSheet({
       setGeneratedData(peerDataset);
       setLoadedPackTitle(packName);
       setTheme(packName);
-      setIncludedVariationIds(new Set((peerDataset.plantings || []).map((p) => String(p.id))));
+      setSelectedPlantingIds(new Set((peerDataset.plantings || []).map((p) => String(p.id))));
       toast({
         title: `Live P2P Garden Received`,
         description: `${peerName} broadcasted "${peerDataset.locations?.[0]?.name || 'Garden'}" (${peerDataset.plantings?.length || 0} plants). Review below to import!`,
@@ -328,6 +367,18 @@ export function AiDataImportSheet({
         variant: 'destructive',
       });
     }
+  };
+
+  const handleSaveGrowerHandle = () => {
+    const clean = tempHandle.trim();
+    if (!clean) return;
+    const updated = updateGrowerIdentity({ displayName: clean });
+    setGrowerHandle(updated.displayName);
+    setIsEditingHandle(false);
+    toast({
+      title: 'Grower Handle Updated',
+      description: `Broadcasting as "${updated.displayName}".`,
+    });
   };
 
   const handlePushToP2PRoom = async () => {
@@ -456,7 +507,7 @@ export function AiDataImportSheet({
       setGeneratedData(ds);
       setLoadedPackTitle(ds.name);
       setTheme(ds.name);
-      setIncludedVariationIds(new Set());
+      initSelectedPlantings(ds);
       toast({
         title: `Loaded "${ds.name}"`,
         description: `Review ${ds.plantings.length} plants below and choose how to import them.`,
@@ -476,7 +527,7 @@ export function AiDataImportSheet({
       setLoadedPackTitle(packName);
       setTheme(packName);
       setClipboardInput('');
-      setIncludedVariationIds(new Set());
+      initSelectedPlantings(decoded);
       toast({
         title: `Loaded "${packName}"`,
         description: `Review ${decoded.plantings?.length || 0} plants below and choose your garden import option.`,
@@ -518,7 +569,7 @@ export function AiDataImportSheet({
       setImportMode(activeLocation ? 'add' : 'new');
       setIsGenerating(false);
       setIsImporting(false);
-      setIncludedVariationIds(new Set());
+      setSelectedPlantingIds(new Set());
       setPendingDuplicates([]);
       setIsMergeModalOpen(false);
       onClearInitialDataset?.();
@@ -581,7 +632,7 @@ export function AiDataImportSheet({
 
       setGeneratedData(enrichedResult);
       setRefinement('');
-      setIncludedVariationIds(new Set());
+      initSelectedPlantings(enrichedResult);
       
       const newLog: AiLog = {
         id: Date.now().toString(),
@@ -653,6 +704,11 @@ export function AiDataImportSheet({
     if (!generatedData) return;
     const updatedPlantings = generatedData.plantings.filter(p => p.id !== plantingId);
     setGeneratedData({ ...generatedData, plantings: updatedPlantings });
+    setSelectedPlantingIds(prev => {
+      const next = new Set(prev);
+      next.delete(plantingId);
+      return next;
+    });
   };
 
   const handleStopFetchMore = () => {
@@ -703,6 +759,7 @@ export function AiDataImportSheet({
          const newPlantings = [...generatedData.plantings];
          newPlantings.splice(plantIndex + 1, 0, newPlanting);
          setGeneratedData({ ...generatedData, plants: newPlants, plantings: newPlantings });
+         setSelectedPlantingIds(prev => new Set([...prev, newPlanting.id]));
       }
 
     } catch (err: any) {
@@ -745,14 +802,27 @@ export function AiDataImportSheet({
     try {
       await db.transaction('rw', db.plants, db.plantings, db.locations, async () => {
         if (importMode === 'replace') {
+          const candidatePlantings = (generatedData.plantings || []).filter(p => selectedPlantingIds.has(String(p.id)));
+          if (candidatePlantings.length === 0) {
+            toast({
+              title: 'No Plants Selected',
+              description: 'Please select at least one plant to import.',
+              variant: 'destructive',
+            });
+            setIsImporting(false);
+            return;
+          }
+          const selectedPlantIds = new Set(candidatePlantings.map(p => String(p.plantId)));
+          const candidatePlants = (generatedData.plants || []).filter(p => selectedPlantIds.has(String(p.id)));
+
           await db.plants.clear();
           await db.plantings.clear();
           await db.locations.clear();
-  
+
           await db.locations.bulkAdd(generatedData.locations);
-          await db.plants.bulkAdd(generatedData.plants);
+          await db.plants.bulkAdd(candidatePlants);
           await db.plantings.bulkAdd(
-            generatedData.plantings.map((p) => ({
+            candidatePlantings.map((p) => ({
               ...p,
               seedsOnHand: p.seedsOnHand ?? 0,
               plannedQty: p.plannedQty ?? 0,
@@ -765,10 +835,23 @@ export function AiDataImportSheet({
 
           toast({
             title: 'Import Successful',
-            description: 'Your garden has been replaced with the new dataset.',
+            description: `Your garden has been replaced with ${candidatePlantings.length} selected plants.`,
           });
 
         } else if (importMode === 'new') {
+            const candidatePlantings = (generatedData.plantings || []).filter(p => selectedPlantingIds.has(String(p.id)));
+            if (candidatePlantings.length === 0) {
+              toast({
+                title: 'No Plants Selected',
+                description: 'Please select at least one plant to create your garden.',
+                variant: 'destructive',
+              });
+              setIsImporting(false);
+              return;
+            }
+            const selectedPlantIds = new Set(candidatePlantings.map(p => String(p.plantId)));
+            const candidatePlants = (generatedData.plants || []).filter(p => selectedPlantIds.has(String(p.id)));
+
             const now = Date.now();
             const idSuffix = `-${now}-${Math.random().toString(36).substring(2, 6)}`;
 
@@ -785,13 +868,13 @@ export function AiDataImportSheet({
             const fallbackGardenId = newLocations[0]?.id || `garden-${now}`;
 
             const plantIdMap = new Map<string, string>();
-            const newPlants: Plant[] = generatedData.plants.map((p, i) => {
+            const newPlants: Plant[] = candidatePlants.map((p, i) => {
               const newId = `plant${idSuffix}-${i}`;
               plantIdMap.set(String(p.id), newId);
               return { ...p, id: newId };
             });
 
-            const newPlantings: Planting[] = generatedData.plantings.map((p, i) => ({
+            const newPlantings: Planting[] = candidatePlantings.map((p, i) => ({
               ...p,
               id: `planting${idSuffix}-${i}`,
               plantId: plantIdMap.get(String(p.plantId)) || `unknown-plant${idSuffix}-${i}`,
@@ -812,14 +895,11 @@ export function AiDataImportSheet({
 
           toast({
             title: 'Import Successful',
-            description: 'A new garden has been created with the generated plants.',
+            description: `A new garden "${newLocations[0]?.name || 'New Garden'}" was created with ${newPlantings.length} selected plants.`,
           });
   
         } else if (importMode === 'add' && activeLocation) {
-          const candidatePlantings = [
-            ...recommendedPlantings,
-            ...variationPlantings.filter(p => includedVariationIds.has(p.id))
-          ];
+          const candidatePlantings = (generatedData.plantings || []).filter(p => selectedPlantingIds.has(String(p.id)));
 
           if (candidatePlantings.length === 0) {
             toast({
@@ -891,10 +971,7 @@ export function AiDataImportSheet({
       const resolutionMap = new Map<string, DuplicateResolution>();
       resolutions.forEach(r => resolutionMap.set(r.newPlanting.id, r));
 
-      const candidatePlantings = [
-        ...recommendedPlantings,
-        ...variationPlantings.filter(p => includedVariationIds.has(p.id))
-      ];
+      const candidatePlantings = (generatedData.plantings || []).filter(p => selectedPlantingIds.has(String(p.id)));
 
       await db.transaction('rw', db.plants, db.plantings, async () => {
         const existingPlants = await db.plants.toArray();
@@ -1035,8 +1112,8 @@ export function AiDataImportSheet({
     return { recommendedPlantings: recs, variationPlantings: vars };
   }, [generatedData, generatedPlantMap, existingPlantings]);
 
-  const toggleVariationInclusion = (plantingId: string) => {
-    setIncludedVariationIds(prev => {
+  const togglePlantingSelection = (plantingId: string) => {
+    setSelectedPlantingIds(prev => {
       const next = new Set(prev);
       if (next.has(plantingId)) {
         next.delete(plantingId);
@@ -1046,6 +1123,51 @@ export function AiDataImportSheet({
       return next;
     });
   };
+
+  const handleSelectAllRecommended = () => {
+    setSelectedPlantingIds(prev => {
+      const next = new Set(prev);
+      recommendedPlantings.forEach(p => next.add(String(p.id)));
+      return next;
+    });
+  };
+
+  const handleDeselectAllRecommended = () => {
+    setSelectedPlantingIds(prev => {
+      const next = new Set(prev);
+      recommendedPlantings.forEach(p => next.delete(String(p.id)));
+      return next;
+    });
+  };
+
+  const handleSelectAllVariations = () => {
+    setSelectedPlantingIds(prev => {
+      const next = new Set(prev);
+      variationPlantings.forEach(p => next.add(String(p.id)));
+      return next;
+    });
+  };
+
+  const handleDeselectAllVariations = () => {
+    setSelectedPlantingIds(prev => {
+      const next = new Set(prev);
+      variationPlantings.forEach(p => next.delete(String(p.id)));
+      return next;
+    });
+  };
+
+  const selectedRecommendedCount = useMemo(() => {
+    return recommendedPlantings.filter(p => selectedPlantingIds.has(String(p.id))).length;
+  }, [recommendedPlantings, selectedPlantingIds]);
+
+  const selectedVariationsCount = useMemo(() => {
+    return variationPlantings.filter(p => selectedPlantingIds.has(String(p.id))).length;
+  }, [variationPlantings, selectedPlantingIds]);
+
+  const totalSelectedCount = useMemo(() => {
+    if (!generatedData) return 0;
+    return generatedData.plantings.filter(p => selectedPlantingIds.has(String(p.id))).length;
+  }, [generatedData, selectedPlantingIds]);
 
 
   return (
@@ -1281,6 +1403,56 @@ export function AiDataImportSheet({
                               Active Garden ({activeLocation?.name || 'Current'})
                             </Button>
                           </div>
+                        </div>
+
+                        {/* Grower Handle / Peer Name */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border bg-muted/30 p-2 text-xs">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <User className="h-3.5 w-3.5 text-primary shrink-0" />
+                            <span className="font-medium text-foreground">Grower Handle:</span>
+                            {isEditingHandle ? (
+                              <div className="flex items-center gap-1.5 flex-1">
+                                <Input
+                                  value={tempHandle}
+                                  onChange={(e) => setTempHandle(e.target.value)}
+                                  placeholder="e.g., Grower-4026 or Colby"
+                                  className="h-6 text-xs font-medium py-0 px-2 w-[160px]"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveGrowerHandle();
+                                    if (e.key === 'Escape') setIsEditingHandle(false);
+                                  }}
+                                />
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 hover:bg-primary/10"
+                                  onClick={handleSaveGrowerHandle}
+                                  title="Save Grower Handle"
+                                >
+                                  <Check className="h-3.5 w-3.5 text-primary" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-foreground">{growerHandle || 'Local Grower'}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setTempHandle(growerHandle);
+                                    setIsEditingHandle(true);
+                                  }}
+                                  className="text-primary hover:underline text-[11px] font-medium ml-1"
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-muted-foreground truncate">
+                            Broadcast identity on P2P rooms &amp; viability signals
+                          </span>
                         </div>
 
                         {/* Room Code & Stream/Pull Row */}
@@ -1579,7 +1751,10 @@ export function AiDataImportSheet({
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {generatedData.plantings.length} plants across {generatedData.locations.length} garden(s) &bull; FP:{' '}
+                        <span className="font-semibold text-foreground">
+                          {totalSelectedCount} of {generatedData.plantings.length} plants selected for import
+                        </span>
+                        {' '}&bull; {generatedData.locations.length} garden(s) &bull; FP:{' '}
                         <span className="font-mono font-medium text-foreground">
                           {fingerprintDataset(generatedData)}
                         </span>
@@ -1603,10 +1778,10 @@ export function AiDataImportSheet({
                         size="sm"
                         className="h-8 text-xs flex-1 sm:flex-initial gap-1.5"
                         onClick={handleImport}
-                        disabled={isImporting}
+                        disabled={isImporting || totalSelectedCount === 0}
                       >
                         {isImporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
-                        <span>Import Now</span>
+                        <span>Import Selected ({totalSelectedCount})</span>
                       </Button>
                     </div>
                   </div>
@@ -1657,23 +1832,77 @@ export function AiDataImportSheet({
                     </Card>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium text-sm flex items-center gap-2">
-                            <span>Recommended Plants</span>
-                            <Badge variant="outline" className="text-xs">{recommendedPlantings.length}</Badge>
-                          </h4>
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-sm flex items-center gap-2">
+                              <span>Recommended Plants</span>
+                              <Badge
+                                variant={selectedRecommendedCount > 0 ? "default" : "outline"}
+                                className="text-xs px-2 py-0.5"
+                              >
+                                {selectedRecommendedCount} of {recommendedPlantings.length} selected
+                              </Badge>
+                            </h4>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2.5 text-xs"
+                              onClick={handleSelectAllRecommended}
+                              disabled={recommendedPlantings.length === 0 || selectedRecommendedCount === recommendedPlantings.length}
+                            >
+                              Select All
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                              onClick={handleDeselectAllRecommended}
+                              disabled={selectedRecommendedCount === 0}
+                            >
+                              Deselect All
+                            </Button>
+                          </div>
                         </div>
                         {recommendedPlantings.length > 0 ? (
-                          <ScrollArea className="h-60 rounded-md border">
+                          <ScrollArea className="h-64 rounded-md border">
                             <Accordion type="single" collapsible className="w-full">
                               {recommendedPlantings.map((planting) => {
                                 const plant = generatedPlantMap.get(String(planting.plantId));
                                 if (!plant) return null;
+                                const isSelected = selectedPlantingIds.has(String(planting.id));
                                 const previewImgUrl = plant.imageUrl || getCuratedPlantImage(plant, planting.name);
 
                                 return (
-                                  <AccordionItem value={planting.id} key={planting.id} className="border-x-0 border-t-0 px-4">
-                                    <div className="flex items-center w-full py-3">
+                                  <AccordionItem
+                                    value={planting.id}
+                                    key={planting.id}
+                                    className={cn(
+                                      "border-x-0 border-t-0 px-4 transition-all duration-150",
+                                      isSelected
+                                        ? "bg-primary/[0.03]"
+                                        : "opacity-60 bg-muted/10 hover:opacity-85"
+                                    )}
+                                  >
+                                    <div className="flex items-center w-full py-3 gap-3">
+                                      <div
+                                        className="flex items-center justify-center shrink-0 cursor-pointer p-0.5"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          togglePlantingSelection(planting.id);
+                                        }}
+                                      >
+                                        <Checkbox
+                                          id={`select-${planting.id}`}
+                                          checked={isSelected}
+                                          onCheckedChange={() => togglePlantingSelection(planting.id)}
+                                          aria-label={`Select ${planting.name} for import`}
+                                          className="data-[state=checked]:bg-primary h-4 w-4"
+                                        />
+                                      </div>
                                       <AccordionTrigger className="p-0 hover:no-underline flex-1 justify-start text-left gap-3">
                                         {previewImgUrl && (
                                           <img
@@ -1683,12 +1912,28 @@ export function AiDataImportSheet({
                                             height={40}
                                             {...({ fetchPriority: 'low' } as any)}
                                             loading="lazy"
-                                            className="h-10 w-10 rounded-md object-cover shrink-0 bg-muted"
+                                            className={cn(
+                                              "h-10 w-10 rounded-md object-cover shrink-0 bg-muted transition-all",
+                                              !isSelected && "grayscale-[50%]"
+                                            )}
                                           />
                                         )}
-                                        <div className="flex flex-col">
-                                          <span className="font-semibold">{planting.name}</span>
-                                          <span className="text-sm text-muted-foreground">{plant.species}</span>
+                                        <div className="flex flex-col flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="font-semibold text-sm sm:text-base leading-tight truncate">
+                                              {planting.name}
+                                            </span>
+                                            {isSelected ? (
+                                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 border-primary/40 text-primary bg-primary/5">
+                                                Selected
+                                              </Badge>
+                                            ) : (
+                                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 text-muted-foreground border-muted-foreground/30">
+                                                Unselected
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          <span className="text-xs text-muted-foreground truncate">{plant.species}</span>
                                         </div>
                                       </AccordionTrigger>
                                     </div>
@@ -1703,7 +1948,26 @@ export function AiDataImportSheet({
                                           <p>{plant.optimalConditions}</p>
                                         </div>
                                       </div>
-                                      <div className="flex items-center gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
+                                      <div className="flex items-center flex-wrap gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant={isSelected ? "secondary" : "default"}
+                                          className="h-7 text-xs flex items-center gap-1.5"
+                                          onClick={() => togglePlantingSelection(planting.id)}
+                                        >
+                                          {isSelected ? (
+                                            <>
+                                              <Check className="h-3 w-3 text-primary" />
+                                              <span>Selected for Import</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Plus className="h-3 w-3" />
+                                              <span>Select this Plant</span>
+                                            </>
+                                          )}
+                                        </Button>
                                         {areApiKeysSet && (
                                           isFetchingMore === plant.id ? (
                                             <Button variant="destructive" size="sm" className="h-7 text-xs flex items-center gap-1" onClick={handleStopFetchMore}>
@@ -1717,8 +1981,8 @@ export function AiDataImportSheet({
                                             </Button>
                                           )
                                         )}
-                                        <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => handleRemovePlanting(planting.id)}>
-                                          <Trash2 className="mr-2 h-3 w-3" />
+                                        <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-destructive" onClick={() => handleRemovePlanting(planting.id)}>
+                                          <Trash2 className="mr-1.5 h-3 w-3" />
                                           Remove
                                         </Button>
                                       </div>
@@ -1738,15 +2002,39 @@ export function AiDataImportSheet({
                       {/* OUTSIDE USUAL RESULTS: Existing Variations & Matches */}
                       {variationPlantings.length > 0 && (
                         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                                <Sparkles className="h-4 w-4" />
-                                Existing Plant Variations & Strong Matches
-                              </span>
-                              <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/30">
-                                {variationPlantings.length}
-                              </Badge>
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                                  <Sparkles className="h-4 w-4" />
+                                  Existing Plant Variations & Strong Matches
+                                </span>
+                                <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/30">
+                                  {selectedVariationsCount} of {variationPlantings.length} selected
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 px-2 text-[11px] text-amber-900 dark:text-amber-200 border-amber-500/30"
+                                  onClick={handleSelectAllVariations}
+                                  disabled={variationPlantings.length === 0 || selectedVariationsCount === variationPlantings.length}
+                                >
+                                  Include All
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 px-2 text-[11px] text-amber-900/80 dark:text-amber-200/80 border-amber-500/30"
+                                  onClick={handleDeselectAllVariations}
+                                  disabled={selectedVariationsCount === 0}
+                                >
+                                  Exclude All
+                                </Button>
+                              </div>
                             </div>
                             <p className="text-xs text-muted-foreground">
                               Placed outside the standard results. These are variations or cultivars of plants already in your garden, recommended only because of a specific horticultural match.
@@ -1757,7 +2045,7 @@ export function AiDataImportSheet({
                             {variationPlantings.map((planting) => {
                               const plant = generatedPlantMap.get(String(planting.plantId));
                               if (!plant) return null;
-                              const isIncluded = includedVariationIds.has(planting.id);
+                              const isIncluded = selectedPlantingIds.has(String(planting.id));
                               const matchingExisting = existingPlantings?.find(
                                 (ep) =>
                                   (ep.plant?.species && plant.species && ep.plant.species.toLowerCase().trim() === plant.species.toLowerCase().trim()) ||
@@ -1766,19 +2054,42 @@ export function AiDataImportSheet({
                               const relatedTo = plant.relatedExistingPlant || matchingExisting?.name || plant.species;
 
                               return (
-                                <div key={planting.id} className="p-3 rounded-md border bg-background/90 text-xs space-y-2">
+                                <div
+                                  key={planting.id}
+                                  className={cn(
+                                    "p-3 rounded-md border text-xs space-y-2 transition-all",
+                                    isIncluded ? "bg-background/95 border-amber-500/40" : "bg-background/50 border-border opacity-75"
+                                  )}
+                                >
                                   <div className="flex items-start justify-between gap-2">
-                                    <div className="space-y-1">
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="font-semibold text-sm">{planting.name}</span>
-                                        <span className="text-muted-foreground">({plant.species})</span>
-                                        <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40">
-                                          Variation of {relatedTo}
-                                        </Badge>
+                                    <div className="flex items-start gap-2.5 min-w-0">
+                                      <div
+                                        className="pt-0.5 cursor-pointer shrink-0"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          togglePlantingSelection(planting.id);
+                                        }}
+                                      >
+                                        <Checkbox
+                                          id={`select-var-${planting.id}`}
+                                          checked={isIncluded}
+                                          onCheckedChange={() => togglePlantingSelection(planting.id)}
+                                          aria-label={`Include variation ${planting.name}`}
+                                          className="data-[state=checked]:bg-primary h-4 w-4"
+                                        />
                                       </div>
-                                      <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-foreground/90">
-                                        <span className="font-semibold text-amber-700 dark:text-amber-400">Strong Match: </span>
-                                        <span>{plant.variationReason || `Matches existing planting "${matchingExisting?.name}". Include if you wish to grow this variation.`}</span>
+                                      <div className="space-y-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="font-semibold text-sm">{planting.name}</span>
+                                          <span className="text-muted-foreground">({plant.species})</span>
+                                          <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40">
+                                            Variation of {relatedTo}
+                                          </Badge>
+                                        </div>
+                                        <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-foreground/90">
+                                          <span className="font-semibold text-amber-700 dark:text-amber-400">Strong Match: </span>
+                                          <span>{plant.variationReason || `Matches existing planting "${matchingExisting?.name}". Include if you wish to grow this variation.`}</span>
+                                        </div>
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
@@ -1787,7 +2098,7 @@ export function AiDataImportSheet({
                                         size="sm"
                                         variant={isIncluded ? 'default' : 'outline'}
                                         className="h-7 text-xs px-2.5"
-                                        onClick={() => toggleVariationInclusion(planting.id)}
+                                        onClick={() => togglePlantingSelection(planting.id)}
                                       >
                                         {isIncluded ? <CheckCircle className="mr-1 h-3 w-3" /> : <PlusCircle className="mr-1 h-3 w-3" />}
                                         {isIncluded ? 'Included' : 'Include'}
@@ -1867,9 +2178,15 @@ export function AiDataImportSheet({
                         </div>
                       </Label>
                     </RadioGroup>
-                    <Button onClick={handleImport} disabled={isImporting} className="w-full">
+                    <Button
+                      onClick={handleImport}
+                      disabled={isImporting || totalSelectedCount === 0}
+                      className="w-full"
+                    >
                       {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                      Confirm Import
+                      {totalSelectedCount === 0
+                        ? 'Select at Least 1 Plant to Import'
+                        : `Confirm Import (${totalSelectedCount} Plant${totalSelectedCount === 1 ? '' : 's'})`}
                     </Button>
                   </div>
                 </div>

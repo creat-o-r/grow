@@ -44,6 +44,29 @@ export function getOrCreateGrowerIdentity(): LocalGrowerIdentity {
   return identity;
 }
 
+export function updateGrowerIdentity(updates: Partial<LocalGrowerIdentity>): LocalGrowerIdentity {
+  const current = getOrCreateGrowerIdentity();
+  const updated: LocalGrowerIdentity = {
+    ...current,
+    displayName:
+      updates.displayName !== undefined && updates.displayName.trim()
+        ? updates.displayName.trim()
+        : current.displayName,
+    region:
+      updates.region !== undefined && updates.region.trim()
+        ? updates.region.trim()
+        : current.region,
+    pubkey:
+      updates.pubkey !== undefined && updates.pubkey.trim()
+        ? updates.pubkey.trim()
+        : current.pubkey,
+  };
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(updated));
+  }
+  return updated;
+}
+
 export function getStoredCommunitySignals(): CommunityViabilitySignal[] {
   if (typeof window === 'undefined') return [];
   try {

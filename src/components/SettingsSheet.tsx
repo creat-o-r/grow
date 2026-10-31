@@ -30,7 +30,9 @@ import {
   Wand2,
   Replace,
   Eye,
+  User,
 } from 'lucide-react';
+import { getOrCreateGrowerIdentity, updateGrowerIdentity } from '@/lib/p2p-signals';
 import { availableDatasets, loadDataset } from '@/lib/datasets';
 import {
   AlertDialog,
@@ -120,6 +122,8 @@ export function SettingsSheet({
   const [builtInAiStatus, setBuiltInAiStatus] = useState<string>('checking...');
   const [upstreamCommit, setUpstreamCommit] = useState<{ sha: string; date: string } | null>(null);
   const [copiedMcp, setCopiedMcp] = useState(false);
+  const [growerHandle, setGrowerHandle] = useState('');
+  const [growerRegion, setGrowerRegion] = useState('');
 
   const { toast } = useToast();
   const { enabledExtensions } = useExtensions();
@@ -127,6 +131,27 @@ export function SettingsSheet({
   useEffect(() => {
     setSelectedImportMode(activeLocation ? 'add' : 'new');
   }, [activeLocation, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const identity = getOrCreateGrowerIdentity();
+      setGrowerHandle(identity.displayName);
+      setGrowerRegion(identity.region);
+    }
+  }, [isOpen]);
+
+  const handleSaveGrowerIdentity = () => {
+    const updated = updateGrowerIdentity({
+      displayName: growerHandle.trim(),
+      region: growerRegion.trim(),
+    });
+    setGrowerHandle(updated.displayName);
+    setGrowerRegion(updated.region);
+    toast({
+      title: 'Grower Profile Saved',
+      description: `Broadcasting as "${updated.displayName}" in ${updated.region}.`,
+    });
+  };
 
   useEffect(() => {
     const handleOpenSettingsEvent = (e: Event) => {
@@ -337,6 +362,53 @@ export function SettingsSheet({
             </SheetDescription>
           </SheetHeader>
           <div className="py-6 space-y-6">
+            {/* Grower Profile & P2P Handle */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="font-headline text-lg flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" />
+                  <span>Grower Profile &amp; Handle</span>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Your public display name and microclimate region used on live P2P garden rooms and community viability proofs.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="grower-handle-input" className="text-xs">Grower Name / Handle</Label>
+                    <Input
+                      id="grower-handle-input"
+                      value={growerHandle}
+                      onChange={(e) => setGrowerHandle(e.target.value)}
+                      placeholder="e.g., Grower-4026, Colby, SunnyBalcony"
+                      className="text-xs h-8"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="grower-region-input" className="text-xs">Microclimate / Region</Label>
+                    <Input
+                      id="grower-region-input"
+                      value={growerRegion}
+                      onChange={(e) => setGrowerRegion(e.target.value)}
+                      placeholder="e.g., Auckland Zone 10, Pacific NW"
+                      className="text-xs h-8"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end pt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={handleSaveGrowerIdentity}
+                  >
+                    Save Grower Profile
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* P0: Data Management & Non-Destructive Seed Pack Merging */}
             <Card>
               <CardHeader>
