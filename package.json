@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p 9002",
+    "dev": "next dev -p 9002",
     "diagnose": "tsx scripts/test-ai.mjs",
     "test:p2p": "node scripts/p2p-test.mjs",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
