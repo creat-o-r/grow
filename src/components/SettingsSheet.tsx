@@ -116,9 +116,6 @@ type ConfirmationState = {
   data: AiDataset;
 } | null;
 
-const CURRENT_VERSION: string = '1.1.0';
-const REPO_URL = 'https://github.com/creat-o-r/grow';
-
 export function SettingsSheet({
   isOpen,
   onOpenChange,
@@ -143,6 +140,19 @@ export function SettingsSheet({
   const [copiedMcp, setCopiedMcp] = useState(false);
   const [growerHandle, setGrowerHandle] = useState('');
   const [growerRegion, setGrowerRegion] = useState('');
+  const [sashMode, setSashMode] = useState<SashViewMode>('banner');
+
+  useEffect(() => {
+    setSashMode(getSavedSashView());
+    const handleSashChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ mode: SashViewMode }>;
+      if (customEvent.detail?.mode) {
+        setSashMode(customEvent.detail.mode);
+      }
+    };
+    window.addEventListener(SASH_CHANGE_EVENT, handleSashChange);
+    return () => window.removeEventListener(SASH_CHANGE_EVENT, handleSashChange);
+  }, []);
 
   const { toast } = useToast();
   const { enabledExtensions } = useExtensions();
@@ -231,7 +241,7 @@ export function SettingsSheet({
     apiKeys.gemini || apiKeys.groq || apiKeys.openrouter || apiKeys.ollamaUrl
   );
   const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(REPO_URL)}`;
-  const feedbackUrl = `${REPO_URL}/issues/new/choose`;
+  const feedbackUrl = FEEDBACK_URL;
 
   const handleImportClick = async (datasetKey: string) => {
     try {
@@ -737,11 +747,16 @@ export function SettingsSheet({
                   </div>
                 </div>
 
-                <div className="border-t pt-4 space-y-2">
+                <div className="border-t pt-4 space-y-3">
                   <div className="flex items-center justify-between text-xs p-3 bg-muted rounded-md">
-                    <span>
-                      Version <strong>{CURRENT_VERSION}</strong>
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-amber-400 uppercase text-[10px] tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/30 font-headline">
+                        Experimental
+                      </span>
+                      <span>
+                        Version <strong>v{APP_VERSION}</strong>
+                      </span>
+                    </div>
                     {upstreamCommit ? (
                       <a
                         href={`${REPO_URL}/commits/main`}
@@ -763,7 +778,32 @@ export function SettingsSheet({
                       </a>
                     )}
                   </div>
-                  <a href={feedbackUrl} target="_blank" rel="noopener noreferrer" className="block">
+
+                  <div className="flex items-center justify-between gap-2 p-3 bg-muted/60 rounded-md text-xs">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="sash-style-select" className="text-xs font-medium">Experimental Version Sash</Label>
+                      <p className="text-[11px] text-muted-foreground">Style of the version badge &amp; feedback link.</p>
+                    </div>
+                    <Select
+                      value={sashMode}
+                      onValueChange={(val: SashViewMode) => {
+                        setSashMode(val);
+                        setSavedSashView(val);
+                      }}
+                    >
+                      <SelectTrigger id="sash-style-select" className="w-[140px] h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="banner">Top Banner</SelectItem>
+                        <SelectItem value="corner">Corner Ribbon</SelectItem>
+                        <SelectItem value="pill">Floating Badge</SelectItem>
+                        <SelectItem value="hidden">Hidden</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <a href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer" className="block">
                     <Button variant="outline" className="w-full">
                       <MessageSquare className="mr-2 h-4 w-4" />
                       Send Feedback / Bug Report
