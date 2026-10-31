@@ -210,7 +210,7 @@ export default function Home() {
           .catch((err) => console.warn('Could not load ?dataset= URL param:', err));
       } else if (p2pRoomParam) {
         saveP2PRoomId(p2pRoomParam);
-        setUnifiedHubInitialTab('import-pack');
+        setUnifiedImportTab('import-pack');
         setIsAiImportSheetOpen(true);
         fetchLatestFromP2PRoom(p2pRoomParam)
           .then((latest) => {
