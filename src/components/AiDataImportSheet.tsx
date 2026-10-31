@@ -163,21 +163,6 @@ export function AiDataImportSheet({
   const [isImporting, setIsImporting] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState<string | null>(null);
 
-  // Tracks which variation plantings outside the usual results are selected for import
-  const [includedVariationIds, setIncludedVariationIds] = useState<Set<string>>(new Set());
-
-  const toggleVariationInclusion = (plantingId: string) => {
-    setIncludedVariationIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(plantingId)) {
-        next.delete(plantingId);
-      } else {
-        next.add(plantingId);
-      }
-      return next;
-    });
-  };
-
   // Tracks which plantings (both recommended and variations) are selected for import
   const [selectedPlantingIds, setSelectedPlantingIds] = useState<Set<string>>(new Set());
 
@@ -474,7 +459,7 @@ export function AiDataImportSheet({
       setLoadedPackTitle(packName);
       setTheme(packName);
       // Pre-select all pulled plantings even if some match existing species
-      setIncludedVariationIds(new Set(normalizedDataset.plantings.map((p) => String(p.id))));
+      setSelectedPlantingIds(new Set(normalizedDataset.plantings.map((p) => String(p.id))));
       if (locCount > 1 || !activeLocation) {
         setImportMode('new');
       }
