@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ViabilityIndicator } from './ViabilityIndicator';
+import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 
 type PlantingDashboardCardProps = {
     planting: PlantingWithPlant;
@@ -127,9 +128,45 @@ export function PlantingDashboardCard({
 
     const seedsRequired = Math.max(0, (Number(plannedQty) || 0) - (planting.seedsOnHand || 0));
     const effectiveViability = viability || planting.viability;
+    const syncImageUrl = getCuratedPlantImage(planting.plant, planting.name);
+    const [resolvedImageUrl, setResolvedImageUrl] = useState<string | undefined>(syncImageUrl);
+    const [imgFailed, setImgFailed] = useState(false);
+
+    useEffect(() => {
+        setImgFailed(false);
+        const currentSync = getCuratedPlantImage(planting.plant, planting.name);
+        if (currentSync) {
+            setResolvedImageUrl(currentSync);
+            return;
+        }
+        let cancelled = false;
+        resolveRealPlantImage(planting.plant.species, planting.name, planting.plant.id).then((url) => {
+            if (!cancelled && url) {
+                setResolvedImageUrl(url);
+            }
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [planting.plant, planting.name]);
+
+    const activeImageUrl = !imgFailed ? (syncImageUrl || resolvedImageUrl) : undefined;
 
     return (
-        <Card className="flex flex-col bg-muted/50">
+        <Card className="flex flex-col bg-muted/50 overflow-hidden">
+            {activeImageUrl && (
+                <div className="relative w-full h-36 overflow-hidden bg-muted/40">
+                    <img
+                        src={activeImageUrl}
+                        alt={`Photograph of ${planting.plant.species}`}
+                        width={400}
+                        height={144}
+                        loading="lazy"
+                        onError={() => setImgFailed(true)}
+                        className="w-full h-full object-cover"
+                    />
+                </div>
+            )}
             <CardHeader className="pb-4">
                 <CardTitle className="font-headline text-lg leading-tight mb-1 pr-2">{planting.name}</CardTitle>
                 <CardDescription className="flex items-center gap-2">

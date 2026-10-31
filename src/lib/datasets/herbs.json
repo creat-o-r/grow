@@ -17,33 +17,43 @@
     "plants": [
         {
             "id": "herb-1",
+            "uid": "ocimum-basilicum-basil",
             "species": "Basil (Ocimum basilicum)",
             "germinationNeeds": "Start seeds indoors or sow directly after the last frost. Needs warm soil (21°C) and light to germinate. Keep moist.",
-            "optimalConditions": "Full sun, hot weather. Rich, moist, but well-drained soil. Pinch tips to encourage bushy growth."
+            "optimalConditions": "Full sun, hot weather. Rich, moist, but well-drained soil. Pinch tips to encourage bushy growth.",
+            "imageUrl": "/images/plants/herb-1.jpg"
         },
         {
             "id": "herb-2",
+            "uid": "salvia-rosmarinus-rosemary",
             "species": "Rosemary (Salvia rosmarinus)",
             "germinationNeeds": "Difficult from seed. Best propagated from cuttings. Needs well-drained soil and sun.",
-            "optimalConditions": "Full sun, well-drained, sandy soil. Drought-tolerant once established. Prefers slightly alkaline pH."
+            "optimalConditions": "Full sun, well-drained, sandy soil. Drought-tolerant once established. Prefers slightly alkaline pH.",
+            "imageUrl": "/images/plants/herb-2.jpg"
         },
         {
             "id": "herb-3",
+            "uid": "thymus-vulgaris-thyme",
             "species": "Thyme (Thymus vulgaris)",
             "germinationNeeds": "Can be started from seed indoors. Needs light to germinate. Sprinkle seeds on surface and press lightly.",
-            "optimalConditions": "Full sun. Light, well-drained soil. Drought-tolerant. Doesn't like wet feet."
+            "optimalConditions": "Full sun. Light, well-drained soil. Drought-tolerant. Doesn't like wet feet.",
+            "imageUrl": "/images/plants/herb-3.jpg"
         },
         {
             "id": "herb-4",
+            "uid": "origanum-vulgare-oregano",
             "species": "Oregano (Origanum vulgare)",
             "germinationNeeds": "Start from seeds indoors 6-10 weeks before last frost. Needs light to germinate. Surface sow.",
-            "optimalConditions": "Full sun. Well-drained soil. Thrives in moderate heat. Regular trimming encourages fuller growth."
+            "optimalConditions": "Full sun. Well-drained soil. Thrives in moderate heat. Regular trimming encourages fuller growth.",
+            "imageUrl": "/images/plants/herb-4.jpg"
         },
         {
             "id": "herb-5",
+            "uid": "petroselinum-crispum-parsley",
             "species": "Parsley (Petroselinum crispum)",
             "germinationNeeds": "Seeds can be slow to germinate. Soak seeds overnight before planting. Sow in spring. Prefers soil temps of 21°C.",
-            "optimalConditions": "Full sun to partial shade. Rich, moist, well-drained soil. Benefits from consistent watering."
+            "optimalConditions": "Full sun to partial shade. Rich, moist, well-drained soil. Benefits from consistent watering.",
+            "imageUrl": "/images/plants/herb-5.jpg"
         }
     ],
     "plantings": [

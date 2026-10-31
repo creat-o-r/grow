@@ -13,6 +13,7 @@ import { getAiViability } from '@/ai/flows/get-ai-viability';
 import { loadDataset } from '@/lib/datasets';
 import { Viability, getSuitableSeasons, getUpcomingViability } from '@/lib/viability';
 import { decodeSeedPackFromInput, mergeSeedPackIntoDb } from '@/lib/seed-pack';
+import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import { publishCommunityViabilitySignal } from '@/lib/p2p-signals';
 import { ExtensionSlotBar } from '@/extensions/ExtensionSlotBar';
 

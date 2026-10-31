@@ -17,33 +17,43 @@
     "plants": [
         {
             "id": "fruit-1",
+            "uid": "malus-domestica-apple",
             "species": "Apple (Malus domestica)",
             "germinationNeeds": "Best grown from grafted rootstock, not seed. Plant bare-root trees in spring. Requires a chilling period to set fruit.",
-            "optimalConditions": "Full sun. Well-drained, fertile loam. Needs cross-pollination from another compatible apple variety."
+            "optimalConditions": "Full sun. Well-drained, fertile loam. Needs cross-pollination from another compatible apple variety.",
+            "imageUrl": "/images/plants/fruit-1.jpg"
         },
         {
             "id": "fruit-2",
+            "uid": "fragaria-ananassa-strawberry",
             "species": "Strawberry (Fragaria × ananassa)",
             "germinationNeeds": "Best grown from bare-root runners or small plants in spring or autumn. Seeds are difficult and slow.",
-            "optimalConditions": "Full sun. Well-drained, sandy soil rich in organic matter. Keep beds weed-free and mulch to protect fruit."
+            "optimalConditions": "Full sun. Well-drained, sandy soil rich in organic matter. Keep beds weed-free and mulch to protect fruit.",
+            "imageUrl": "/images/plants/fruit-2.jpg"
         },
         {
             "id": "fruit-3",
+            "uid": "vaccinium-corymbosum-blueberry",
             "species": "Blueberry (Vaccinium corymbosum)",
             "germinationNeeds": "Plant young bushes in spring. Requires acidic soil (pH 4.5-5.5). Two different varieties are needed for good pollination.",
-            "optimalConditions": "Full sun. Acidic, moist, well-drained, organic-rich soil. Mulch with pine needles or peat moss."
+            "optimalConditions": "Full sun. Acidic, moist, well-drained, organic-rich soil. Mulch with pine needles or peat moss.",
+            "imageUrl": "/images/plants/fruit-3.jpg"
         },
         {
             "id": "fruit-4",
+            "uid": "rubus-idaeus-raspberry",
             "species": "Raspberry (Rubus idaeus)",
             "germinationNeeds": "Best grown from canes. Plant in early spring. Spreads via underground runners.",
-            "optimalConditions": "Full sun. Rich, well-drained soil. Provide support like a trellis or wires. Prune annually."
+            "optimalConditions": "Full sun. Rich, well-drained soil. Provide support like a trellis or wires. Prune annually.",
+            "imageUrl": "/images/plants/fruit-4.jpg"
         },
         {
             "id": "fruit-5",
+            "uid": "prunus-avium-cherry",
             "species": "Cherry (Prunus avium)",
             "germinationNeeds": "Best grown from a grafted tree from a nursery. Requires a chilling period. Plant in spring.",
-            "optimalConditions": "Full sun. Deep, fertile, well-drained soil. Good air circulation is important to prevent disease."
+            "optimalConditions": "Full sun. Deep, fertile, well-drained soil. Good air circulation is important to prevent disease.",
+            "imageUrl": "/images/plants/fruit-5.jpg"
         }
     ],
     "plantings": [

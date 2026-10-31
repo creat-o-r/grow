@@ -2,6 +2,60 @@ import type { Conditions, GardenLocation } from '@/lib/types';
 import type { Viability } from '@/lib/viability';
 
 /**
+ * Machine-readable Data Handling & Schema Contract enforced across MCP, A2A, and WebMCP.
+ */
+export const GROW_DATA_HANDLING_RULES = {
+  defaultSeedsOnHand: 0,
+  defaultPlannedQty: 0,
+  defaultImportMode: 'add' as const,
+  preserveExistingGardens: true,
+  allowedStatuses: ['Wishlist', 'Planting', 'Growing', 'Harvest'] as const,
+  allowedSeasons: ['Spring', 'Summer', 'Autumn', 'Winter'] as const,
+  requiredBotanicalFields: ['species', 'germinationNeeds', 'optimalConditions'] as const,
+};
+
+/**
+ * Machine-readable UI Component & Badge Contract so MCP and A2A clients render
+ * garden and plant data with the same visual hierarchy and badges as the Grow app.
+ */
+export const GROW_UI_SCHEMA = {
+  layout: 'grow-botanical-dashboard-v1',
+  microclimateHeader: {
+    fields: ['name', 'location', 'temperature', 'sunlight', 'soil', 'currentSeason'],
+    icons: {
+      garden: '🌱',
+      location: '📍',
+      temperature: '🌡️',
+      sunlight: '☀️',
+      soil: '🪨',
+      season: '🍂',
+    },
+  },
+  viabilityBadges: {
+    High: { label: '🟢 High Viability', scoreRange: '5-6/6', tone: 'success' },
+    Medium: { label: '🟡 Medium Viability', scoreRange: '3-4/6', tone: 'warning' },
+    Low: { label: '🔴 Low Viability', scoreRange: '0-2/6', tone: 'danger' },
+  },
+  statusBadges: {
+    Wishlist: '📋 Wishlist',
+    Planting: '🌰 Planting',
+    Growing: '🌿 Growing',
+    Harvest: '🧺 Harvest',
+  },
+  plantCardFields: [
+    'name',
+    'species',
+    'status',
+    'viability',
+    'suitableSeasons',
+    'germinationNeeds',
+    'optimalConditions',
+    'seedsOnHand',
+    'plannedQty',
+  ],
+};
+
+/**
  * Canonical AI Presentation ("Look & Feel") and Data Handling Specification for `Grow`.
  * Shared across MCP (`initialize` instructions, `prompts/*`, tool outputs),
  * Google A2A (`/.well-known/agent.json`), and Browser WebMCP (`document.modelContext`).

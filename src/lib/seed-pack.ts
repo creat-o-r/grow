@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { getCuratedPlantImage } from '@/lib/plant-images';
 import type {
   AiDataset,
   ForkProvenance,
@@ -241,6 +242,7 @@ export async function mergeSeedPackIntoDb(
       const plantsWithMeta = incoming.plants.map((p) => ({
         ...p,
         uid: p.uid || toSpeciesUid(p.species),
+        imageUrl: p.imageUrl || getCuratedPlantImage(p),
         forkedFrom: p.forkedFrom || provenance,
         contributor: p.contributor || incoming.contributor,
       }));
@@ -294,6 +296,11 @@ export async function mergeSeedPackIntoDb(
         );
         if (existingMatch) {
           plantIdMap.set(incomingPlant.id, existingMatch.id);
+          const resolvedImg = incomingPlant.imageUrl || getCuratedPlantImage(incomingPlant);
+          if (resolvedImg && !existingMatch.imageUrl) {
+            await db.plants.update(existingMatch.id, { imageUrl: resolvedImg });
+            existingMatch.imageUrl = resolvedImg;
+          }
           mergedPlants++;
         } else {
           const newPlantId = `plant${idSuffix}-${addedPlants}`;
@@ -301,6 +308,7 @@ export async function mergeSeedPackIntoDb(
             ...incomingPlant,
             id: newPlantId,
             uid: incomingUid,
+            imageUrl: incomingPlant.imageUrl || getCuratedPlantImage(incomingPlant),
             forkedFrom: incomingPlant.forkedFrom || provenance,
             contributor: incomingPlant.contributor || incoming.contributor,
           };
@@ -348,10 +356,17 @@ export async function mergeSeedPackIntoDb(
 
       if (existingMatch) {
         plantIdMap.set(incomingPlant.id, existingMatch.id);
+        const resolvedImg = incomingPlant.imageUrl || getCuratedPlantImage(incomingPlant);
+        const updates: Partial<Plant> = {};
         if (incomingPlant.verifiedGrowerCount && !existingMatch.verifiedGrowerCount) {
-          await db.plants.update(existingMatch.id, {
-            verifiedGrowerCount: incomingPlant.verifiedGrowerCount,
-          });
+          updates.verifiedGrowerCount = incomingPlant.verifiedGrowerCount;
+        }
+        if (resolvedImg && !existingMatch.imageUrl) {
+          updates.imageUrl = resolvedImg;
+          existingMatch.imageUrl = resolvedImg;
+        }
+        if (Object.keys(updates).length > 0) {
+          await db.plants.update(existingMatch.id, updates);
         }
       } else {
         const newPlantId = `plant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -359,6 +374,7 @@ export async function mergeSeedPackIntoDb(
           ...incomingPlant,
           id: newPlantId,
           uid: incomingUid,
+          imageUrl: incomingPlant.imageUrl || getCuratedPlantImage(incomingPlant),
           forkedFrom: incomingPlant.forkedFrom || provenance,
           contributor: incomingPlant.contributor || incoming.contributor,
         };

@@ -17,33 +17,43 @@
     "plants": [
         {
             "id": "med-1",
+            "uid": "echinacea-purpurea-echinacea",
             "species": "Echinacea (Echinacea purpurea)",
             "germinationNeeds": "Seeds require cold stratification for 1-2 months. Start indoors or direct sow in autumn or early spring.",
-            "optimalConditions": "Full to partial sun. Tolerates poor soil but prefers well-drained loam. Drought-tolerant once established."
+            "optimalConditions": "Full to partial sun. Tolerates poor soil but prefers well-drained loam. Drought-tolerant once established.",
+            "imageUrl": "/images/plants/med-1.jpg"
         },
         {
             "id": "med-2",
+            "uid": "matricaria-recutita-chamomile",
             "species": "Chamomile (Matricaria recutita)",
             "germinationNeeds": "Surface sow seeds as they need light to germinate. Sow in spring. Self-seeds readily.",
-            "optimalConditions": "Full sun. Well-drained, sandy soil. Doesn't require rich soil. Harvest flowers when fully open."
+            "optimalConditions": "Full sun. Well-drained, sandy soil. Doesn't require rich soil. Harvest flowers when fully open.",
+            "imageUrl": "/images/plants/med-2.jpg"
         },
         {
             "id": "med-3",
+            "uid": "lavandula-angustifolia-lavender",
             "species": "Lavender (Lavandula angustifolia)",
             "germinationNeeds": "Difficult from seed, requires cold stratification. Best propagated from cuttings in summer.",
-            "optimalConditions": "Full sun. Well-drained, alkaline soil. Excellent drainage is crucial. Drought-tolerant."
+            "optimalConditions": "Full sun. Well-drained, alkaline soil. Excellent drainage is crucial. Drought-tolerant.",
+            "imageUrl": "/images/plants/med-3.jpg"
         },
         {
             "id": "med-4",
+            "uid": "calendula-officinalis-calendula",
             "species": "Calendula (Calendula officinalis)",
             "germinationNeeds": "Easy to grow from seed. Direct sow in spring after the last frost. Germinates quickly.",
-            "optimalConditions": "Full sun. Tolerates most soils but prefers well-drained, fertile soil. Deadhead to prolong blooming."
+            "optimalConditions": "Full sun. Tolerates most soils but prefers well-drained, fertile soil. Deadhead to prolong blooming.",
+            "imageUrl": "/images/plants/med-4.jpg"
         },
         {
             "id": "med-5",
+            "uid": "panax-ginseng-ginseng",
             "species": "Ginseng (Panax ginseng)",
             "germinationNeeds": "Extremely slow from seed, requires multiple years of stratification. Best to plant rootlets.",
-            "optimalConditions": "Deep shade (70-80%). Moist, well-drained, humus-rich soil. Simulates a mature forest floor."
+            "optimalConditions": "Deep shade (70-80%). Moist, well-drained, humus-rich soil. Simulates a mature forest floor.",
+            "imageUrl": "/images/plants/med-5.jpg"
         }
     ],
     "plantings": [

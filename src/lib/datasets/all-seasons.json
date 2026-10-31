@@ -17,27 +17,35 @@
     "plants": [
         {
             "id": "as-1",
+            "uid": "raphanus-sativus-radish",
             "species": "Radish (Raphanus sativus)",
             "germinationNeeds": "Direct sow seeds in spring, summer, autumn, or winter in mild climates. Fast-growing, matures in 3-4 weeks.",
-            "optimalConditions": "Full sun to partial shade. Prefers cool, moist soil but is highly adaptable. Best to sow in succession for a continuous harvest year-round."
+            "optimalConditions": "Full sun to partial shade. Prefers cool, moist soil but is highly adaptable. Best to sow in succession for a continuous harvest year-round.",
+            "imageUrl": "/images/plants/as-1.jpg"
         },
         {
             "id": "as-2",
+            "uid": "brassica-oleracea-var-sabellica-kale",
             "species": "Kale (Brassica oleracea var. sabellica)",
             "germinationNeeds": "Sow seeds directly in the garden in spring, summer, or autumn for harvests through winter. Tolerates frost well.",
-            "optimalConditions": "Full sun to partial shade. Fertile, well-drained soil. Flavor improves after a light frost. A true multi-season plant."
+            "optimalConditions": "Full sun to partial shade. Fertile, well-drained soil. Flavor improves after a light frost. A true multi-season plant.",
+            "imageUrl": "/images/plants/as-2.jpg"
         },
         {
             "id": "as-3",
+            "uid": "beta-vulgaris-subsp-vulgaris-swiss-chard",
             "species": "Swiss Chard (Beta vulgaris subsp. vulgaris)",
             "germinationNeeds": "Sow from spring through late summer. Can be overwintered in mild climates. Soak seeds before planting to aid germination.",
-            "optimalConditions": "Full sun to light shade. Tolerant of both heat and cold. Rich, moisture-retentive soil. Can be harvested continuously through all seasons."
+            "optimalConditions": "Full sun to light shade. Tolerant of both heat and cold. Rich, moisture-retentive soil. Can be harvested continuously through all seasons.",
+            "imageUrl": "/images/plants/as-3.jpg"
         },
         {
             "id": "as-4",
+            "uid": "allium-fistulosum-scallion",
             "species": "Scallion / Bunching Onion (Allium fistulosum)",
             "germinationNeeds": "Sow seeds from early spring to late autumn. Can be grown year-round in many climates. Perennial.",
-            "optimalConditions": "Full sun. Fertile, well-drained soil. Very cold-hardy. Will multiply into clumps. Can be harvested in any season."
+            "optimalConditions": "Full sun. Fertile, well-drained soil. Very cold-hardy. Will multiply into clumps. Can be harvested in any season.",
+            "imageUrl": "/images/plants/as-4.jpg"
         }
     ],
     "plantings": [

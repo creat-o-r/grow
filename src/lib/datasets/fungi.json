@@ -17,21 +17,27 @@
     "plants": [
         {
             "id": "fungi-1",
+            "uid": "lentinula-edodes-shiitake",
             "species": "Shiitake Mushroom (Lentinula edodes)",
             "germinationNeeds": "Inoculate hardwood logs (oak, beech) with plug spawn. Mycelium takes 6-18 months to colonize the log (spawn run).",
-            "optimalConditions": "Fruiting triggered by soaking logs in cool water after full colonization. Prefers shaded, humid environments. Temp: 10-24°C."
+            "optimalConditions": "Fruiting triggered by soaking logs in cool water after full colonization. Prefers shaded, humid environments. Temp: 10-24°C.",
+            "imageUrl": "/images/plants/fungi-1.jpg"
         },
         {
             "id": "fungi-2",
+            "uid": "pleurotus-ostreatus-oyster-mushroom",
             "species": "Oyster Mushroom (Pleurotus ostreatus)",
             "germinationNeeds": "Can be grown on various substrates like straw, coffee grounds, or sawdust. Quick colonization (2-4 weeks).",
-            "optimalConditions": "High humidity (85-95%) and fresh air exchange needed for fruiting. Tolerates a wide temperature range depending on the strain."
+            "optimalConditions": "High humidity (85-95%) and fresh air exchange needed for fruiting. Tolerates a wide temperature range depending on the strain.",
+            "imageUrl": "/images/plants/fungi-2.jpg"
         },
         {
             "id": "fungi-3",
+            "uid": "hericium-erinaceus-lions-mane",
             "species": "Lion's Mane Mushroom (Hericium erinaceus)",
             "germinationNeeds": "Typically grown on supplemented hardwood sawdust blocks. Colonization takes about 2-3 weeks.",
-            "optimalConditions": "Fruiting requires high humidity and cooler temperatures (15-21°C). Grows 'teeth' instead of caps."
+            "optimalConditions": "Fruiting requires high humidity and cooler temperatures (15-21°C). Grows 'teeth' instead of caps.",
+            "imageUrl": "/images/plants/fungi-3.jpg"
         }
     ],
     "plantings": [

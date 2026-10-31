@@ -34,9 +34,13 @@ import {
   Upload,
   ClipboardPaste,
   Sprout,
+  Radio,
+  Share2,
+  Link2,
 } from 'lucide-react';
 import { createDataset } from '@/ai/flows/create-dataset-flow';
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
+import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import type {
   AiDataset,
   AiLog,
@@ -54,7 +58,14 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { PlantForm } from '@/components/PlantForm';
 import { availableDatasets, loadDataset } from '@/lib/datasets';
-import { decodeSeedPackFromInput } from '@/lib/seed-pack';
+import { decodeSeedPackFromInput, buildShareableSeedPackUrl } from '@/lib/seed-pack';
+import {
+  getSavedP2PRoomId,
+  saveP2PRoomId,
+  broadcastGardenToP2PRoom,
+  fetchLatestFromP2PRoom,
+  subscribeToP2PGardenRoom,
+} from '@/lib/p2p-signals';
 
 type ImportMode = 'replace' | 'add' | 'new';
 export type UnifiedImportTab = 'single' | 'ai-generate' | 'import-pack';
@@ -110,6 +121,9 @@ export function AiDataImportSheet({
   const [generatedData, setGeneratedData] = useState<AiDataset | null>(null);
   const [loadedPackTitle, setLoadedPackTitle] = useState<string | null>(null);
   const [clipboardInput, setClipboardInput] = useState('');
+  const [p2pRoomId, setP2pRoomId] = useState('');
+  const [shareScope, setShareScope] = useState<'active' | 'all'>('active');
+  const [isP2pSyncing, setIsP2pSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>(activeLocation ? 'add' : 'new');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -137,6 +151,7 @@ export function AiDataImportSheet({
 
   useEffect(() => {
     if (isOpen) {
+      setP2pRoomId(getSavedP2PRoomId());
       if (plantingToEdit) {
         setActiveTab('single');
       } else if (initialDataset?.data) {
@@ -151,6 +166,137 @@ export function AiDataImportSheet({
       }
     }
   }, [isOpen, initialTab, plantingToEdit, initialDataset]);
+
+  useEffect(() => {
+    if (!isOpen || !p2pRoomId.trim()) return;
+    saveP2PRoomId(p2pRoomId);
+    const unsubscribe = subscribeToP2PGardenRoom(p2pRoomId, (peerDataset, peerName) => {
+      const packName = `${peerDataset.locations?.[0]?.name || 'Shared Garden'} (from ${peerName})`;
+      setGeneratedData(peerDataset);
+      setLoadedPackTitle(packName);
+      setTheme(packName);
+      setIncludedVariationIds(new Set());
+      toast({
+        title: `Live P2P Garden Received`,
+        description: `${peerName} broadcasted "${peerDataset.locations?.[0]?.name || 'Garden'}" (${peerDataset.plantings?.length || 0} plants). Review below to import!`,
+      });
+    });
+    return unsubscribe;
+  }, [isOpen, p2pRoomId, toast]);
+
+  const buildCurrentGardenDataset = async (scope: 'active' | 'all' = shareScope): Promise<AiDataset | null> => {
+    const allLocations = await db.locations.toArray();
+    if (allLocations.length === 0) return null;
+
+    if (scope === 'all') {
+      const allPlants = await db.plants.toArray();
+      const allPlantings = await db.plantings.toArray();
+      return {
+        locations: allLocations,
+        plants: allPlants,
+        plantings: allPlantings,
+      };
+    }
+
+    const targetLoc = activeLocation || allLocations[0];
+    if (!targetLoc) return null;
+    const gardenPlantings = await db.plantings.where('gardenId').equals(targetLoc.id).toArray();
+    const plantIds = new Set(gardenPlantings.map((p) => p.plantId));
+    const allPlants = await db.plants.toArray();
+    const gardenPlants = allPlants.filter((p) => plantIds.has(p.id));
+    return {
+      locations: [targetLoc],
+      plants: gardenPlants,
+      plantings: gardenPlantings,
+    };
+  };
+
+  const handleCopyShareablePackLink = async () => {
+    try {
+      const ds = await buildCurrentGardenDataset(shareScope);
+      if (!ds) {
+        toast({
+          title: 'No Gardens Found',
+          description: 'Create or select a garden first to share a ?pack= link.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const url = buildShareableSeedPackUrl(ds);
+      await navigator.clipboard.writeText(url);
+      const label =
+        ds.locations.length > 1
+          ? `All ${ds.locations.length} Gardens`
+          : `"${ds.locations[0].name}"`;
+      toast({
+        title: 'Shareable ?pack= Link Copied!',
+        description: `Copied permalink for ${label} (${ds.plantings.length} plants). Open it in any browser or session to import.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Could Not Copy Link',
+        description: err?.message || 'Failed to build shareable link.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handlePushToP2PRoom = async () => {
+    if (!p2pRoomId.trim()) return;
+    setIsP2pSyncing(true);
+    setError(null);
+    try {
+      saveP2PRoomId(p2pRoomId);
+      const ds = await buildCurrentGardenDataset(shareScope);
+      if (!ds) {
+        throw new Error('No gardens found to broadcast.');
+      }
+      await broadcastGardenToP2PRoom(p2pRoomId, ds);
+      const label =
+        ds.locations.length > 1
+          ? `All ${ds.locations.length} Gardens`
+          : `"${ds.locations[0].name}"`;
+      toast({
+        title: `Streamed to Room "${p2pRoomId.trim()}"`,
+        description: `${label} (${ds.plantings.length} plants) is now live on the P2P room across tabs, sessions, and devices.`,
+      });
+    } catch (err: any) {
+      setError(err?.message || 'Could not broadcast to P2P room.');
+    } finally {
+      setIsP2pSyncing(false);
+    }
+  };
+
+  const handlePullFromP2PRoom = async () => {
+    if (!p2pRoomId.trim()) return;
+    setIsP2pSyncing(true);
+    setError(null);
+    try {
+      saveP2PRoomId(p2pRoomId);
+      const latest = await fetchLatestFromP2PRoom(p2pRoomId);
+      if (!latest) {
+        toast({
+          title: 'No Snapshot Found in Room',
+          description: `No garden has been pushed to room "${p2pRoomId.trim()}" in the last 24h yet. Click "Push Active Garden" from another session first.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      const packName = `${latest.dataset.locations?.[0]?.name || 'P2P Garden'} (${latest.peerName})`;
+      setGeneratedData(latest.dataset);
+      setLoadedPackTitle(packName);
+      setTheme(packName);
+      setIncludedVariationIds(new Set());
+      toast({
+        title: `Pulled "${latest.dataset.locations?.[0]?.name || 'Garden'}"`,
+        description: `Loaded ${latest.dataset.plantings?.length || 0} plants from ${latest.peerName}. Review and choose your import mode below.`,
+      });
+    } catch (err: any) {
+      setError(err?.message || 'Could not pull from P2P room.');
+    } finally {
+      setIsP2pSyncing(false);
+    }
+  };
 
   const handleLoadStarterDataset = async (datasetKey: string) => {
     try {
@@ -458,8 +604,19 @@ export function AiDataImportSheet({
 
         } else if (importMode === 'new') {
             const now = Date.now();
-            const newGardenId = `garden-${now}`;
             const idSuffix = `-${now}-${Math.random().toString(36).substring(2, 6)}`;
+
+            const locationIdMap = new Map<string, string>();
+            const newLocations: GardenLocation[] = (generatedData.locations || []).map((loc, idx) => {
+              const newLocId = `garden-${now}-${idx}`;
+              locationIdMap.set(loc.id, newLocId);
+              return {
+                ...loc,
+                id: newLocId,
+              };
+            });
+
+            const fallbackGardenId = newLocations[0]?.id || `garden-${now}`;
 
             const plantIdMap = new Map<string, string>();
             const newPlants: Plant[] = generatedData.plants.map((p, i) => {
@@ -472,22 +629,19 @@ export function AiDataImportSheet({
               ...p,
               id: `planting${idSuffix}-${i}`,
               plantId: plantIdMap.get(p.plantId) || `unknown-plant${idSuffix}-${i}`,
-              gardenId: newGardenId,
+              gardenId: locationIdMap.get(p.gardenId) || fallbackGardenId,
               seedsOnHand: p.seedsOnHand ?? 0,
               plannedQty: p.plannedQty ?? 0,
             }));
-            
-            const newLocation: GardenLocation = {
-                ...generatedData.locations[0],
-                id: newGardenId,
-            };
 
-          await db.locations.add(newLocation);
+          if (newLocations.length > 0) {
+            await db.locations.bulkAdd(newLocations);
+          }
           await db.plants.bulkAdd(newPlants);
           await db.plantings.bulkAdd(newPlantings);
 
           if (typeof window !== 'undefined') {
-            localStorage.setItem('grow_activeLocation', newGardenId);
+            localStorage.setItem('grow_activeLocation', fallbackGardenId);
           }
 
           toast({
@@ -912,6 +1066,122 @@ export function AiDataImportSheet({
                     </CardContent>
                   </Card>
 
+                  <Card className="border-primary/25">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="font-headline text-lg flex items-center gap-2">
+                        <Radio className="h-4 w-4 text-primary" />
+                        <span>P2P Garden Sharing & Cross-Session Sync</span>
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        Share your active garden via a 1-click <code>?pack=</code> link, or use a shared Room Code to push &amp; pull gardens across browsers, sessions, and devices ($0 server cost).
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 p-2">
+                        <span className="text-xs font-medium text-muted-foreground">What to Stream / Share:</span>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={shareScope === 'active' ? 'default' : 'ghost'}
+                            className="h-7 text-xs px-2.5"
+                            onClick={() => setShareScope('active')}
+                          >
+                            Active Garden ({activeLocation?.name || 'Current'})
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={shareScope === 'all' ? 'default' : 'ghost'}
+                            className="h-7 text-xs px-2.5"
+                            onClick={() => setShareScope('all')}
+                          >
+                            All Existing Gardens
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={handleCopyShareablePackLink}
+                          className="flex-1"
+                        >
+                          <Link2 className="mr-2 h-4 w-4" />
+                          Copy 1-Click Shareable ?pack= Link
+                        </Button>
+                        {onPublish && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onPublish}
+                            className="sm:w-auto"
+                          >
+                            <Upload className="mr-2 h-4 w-4" />
+                            Export JSON to Clipboard
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="border-t pt-3 space-y-2">
+                        <Label htmlFor="p2p-room-input" className="text-xs flex items-center justify-between">
+                          <span>Cross-Session P2P Sync Room Code</span>
+                          {p2pRoomId.trim() && (
+                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 text-primary border-primary/30">
+                              Room Active
+                            </Badge>
+                          )}
+                        </Label>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Input
+                            id="p2p-room-input"
+                            placeholder="e.g., my-garden-sync-2026"
+                            value={p2pRoomId}
+                            onChange={(e) => setP2pRoomId(e.target.value)}
+                            className="font-mono text-xs flex-1"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handlePushToP2PRoom}
+                              disabled={!p2pRoomId.trim() || isP2pSyncing}
+                              className="h-10 text-xs flex-1 sm:flex-initial"
+                              title="Broadcast active garden to this room so other sessions/devices can pull it"
+                            >
+                              {isP2pSyncing ? (
+                                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                              )}
+                              {shareScope === 'all' ? 'Stream All Gardens' : 'Stream Active Garden'}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={handlePullFromP2PRoom}
+                              disabled={!p2pRoomId.trim() || isP2pSyncing}
+                              className="h-10 text-xs flex-1 sm:flex-initial"
+                              title="Pull the latest broadcasted garden from this room into the Review & Import options below"
+                            >
+                              {isP2pSyncing ? (
+                                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Download className="mr-1.5 h-3.5 w-3.5" />
+                              )}
+                              Pull Latest from Room
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Works across tabs instantly via <code>BroadcastChannel</code> and across different browsers, incognito sessions, or devices for 24h via encrypted-slug public relay.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="font-headline text-lg">
@@ -939,17 +1209,6 @@ export function AiDataImportSheet({
                           <ClipboardPaste className="mr-2 h-4 w-4" />
                           Load Pack for Review & Import
                         </Button>
-                        {onPublish && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onPublish}
-                            className="sm:w-auto"
-                          >
-                            <Upload className="mr-2 h-4 w-4" />
-                            Export Current Garden
-                          </Button>
-                        )}
                       </div>
                     </CardContent>
                   </Card>

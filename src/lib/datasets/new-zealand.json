@@ -20,6 +20,7 @@
             "species": "Kūmara - Owairaka Red (Ipomoea batatas)",
             "germinationNeeds": "Propagated from sprouted tip shoots (tipu) in Spring after frost risk passes. Needs warm soil above 15°C.",
             "optimalConditions": "Full sun, warm Spring and Summer temperatures. Well-drained, mounded sandy loam or volcanic soil. Avoid heavy nitrogen.",
+            "imageUrl": "/images/plants/nz-plant-1.jpg",
             "verifiedGrowerCount": 18
         },
         {
@@ -28,6 +29,7 @@
             "species": "Kawakawa (Piper excelsum)",
             "germinationNeeds": "Sow fresh ripe seeds in Spring or Autumn in moist potting mix, or propagate from semi-hardwood cuttings.",
             "optimalConditions": "Partial shade to sheltered sun. Rich, moist, well-drained humus soil. Protect from heavy frost.",
+            "imageUrl": "/images/plants/nz-plant-2.jpg",
             "verifiedGrowerCount": 24
         },
         {
@@ -36,6 +38,7 @@
             "species": "Feijoa - Apollo & Unique (Acca sellowiana)",
             "germinationNeeds": "Best planted as grafted cultivars in Spring or Autumn for true-to-type fruit; seeds germinate in 3-4 weeks at 20°C.",
             "optimalConditions": "Full sun to partial shade. Tolerant of coastal wind, clay, and loam soils. Benefits from cool winter chill and warm summer.",
+            "imageUrl": "/images/plants/nz-plant-3.jpg",
             "verifiedGrowerCount": 31
         },
         {
@@ -44,6 +47,7 @@
             "species": "Taewa Māori Potato - Tūtaekurī (Solanum tuberosum)",
             "germinationNeeds": "Chit seed tubers in a bright, cool spot before planting in Spring (September-November) when soil warms.",
             "optimalConditions": "Full sun, fertile, well-drained compost-rich soil. Mound soil progressively as foliage grows; frost-tender foliage.",
+            "imageUrl": "/images/plants/nz-plant-4.jpg",
             "verifiedGrowerCount": 15
         },
         {
@@ -52,6 +56,7 @@
             "species": "Silverbeet - Fordhook Giant (Beta vulgaris)",
             "germinationNeeds": "Direct sow in Spring, Summer, or Autumn at 15-25°C. Germinates reliably in 7-14 days.",
             "optimalConditions": "Full sun to partial shade. Adaptable and frost-tolerant across all New Zealand seasons in rich, moist compost soil.",
+            "imageUrl": "/images/plants/nz-plant-5.jpg",
             "verifiedGrowerCount": 42
         }
     ],

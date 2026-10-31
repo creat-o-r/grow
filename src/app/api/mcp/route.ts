@@ -16,6 +16,8 @@ import {
   formatMicroclimateHeader,
   getViabilityBadge,
   GROW_AI_SYSTEM_INSTRUCTIONS,
+  GROW_DATA_HANDLING_RULES,
+  GROW_UI_SCHEMA,
 } from '@/lib/ai-presentation';
 import type { AiDataset, Conditions, Plant } from '@/lib/types';
 
@@ -288,6 +290,8 @@ function formatBrowserGardenReport(dataset: AiDataset, origin: string) {
   const openInGrowUrl = `${origin}/?pack=${encodeSeedPackToParam(dataset)}`;
   return {
     source: 'browser-indexeddb-snapshot',
+    uiSchema: GROW_UI_SCHEMA,
+    dataHandlingRules: GROW_DATA_HANDLING_RULES,
     uiDisplayInstructions:
       'Present the formattedDisplayMarkdown below to mirror the Grow dashboard layout (Microclimate Header Bar, Viability Badges, and Plant Cards). Keep seedsOnHand and plannedQty at 0 unless modified by the user.',
     formattedDisplayMarkdown: formatGardenAsGrowMarkdown({
@@ -356,6 +360,9 @@ export async function GET(req: NextRequest) {
         homepage: origin,
         hasBrowserIndexedDbSnapshot: Boolean(packParam),
       },
+      instructions: GROW_AI_SYSTEM_INSTRUCTIONS,
+      uiSchema: GROW_UI_SCHEMA,
+      dataHandlingRules: GROW_DATA_HANDLING_RULES,
       tools: MCP_TOOLS,
       resources,
     },
@@ -408,6 +415,8 @@ async function handleJsonRpcMessage(
           version: '1.1.0',
         },
         instructions: GROW_AI_SYSTEM_INSTRUCTIONS,
+        uiSchema: GROW_UI_SCHEMA,
+        dataHandlingRules: GROW_DATA_HANDLING_RULES,
       },
     };
   }
@@ -541,6 +550,7 @@ async function handleJsonRpcMessage(
     }
     const key = uri.replace('grow://datasets/', '');
     const dataset = await loadDataset(key);
+    const datasetReport = formatBrowserGardenReport(dataset, origin);
     return {
       jsonrpc: '2.0',
       id,
@@ -549,7 +559,16 @@ async function handleJsonRpcMessage(
           {
             uri,
             mimeType: 'application/json',
-            text: JSON.stringify(dataset, null, 2),
+            text: JSON.stringify(
+              {
+                ...dataset,
+                formattedDisplayMarkdown: datasetReport.formattedDisplayMarkdown,
+                uiSchema: GROW_UI_SCHEMA,
+                dataHandlingRules: GROW_DATA_HANDLING_RULES,
+              },
+              null,
+              2
+            ),
           },
         ],
       },
@@ -677,6 +696,19 @@ async function handleJsonRpcMessage(
         }
       }
 
+      const topMatches = matches.slice(0, 15);
+      const formattedMatchesMarkdown = topMatches
+        .map((m) =>
+          [
+            `### 🌿 ${m.plant.species} *(${m.datasetName})*`,
+            `- **Status:** \`📋 Wishlist\` | **Suitable Seasons:** ${getSuitableSeasons(m.plant).join(', ') || 'All Seasons'}`,
+            `- **Germination Needs:** ${m.plant.germinationNeeds}`,
+            `- **Optimal Conditions:** ${m.plant.optimalConditions}`,
+            `- **Seed Inventory:** Seeds on Hand: \`0\` • Planned Qty: \`0\``,
+          ].join('\n')
+        )
+        .join('\n\n');
+
       return {
         jsonrpc: '2.0',
         id,
@@ -688,7 +720,11 @@ async function handleJsonRpcMessage(
                 {
                   query: args.query,
                   matchCount: matches.length,
-                  matches: matches.slice(0, 15),
+                  formattedDisplayMarkdown:
+                    formattedMatchesMarkdown || `No cultivars matched "${args.query}".`,
+                  uiSchema: GROW_UI_SCHEMA,
+                  dataHandlingRules: GROW_DATA_HANDLING_RULES,
+                  matches: topMatches,
                   forkInGrowUrl: `${origin}/?dataset=${encodeURIComponent(matches[0]?.datasetKey || 'new-zealand')}`,
                 },
                 null,
@@ -704,6 +740,8 @@ async function handleJsonRpcMessage(
       const dataset = await loadDataset(args.datasetKey || 'new-zealand');
       const encoded = encodeSeedPackToParam(dataset);
       const packUrl = `${origin}/?pack=${encoded}`;
+      const directAutoImportUrl = `${origin}/?aiPushPack=${encoded}&mode=add`;
+      const report = formatBrowserGardenReport(dataset, origin);
       return {
         jsonrpc: '2.0',
         id,
@@ -715,6 +753,10 @@ async function handleJsonRpcMessage(
                 {
                   datasetKey: args.datasetKey,
                   plantCount: dataset.plants.length,
+                  formattedDisplayMarkdown: `${report.formattedDisplayMarkdown}\n🚀 **[1-Click Direct Import to Grow](${directAutoImportUrl})**`,
+                  uiSchema: GROW_UI_SCHEMA,
+                  dataHandlingRules: GROW_DATA_HANDLING_RULES,
+                  directAutoImportUrl,
                   forkUrl: packUrl,
                 },
                 null,

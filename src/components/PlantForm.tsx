@@ -11,6 +11,7 @@ import Image from 'next/image';
 
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
 import { diagnosePlant } from '@/ai/flows/diagnose-plant-flow';
+import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
@@ -122,7 +123,7 @@ export function PlantForm({
         history: plantingToEdit.history,
         seedsOnHand: plantingToEdit.seedsOnHand || 0,
         plannedQty: plantingToEdit.plannedQty || 0,
-        imageUrl: plantingToEdit.plant.imageUrl || '',
+        imageUrl: plantingToEdit.plant.imageUrl || getCuratedPlantImage(plantingToEdit.plant, plantingToEdit.name) || '',
       });
     } else {
       form.reset({
@@ -229,6 +230,11 @@ export function PlantForm({
       }
       form.setValue('germinationNeeds', result.germinationNeeds, { shouldValidate: true });
       form.setValue('optimalConditions', result.optimalConditions, { shouldValidate: true });
+
+      const resolvedPhoto = await resolveRealPlantImage(result.species, result.commonName);
+      if (resolvedPhoto && !controller.signal.aborted) {
+        form.setValue('imageUrl', resolvedPhoto, { shouldValidate: true });
+      }
 
       toast({
         title: 'AI Search Successful',
@@ -344,14 +350,19 @@ export function PlantForm({
     }
   }
 
-  const handleSubmit = (data: PlantFormValues) => {
+  const handleSubmit = async (data: PlantFormValues) => {
      const sortedHistory = [...data.history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
+    const resolvedImg =
+      data.imageUrl?.trim() ||
+      (await resolveRealPlantImage(data.species, data.name, plantingToEdit?.plant?.id)) ||
+      getCuratedPlantImage(data.species, data.name);
+
     const plantData = {
         species: data.species,
         germinationNeeds: data.germinationNeeds,
         optimalConditions: data.optimalConditions,
-        imageUrl: data.imageUrl,
+        imageUrl: resolvedImg,
     };
 
     const plantingData: Omit<Planting, 'id'> = {
@@ -385,7 +396,7 @@ export function PlantForm({
      form.setValue('species', plant.species, { shouldValidate: true });
      form.setValue('germinationNeeds', plant.germinationNeeds, { shouldValidate: true });
      form.setValue('optimalConditions', plant.optimalConditions, { shouldValidate: true });
-     form.setValue('imageUrl', plant.imageUrl || '', { shouldValidate: true });
+     form.setValue('imageUrl', plant.imageUrl || getCuratedPlantImage(plant) || '', { shouldValidate: true });
      setIsSpeciesPopoverOpen(false);
   }
 
@@ -645,11 +656,69 @@ export function PlantForm({
             )}
           />
           
+          <FormField
+            control={form.control}
+            name="imageUrl"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center justify-between">
+                  <span>Plant Photograph URL</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-primary"
+                    onClick={async () => {
+                      const speciesVal = form.getValues('species');
+                      const nameVal = form.getValues('name');
+                      if (!speciesVal && !nameVal) {
+                        toast({
+                          title: 'Enter a Species or Name',
+                          description: 'Provide a plant name or species first to fetch a botanical photograph.',
+                          variant: 'destructive',
+                        });
+                        return;
+                      }
+                      const photo = await resolveRealPlantImage(speciesVal || nameVal, nameVal);
+                      if (photo) {
+                        form.setValue('imageUrl', photo, { shouldValidate: true });
+                        toast({
+                          title: 'Plant Photo Found',
+                          description: `Loaded real botanical photograph for ${speciesVal || nameVal}.`,
+                        });
+                      } else {
+                        toast({
+                          title: 'No Photo Found',
+                          description: 'Could not find a matching botanical photo automatically. You can paste an image URL below.',
+                          variant: 'destructive',
+                        });
+                      }
+                    }}
+                  >
+                    <Wand2 className="mr-1 h-3 w-3" /> Auto-Find Real Photo
+                  </Button>
+                </FormLabel>
+                <FormControl>
+                  <Input placeholder="https://... or /images/plants/..." {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
           {imageUrlValue && (
             <Card>
                 <CardContent className="pt-6">
-                    <div className="relative aspect-video w-full rounded-md overflow-hidden">
-                        <Image src={imageUrlValue} alt="Plant image" layout="fill" objectFit="cover" />
+                    <div className="relative aspect-video w-full rounded-md overflow-hidden bg-muted/40">
+                        <img
+                            src={imageUrlValue}
+                            alt="Plant photograph preview"
+                            width={480}
+                            height={270}
+                            {...({ fetchPriority: 'low' } as any)}
+                            loading="lazy"
+                            className="w-full h-full object-cover"
+                        />
                         <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => form.setValue('imageUrl', '')}>
                             <X className="h-4 w-4"/>
                             <span className="sr-only">Remove Image</span>

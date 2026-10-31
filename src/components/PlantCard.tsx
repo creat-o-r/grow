@@ -2,6 +2,7 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import type { PlantingWithPlant, Conditions, StatusHistory } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,7 @@ import { format, parseISO } from 'date-fns';
 import { getSuitableSeasons } from '@/lib/viability';
 import { Viability } from '@/lib/viability';
 import { getExtensionsBySlot } from '@/extensions/registry';
-import Image from 'next/image';
+import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 
 type PlantCardProps = {
   planting: PlantingWithPlant;
@@ -33,6 +34,7 @@ type PlantCardProps = {
   onSelectDuplicate: () => void;
   onGetViability: () => void;
   showGardenLabel?: boolean;
+  isPriority?: boolean;
 };
 
 export function PlantCard({
@@ -52,8 +54,32 @@ export function PlantCard({
     onSelectDuplicate,
     onGetViability,
     showGardenLabel,
+    isPriority = false,
 }: PlantCardProps) {
     const { plant } = planting;
+    const syncImageUrl = getCuratedPlantImage(plant, planting.name);
+    const [resolvedImageUrl, setResolvedImageUrl] = useState<string | undefined>(syncImageUrl);
+    const [imgFailed, setImgFailed] = useState(false);
+
+    useEffect(() => {
+        setImgFailed(false);
+        const currentSync = getCuratedPlantImage(plant, planting.name);
+        if (currentSync) {
+            setResolvedImageUrl(currentSync);
+            return;
+        }
+        let cancelled = false;
+        resolveRealPlantImage(plant.species, planting.name, plant.id).then((url) => {
+            if (!cancelled && url) {
+                setResolvedImageUrl(url);
+            }
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [plant, planting.name]);
+
+    const activeImageUrl = !imgFailed ? (syncImageUrl || resolvedImageUrl) : undefined;
     const latestStatus = planting.history && planting.history.length > 0 ? planting.history[planting.history.length - 1] : null;
     const suitableSeasons = getSuitableSeasons(plant);
     const cardBadgeExtensions = getExtensionsBySlot('plant-card-badge');
@@ -68,12 +94,22 @@ export function PlantCard({
     
     const cardContent = (
         <>
-            {plant.imageUrl && (
-                 <div className="relative w-full h-40">
-                    <Image src={plant.imageUrl} alt={`Image of ${plant.species}`} layout="fill" objectFit="cover" className="rounded-t-lg" />
+            {activeImageUrl && (
+                 <div className="relative w-full h-44 overflow-hidden rounded-t-lg bg-muted/40">
+                    <img
+                        src={activeImageUrl}
+                        alt={`Photograph of ${plant.species}`}
+                        width={400}
+                        height={176}
+                        {...(isPriority
+                            ? ({ fetchPriority: 'high' } as any)
+                            : { loading: 'lazy' })}
+                        onError={() => setImgFailed(true)}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                    />
                  </div>
             )}
-            <CardHeader className={cn(!plant.imageUrl && "pb-2")}>
+            <CardHeader className={cn(!activeImageUrl && "pb-2")}>
                 <div className="flex justify-between items-start">
                     <div>
                         <CardTitle className="font-headline text-xl leading-tight mb-1 pr-2">{planting.name}</CardTitle>
