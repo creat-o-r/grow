@@ -34,6 +34,17 @@ if (!globalForP2P.__growP2PStore) {
 }
 const p2pStore = globalForP2P.__growP2PStore;
 
+/** Identical to fingerprintDataset() in src/lib/p2p-signals.ts (FNV-1a over sorted planting ids). */
+function fingerprintDataset(dataset: AiDataset): string {
+  const ids = (dataset.plantings || []).map((p) => String(p.id)).sort();
+  let h = 0x811c9dc5;
+  for (const ch of ids.join('|')) {
+    h ^= ch.charCodeAt(0);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `${ids.length}-${h.toString(16).padStart(8, '0')}`;
+}
+
 function normalizeRoomSlug(roomId: string): string {
   return (
     roomId
@@ -122,6 +133,8 @@ async function parseEnvelopeToPacket(envelope: any): Promise<P2PRoomWirePacket |
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+  // peek=1 returns metadata + fingerprint only (no dataset) so clients can poll cheaply for changes
+  const peek = searchParams.get('peek') === '1';
   const roomId = (searchParams.get('room') || '').trim();
   if (!roomId) {
     return NextResponse.json({ ok: false, error: 'Missing room parameter' }, { status: 400 });
@@ -227,7 +240,8 @@ export async function GET(req: NextRequest) {
           timestamp: chosenPacket.timestamp,
         }
       : null,
-    dataset: chosenDataset,
+    dataset: peek ? undefined : chosenDataset,
+    fingerprint: chosenDataset ? fingerprintDataset(chosenDataset) : null,
   });
 }
 

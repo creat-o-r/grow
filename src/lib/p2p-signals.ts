@@ -138,77 +138,38 @@ export interface P2PRoomPacket {
   timestamp: string;
 }
 
-export interface P2PConnectionTestResult {
-  ok: boolean;
-  roomId: string;
-  memoryOk: boolean;
-  relayRoundTripOk: boolean;
-  latencyMs: number;
-  hasSnapshot: boolean;
-  snapshotSummary: {
-    peerName: string;
-    gardenName: string;
-    gardenCount: number;
-    plantCount: number;
-    timestamp: string;
-  } | null;
-}
-
 function getRoomCacheKey(roomId: string): string {
   const slug = toSpeciesUid(roomId) || 'default-room';
   return `grow_p2p_room_cache_${slug}`;
 }
 
 /**
- * Runs a 1-click cross-session P2P connection self-test (write ping + read room state)
- * across both the same-origin server memory store and the global cross-session relay.
+ * Short, order-independent fingerprint of a dataset's planting IDs (e.g. "12-3fa9c1d2").
+ * Shown on the sender after streaming and on the receiver after pulling, so you can confirm
+ * two DIFFERENT sessions are looking at the exact same garden data.
+ * (scripts/p2p-test.mjs uses the identical algorithm.)
  */
-export async function testP2PRoomConnection(roomId: string): Promise<P2PConnectionTestResult> {
-  const identity = getOrCreateGrowerIdentity();
-  const startMs = Date.now();
-  const pingRes = await fetch('/api/p2p', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'ping',
-      roomId: roomId.trim(),
-      peerName: identity.displayName,
-    }),
-  });
-  const pingData = await pingRes.json();
-
-  const statusRes = await fetch(`/api/p2p?room=${encodeURIComponent(roomId.trim())}`, {
-    cache: 'no-store',
-  });
-  const statusData = await statusRes.json();
-
-  return {
-    ok: Boolean(pingData?.ok && statusData?.ok),
-    roomId: roomId.trim(),
-    memoryOk: Boolean(pingData?.memoryOk),
-    relayRoundTripOk: Boolean(pingData?.relayRoundTripOk || statusData?.relayReachable),
-    latencyMs: Date.now() - startMs,
-    hasSnapshot: Boolean(statusData?.hasSnapshot),
-    snapshotSummary: statusData?.packet
-      ? {
-          peerName: statusData.packet.peerName || 'Garden Peer',
-          gardenName: statusData.packet.gardenName || 'Shared Garden',
-          gardenCount: statusData.packet.gardenCount || 1,
-          plantCount: statusData.packet.plantCount || 0,
-          timestamp: statusData.packet.timestamp || new Date().toISOString(),
-        }
-      : null,
-  };
+export function fingerprintDataset(dataset: AiDataset | null | undefined): string {
+  const ids = (dataset?.plantings || []).map((p) => String(p.id)).sort();
+  let h = 0x811c9dc5;
+  for (const ch of ids.join('|')) {
+    h ^= ch.charCodeAt(0);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `${ids.length}-${h.toString(16).padStart(8, '0')}`;
 }
 
 /**
- * Lightweight room status check so the UI can immediately display whether a garden
- * snapshot is currently waiting in the room before the user clicks Pull.
+ * Reads what is currently waiting in a room (never writes). `fromThisSession` is true when the
+ * snapshot was written by this browser profile, i.e. pulling it would NOT prove cross-session sync.
  */
 export async function inspectP2PRoom(roomId: string): Promise<{
   hasSnapshot: boolean;
   source: string;
+  fingerprint: string | null;
+  fromThisSession: boolean;
   packet: {
+    packetId?: string;
     peerName: string;
     gardenName: string;
     gardenCount: number;
@@ -218,14 +179,17 @@ export async function inspectP2PRoom(roomId: string): Promise<{
 } | null> {
   if (!roomId.trim()) return null;
   try {
-    const res = await fetch(`/api/p2p?room=${encodeURIComponent(roomId.trim())}`, {
+    const res = await fetch(`/api/p2p?room=${encodeURIComponent(roomId.trim())}&peek=1`, {
       cache: 'no-store',
     });
     if (!res.ok) return null;
     const data = await res.json();
+    const identity = getOrCreateGrowerIdentity();
     return {
       hasSnapshot: Boolean(data?.hasSnapshot),
       source: data?.source || 'none',
+      fingerprint: data?.hasSnapshot ? data.fingerprint || null : null,
+      fromThisSession: Boolean(data?.packet?.peerPubkey && data.packet.peerPubkey === identity.pubkey),
       packet: data?.packet || null,
     };
   } catch {

@@ -65,9 +65,8 @@ import {
   broadcastGardenToP2PRoom,
   fetchLatestFromP2PRoom,
   subscribeToP2PGardenRoom,
-  testP2PRoomConnection,
   inspectP2PRoom,
-  type P2PConnectionTestResult,
+  fingerprintDataset,
 } from '@/lib/p2p-signals';
 
 type ImportMode = 'replace' | 'add' | 'new';
@@ -127,12 +126,15 @@ export function AiDataImportSheet({
   const [p2pRoomId, setP2pRoomId] = useState('');
   const [shareScope, setShareScope] = useState<'active' | 'all'>('all');
   const [isP2pSyncing, setIsP2pSyncing] = useState(false);
-  const [isTestingP2p, setIsTestingP2p] = useState(false);
-  const [p2pTestResult, setP2pTestResult] = useState<P2PConnectionTestResult | null>(null);
+  const [lastStreamFingerprint, setLastStreamFingerprint] = useState<string | null>(null);
+  const [lastPullFingerprint, setLastPullFingerprint] = useState<string | null>(null);
   const [roomStatus, setRoomStatus] = useState<{
     hasSnapshot: boolean;
     source: string;
+    fingerprint: string | null;
+    fromThisSession: boolean;
     packet: {
+      packetId?: string;
       peerName: string;
       gardenName: string;
       gardenCount: number;
@@ -140,6 +142,9 @@ export function AiDataImportSheet({
       timestamp: string;
     } | null;
   } | null>(null);
+  // Last room snapshot (packetId) this session has seen, used to detect new streams from other sessions
+  const seenPacketIdRef = useRef<string | null>(null);
+  const pullRef = useRef<() => void>(() => {});
   const [error, setError] = useState<string | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>(activeLocation ? 'add' : 'new');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -186,15 +191,48 @@ export function AiDataImportSheet({
   useEffect(() => {
     if (!isOpen || !p2pRoomId.trim()) {
       setRoomStatus(null);
-      setP2pTestResult(null);
       return;
     }
     saveP2PRoomId(p2pRoomId);
-    const timer = setTimeout(() => {
-      inspectP2PRoom(p2pRoomId).then((res) => {
-        if (res) setRoomStatus(res);
-      });
-    }, 300);
+
+    // Cross-session updates: poll the room (cheap "peek", no dataset download) while this sheet is
+    // open and the tab is visible. A new packetId written by a DIFFERENT session raises a toast.
+    let cancelled = false;
+    let baselineSet = false;
+    seenPacketIdRef.current = null;
+    const poll = async () => {
+      if (cancelled || document.visibilityState === 'hidden') return;
+      const res = await inspectP2PRoom(p2pRoomId);
+      if (cancelled || !res) return;
+      setRoomStatus(res);
+      const id = res.packet?.packetId ?? null;
+      if (!baselineSet) {
+        baselineSet = true;
+        seenPacketIdRef.current = id;
+        return;
+      }
+      if (id && id !== seenPacketIdRef.current) {
+        seenPacketIdRef.current = id;
+        if (!res.fromThisSession) {
+          toast({
+            title: `New garden snapshot in "${p2pRoomId.trim()}"`,
+            description: `${res.packet?.peerName || 'Another session'} streamed ${res.packet?.plantCount ?? 0} plants across ${res.packet?.gardenCount ?? 1} garden(s).`,
+            action: (
+              <ToastAction altText="Pull now" onClick={() => pullRef.current()}>
+                Pull now
+              </ToastAction>
+            ),
+          });
+        }
+      }
+    };
+    poll();
+    const pollInterval = setInterval(poll, 8000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') poll();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
     const unsubscribe = subscribeToP2PGardenRoom(p2pRoomId, (peerDataset, peerName) => {
       const packName = `${peerDataset.locations?.[0]?.name || 'Shared Garden'} (from ${peerName})`;
       setGeneratedData(peerDataset);
@@ -207,7 +245,9 @@ export function AiDataImportSheet({
       });
     });
     return () => {
-      clearTimeout(timer);
+      cancelled = true;
+      clearInterval(pollInterval);
+      document.removeEventListener('visibilitychange', onVisible);
       unsubscribe();
     };
   }, [isOpen, p2pRoomId, toast]);
@@ -298,6 +338,8 @@ export function AiDataImportSheet({
         );
       }
       await broadcastGardenToP2PRoom(p2pRoomId, ds);
+      const fp = fingerprintDataset(ds);
+      setLastStreamFingerprint(fp);
       const updatedStatus = await inspectP2PRoom(p2pRoomId);
       if (updatedStatus) setRoomStatus(updatedStatus);
       const label =
@@ -306,7 +348,7 @@ export function AiDataImportSheet({
           : `"${ds.locations[0].name}"`;
       toast({
         title: `Streamed to Room "${p2pRoomId.trim()}"`,
-        description: `${label} (${ds.plantings.length} plants) is now live on the P2P room across tabs, sessions, and devices.`,
+        description: `${label} (${ds.plantings.length} plants, fingerprint ${fp}). Now open a DIFFERENT session (other browser/profile/device), enter the same room code and Pull — it must show the same fingerprint.`,
       });
     } catch (err: any) {
       setError(err?.message || 'Could not broadcast to P2P room.');
@@ -315,58 +357,19 @@ export function AiDataImportSheet({
     }
   };
 
-  const handleTestP2PConnection = async () => {
-    const roomToTest = p2pRoomId.trim() || 'grow-test-room';
-    if (!p2pRoomId.trim()) {
-      setP2pRoomId(roomToTest);
-      saveP2PRoomId(roomToTest);
-    }
-    setIsTestingP2p(true);
-    setError(null);
-    try {
-      const result = await testP2PRoomConnection(roomToTest);
-      setP2pTestResult(result);
-      const updatedStatus = await inspectP2PRoom(roomToTest);
-      if (updatedStatus) setRoomStatus(updatedStatus);
-      toast({
-        title: result.ok ? `P2P Connection Verified (${result.latencyMs}ms)` : 'P2P Connection Issue',
-        description: result.hasSnapshot && result.snapshotSummary
-          ? `Room "${roomToTest}" is live with ${result.snapshotSummary.plantCount} plants across ${result.snapshotSummary.gardenCount} garden(s) from ${result.snapshotSummary.peerName}.`
-          : `Transport OK (Server Memory: ${result.memoryOk ? 'OK' : 'Fail'}, Global Relay: ${result.relayRoundTripOk ? 'OK' : 'Local Only'}). Room "${roomToTest}" has no garden streamed yet.`,
-      });
-    } catch (err: any) {
-      setError(err?.message || 'P2P connection test failed.');
-    } finally {
-      setIsTestingP2p(false);
-    }
-  };
-
-  const handleStreamAndCopyTestUrl = async () => {
-    const roomCode = p2pRoomId.trim() || 'grow-test-room';
-    if (!p2pRoomId.trim()) {
-      setP2pRoomId(roomCode);
-    }
-    setIsP2pSyncing(true);
-    setError(null);
+  const handleCopyOtherSessionLink = async () => {
+    const roomCode = p2pRoomId.trim();
+    if (!roomCode) return;
     try {
       saveP2PRoomId(roomCode);
-      const ds = await buildCurrentGardenDataset('all');
-      if (!ds || ds.plantings.length === 0) {
-        throw new Error('Add or import at least 1 plant before streaming a cross-session test.');
-      }
-      await broadcastGardenToP2PRoom(roomCode, ds);
-      const updatedStatus = await inspectP2PRoom(roomCode);
-      if (updatedStatus) setRoomStatus(updatedStatus);
-      const testUrl = `${window.location.origin}${window.location.pathname}?p2p_room=${encodeURIComponent(roomCode)}`;
-      await navigator.clipboard.writeText(testUrl);
+      const link = `${window.location.origin}${window.location.pathname}?p2p_room=${encodeURIComponent(roomCode)}`;
+      await navigator.clipboard.writeText(link);
       toast({
-        title: 'Streamed & Copied Cross-Session Test Link!',
-        description: `Streamed ${ds.plantings.length} plants to room "${roomCode}" and copied ${testUrl} — paste it into any Incognito or other browser window to auto-pull!`,
+        title: 'Link Copied',
+        description: `Open ${link} in a different browser, profile, or device to pull room "${roomCode}" there. Nothing is streamed by copying.`,
       });
     } catch (err: any) {
-      setError(err?.message || 'Could not stream and copy test link.');
-    } finally {
-      setIsP2pSyncing(false);
+      setError(err?.message || 'Could not copy link.');
     }
   };
 
@@ -416,9 +419,18 @@ export function AiDataImportSheet({
       if (locCount > 1 || !activeLocation) {
         setImportMode('new');
       }
+      const fp = fingerprintDataset(normalizedDataset);
+      setLastPullFingerprint(fp);
+      const roomNow = await inspectP2PRoom(p2pRoomId);
+      const sameSession = Boolean(roomNow?.fromThisSession);
       toast({
-        title: `Pulled ${baseTitle}`,
-        description: `Loaded ${normalizedDataset.plantings.length} plants across ${locCount} garden${locCount === 1 ? '' : 's'} from ${latest.peerName}. Review and click Import below.`,
+        title: sameSession
+          ? `Pulled ${baseTitle} — but written by THIS session`
+          : `Pulled ${baseTitle} from another session`,
+        description: sameSession
+          ? `This snapshot was streamed by this same browser profile, so it does NOT prove cross-session sync. Pull from a different browser/profile/device. (fingerprint ${fp})`
+          : `Loaded ${normalizedDataset.plantings.length} plants across ${locCount} garden${locCount === 1 ? '' : 's'} from ${latest.peerName} (fingerprint ${fp} — must match the sender's). Review and click Import below.`,
+        variant: sameSession ? 'destructive' : undefined,
       });
     } catch (err: any) {
       setError(err?.message || 'Could not pull from P2P room.');
@@ -426,6 +438,8 @@ export function AiDataImportSheet({
       setIsP2pSyncing(false);
     }
   };
+
+  pullRef.current = handlePullFromP2PRoom;
 
   const handleLoadStarterDataset = async (datasetKey: string) => {
     try {
@@ -1325,71 +1339,46 @@ export function AiDataImportSheet({
                           </div>
                         </div>
 
-                        {/* Live Room Inspection & 1-Click Cross-Session Test Controls */}
-                        <div className="rounded-md border bg-muted/40 p-2.5 space-y-2 text-xs">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
-                              <Radio className={`h-3.5 w-3.5 ${roomStatus?.hasSnapshot ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} />
-                              {roomStatus?.hasSnapshot && roomStatus.packet ? (
-                                <span className="font-medium text-emerald-700 dark:text-emerald-400">
-                                  Room Ready: {roomStatus.packet.plantCount} plants across {roomStatus.packet.gardenCount || 1} garden(s) from {roomStatus.packet.peerName}
-                                </span>
-                              ) : p2pRoomId.trim() ? (
-                                <span className="text-muted-foreground">
-                                  Room "{p2pRoomId.trim()}" has no streamed snapshot yet — click Stream first.
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">
-                                  Enter any room code (or click a test button below) to connect sessions.
-                                </span>
-                              )}
-                            </div>
+                        {/* Live room status: what is waiting in the room, who wrote it, and its fingerprint */}
+                        <div className="rounded-md border bg-muted/40 p-2.5 space-y-1.5 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <Radio className={`h-3.5 w-3.5 shrink-0 ${roomStatus?.hasSnapshot ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} />
+                            {roomStatus?.hasSnapshot && roomStatus.packet ? (
+                              <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                                In room: {roomStatus.packet.plantCount} plants across {roomStatus.packet.gardenCount || 1} garden(s), streamed by {roomStatus.packet.peerName}{' '}
+                                {roomStatus.fromThisSession ? '(this session)' : '(a different session)'}
+                              </span>
+                            ) : p2pRoomId.trim() ? (
+                              <span className="text-muted-foreground">
+                                Room &quot;{p2pRoomId.trim()}&quot; is empty. Stream from the sender session first.
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">
+                                Enter a room code. Stream in one session, pull in a different one.
+                              </span>
+                            )}
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              onClick={handleTestP2PConnection}
-                              disabled={isTestingP2p || isP2pSyncing}
-                              className="h-7 text-[11px] px-2.5"
-                            >
-                              {isTestingP2p ? (
-                                <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
-                              ) : (
-                                <CheckCircle className="mr-1.5 h-3 w-3" />
-                              )}
-                              Test P2P Connection
-                            </Button>
+                          <div className="font-mono text-[11px] flex flex-wrap gap-x-4 gap-y-0.5 text-muted-foreground">
+                            {roomStatus?.fingerprint && <span>Room fingerprint: {roomStatus.fingerprint}</span>}
+                            {lastStreamFingerprint && <span>You streamed: {lastStreamFingerprint}</span>}
+                            {lastPullFingerprint && <span>You pulled: {lastPullFingerprint}</span>}
+                          </div>
+
+                          <div className="pt-0.5">
                             <Button
                               type="button"
                               variant="outline"
                               size="sm"
-                              onClick={handleStreamAndCopyTestUrl}
-                              disabled={isP2pSyncing || isTestingP2p}
+                              onClick={handleCopyOtherSessionLink}
+                              disabled={!p2pRoomId.trim()}
                               className="h-7 text-[11px] px-2.5"
+                              title="Copies a link that opens this room in another browser/profile/device. Streams nothing."
                             >
                               <Link2 className="mr-1.5 h-3 w-3" />
-                              1-Click Stream & Copy Cross-Session Test URL
+                              Copy link to open in another session
                             </Button>
                           </div>
-
-                          {p2pTestResult && (
-                            <div className="rounded border bg-background/80 px-2.5 py-1.5 text-[11px] font-mono flex flex-wrap items-center gap-x-3 gap-y-1">
-                              <span className={p2pTestResult.ok ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-destructive font-semibold'}>
-                                {p2pTestResult.ok ? '● P2P Link OK' : '● P2P Error'}
-                              </span>
-                              <span>Latency: {p2pTestResult.latencyMs}ms</span>
-                              <span>Server Memory: {p2pTestResult.memoryOk ? 'OK' : 'Fail'}</span>
-                              <span>Global Relay: {p2pTestResult.relayRoundTripOk ? 'OK' : 'Local-Only'}</span>
-                              <span>
-                                Snapshot: {p2pTestResult.hasSnapshot && p2pTestResult.snapshotSummary
-                                  ? `${p2pTestResult.snapshotSummary.plantCount} plants (${p2pTestResult.snapshotSummary.peerName})`
-                                  : 'Empty'}
-                              </span>
-                            </div>
-                          )}
                         </div>
 
                         <p className="text-[11px] text-muted-foreground">
