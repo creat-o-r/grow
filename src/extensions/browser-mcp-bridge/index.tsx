@@ -11,6 +11,10 @@ import {
   toSpeciesUid,
 } from '@/lib/seed-pack';
 import { analyzeViability, getSuitableSeasons } from '@/lib/viability';
+import {
+  formatGardenAsGrowMarkdown,
+  GROW_AI_SYSTEM_INSTRUCTIONS,
+} from '@/lib/ai-presentation';
 import type { AiDataset, Conditions } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -132,6 +136,11 @@ async function readLiveIndexedDbGarden(
 
   return {
     source: 'browser-indexeddb-live',
+    uiDisplayInstructions: GROW_AI_SYSTEM_INSTRUCTIONS,
+    formattedDisplayMarkdown: formatGardenAsGrowMarkdown({
+      gardens: activeLocation ? [activeLocation] : locations,
+      plantings: enrichedPlantings,
+    }),
     activeGarden: activeLocation || null,
     gardenCount: locations.length,
     plantCount: plants.length,
@@ -144,6 +153,7 @@ async function readLiveIndexedDbGarden(
 function BrowserMcpBridgeWidget({ plantings, activeLocation }: ExtensionContext) {
   const { toast } = useToast();
   const [copiedLiveMcpUrl, setCopiedLiveMcpUrl] = useState(false);
+  const [copiedAiPrompt, setCopiedAiPrompt] = useState(false);
   const [previewOutput, setPreviewOutput] = useState<string | null>(null);
 
   // 1. Register client-side WebMCP read tool using official `use-webmcp-tool` hook
@@ -410,6 +420,29 @@ function BrowserMcpBridgeWidget({ plantings, activeLocation }: ExtensionContext)
     });
   };
 
+  const handleCopyAiStructuredPrompt = async () => {
+    const result = await readLiveIndexedDbGarden(activeLocation?.id, false);
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const promptBundle = [
+      GROW_AI_SYSTEM_INSTRUCTIONS,
+      '',
+      '---',
+      '## Current Live Browser IndexedDB Garden',
+      result.formattedDisplayMarkdown,
+      '',
+      `MCP Endpoint for Direct Push: ${origin}/api/mcp`,
+    ].join('\n');
+
+    await navigator.clipboard.writeText(promptBundle);
+    setCopiedAiPrompt(true);
+    setTimeout(() => setCopiedAiPrompt(false), 2500);
+    toast({
+      title: 'AI UI Spec + Live Garden Copied!',
+      description:
+        'Paste into Claude, ChatGPT, or Gemini—the AI will match Grow’s look, feel, and 0-seed default data rules.',
+    });
+  };
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -483,6 +516,19 @@ function BrowserMcpBridgeWidget({ plantings, activeLocation }: ExtensionContext)
                 {copiedLiveMcpUrl
                   ? 'Copied /api/mcp?pack= URL!'
                   : 'Copy Live IndexedDB MCP URL'}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleCopyAiStructuredPrompt}
+                className="gap-1.5"
+              >
+                {copiedAiPrompt ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+                {copiedAiPrompt ? 'Copied AI UI Spec!' : 'Copy AI UI Spec + Garden'}
               </Button>
               <Button
                 size="sm"

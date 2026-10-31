@@ -11,6 +11,12 @@ import {
   encodeSeedPackToParam,
   toSpeciesUid,
 } from '@/lib/seed-pack';
+import {
+  formatGardenAsGrowMarkdown,
+  formatMicroclimateHeader,
+  getViabilityBadge,
+  GROW_AI_SYSTEM_INSTRUCTIONS,
+} from '@/lib/ai-presentation';
 import type { AiDataset, Conditions, Plant } from '@/lib/types';
 
 /**
@@ -279,13 +285,21 @@ function formatBrowserGardenReport(dataset: AiDataset, origin: string) {
     };
   });
 
+  const openInGrowUrl = `${origin}/?pack=${encodeSeedPackToParam(dataset)}`;
   return {
     source: 'browser-indexeddb-snapshot',
+    uiDisplayInstructions:
+      'Present the formattedDisplayMarkdown below to mirror the Grow dashboard layout (Microclimate Header Bar, Viability Badges, and Plant Cards). Keep seedsOnHand and plannedQty at 0 unless modified by the user.',
+    formattedDisplayMarkdown: formatGardenAsGrowMarkdown({
+      gardens: dataset.locations,
+      plantings: enrichedPlantings,
+      openInGrowUrl,
+    }),
     gardens: dataset.locations,
     plantCount: dataset.plants.length,
     plantingCount: dataset.plantings.length,
     plantings: enrichedPlantings,
-    openInGrowUrl: `${origin}/?pack=${encodeSeedPackToParam(dataset)}`,
+    openInGrowUrl,
   };
 }
 
@@ -306,12 +320,21 @@ export async function GET(req: NextRequest) {
   }
 
   const packParam = req.nextUrl.searchParams.get('pack');
-  const resources = availableDatasets.map((d) => ({
-    uri: `grow://datasets/${d.key}`,
-    name: d.name,
-    description: d.description,
-    mimeType: 'application/json',
-  }));
+  const resources = [
+    {
+      uri: 'grow://guidelines/ui-and-data-spec',
+      name: 'Grow AI UI Display & Data Handling Specification',
+      description:
+        'Canonical Look & Feel template (Microclimate Header, Viability Badges, Plant Cards) and data rules (0 default seed counts, non-destructive imports).',
+      mimeType: 'text/markdown',
+    },
+    ...availableDatasets.map((d) => ({
+      uri: `grow://datasets/${d.key}`,
+      name: d.name,
+      description: d.description,
+      mimeType: 'application/json',
+    })),
+  ];
 
   if (packParam) {
     resources.unshift({
@@ -384,6 +407,7 @@ async function handleJsonRpcMessage(
           name: 'grow-p2p-botanical-mcp',
           version: '1.1.0',
         },
+        instructions: GROW_AI_SYSTEM_INSTRUCTIONS,
       },
     };
   }
@@ -403,18 +427,57 @@ async function handleJsonRpcMessage(
       jsonrpc: '2.0',
       id,
       result: {
-        prompts: [],
+        prompts: [
+          {
+            name: 'grow-dashboard-view',
+            description:
+              'Formats garden microclimate conditions, plant cards, and viability scores matching the Grow dashboard look and feel.',
+          },
+          {
+            name: 'grow-seed-pack-builder',
+            description:
+              'Builds a Grow-compatible plant pack with explicit seasonal germination/optimal conditions and 0/0 default seed inventory.',
+          },
+        ],
+      },
+    };
+  }
+
+  if (method === 'prompts/get') {
+    return {
+      jsonrpc: '2.0',
+      id,
+      result: {
+        description: 'Grow Botanical UI & Data Handling Specification',
+        messages: [
+          {
+            role: 'user',
+            content: {
+              type: 'text',
+              text: GROW_AI_SYSTEM_INSTRUCTIONS,
+            },
+          },
+        ],
       },
     };
   }
 
   if (method === 'resources/list') {
-    const resources = availableDatasets.map((d) => ({
-      uri: `grow://datasets/${d.key}`,
-      name: d.name,
-      description: d.description,
-      mimeType: 'application/json',
-    }));
+    const resources = [
+      {
+        uri: 'grow://guidelines/ui-and-data-spec',
+        name: 'Grow AI UI Display & Data Handling Specification',
+        description:
+          'Canonical Look & Feel template (Microclimate Header, Viability Badges, Plant Cards) and data rules (0 default seed counts, non-destructive imports).',
+        mimeType: 'text/markdown',
+      },
+      ...availableDatasets.map((d) => ({
+        uri: `grow://datasets/${d.key}`,
+        name: d.name,
+        description: d.description,
+        mimeType: 'application/json',
+      })),
+    ];
     if (urlPackParam) {
       resources.unshift({
         uri: 'grow://my-garden/indexeddb',
@@ -445,6 +508,21 @@ async function handleJsonRpcMessage(
 
   if (method === 'resources/read') {
     const uri: string = params?.uri || '';
+    if (uri === 'grow://guidelines/ui-and-data-spec') {
+      return {
+        jsonrpc: '2.0',
+        id,
+        result: {
+          contents: [
+            {
+              uri,
+              mimeType: 'text/markdown',
+              text: GROW_AI_SYSTEM_INSTRUCTIONS,
+            },
+          ],
+        },
+      };
+    }
     if (uri === 'grow://my-garden/indexeddb' && urlPackParam) {
       const userDataset = decodeSeedPackFromInput(urlPackParam);
       return {
@@ -539,6 +617,19 @@ async function handleJsonRpcMessage(
       const suitableSeasons = getSuitableSeasons(plant);
       const upcoming = getUpcomingViability(plant, conditions, viability);
 
+      const formattedCard = [
+        formatMicroclimateHeader(null, conditions),
+        '',
+        `### 🌿 ${plant.species}`,
+        `- **Viability:** \`${getViabilityBadge(viability)}\`${upcoming.upcomingTiming ? ` *(Improves to ${getViabilityBadge(upcoming.upcomingViability || 'High')} in ${upcoming.upcomingTiming})*` : ''}`,
+        `- **Suitable Seasons:** ${suitableSeasons.length > 0 ? suitableSeasons.join(', ') : 'All Seasons'}`,
+        `- **Germination Needs:** ${plant.germinationNeeds}`,
+        `- **Optimal Conditions:** ${plant.optimalConditions}`,
+        `- **Seed Inventory:** Seeds on Hand: \`0\` • Planned Qty: \`0\``,
+        '',
+        `\`\`\`text\n${reasoning}\n\`\`\``,
+      ].join('\n');
+
       return {
         jsonrpc: '2.0',
         id,
@@ -548,8 +639,10 @@ async function handleJsonRpcMessage(
               type: 'text',
               text: JSON.stringify(
                 {
+                  formattedDisplayMarkdown: formattedCard,
                   species: plant.species,
                   viability,
+                  viabilityBadge: getViabilityBadge(viability),
                   reasoning,
                   suitableSeasons,
                   ...upcoming,
@@ -715,6 +808,7 @@ async function handleJsonRpcMessage(
       const encoded = encodeSeedPackToParam(dataset);
       const directAutoImportUrl = `${origin}/?aiPushPack=${encoded}&mode=${importMode}`;
       const reviewUrl = `${origin}/?pack=${encoded}`;
+      const report = formatBrowserGardenReport(dataset, origin);
 
       return {
         jsonrpc: '2.0',
@@ -730,7 +824,8 @@ async function handleJsonRpcMessage(
                   importMode,
                   plantCount: dataset.plants.length,
                   message:
-                    'Queued for automatic live import into the open Grow browser tab (IndexedDB). You can also open directAutoImportUrl for instant 1-click import.',
+                    'Queued for automatic live import into the open Grow browser tab (IndexedDB). Render formattedDisplayMarkdown below and surface directAutoImportUrl.',
+                  formattedDisplayMarkdown: `${report.formattedDisplayMarkdown}\n🚀 **[1-Click Direct Import to Grow (${importMode === 'new' ? 'New Garden' : 'Add to Active Garden'})](${directAutoImportUrl})**`,
                   directAutoImportUrl,
                   reviewUrl,
                 },

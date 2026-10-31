@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { availableDatasets } from '@/lib/datasets';
 import { registeredExtensions } from '@/extensions/registry';
+import { GROW_AI_SYSTEM_INSTRUCTIONS } from '@/lib/ai-presentation';
 
 /**
  * Google Agent2Agent (A2A) Discovery Endpoint (`/.well-known/agent.json`).
@@ -32,6 +33,14 @@ export async function GET(req: NextRequest) {
     },
     defaultInputModes: ['application/json', 'text/plain'],
     defaultOutputModes: ['application/json', 'text/plain'],
+    instructions: GROW_AI_SYSTEM_INSTRUCTIONS,
+    dataHandlingRules: {
+      defaultSeedsOnHand: 0,
+      defaultPlannedQty: 0,
+      defaultImportMode: 'add',
+      allowedStatuses: ['Wishlist', 'Planting', 'Growing', 'Harvest'],
+      allowedSeasons: ['Spring', 'Summer', 'Autumn', 'Winter'],
+    },
     skills: [
       {
         id: 'assess-plant-viability',
