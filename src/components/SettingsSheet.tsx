@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,9 @@ import {
   Replace,
   Eye,
   User,
+  LayoutGrid,
 } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { getOrCreateGrowerIdentity, updateGrowerIdentity } from '@/lib/p2p-signals';
 import { availableDatasets, loadDataset } from '@/lib/datasets';
 import {
@@ -128,6 +130,55 @@ export function SettingsSheet({
 
   const { toast } = useToast();
   const { enabledExtensions } = useExtensions();
+
+  const allPlantings = useLiveQuery(() => db.plantings.toArray(), []);
+
+  const matrixData = useMemo(() => {
+    const list = activeLocation
+      ? allPlantings?.filter((p) => p.gardenId === activeLocation.id)
+      : allPlantings;
+
+    const stages: ('Wishlist' | 'Planting' | 'Growing' | 'Harvest')[] = [
+      'Wishlist',
+      'Planting',
+      'Growing',
+      'Harvest',
+    ];
+
+    const stats: Record<
+      'Wishlist' | 'Planting' | 'Growing' | 'Harvest',
+      { High: number; Medium: number; Low: number; Pending: number; Total: number }
+    > = {
+      Wishlist: { High: 0, Medium: 0, Low: 0, Pending: 0, Total: 0 },
+      Planting: { High: 0, Medium: 0, Low: 0, Pending: 0, Total: 0 },
+      Growing: { High: 0, Medium: 0, Low: 0, Pending: 0, Total: 0 },
+      Harvest: { High: 0, Medium: 0, Low: 0, Pending: 0, Total: 0 },
+    };
+
+    let grandTotal = 0;
+    const totals = { High: 0, Medium: 0, Low: 0, Pending: 0 };
+
+    list?.forEach((p) => {
+      const lastStatus = (p.history && p.history.length > 0
+        ? p.history[p.history.length - 1].status
+        : 'Wishlist') as 'Wishlist' | 'Planting' | 'Growing' | 'Harvest';
+
+      if (stats[lastStatus]) {
+        stats[lastStatus].Total++;
+        grandTotal++;
+        const v = p.viability;
+        if (v === 'High' || v === 'Medium' || v === 'Low') {
+          stats[lastStatus][v]++;
+          totals[v]++;
+        } else {
+          stats[lastStatus].Pending++;
+          totals.Pending++;
+        }
+      }
+    });
+
+    return { stages, stats, grandTotal, totals };
+  }, [allPlantings, activeLocation]);
 
   useEffect(() => {
     setSelectedImportMode(activeLocation ? 'add' : 'new');
@@ -363,6 +414,86 @@ export function SettingsSheet({
             </SheetDescription>
           </SheetHeader>
           <div className="py-6 space-y-6">
+            {/* Garden Status & Viability Matrix Overview */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="font-headline text-lg flex items-center gap-2">
+                    <LayoutGrid className="h-4 w-4 text-primary" />
+                    <span>Garden Viability Matrix</span>
+                  </CardTitle>
+                  <Badge variant="outline" className="text-xs font-mono">
+                    {matrixData.grandTotal} Plant{matrixData.grandTotal === 1 ? '' : 's'}
+                  </Badge>
+                </div>
+                <CardDescription className="text-xs">
+                  {activeLocation
+                    ? `Cross-tabular overview of lifecycle stages and viability for "${activeLocation.name}".`
+                    : 'Cross-tabular overview of lifecycle stages and viability across your garden.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="rounded-lg border overflow-hidden">
+                  <div className="grid grid-cols-5 text-center text-xs font-semibold bg-muted/50 p-2 border-b">
+                    <div className="text-left font-bold text-muted-foreground pl-1">Stage</div>
+                    <div className="text-green-600 dark:text-green-400 font-mono">High</div>
+                    <div className="text-yellow-600 dark:text-yellow-400 font-mono">Med</div>
+                    <div className="text-red-600 dark:text-red-400 font-mono">Low</div>
+                    <div className="text-muted-foreground font-mono">Total</div>
+                  </div>
+                  <div className="divide-y divide-border/60 text-xs">
+                    {matrixData.stages.map((st) => {
+                      const row = matrixData.stats[st];
+                      return (
+                        <div key={st} className="grid grid-cols-5 items-center p-2 text-center hover:bg-muted/30 transition-colors">
+                          <div className="text-left font-medium pl-1 flex items-center gap-1.5">
+                            <span className="truncate">{st}</span>
+                          </div>
+                          <div>
+                            {row.High > 0 ? (
+                              <Badge className="bg-green-600 text-white font-mono px-1.5 py-0 h-4 text-[10px]">
+                                {row.High}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground/50 font-mono">0</span>
+                            )}
+                          </div>
+                          <div>
+                            {row.Medium > 0 ? (
+                              <Badge className="bg-yellow-500 text-black font-mono px-1.5 py-0 h-4 text-[10px]">
+                                {row.Medium}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground/50 font-mono">0</span>
+                            )}
+                          </div>
+                          <div>
+                            {row.Low > 0 ? (
+                              <Badge className="bg-red-600 text-white font-mono px-1.5 py-0 h-4 text-[10px]">
+                                {row.Low}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground/50 font-mono">0</span>
+                            )}
+                          </div>
+                          <div className="font-mono font-semibold text-foreground">
+                            {row.Total}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="grid grid-cols-5 items-center p-2 text-center bg-muted/40 border-t font-semibold text-xs">
+                    <div className="text-left pl-1 text-muted-foreground">Total</div>
+                    <div className="font-mono text-green-600 dark:text-green-400">{matrixData.totals.High}</div>
+                    <div className="font-mono text-yellow-600 dark:text-yellow-400">{matrixData.totals.Medium}</div>
+                    <div className="font-mono text-red-600 dark:text-red-400">{matrixData.totals.Low}</div>
+                    <div className="font-mono text-foreground font-bold">{matrixData.grandTotal}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Grower Handle & Microclimate */}
             <Card>
               <CardHeader className="pb-3">

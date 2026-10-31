@@ -2173,103 +2173,211 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                   conditions={activeLocation?.conditions}
                 />
                 
-                <div className="mb-4 flex items-center gap-4">
-                  <ScrollArea className="w-full whitespace-nowrap">
-                    <div className="flex w-max space-x-2">
-                        {allFilters.map((status) => {
-                          const isDisplayingViability = activeViabilityTab === status;
-                          const tabViability = tabViabilityData[status];
-                          const hasViabilityBadges = isDisplayingViability && (
-                            tabViability.High > 0 || tabViability.Medium > 0 || tabViability.Low > 0 || tabViability.pending > 0
-                          );
+                {/* Mobile Sticky 4-Column All-In-One Pill Bar: Wish, Plant, Grow, Harv (Apart from All, All Totals & Viabilities, Only Pills on Columns) */}
+                <div className="sm:hidden sticky top-0 z-20 -mx-4 px-4 py-2 bg-background/95 backdrop-blur-md border-b border-border/40 mb-4 transition-all">
+                  {/* Apart from All: Includes Total Plant Count and Total Viability Pills */}
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('All')}
+                      className={cn(
+                        "text-xs font-semibold px-3 py-1 rounded-full transition-all flex items-center gap-1.5 active:scale-95 shrink-0",
+                        statusFilter === 'All'
+                          ? "bg-foreground text-background shadow-xs font-bold"
+                          : "bg-muted/70 text-muted-foreground border border-border"
+                      )}
+                    >
+                      <span>All Plants</span>
+                      <span className="font-mono text-[11px] opacity-80">({statusCounts.All})</span>
+                    </button>
 
-                          return (
-                            <div
-                              key={status}
-                              role="tab"
-                              aria-selected={statusFilter === status}
-                              tabIndex={0}
-                              className={cn(
-                                buttonVariants({
-                                  variant: statusFilter === status ? 'default' : 'outline',
-                                  size: 'sm'
-                                }),
-                                'h-8 flex-shrink-0 cursor-pointer flex items-center gap-2 p-0 relative select-none'
-                              )}
-                              onClick={() => setStatusFilter(status)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  setStatusFilter(status);
-                                }
-                              }}
-                              onMouseEnter={() => setHoveredTab(status)}
-                              onMouseLeave={() => setHoveredTab(null)}
-                              onFocus={() => setHoveredTab(status)}
-                              onBlur={() => setHoveredTab(null)}
-                            >
-                              {hasViabilityBadges ? (
-                                <>
-                                  <div className="pl-3 pr-1.5 h-full flex items-center font-medium">
-                                    {status} ({statusCounts[status]})
-                                  </div>
-                                  <div className="flex items-center gap-1 pr-2">
-                                    {tabViability.High > 0 && (
-                                      <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">
-                                        {tabViability.High} High
-                                      </Badge>
-                                    )}
-                                    {tabViability.Medium > 0 && (
-                                      <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">
-                                        {tabViability.Medium} Med
-                                      </Badge>
-                                    )}
-                                    {tabViability.Low > 0 && (
-                                      <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">
-                                        {tabViability.Low} Low
-                                      </Badge>
-                                    )}
-                                    {tabViability.pending > 0 && (
-                                      <Badge
-                                        variant="outline"
-                                        className={cn(
-                                          "px-1.5 py-0.5 text-xs font-mono",
-                                          statusFilter === status ? "border-primary-foreground/40 text-primary-foreground" : "text-muted-foreground"
-                                        )}
-                                        title={`${tabViability.pending} plants pending AI viability analysis`}
-                                      >
-                                        {tabViability.pending} pending
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="px-3 h-full flex items-center font-medium gap-2">
-                                  <span>{status}</span>
-                                  <Badge variant="secondary" className="rounded-full px-1.5 py-0.5 text-xs font-mono">
-                                    {statusCounts[status]}
-                                  </Badge>
-                                </div>
-                              )}
-                              {status === 'All' && hasDuplicates && (
-                                <Button
-                                  variant="destructive"
-                                  className="h-6 w-6 p-0 mr-1 self-center"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsDuplicateReviewSheetOpen(true);
-                                  }}
-                                  title="Review duplicate plants"
-                                >
-                                  <span className="font-bold text-lg">!</span>
-                                </Button>
-                              )}
-                            </div>
-                          );
-                        })}
+                    {/* Total Garden Viability Pills for All Plants */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Badge className="bg-green-600 hover:bg-green-600 text-white font-mono text-[9px] px-1.5 py-0 h-4.5 justify-center shrink-0">
+                        {tabViabilityData.All.High}
+                      </Badge>
+                      <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black font-mono text-[9px] px-1.5 py-0 h-4.5 justify-center shrink-0">
+                        {tabViabilityData.All.Medium}
+                      </Badge>
+                      <Badge className="bg-red-600 hover:bg-red-600 text-white font-mono text-[9px] px-1.5 py-0 h-4.5 justify-center shrink-0">
+                        {tabViabilityData.All.Low}
+                      </Badge>
                     </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+
+                    {hasDuplicates && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="h-6 px-2 text-xs gap-1 rounded-full shrink-0"
+                        onClick={() => setIsDuplicateReviewSheetOpen(true)}
+                        title="Review duplicate plants"
+                      >
+                        <span className="font-bold text-xs">!</span>
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* 4 Columns: Wish, Plant, Grow, Harv (No Totals, Only Viability Pills) */}
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {([
+                      { status: 'Wishlist' as PlantStatus, shortLabel: 'Wish' },
+                      { status: 'Planting' as PlantStatus, shortLabel: 'Plant' },
+                      { status: 'Growing' as PlantStatus, shortLabel: 'Grow' },
+                      { status: 'Harvest' as PlantStatus, shortLabel: 'Harv' },
+                    ]).map(({ status, shortLabel }) => {
+                      const isSelected = statusFilter === status;
+                      const viab = tabViabilityData[status];
+                      return (
+                        <div
+                          key={status}
+                          role="tab"
+                          aria-selected={isSelected}
+                          tabIndex={0}
+                          onClick={() => setStatusFilter(isSelected ? 'All' : status)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setStatusFilter(isSelected ? 'All' : status);
+                            }
+                          }}
+                          className={cn(
+                            "p-1.5 py-2 rounded-xl border text-center cursor-pointer transition-all active:scale-[0.98] select-none flex flex-col items-center justify-between gap-1.5 min-w-0",
+                            isSelected
+                              ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
+                              : "border-border/80 bg-card hover:border-primary/40"
+                          )}
+                        >
+                          <span className={cn("text-xs font-bold truncate leading-tight w-full", isSelected ? "text-primary" : "text-foreground")}>
+                            {shortLabel}
+                          </span>
+                          <div className="flex items-center justify-center gap-0.5 w-full">
+                            <Badge className="bg-green-600 hover:bg-green-600 text-white font-mono text-[9px] px-1 py-0 h-4 min-w-[18px] justify-center shrink-0">
+                              {viab.High}
+                            </Badge>
+                            <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black font-mono text-[9px] px-1 py-0 h-4 min-w-[18px] justify-center shrink-0">
+                              {viab.Medium}
+                            </Badge>
+                            <Badge className="bg-red-600 hover:bg-red-600 text-white font-mono text-[9px] px-1 py-0 h-4 min-w-[18px] justify-center shrink-0">
+                              {viab.Low}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Desktop Tab Bar: Preserved for larger screens */}
+                <div className="hidden sm:block mb-4">
+                  <div className="relative w-full">
+                    <ScrollArea className="w-full whitespace-nowrap">
+                      <div role="tablist" aria-label="Filter plants by status" className="flex w-max items-center space-x-2 py-0.5">
+                          {allFilters.map((status) => {
+                            const isDisplayingViability = activeViabilityTab === status;
+                            const tabViability = tabViabilityData[status];
+                            const hasViabilityBadges = isDisplayingViability && (
+                              tabViability.High > 0 || tabViability.Medium > 0 || tabViability.Low > 0 || tabViability.pending > 0
+                            );
+
+                            return (
+                              <div
+                                key={status}
+                                role="tab"
+                                aria-selected={statusFilter === status}
+                                tabIndex={0}
+                                className={cn(
+                                  buttonVariants({
+                                    variant: statusFilter === status ? 'default' : 'outline',
+                                    size: 'sm'
+                                  }),
+                                  'h-8 flex-shrink-0 cursor-pointer flex items-center gap-2 p-0 relative select-none rounded-md transition-all active:scale-[0.98]'
+                                )}
+                                onClick={() => setStatusFilter(status)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    setStatusFilter(status);
+                                  } else if (e.key === 'ArrowRight') {
+                                    e.preventDefault();
+                                    const idx = allFilters.indexOf(status);
+                                    const next = allFilters[(idx + 1) % allFilters.length];
+                                    setStatusFilter(next);
+                                  } else if (e.key === 'ArrowLeft') {
+                                    e.preventDefault();
+                                    const idx = allFilters.indexOf(status);
+                                    const prev = allFilters[(idx - 1 + allFilters.length) % allFilters.length];
+                                    setStatusFilter(prev);
+                                  }
+                                }}
+                                onMouseEnter={() => setHoveredTab(status)}
+                                onMouseLeave={() => setHoveredTab(null)}
+                                onFocus={() => setHoveredTab(status)}
+                                onBlur={() => setHoveredTab(null)}
+                              >
+                                {hasViabilityBadges ? (
+                                  <>
+                                    <div className="pl-3.5 pr-1.5 h-full flex items-center font-medium">
+                                      {status} ({statusCounts[status]})
+                                    </div>
+                                    <div className="flex items-center gap-1 pr-2">
+                                      {tabViability.High > 0 && (
+                                        <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">
+                                          {tabViability.High} High
+                                        </Badge>
+                                      )}
+                                      {tabViability.Medium > 0 && (
+                                        <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">
+                                          {tabViability.Medium} Med
+                                        </Badge>
+                                      )}
+                                      {tabViability.Low > 0 && (
+                                        <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">
+                                          {tabViability.Low} Low
+                                        </Badge>
+                                      )}
+                                      {tabViability.pending > 0 && (
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            "px-1.5 py-0.5 text-xs font-mono",
+                                            statusFilter === status ? "border-primary-foreground/40 text-primary-foreground" : "text-muted-foreground"
+                                          )}
+                                          title={`${tabViability.pending} plants pending AI viability analysis`}
+                                        >
+                                          {tabViability.pending} pending
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="px-3.5 h-full flex items-center font-medium gap-2">
+                                    <span>{status}</span>
+                                    <Badge variant="secondary" className="rounded-full px-1.5 py-0.5 text-xs font-mono">
+                                      {statusCounts[status]}
+                                    </Badge>
+                                  </div>
+                                )}
+                                {status === 'All' && hasDuplicates && (
+                                  <Button
+                                    variant="destructive"
+                                    className="h-6 w-6 p-0 mr-1.5 self-center rounded-full"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setIsDuplicateReviewSheetOpen(true);
+                                    }}
+                                    title="Review duplicate plants"
+                                    aria-label="Review duplicate plants"
+                                  >
+                                    <span className="font-bold text-sm">!</span>
+                                  </Button>
+                                )}
+                              </div>
+                            );
+                          })}
+                      </div>
+                      <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                  </div>
                 </div>
                 
                 {plantings && plantings.length > 0 ? (
