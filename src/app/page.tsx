@@ -36,7 +36,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Plus, Upload, Locate, Loader2, X, Sparkles, NotebookText, Settings, Info, Rocket, AlertCircle, Fence, Square, Layers, Split, CopyCheck } from 'lucide-react';
+import { Plus, Upload, Locate, Loader2, X, Sparkles, NotebookText, Settings, Info, Rocket, AlertCircle, Fence, Square, Layers, Split, CopyCheck, Radio } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -1838,6 +1838,10 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                     <Plus className="mr-2 h-4 w-4" />
                     Add Plant
                 </Button>
+                <Button variant="outline" onClick={() => handleOpenAddSheet(undefined, 'import-pack')} className="gap-1.5 px-3">
+                    <Radio className="h-4 w-4 text-primary" />
+                    <span>Sync</span>
+                </Button>
                 <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
                   <Settings className="h-4 w-4" />
                   <span className="sr-only">Settings</span>
@@ -1960,6 +1964,15 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                              <Button onClick={() => handleOpenAddSheet(mainAddButtonDefaultStatus)}>
                                   <Plus className="mr-2 h-4 w-4" />
                                   Add Plant
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => handleOpenAddSheet(undefined, 'import-pack')}
+                                className="gap-1.5"
+                                title="Stream and sync gardens across devices or share a link"
+                              >
+                                <Radio className="h-4 w-4 text-primary" />
+                                <span>Sync &amp; Share</span>
                               </Button>
                               <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
                                 <Settings className="h-4 w-4" />

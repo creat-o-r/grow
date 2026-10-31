@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 import {
   Loader2,
@@ -71,6 +72,7 @@ import {
 
 type ImportMode = 'replace' | 'add' | 'new';
 export type UnifiedImportTab = 'single' | 'ai-generate' | 'import-pack';
+export type DataShareSubTab = 'p2p-room' | 'share-link' | 'starter-packs';
 
 export type DuplicateResolution = {
   newPlanting: Planting;
@@ -83,6 +85,7 @@ type AiDataImportSheetProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   initialTab?: UnifiedImportTab;
+  initialSubTab?: DataShareSubTab;
   apiKeys: FreeLlmConfig;
   areApiKeysSet: boolean;
   onComplete: () => void;
@@ -103,6 +106,7 @@ export function AiDataImportSheet({
   isOpen,
   onOpenChange,
   initialTab = 'single',
+  initialSubTab = 'p2p-room',
   apiKeys,
   areApiKeysSet,
   onComplete,
@@ -118,6 +122,7 @@ export function AiDataImportSheet({
   onPublish,
 }: AiDataImportSheetProps) {
   const [activeTab, setActiveTab] = useState<UnifiedImportTab>(initialTab);
+  const [dataShareSubTab, setDataShareSubTab] = useState<DataShareSubTab>(initialSubTab);
   const [theme, setTheme] = useState('');
   const [refinement, setRefinement] = useState('');
   const [generatedData, setGeneratedData] = useState<AiDataset | null>(null);
@@ -184,9 +189,12 @@ export function AiDataImportSheet({
         setError(null);
       } else if (initialTab) {
         setActiveTab(initialTab);
+        if (initialSubTab) {
+          setDataShareSubTab(initialSubTab);
+        }
       }
     }
-  }, [isOpen, initialTab, plantingToEdit, initialDataset]);
+  }, [isOpen, initialTab, initialSubTab, plantingToEdit, initialDataset]);
 
   useEffect(() => {
     if (!isOpen || !p2pRoomId.trim()) {
@@ -1074,8 +1082,8 @@ export function AiDataImportSheet({
               <span>Generate with AI</span>
             </TabsTrigger>
             <TabsTrigger value="import-pack" className="text-xs sm:text-sm gap-1.5">
-              <Upload className="h-3.5 w-3.5 shrink-0" />
-              <span>Import Dataset</span>
+              <Share2 className="h-3.5 w-3.5 shrink-0" />
+              <span>Share &amp; Sync</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1186,238 +1194,349 @@ export function AiDataImportSheet({
               )}
 
               {activeTab === 'import-pack' && (
-                <div className="space-y-4">
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="font-headline text-lg">
-                        Starter & Regional Datasets
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Select any starter dataset below to preview its plants, inspect variations against your garden, and choose how to import.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {availableDatasets.map((dataset) => {
-                          const isSelected = loadedPackTitle === dataset.name;
-                          return (
-                            <Button
-                              key={dataset.key}
-                              type="button"
-                              onClick={() => handleLoadStarterDataset(dataset.key)}
-                              variant={isSelected ? 'default' : 'outline'}
-                              size="sm"
-                              className="justify-start h-auto py-2.5 px-3 text-left flex flex-col items-start gap-0.5"
-                            >
-                              <span className="font-medium flex items-center gap-1.5 text-xs sm:text-sm">
-                                <Download className="h-3.5 w-3.5 shrink-0" />
-                                <span>{dataset.name}</span>
-                              </span>
-                              <span
-                                className={
-                                  isSelected
-                                    ? 'text-[11px] text-primary-foreground/80 line-clamp-1 font-normal'
-                                    : 'text-[11px] text-muted-foreground line-clamp-1 font-normal'
-                                }
-                              >
-                                {dataset.description}
-                              </span>
-                            </Button>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
+                <div className="space-y-3">
+                  {/* Streamlined Sub-Navigation: Live P2P Sync, Share Link & JSON, Starter Packs */}
+                  <div className="grid grid-cols-3 p-1 bg-muted/70 rounded-lg text-xs font-medium">
+                    <button
+                      type="button"
+                      onClick={() => setDataShareSubTab('p2p-room')}
+                      className={cn(
+                        'py-1.5 px-2 rounded-md flex items-center justify-center gap-1.5 transition-all',
+                        dataShareSubTab === 'p2p-room'
+                          ? 'bg-background shadow-sm text-foreground font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <Radio className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="truncate">Live P2P Sync</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDataShareSubTab('share-link')}
+                      className={cn(
+                        'py-1.5 px-2 rounded-md flex items-center justify-center gap-1.5 transition-all',
+                        dataShareSubTab === 'share-link'
+                          ? 'bg-background shadow-sm text-foreground font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <Link2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="truncate">Link &amp; Backup</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDataShareSubTab('starter-packs')}
+                      className={cn(
+                        'py-1.5 px-2 rounded-md flex items-center justify-center gap-1.5 transition-all',
+                        dataShareSubTab === 'starter-packs'
+                          ? 'bg-background shadow-sm text-foreground font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="truncate">Starter Packs</span>
+                    </button>
+                  </div>
 
-                  <Card className="border-primary/25">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="font-headline text-lg flex items-center gap-2">
-                        <Radio className="h-4 w-4 text-primary" />
-                        <span>P2P Garden Sharing & Cross-Session Sync</span>
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Share your active garden via a 1-click <code>?pack=</code> link, or use a shared Room Code to push &amp; pull gardens across browsers, sessions, and devices ($0 server cost).
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 p-2">
-                        <span className="text-xs font-medium text-muted-foreground">What to Stream / Share:</span>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant={shareScope === 'active' ? 'default' : 'ghost'}
-                            className="h-7 text-xs px-2.5"
-                            onClick={() => setShareScope('active')}
-                          >
-                            Active Garden ({activeLocation?.name || 'Current'})
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant={shareScope === 'all' ? 'default' : 'ghost'}
-                            className="h-7 text-xs px-2.5"
-                            onClick={() => setShareScope('all')}
-                          >
-                            All Existing Gardens
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={handleCopyShareablePackLink}
-                          className="flex-1"
-                        >
-                          <Link2 className="mr-2 h-4 w-4" />
-                          Copy 1-Click Shareable ?pack= Link
-                        </Button>
-                        {onPublish && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onPublish}
-                            className="sm:w-auto"
-                          >
-                            <Upload className="mr-2 h-4 w-4" />
-                            Export JSON to Clipboard
-                          </Button>
-                        )}
-                      </div>
-
-                      <div className="border-t pt-3 space-y-2.5">
-                        <Label htmlFor="p2p-room-input" className="text-xs flex items-center justify-between">
-                          <span>Cross-Session P2P Sync Room Code</span>
+                  {/* Sub-Tab 1: Live Cross-Session P2P Room Sync */}
+                  {dataShareSubTab === 'p2p-room' && (
+                    <Card className="border-primary/25 shadow-sm">
+                      <CardHeader className="pb-3 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="font-headline text-base sm:text-lg flex items-center gap-2">
+                            <Radio className="h-4 w-4 text-primary animate-pulse shrink-0" />
+                            <span>Live Cross-Device P2P Sync</span>
+                          </CardTitle>
                           {p2pRoomId.trim() && (
-                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 text-primary border-primary/30">
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-primary border-primary/30">
                               Room Active
                             </Badge>
                           )}
-                        </Label>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <Input
-                            id="p2p-room-input"
-                            placeholder="e.g., my-garden-sync-2026"
-                            value={p2pRoomId}
-                            onChange={(e) => setP2pRoomId(e.target.value)}
-                            className="font-mono text-xs flex-1"
-                          />
-                          <div className="flex gap-2">
+                        </div>
+                        <CardDescription className="text-xs">
+                          Stream your garden across browsers and devices in real-time ($0 server cost).
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {/* Scope Selector */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border bg-muted/30 p-2 text-xs">
+                          <span className="font-medium text-foreground">What to Stream:</span>
+                          <div className="flex items-center gap-1">
                             <Button
                               type="button"
-                              variant="outline"
                               size="sm"
-                              onClick={handlePushToP2PRoom}
-                              disabled={!p2pRoomId.trim() || isP2pSyncing}
-                              className="h-10 text-xs flex-1 sm:flex-initial"
-                              title="Broadcast gardens to this room so other sessions/devices can pull them"
+                              variant={shareScope === 'all' ? 'default' : 'outline'}
+                              className="h-7 text-xs px-2.5"
+                              onClick={() => setShareScope('all')}
                             >
-                              {isP2pSyncing ? (
-                                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Share2 className="mr-1.5 h-3.5 w-3.5" />
-                              )}
-                              {shareScope === 'all' ? 'Stream All Gardens' : 'Stream Active Garden'}
+                              All Existing Gardens
                             </Button>
                             <Button
                               type="button"
                               size="sm"
-                              onClick={handlePullFromP2PRoom}
-                              disabled={!p2pRoomId.trim() || isP2pSyncing}
-                              className="h-10 text-xs flex-1 sm:flex-initial"
-                              title="Pull the latest broadcasted garden from this room into the Review & Import options below"
+                              variant={shareScope === 'active' ? 'default' : 'outline'}
+                              className="h-7 text-xs px-2.5"
+                              onClick={() => setShareScope('active')}
                             >
-                              {isP2pSyncing ? (
-                                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Download className="mr-1.5 h-3.5 w-3.5" />
-                              )}
-                              Pull Latest from Room
+                              Active Garden ({activeLocation?.name || 'Current'})
                             </Button>
                           </div>
                         </div>
 
-                        {/* Live room status: what is waiting in the room, who wrote it, and its fingerprint */}
-                        <div className="rounded-md border bg-muted/40 p-2.5 space-y-1.5 text-xs">
-                          <div className="flex items-center gap-1.5">
-                            <Radio className={`h-3.5 w-3.5 shrink-0 ${roomStatus?.hasSnapshot ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} />
-                            {roomStatus?.hasSnapshot && roomStatus.packet ? (
-                              <span className="font-medium text-emerald-700 dark:text-emerald-400">
-                                In room: {roomStatus.packet.plantCount} plants across {roomStatus.packet.gardenCount || 1} garden(s), streamed by {roomStatus.packet.peerName}{' '}
-                                {roomStatus.fromThisSession ? '(this session)' : '(a different session)'}
+                        {/* Room Code & Stream/Pull Row */}
+                        <div className="space-y-1.5">
+                          <Label htmlFor="p2p-room-input" className="text-xs font-medium">
+                            Room Code
+                          </Label>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <div className="relative flex-1">
+                              <Input
+                                id="p2p-room-input"
+                                placeholder="e.g., backyard-co-op-2026"
+                                value={p2pRoomId}
+                                onChange={(e) => setP2pRoomId(e.target.value)}
+                                className="font-mono text-xs pr-8"
+                              />
+                              {p2pRoomId.trim() && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(p2pRoomId.trim());
+                                    toast({ title: 'Room code copied to clipboard' });
+                                  }}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                  title="Copy Room Code"
+                                >
+                                  <ClipboardPaste className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                onClick={handlePushToP2PRoom}
+                                disabled={!p2pRoomId.trim() || isP2pSyncing}
+                                className="h-9 text-xs flex-1 sm:flex-initial gap-1.5"
+                              >
+                                {isP2pSyncing ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Share2 className="h-3.5 w-3.5" />
+                                )}
+                                <span>{shareScope === 'all' ? 'Stream All' : 'Stream Active'}</span>
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={handlePullFromP2PRoom}
+                                disabled={!p2pRoomId.trim() || isP2pSyncing}
+                                className="h-9 text-xs flex-1 sm:flex-initial gap-1.5"
+                              >
+                                {isP2pSyncing ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Download className="h-3.5 w-3.5" />
+                                )}
+                                <span>Pull Latest</span>
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Live Room Status Alert Box */}
+                        <div
+                          className={cn(
+                            'rounded-lg border p-3 text-xs space-y-2 transition-colors',
+                            roomStatus?.hasSnapshot
+                              ? 'bg-emerald-500/5 border-emerald-500/30 dark:bg-emerald-950/20'
+                              : 'bg-muted/40 border-border'
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={cn(
+                                  'h-2 w-2 rounded-full shrink-0',
+                                  roomStatus?.hasSnapshot ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/40'
+                                )}
+                              />
+                              {roomStatus?.hasSnapshot && roomStatus.packet ? (
+                                <span className="font-semibold text-emerald-800 dark:text-emerald-300">
+                                  In Room: {roomStatus.packet.plantCount} plants in {roomStatus.packet.gardenCount || 1} garden(s)
+                                </span>
+                              ) : p2pRoomId.trim() ? (
+                                <span className="text-muted-foreground font-medium">
+                                  Room &quot;{p2pRoomId.trim()}&quot; is empty. Click Stream to broadcast your garden.
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">
+                                  Enter a room code above to sync across devices.
+                                </span>
+                              )}
+                            </div>
+                            {roomStatus?.hasSnapshot && (
+                              <Badge variant="secondary" className="text-[10px] shrink-0 font-normal">
+                                {roomStatus.fromThisSession ? 'From this device' : `By ${roomStatus.packet?.peerName}`}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Monospace Fingerprint Row */}
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-mono text-muted-foreground pt-0.5">
+                            {roomStatus?.fingerprint && (
+                              <span className="bg-background/80 px-1.5 py-0.5 rounded border">
+                                Room FP: <strong>{roomStatus.fingerprint}</strong>
                               </span>
-                            ) : p2pRoomId.trim() ? (
-                              <span className="text-muted-foreground">
-                                Room &quot;{p2pRoomId.trim()}&quot; is empty. Stream from the sender session first.
+                            )}
+                            {lastStreamFingerprint && (
+                              <span className="bg-background/80 px-1.5 py-0.5 rounded border">
+                                Streamed: <strong>{lastStreamFingerprint}</strong>
                               </span>
-                            ) : (
-                              <span className="text-muted-foreground">
-                                Enter a room code. Stream in one session, pull in a different one.
+                            )}
+                            {lastPullFingerprint && (
+                              <span className="bg-background/80 px-1.5 py-0.5 rounded border">
+                                Pulled: <strong>{lastPullFingerprint}</strong>
                               </span>
                             )}
                           </div>
 
-                          <div className="font-mono text-[11px] flex flex-wrap gap-x-4 gap-y-0.5 text-muted-foreground">
-                            {roomStatus?.fingerprint && <span>Room fingerprint: {roomStatus.fingerprint}</span>}
-                            {lastStreamFingerprint && <span>You streamed: {lastStreamFingerprint}</span>}
-                            {lastPullFingerprint && <span>You pulled: {lastPullFingerprint}</span>}
-                          </div>
-
-                          <div className="pt-0.5">
+                          {/* 1-Click Link to Open in Another Session */}
+                          <div className="pt-1 flex items-center justify-between border-t border-border/50">
+                            <p className="text-[11px] text-muted-foreground">
+                              Auto-detects live streams while this sheet is open.
+                            </p>
                             <Button
                               type="button"
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
                               onClick={handleCopyOtherSessionLink}
                               disabled={!p2pRoomId.trim()}
-                              className="h-7 text-[11px] px-2.5"
-                              title="Copies a link that opens this room in another browser/profile/device. Streams nothing."
+                              className="h-6 text-[11px] px-2 text-primary hover:text-primary"
                             >
-                              <Link2 className="mr-1.5 h-3 w-3" />
-                              Copy link to open in another session
+                              <Link2 className="mr-1 h-3 w-3" />
+                              Copy 1-Click Link for Other Session
                             </Button>
                           </div>
                         </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
-                        <p className="text-[11px] text-muted-foreground">
-                          Hybrid P2P transport: syncs in &lt;5ms across browsers/sessions via same-origin memory + <code>BroadcastChannel</code>, and persists 24h globally via deflate-compressed relay.
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {/* Sub-Tab 2: Shareable Link & JSON Backup */}
+                  {dataShareSubTab === 'share-link' && (
+                    <div className="space-y-3">
+                      <Card className="border-border">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="font-headline text-base flex items-center gap-2">
+                            <Link2 className="h-4 w-4 text-primary" />
+                            <span>1-Click Shareable Pack Link</span>
+                          </CardTitle>
+                          <CardDescription className="text-xs">
+                            Generates a compressed <code>?pack=...</code> permalink. Anyone clicking it can view and merge your garden.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Button
+                              type="button"
+                              variant="default"
+                              onClick={handleCopyShareablePackLink}
+                              className="flex-1 text-xs h-9"
+                            >
+                              <Link2 className="mr-2 h-3.5 w-3.5" />
+                              Copy 1-Click Shareable Link
+                            </Button>
+                            {onPublish && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onPublish}
+                                className="text-xs h-9"
+                              >
+                                <Upload className="mr-2 h-3.5 w-3.5" />
+                                Export JSON to Clipboard
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
 
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="font-headline text-lg">
-                        Import from Seed Pack Link or Clipboard JSON
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Paste a shareable <code>?pack=...</code> URL or exported JSON backup to review and import into your garden.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <Textarea
-                        placeholder="Paste ?pack=... URL or exported JSON here..."
-                        value={clipboardInput}
-                        onChange={(e) => setClipboardInput(e.target.value)}
-                        rows={3}
-                        className="font-mono text-xs"
-                      />
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button
-                          type="button"
-                          onClick={handleDecodeClipboardPack}
-                          disabled={!clipboardInput.trim()}
-                          className="flex-1"
-                        >
-                          <ClipboardPaste className="mr-2 h-4 w-4" />
-                          Load Pack for Review & Import
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      <Card className="border-border">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="font-headline text-base flex items-center gap-2">
+                            <ClipboardPaste className="h-4 w-4 text-primary" />
+                            <span>Import Link or JSON Backup</span>
+                          </CardTitle>
+                          <CardDescription className="text-xs">
+                            Paste a <code>?pack=...</code> URL or exported JSON to review and import into your garden.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-2.5">
+                          <Textarea
+                            placeholder="Paste ?pack=... link or exported JSON here..."
+                            value={clipboardInput}
+                            onChange={(e) => setClipboardInput(e.target.value)}
+                            rows={3}
+                            className="font-mono text-xs"
+                          />
+                          <Button
+                            type="button"
+                            onClick={handleDecodeClipboardPack}
+                            disabled={!clipboardInput.trim()}
+                            className="w-full text-xs h-9"
+                          >
+                            <ClipboardPaste className="mr-2 h-3.5 w-3.5" />
+                            Load Pack for Review &amp; Import
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+
+                  {/* Sub-Tab 3: Starter Datasets */}
+                  {dataShareSubTab === 'starter-packs' && (
+                    <Card className="border-border">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="font-headline text-base flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-primary" />
+                          <span>Curated Regional &amp; Starter Datasets</span>
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          Click any starter dataset below to preview its plants and cultivars in the Review section.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {availableDatasets.map((dataset) => {
+                            const isSelected = loadedPackTitle === dataset.name;
+                            return (
+                              <Button
+                                key={dataset.key}
+                                type="button"
+                                onClick={() => handleLoadStarterDataset(dataset.key)}
+                                variant={isSelected ? 'default' : 'outline'}
+                                size="sm"
+                                className="justify-start h-auto py-2.5 px-3 text-left flex flex-col items-start gap-0.5"
+                              >
+                                <span className="font-medium flex items-center gap-1.5 text-xs sm:text-sm">
+                                  <Download className="h-3.5 w-3.5 shrink-0" />
+                                  <span>{dataset.name}</span>
+                                </span>
+                                <span
+                                  className={cn(
+                                    'text-[11px] line-clamp-1 font-normal',
+                                    isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                                  )}
+                                >
+                                  {dataset.description}
+                                </span>
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
 
@@ -1447,26 +1566,58 @@ export function AiDataImportSheet({
 
               {/* UNIFIED REVIEW & 3-MODE GARDEN IMPORT OPTIONS (shared by AI Generate & Dataset/Seed Pack Import) */}
               {generatedData && (
-                <div className="space-y-6 animate-in fade-in-50 border-t pt-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-semibold text-lg">
-                        {importMode === 'add' && activeLocation
-                          ? `Review Plants for "${activeLocation.name}"`
-                          : 'Review Your New Garden'}
-                      </h3>
+                <div className="space-y-5 animate-in fade-in-50 border-t pt-5">
+                  {/* Highlighted Pack Banner with Quick Import */}
+                  <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+                    <div className="space-y-0.5 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="default" className="text-xs px-2 py-0.5">
+                          Pack Ready
+                        </Badge>
+                        <span className="font-semibold text-sm sm:text-base truncate">
+                          {loadedPackTitle || generatedData.locations?.[0]?.name || 'Garden Pack'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {generatedData.plantings.length} plants across {generatedData.locations.length} garden(s) &bull; FP:{' '}
+                        <span className="font-mono font-medium text-foreground">
+                          {fingerprintDataset(generatedData)}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
                       <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="h-7 text-xs text-muted-foreground"
+                        className="h-8 text-xs flex-1 sm:flex-initial"
                         onClick={() => {
                           setGeneratedData(null);
                           setLoadedPackTitle(null);
                         }}
                       >
-                        Clear Review
+                        Clear
                       </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8 text-xs flex-1 sm:flex-initial gap-1.5"
+                        onClick={handleImport}
+                        disabled={isImporting}
+                      >
+                        {isImporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
+                        <span>Import Now</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold text-base sm:text-lg">
+                        {importMode === 'add' && activeLocation
+                          ? `Review Plants for "${activeLocation.name}"`
+                          : 'Review Your New Garden'}
+                      </h3>
                     </div>
                     <Card>
                       <CardHeader>
