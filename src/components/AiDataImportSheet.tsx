@@ -415,7 +415,20 @@ export function AiDataImportSheet({
         abortPromise,
       ]);
       if (controller.signal.aborted) return;
-      setGeneratedData(result);
+
+      // Enrich generated plants with real botanical photographs
+      const enrichedPlants = await Promise.all(
+        (result.plants || []).map(async (p) => {
+          if (p.imageUrl) return p;
+          const matchingPlanting = result.plantings?.find((pl) => pl.plantId === p.id);
+          const resolvedUrl = await resolveRealPlantImage(p.species, matchingPlanting?.name, p.id);
+          return resolvedUrl ? { ...p, imageUrl: resolvedUrl } : p;
+        })
+      );
+      if (controller.signal.aborted) return;
+      const enrichedResult: AiDataset = { ...result, plants: enrichedPlants };
+
+      setGeneratedData(enrichedResult);
       setRefinement('');
       setIncludedVariationIds(new Set());
       
@@ -424,7 +437,7 @@ export function AiDataImportSheet({
         timestamp: new Date().toISOString(),
         flow: 'createDataset',
         prompt: promptData,
-        results: result,
+        results: enrichedResult,
         model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
       };
       await db.aiLogs.add(newLog);
@@ -517,9 +530,11 @@ export function AiDataImportSheet({
         abortPromise
       ]);
       
+      const resolvedPhoto = await resolveRealPlantImage(result.species, result.commonName);
       const newPlant: Plant = {
         ...result,
         id: `ai-plant-${Date.now()}`,
+        ...(resolvedPhoto ? { imageUrl: resolvedPhoto } : {}),
       };
 
       const newPlanting: Planting = {
@@ -744,12 +759,17 @@ export function AiDataImportSheet({
           if (!newPlant || plantIdMap.has(newPlant.id)) continue;
 
           const existingPlant = existingPlants.find(p => p.species.toLowerCase().trim() === newPlant.species.toLowerCase().trim());
+          const resolvedImg = newPlant.imageUrl || getCuratedPlantImage(newPlant, planting.name);
           if (existingPlant) {
             plantIdMap.set(newPlant.id, existingPlant.id);
+            if (resolvedImg && !existingPlant.imageUrl) {
+              await db.plants.update(existingPlant.id, { imageUrl: resolvedImg });
+              existingPlant.imageUrl = resolvedImg;
+            }
           } else {
             const newDbPlantId = `plant-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
             plantIdMap.set(newPlant.id, newDbPlantId);
-            plantsToAdd.push({ ...newPlant, id: newDbPlantId });
+            plantsToAdd.push({ ...newPlant, id: newDbPlantId, ...(resolvedImg ? { imageUrl: resolvedImg } : {}) });
           }
         }
 
@@ -1312,11 +1332,23 @@ export function AiDataImportSheet({
                               {recommendedPlantings.map((planting) => {
                                 const plant = generatedPlantMap.get(planting.plantId);
                                 if (!plant) return null;
+                                const previewImgUrl = plant.imageUrl || getCuratedPlantImage(plant, planting.name);
 
                                 return (
                                   <AccordionItem value={planting.id} key={planting.id} className="border-x-0 border-t-0 px-4">
                                     <div className="flex items-center w-full py-3">
-                                      <AccordionTrigger className="p-0 hover:no-underline flex-1 justify-start text-left">
+                                      <AccordionTrigger className="p-0 hover:no-underline flex-1 justify-start text-left gap-3">
+                                        {previewImgUrl && (
+                                          <img
+                                            src={previewImgUrl}
+                                            alt={plant.species}
+                                            width={40}
+                                            height={40}
+                                            {...({ fetchPriority: 'low' } as any)}
+                                            loading="lazy"
+                                            className="h-10 w-10 rounded-md object-cover shrink-0 bg-muted"
+                                          />
+                                        )}
                                         <div className="flex flex-col">
                                           <span className="font-semibold">{planting.name}</span>
                                           <span className="text-sm text-muted-foreground">{plant.species}</span>

@@ -251,12 +251,45 @@ export default function Home() {
     }
   }, [locations, activeLocationId]);
 
+  // Automatically backfill real botanical photographs for any existing plants in IndexedDB missing imageUrl
+  useEffect(() => {
+    if (!plants || plants.length === 0) return;
+    const plantsMissingImages = plants.filter((p) => !p.imageUrl || !p.imageUrl.trim());
+    if (plantsMissingImages.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      for (const plant of plantsMissingImages) {
+        if (cancelled) break;
+        const resolvedUrl = await resolveRealPlantImage(plant.species, undefined, plant.id);
+        if (resolvedUrl && !cancelled) {
+          await db.plants.update(plant.id, { imageUrl: resolvedUrl });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [plants]);
+
   const handleAddPlant = async (plantingData: Omit<Planting, 'id'>, plantData: Omit<Plant, 'id'>) => {
-    let plantId = (await db.plants.where('species').equalsIgnoreCase(plantData.species).first())?.id;
+    const existingPlant = await db.plants.where('species').equalsIgnoreCase(plantData.species).first();
+    let plantId = existingPlant?.id;
+    const resolvedImageUrl =
+      plantData.imageUrl ||
+      (await resolveRealPlantImage(plantData.species, plantingData.name)) ||
+      getCuratedPlantImage(plantData.species, plantingData.name);
 
     if (!plantId) {
-        const newPlant: Plant = { ...plantData, id: `plant-${Date.now()}` };
+        const newPlant: Plant = {
+          ...plantData,
+          id: `plant-${Date.now()}`,
+          ...(resolvedImageUrl ? { imageUrl: resolvedImageUrl } : {}),
+        };
         plantId = await db.plants.add(newPlant);
+    } else if (existingPlant && !existingPlant.imageUrl && resolvedImageUrl) {
+        await db.plants.update(existingPlant.id, { imageUrl: resolvedImageUrl });
     }
 
     const newPlanting: Planting = {
@@ -2324,7 +2357,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                       ) : (
                           sortedAndFilteredPlantings.length > 0 ? (
                               <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                  {sortedAndFilteredPlantings.map(p => (
+                                  {sortedAndFilteredPlantings.map((p, idx) => (
                                       <div key={p.id} role="button" onClick={() => handleEditPlanting(p)} onKeyDown={(e) => e.key === 'Enter' && handleEditPlanting(p)} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-primary rounded-lg">
                                         <PlantCard 
                                             planting={p} 
@@ -2343,6 +2376,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                             onSelectDuplicate={() => handleDuplicateSelection(p)}
                                             onGetViability={() => handleGetViability(p)}
                                             showGardenLabel={!effectivelySingleGardenView}
+                                            isPriority={idx === 0}
                                         />
                                       </div>
                                   ))}

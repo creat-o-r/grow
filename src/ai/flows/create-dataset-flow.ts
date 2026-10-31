@@ -17,6 +17,7 @@ const PlantSchema = z.object({
   species: z.string(),
   germinationNeeds: z.string(),
   optimalConditions: z.string(),
+  imageUrl: z.string().optional(),
   isExistingVariation: z.boolean().optional().describe('True if this plant is a variation, cultivar, or related species of an existing plant in the garden.'),
   variationReason: z.string().optional().describe('Strong horticultural justification/match explaining why this variation was recommended despite existing plants in the garden.'),
   relatedExistingPlant: z.string().optional().describe('The name or species of the existing garden plant this is a variation of.'),
