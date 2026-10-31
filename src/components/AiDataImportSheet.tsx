@@ -1390,7 +1390,7 @@ export function AiDataImportSheet({
                           </div>
                         </div>
 
-                        {/* Grower Handle / Peer Name */}
+                        {/* Grower Handle */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border bg-muted/30 p-2 text-xs">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <User className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -1400,7 +1400,7 @@ export function AiDataImportSheet({
                                 <Input
                                   value={tempHandle}
                                   onChange={(e) => setTempHandle(e.target.value)}
-                                  placeholder="e.g., Grower-4026 or Colby"
+                                  placeholder="e.g., Grower-4026 or @colby"
                                   className="h-6 text-xs font-medium py-0 px-2 w-[160px]"
                                   autoFocus
                                   onKeyDown={(e) => {
@@ -1421,7 +1421,7 @@ export function AiDataImportSheet({
                               </div>
                             ) : (
                               <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-foreground">{growerHandle || 'Local Grower'}</span>
+                                <span className="font-semibold text-foreground">{growerHandle || 'Grower-Local'}</span>
                                 <button
                                   type="button"
                                   onClick={() => {

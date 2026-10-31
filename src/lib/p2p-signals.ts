@@ -20,7 +20,7 @@ export interface LocalGrowerIdentity {
 
 export function getOrCreateGrowerIdentity(): LocalGrowerIdentity {
   if (typeof window === 'undefined') {
-    return { pubkey: 'local-anon', displayName: 'Local Grower', region: 'Global' };
+    return { pubkey: 'local-anon', displayName: 'Grower-Local', region: 'Global' };
   }
   const existing = localStorage.getItem(IDENTITY_STORAGE_KEY);
   if (existing) {

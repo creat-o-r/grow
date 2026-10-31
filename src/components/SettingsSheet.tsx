@@ -69,6 +69,25 @@ import {
   type GardenImportMode,
 } from '@/lib/seed-pack';
 import { db } from '@/lib/db';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  APP_VERSION,
+  APP_STAGE,
+  REPO_URL,
+  FEEDBACK_URL,
+} from '@/lib/constants';
+import {
+  getSavedSashView,
+  setSavedSashView,
+  type SashViewMode,
+  SASH_CHANGE_EVENT,
+} from '@/components/ExperimentalVersionSash';
 import { registeredExtensions } from '@/extensions/registry';
 import {
   useExtensions,
@@ -148,7 +167,7 @@ export function SettingsSheet({
     setGrowerHandle(updated.displayName);
     setGrowerRegion(updated.region);
     toast({
-      title: 'Grower Profile Saved',
+      title: 'Grower Handle Saved',
       description: `Broadcasting as "${updated.displayName}" in ${updated.region}.`,
     });
   };
@@ -362,26 +381,26 @@ export function SettingsSheet({
             </SheetDescription>
           </SheetHeader>
           <div className="py-6 space-y-6">
-            {/* Grower Profile & P2P Handle */}
+            {/* Grower Handle & Microclimate */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="font-headline text-lg flex items-center gap-2">
                   <User className="h-4 w-4 text-primary" />
-                  <span>Grower Profile &amp; Handle</span>
+                  <span>Grower Handle</span>
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Your public display name and microclimate region used on live P2P garden rooms and community viability proofs.
+                  Your public handle and microclimate region used on live P2P garden rooms and community viability proofs.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label htmlFor="grower-handle-input" className="text-xs">Grower Name / Handle</Label>
+                    <Label htmlFor="grower-handle-input" className="text-xs">Grower Handle</Label>
                     <Input
                       id="grower-handle-input"
                       value={growerHandle}
                       onChange={(e) => setGrowerHandle(e.target.value)}
-                      placeholder="e.g., Grower-4026, Colby, SunnyBalcony"
+                      placeholder="e.g., Grower-4026, @colby, SunnyBalcony"
                       className="text-xs h-8"
                     />
                   </div>
@@ -403,7 +422,7 @@ export function SettingsSheet({
                     className="h-8 text-xs"
                     onClick={handleSaveGrowerIdentity}
                   >
-                    Save Grower Profile
+                    Save Grower Handle
                   </Button>
                 </div>
               </CardContent>
@@ -681,6 +700,18 @@ export function SettingsSheet({
                     Loaded Crowd Extensions ({enabledExtensions.length}/{registeredExtensions.length} Active)
                   </Label>
                   <ExtensionToggleList />
+                </div>
+
+                <div className="border-t pt-4 space-y-2">
+                  <h4 className="font-medium text-sm text-muted-foreground">
+                    Features &amp; Tour
+                  </h4>
+                  <a href="/marketing">
+                    <Button variant="secondary" className="w-full">
+                      <Sparkles className="mr-2 h-4 w-4 text-primary" />
+                      View Features &amp; Benefits Overview
+                    </Button>
+                  </a>
                 </div>
 
                 <div className="border-t pt-4 space-y-2">

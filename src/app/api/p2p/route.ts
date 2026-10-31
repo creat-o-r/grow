@@ -266,7 +266,7 @@ export async function POST(req: NextRequest) {
     if (action === 'ping') {
       const pingId = `ping-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const timestamp = new Date().toISOString();
-      const sender = String(body?.peerName || 'Grower-Test');
+      const sender = String(body?.peerName || 'Grower-Local');
       p2pStore.pings.set(slug, { pingId, timestamp, sender });
 
       let relayRoundTripOk = false;
@@ -325,7 +325,7 @@ export async function POST(req: NextRequest) {
       type: 'GARDEN_SYNC_PACK',
       roomId,
       peerPubkey: String(body?.peerPubkey || 'local-peer'),
-      peerName: String(body?.peerName || 'Grower Peer'),
+      peerName: String(body?.peerName || 'Grower-Local'),
       gardenName: dataset.locations?.[0]?.name || 'Shared Garden',
       gardenCount: dataset.locations?.length || 1,
       plantCount: dataset.plantings?.length || 0,

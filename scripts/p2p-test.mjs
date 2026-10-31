@@ -53,7 +53,7 @@ console.log(`Room: ${room}\n`);
 // Client 1: through the app server
 try {
   const r = await fetch(`${BASE}/api/p2p?room=${encodeURIComponent(room)}`, { cache: 'no-store' }).then((x) => x.json());
-  report('via app server', r.hasSnapshot ? r.dataset : null, `(source=${r.source}, from ${r.packet?.peerName ?? '?'})`);
+  report('via app server', r.hasSnapshot ? r.dataset : null, `(source=${r.source}, handle: ${r.packet?.peerName ?? '?'})`);
 } catch (e) {
   failed++;
   console.log(`FAIL  via app server: ${e.message} (is the dev server running at ${BASE}?)`);
@@ -76,7 +76,7 @@ try {
     peer = pkt.peerName;
     break;
   }
-  report('via public relay (no app server)', found, `(from ${peer})`);
+  report('via public relay (no app server)', found, `(handle: ${peer})`);
 } catch (e) {
   failed++;
   console.log(`FAIL  via public relay: ${e.message}`);

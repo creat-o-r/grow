@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
+import { ExperimentalVersionSash } from '@/components/ExperimentalVersionSash';
 
 export const metadata: Metadata = {
   title: 'grow',
@@ -29,6 +30,7 @@ export default function RootLayout({
           'bg-background text-foreground'
         )}
       >
+        <ExperimentalVersionSash />
         {children}
         <Toaster />
       </body>
