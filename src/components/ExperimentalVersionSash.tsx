@@ -201,19 +201,17 @@ export function ExperimentalVersionSash() {
             )}
           </Button>
 
-          {/* Tick the experimental banner to make it a sash */}
-          <label
-            className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 cursor-pointer select-none text-xs transition-colors"
-            title="Tick to turn this banner into a corner sash"
+          {/* Simple tick icon to make it a sash */}
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => handleToggleSash(true)}
+            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-amber-500/15"
+            title="Make into a sash"
+            aria-label="Make into sash"
           >
-            <input
-              type="checkbox"
-              checked={isSash}
-              onChange={(e) => handleToggleSash(e.target.checked)}
-              className="h-3.5 w-3.5 rounded accent-amber-500 border-amber-500/50 cursor-pointer"
-            />
-            <span className="font-medium text-[11px] font-headline">Sash</span>
-          </label>
+            <Check className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </aside>
