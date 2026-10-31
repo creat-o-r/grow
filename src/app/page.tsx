@@ -14,7 +14,11 @@ import { loadDataset } from '@/lib/datasets';
 import { Viability, getSuitableSeasons, getUpcomingViability } from '@/lib/viability';
 import { decodeSeedPackFromInput, mergeSeedPackIntoDb } from '@/lib/seed-pack';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
-import { publishCommunityViabilitySignal } from '@/lib/p2p-signals';
+import {
+  publishCommunityViabilitySignal,
+  saveP2PRoomId,
+  fetchLatestFromP2PRoom,
+} from '@/lib/p2p-signals';
 import { ExtensionSlotBar } from '@/extensions/ExtensionSlotBar';
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
@@ -179,11 +183,12 @@ export default function Home() {
       }
     }
 
-    // Handle 1-click forkable ?pack= or ?dataset= deep links by opening the full Review & Garden Import Options sheet
+    // Handle 1-click forkable ?pack=, ?dataset=, or ?p2p_room= deep links by opening the full Review & Garden Import Options sheet
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const packParam = params.get('pack');
       const datasetParam = params.get('dataset');
+      const p2pRoomParam = params.get('p2p_room');
 
       if (packParam) {
         try {
@@ -203,6 +208,19 @@ export default function Home() {
             window.history.replaceState({}, '', window.location.pathname);
           })
           .catch((err) => console.warn('Could not load ?dataset= URL param:', err));
+      } else if (p2pRoomParam) {
+        saveP2PRoomId(p2pRoomParam);
+        setUnifiedHubInitialTab('import-pack');
+        setIsAiImportSheetOpen(true);
+        fetchLatestFromP2PRoom(p2pRoomParam)
+          .then((latest) => {
+            if (latest && (latest.dataset.plantings?.length || 0) > 0) {
+              const title = `${latest.dataset.locations?.[0]?.name || 'P2P Garden'} (${latest.peerName})`;
+              setPreloadedDatasetForReview({ data: latest.dataset, title });
+            }
+          })
+          .catch((err) => console.warn('Could not auto-pull ?p2p_room= param:', err));
+        window.history.replaceState({}, '', window.location.pathname);
       }
     }
 

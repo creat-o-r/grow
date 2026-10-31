@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { type ExtensionContext } from './registry';
-import { useExtensions } from './use-extensions';
+import { useExtensions, openSettingsToExtensions } from './use-extensions';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ import {
   Check,
   ExternalLink,
   CheckCircle2,
+  Settings2,
 } from 'lucide-react';
 import {
   buildShareableSeedPackUrl,
@@ -37,7 +38,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { CommunityViabilitySignal } from '@/lib/types';
 
 export function ExtensionSlotBar(props: ExtensionContext) {
-  const { getBySlot } = useExtensions();
+  const { extensions, enabledExtensions, getBySlot } = useExtensions();
   const toolbarExtensions = getBySlot('dashboard-toolbar');
   const { toast } = useToast();
 
@@ -267,6 +268,22 @@ export function ExtensionSlotBar(props: ExtensionContext) {
         const Widget = ext.DashboardWidget;
         return Widget ? <Widget key={ext.id} {...props} /> : null;
       })}
+
+      {/* Quick shortcut to open Settings directly to the Extensions section */}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2.5 gap-1.5 text-muted-foreground hover:text-foreground"
+        onClick={openSettingsToExtensions}
+        title="Manage & toggle crowd extensions in Settings"
+        aria-label="Open extension settings"
+      >
+        <Settings2 className="h-4 w-4 text-primary" />
+        <Badge variant="secondary" className="px-1.5 py-0 text-[11px]">
+          {enabledExtensions.length}/{extensions.length}
+        </Badge>
+      </Button>
     </div>
   );
 }

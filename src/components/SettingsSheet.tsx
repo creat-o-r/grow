@@ -68,7 +68,11 @@ import {
 } from '@/lib/seed-pack';
 import { db } from '@/lib/db';
 import { registeredExtensions } from '@/extensions/registry';
-import { useExtensions, ExtensionToggleList } from '@/extensions/use-extensions';
+import {
+  useExtensions,
+  ExtensionToggleList,
+  OPEN_SETTINGS_EVENT,
+} from '@/extensions/use-extensions';
 
 type SettingsSheetProps = {
   isOpen: boolean;
@@ -123,6 +127,24 @@ export function SettingsSheet({
   useEffect(() => {
     setSelectedImportMode(activeLocation ? 'add' : 'new');
   }, [activeLocation, isOpen]);
+
+  useEffect(() => {
+    const handleOpenSettingsEvent = (e: Event) => {
+      const detail = (e as CustomEvent<{ section?: string }>).detail;
+      onOpenChange(true);
+      if (detail?.section === 'extensions') {
+        setTimeout(() => {
+          const el = document.getElementById('settings-crowd-extensions');
+          el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 180);
+      }
+    };
+
+    window.addEventListener(OPEN_SETTINGS_EVENT, handleOpenSettingsEvent);
+    return () => {
+      window.removeEventListener(OPEN_SETTINGS_EVENT, handleOpenSettingsEvent);
+    };
+  }, [onOpenChange]);
 
   useEffect(() => {
     if (isOpen) {
@@ -578,7 +600,10 @@ export function SettingsSheet({
                   </div>
                 </div>
 
-                <div className="border-t pt-4 space-y-2">
+                <div
+                  id="settings-crowd-extensions"
+                  className="border-t pt-4 space-y-2 scroll-mt-6"
+                >
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <Puzzle className="h-3.5 w-3.5" />
                     Loaded Crowd Extensions ({enabledExtensions.length}/{registeredExtensions.length} Active)

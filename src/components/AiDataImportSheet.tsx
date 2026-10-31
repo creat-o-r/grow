@@ -65,6 +65,9 @@ import {
   broadcastGardenToP2PRoom,
   fetchLatestFromP2PRoom,
   subscribeToP2PGardenRoom,
+  testP2PRoomConnection,
+  inspectP2PRoom,
+  type P2PConnectionTestResult,
 } from '@/lib/p2p-signals';
 
 type ImportMode = 'replace' | 'add' | 'new';
@@ -124,6 +127,19 @@ export function AiDataImportSheet({
   const [p2pRoomId, setP2pRoomId] = useState('');
   const [shareScope, setShareScope] = useState<'active' | 'all'>('all');
   const [isP2pSyncing, setIsP2pSyncing] = useState(false);
+  const [isTestingP2p, setIsTestingP2p] = useState(false);
+  const [p2pTestResult, setP2pTestResult] = useState<P2PConnectionTestResult | null>(null);
+  const [roomStatus, setRoomStatus] = useState<{
+    hasSnapshot: boolean;
+    source: string;
+    packet: {
+      peerName: string;
+      gardenName: string;
+      gardenCount: number;
+      plantCount: number;
+      timestamp: string;
+    } | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>(activeLocation ? 'add' : 'new');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -168,20 +184,32 @@ export function AiDataImportSheet({
   }, [isOpen, initialTab, plantingToEdit, initialDataset]);
 
   useEffect(() => {
-    if (!isOpen || !p2pRoomId.trim()) return;
+    if (!isOpen || !p2pRoomId.trim()) {
+      setRoomStatus(null);
+      setP2pTestResult(null);
+      return;
+    }
     saveP2PRoomId(p2pRoomId);
+    const timer = setTimeout(() => {
+      inspectP2PRoom(p2pRoomId).then((res) => {
+        if (res) setRoomStatus(res);
+      });
+    }, 300);
     const unsubscribe = subscribeToP2PGardenRoom(p2pRoomId, (peerDataset, peerName) => {
       const packName = `${peerDataset.locations?.[0]?.name || 'Shared Garden'} (from ${peerName})`;
       setGeneratedData(peerDataset);
       setLoadedPackTitle(packName);
       setTheme(packName);
-      setIncludedVariationIds(new Set());
+      setIncludedVariationIds(new Set((peerDataset.plantings || []).map((p) => String(p.id))));
       toast({
         title: `Live P2P Garden Received`,
         description: `${peerName} broadcasted "${peerDataset.locations?.[0]?.name || 'Garden'}" (${peerDataset.plantings?.length || 0} plants). Review below to import!`,
       });
     });
-    return unsubscribe;
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
   }, [isOpen, p2pRoomId, toast]);
 
   const buildCurrentGardenDataset = async (scope: 'active' | 'all' = shareScope): Promise<AiDataset | null> => {
@@ -270,6 +298,8 @@ export function AiDataImportSheet({
         );
       }
       await broadcastGardenToP2PRoom(p2pRoomId, ds);
+      const updatedStatus = await inspectP2PRoom(p2pRoomId);
+      if (updatedStatus) setRoomStatus(updatedStatus);
       const label =
         ds.locations.length > 1
           ? `All ${ds.locations.length} Gardens`
@@ -280,6 +310,61 @@ export function AiDataImportSheet({
       });
     } catch (err: any) {
       setError(err?.message || 'Could not broadcast to P2P room.');
+    } finally {
+      setIsP2pSyncing(false);
+    }
+  };
+
+  const handleTestP2PConnection = async () => {
+    const roomToTest = p2pRoomId.trim() || 'grow-test-room';
+    if (!p2pRoomId.trim()) {
+      setP2pRoomId(roomToTest);
+      saveP2PRoomId(roomToTest);
+    }
+    setIsTestingP2p(true);
+    setError(null);
+    try {
+      const result = await testP2PRoomConnection(roomToTest);
+      setP2pTestResult(result);
+      const updatedStatus = await inspectP2PRoom(roomToTest);
+      if (updatedStatus) setRoomStatus(updatedStatus);
+      toast({
+        title: result.ok ? `P2P Connection Verified (${result.latencyMs}ms)` : 'P2P Connection Issue',
+        description: result.hasSnapshot && result.snapshotSummary
+          ? `Room "${roomToTest}" is live with ${result.snapshotSummary.plantCount} plants across ${result.snapshotSummary.gardenCount} garden(s) from ${result.snapshotSummary.peerName}.`
+          : `Transport OK (Server Memory: ${result.memoryOk ? 'OK' : 'Fail'}, Global Relay: ${result.relayRoundTripOk ? 'OK' : 'Local Only'}). Room "${roomToTest}" has no garden streamed yet.`,
+      });
+    } catch (err: any) {
+      setError(err?.message || 'P2P connection test failed.');
+    } finally {
+      setIsTestingP2p(false);
+    }
+  };
+
+  const handleStreamAndCopyTestUrl = async () => {
+    const roomCode = p2pRoomId.trim() || 'grow-test-room';
+    if (!p2pRoomId.trim()) {
+      setP2pRoomId(roomCode);
+    }
+    setIsP2pSyncing(true);
+    setError(null);
+    try {
+      saveP2PRoomId(roomCode);
+      const ds = await buildCurrentGardenDataset('all');
+      if (!ds || ds.plantings.length === 0) {
+        throw new Error('Add or import at least 1 plant before streaming a cross-session test.');
+      }
+      await broadcastGardenToP2PRoom(roomCode, ds);
+      const updatedStatus = await inspectP2PRoom(roomCode);
+      if (updatedStatus) setRoomStatus(updatedStatus);
+      const testUrl = `${window.location.origin}${window.location.pathname}?p2p_room=${encodeURIComponent(roomCode)}`;
+      await navigator.clipboard.writeText(testUrl);
+      toast({
+        title: 'Streamed & Copied Cross-Session Test Link!',
+        description: `Streamed ${ds.plantings.length} plants to room "${roomCode}" and copied ${testUrl} — paste it into any Incognito or other browser window to auto-pull!`,
+      });
+    } catch (err: any) {
+      setError(err?.message || 'Could not stream and copy test link.');
     } finally {
       setIsP2pSyncing(false);
     }
@@ -1188,7 +1273,7 @@ export function AiDataImportSheet({
                         )}
                       </div>
 
-                      <div className="border-t pt-3 space-y-2">
+                      <div className="border-t pt-3 space-y-2.5">
                         <Label htmlFor="p2p-room-input" className="text-xs flex items-center justify-between">
                           <span>Cross-Session P2P Sync Room Code</span>
                           {p2pRoomId.trim() && (
@@ -1213,7 +1298,7 @@ export function AiDataImportSheet({
                               onClick={handlePushToP2PRoom}
                               disabled={!p2pRoomId.trim() || isP2pSyncing}
                               className="h-10 text-xs flex-1 sm:flex-initial"
-                              title="Broadcast active garden to this room so other sessions/devices can pull it"
+                              title="Broadcast gardens to this room so other sessions/devices can pull them"
                             >
                               {isP2pSyncing ? (
                                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -1239,8 +1324,76 @@ export function AiDataImportSheet({
                             </Button>
                           </div>
                         </div>
+
+                        {/* Live Room Inspection & 1-Click Cross-Session Test Controls */}
+                        <div className="rounded-md border bg-muted/40 p-2.5 space-y-2 text-xs">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <Radio className={`h-3.5 w-3.5 ${roomStatus?.hasSnapshot ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} />
+                              {roomStatus?.hasSnapshot && roomStatus.packet ? (
+                                <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                                  Room Ready: {roomStatus.packet.plantCount} plants across {roomStatus.packet.gardenCount || 1} garden(s) from {roomStatus.packet.peerName}
+                                </span>
+                              ) : p2pRoomId.trim() ? (
+                                <span className="text-muted-foreground">
+                                  Room "{p2pRoomId.trim()}" has no streamed snapshot yet — click Stream first.
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">
+                                  Enter any room code (or click a test button below) to connect sessions.
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={handleTestP2PConnection}
+                              disabled={isTestingP2p || isP2pSyncing}
+                              className="h-7 text-[11px] px-2.5"
+                            >
+                              {isTestingP2p ? (
+                                <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                              ) : (
+                                <CheckCircle className="mr-1.5 h-3 w-3" />
+                              )}
+                              Test P2P Connection
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handleStreamAndCopyTestUrl}
+                              disabled={isP2pSyncing || isTestingP2p}
+                              className="h-7 text-[11px] px-2.5"
+                            >
+                              <Link2 className="mr-1.5 h-3 w-3" />
+                              1-Click Stream & Copy Cross-Session Test URL
+                            </Button>
+                          </div>
+
+                          {p2pTestResult && (
+                            <div className="rounded border bg-background/80 px-2.5 py-1.5 text-[11px] font-mono flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span className={p2pTestResult.ok ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-destructive font-semibold'}>
+                                {p2pTestResult.ok ? '● P2P Link OK' : '● P2P Error'}
+                              </span>
+                              <span>Latency: {p2pTestResult.latencyMs}ms</span>
+                              <span>Server Memory: {p2pTestResult.memoryOk ? 'OK' : 'Fail'}</span>
+                              <span>Global Relay: {p2pTestResult.relayRoundTripOk ? 'OK' : 'Local-Only'}</span>
+                              <span>
+                                Snapshot: {p2pTestResult.hasSnapshot && p2pTestResult.snapshotSummary
+                                  ? `${p2pTestResult.snapshotSummary.plantCount} plants (${p2pTestResult.snapshotSummary.peerName})`
+                                  : 'Empty'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
                         <p className="text-[11px] text-muted-foreground">
-                          Works across tabs instantly via <code>BroadcastChannel</code> and across different browsers, incognito sessions, or devices for 24h via encrypted-slug public relay.
+                          Hybrid P2P transport: syncs in &lt;5ms across browsers/sessions via same-origin memory + <code>BroadcastChannel</code>, and persists 24h globally via deflate-compressed relay.
                         </p>
                       </div>
                     </CardContent>

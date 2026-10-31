@@ -133,13 +133,104 @@ export interface P2PRoomPacket {
   peerName: string;
   packParam: string;
   gardenName: string;
+  gardenCount?: number;
   plantCount: number;
   timestamp: string;
+}
+
+export interface P2PConnectionTestResult {
+  ok: boolean;
+  roomId: string;
+  memoryOk: boolean;
+  relayRoundTripOk: boolean;
+  latencyMs: number;
+  hasSnapshot: boolean;
+  snapshotSummary: {
+    peerName: string;
+    gardenName: string;
+    gardenCount: number;
+    plantCount: number;
+    timestamp: string;
+  } | null;
 }
 
 function getRoomCacheKey(roomId: string): string {
   const slug = toSpeciesUid(roomId) || 'default-room';
   return `grow_p2p_room_cache_${slug}`;
+}
+
+/**
+ * Runs a 1-click cross-session P2P connection self-test (write ping + read room state)
+ * across both the same-origin server memory store and the global cross-session relay.
+ */
+export async function testP2PRoomConnection(roomId: string): Promise<P2PConnectionTestResult> {
+  const identity = getOrCreateGrowerIdentity();
+  const startMs = Date.now();
+  const pingRes = await fetch('/api/p2p', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'ping',
+      roomId: roomId.trim(),
+      peerName: identity.displayName,
+    }),
+  });
+  const pingData = await pingRes.json();
+
+  const statusRes = await fetch(`/api/p2p?room=${encodeURIComponent(roomId.trim())}`, {
+    cache: 'no-store',
+  });
+  const statusData = await statusRes.json();
+
+  return {
+    ok: Boolean(pingData?.ok && statusData?.ok),
+    roomId: roomId.trim(),
+    memoryOk: Boolean(pingData?.memoryOk),
+    relayRoundTripOk: Boolean(pingData?.relayRoundTripOk || statusData?.relayReachable),
+    latencyMs: Date.now() - startMs,
+    hasSnapshot: Boolean(statusData?.hasSnapshot),
+    snapshotSummary: statusData?.packet
+      ? {
+          peerName: statusData.packet.peerName || 'Garden Peer',
+          gardenName: statusData.packet.gardenName || 'Shared Garden',
+          gardenCount: statusData.packet.gardenCount || 1,
+          plantCount: statusData.packet.plantCount || 0,
+          timestamp: statusData.packet.timestamp || new Date().toISOString(),
+        }
+      : null,
+  };
+}
+
+/**
+ * Lightweight room status check so the UI can immediately display whether a garden
+ * snapshot is currently waiting in the room before the user clicks Pull.
+ */
+export async function inspectP2PRoom(roomId: string): Promise<{
+  hasSnapshot: boolean;
+  source: string;
+  packet: {
+    peerName: string;
+    gardenName: string;
+    gardenCount: number;
+    plantCount: number;
+    timestamp: string;
+  } | null;
+} | null> {
+  if (!roomId.trim()) return null;
+  try {
+    const res = await fetch(`/api/p2p?room=${encodeURIComponent(roomId.trim())}`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      hasSnapshot: Boolean(data?.hasSnapshot),
+      source: data?.source || 'none',
+      packet: data?.packet || null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function extractPacketFromNtfyEnvelope(envelope: any): Promise<P2PRoomPacket | null> {
@@ -184,50 +275,73 @@ async function extractPacketFromNtfyEnvelope(envelope: any): Promise<P2PRoomPack
 }
 
 /**
- * Fetches the most recent cached P2P garden snapshot from the public cross-session relay
- * (retained for 24-48h even when the broadcasting session/device is closed).
+ * Fetches the most recent cached P2P garden snapshot from the same-origin `/api/p2p`
+ * hybrid store (in-memory + deflate-compressed public relay) with fallback to legacy topic.
  */
 export async function fetchLatestFromP2PRoom(
   roomId: string
 ): Promise<{ dataset: AiDataset; peerName: string; timestamp: string } | null> {
   if (!roomId.trim()) return null;
-  const topicUrl = `${getRelayTopicUrl(roomId)}/json?poll=1&since=24h`;
-  const resp = await fetch(topicUrl, { cache: 'no-store' });
-  if (!resp.ok) {
-    throw new Error(`Relay returned HTTP ${resp.status}`);
-  }
-  const text = await resp.text();
-  const lines = text
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean);
 
-  let fallbackEmptyResult: { dataset: AiDataset; peerName: string; timestamp: string } | null = null;
-
-  for (let i = lines.length - 1; i >= 0; i--) {
-    try {
-      const envelope = JSON.parse(lines[i]);
-      const packet = await extractPacketFromNtfyEnvelope(envelope);
-      if (packet?.type === 'GARDEN_SYNC_PACK' && packet.packParam) {
-        const dataset = decodeSeedPackFromInput(packet.packParam);
-        const candidate = {
-          dataset,
-          peerName: packet.peerName || 'Garden Peer',
-          timestamp: packet.timestamp || new Date().toISOString(),
+  // 1. Primary path: same-origin /api/p2p (immune to browser adblockers/CORS, uses deflate compression + server memory)
+  try {
+    const apiRes = await fetch(`/api/p2p?room=${encodeURIComponent(roomId.trim())}`, {
+      cache: 'no-store',
+    });
+    if (apiRes.ok) {
+      const apiData = await apiRes.json();
+      if (apiData?.hasSnapshot && apiData?.dataset && (apiData.dataset.plantings?.length || 0) > 0) {
+        return {
+          dataset: apiData.dataset as AiDataset,
+          peerName: apiData.packet?.peerName || 'Garden Peer',
+          timestamp: apiData.packet?.timestamp || new Date().toISOString(),
         };
-        if ((dataset.plantings?.length || 0) > 0) {
-          return candidate;
-        }
-        if (!fallbackEmptyResult) {
-          fallbackEmptyResult = candidate;
+      }
+    }
+  } catch {
+    // Fall through to direct relay fallback
+  }
+
+  // 2. Fallback: legacy direct ntfy.sh topic poll
+  let fallbackEmptyResult: { dataset: AiDataset; peerName: string; timestamp: string } | null = null;
+  try {
+    const topicUrl = `${getRelayTopicUrl(roomId)}/json?poll=1&since=24h`;
+    const resp = await fetch(topicUrl, { cache: 'no-store' });
+    if (resp.ok) {
+      const text = await resp.text();
+      const lines = text
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+
+      for (let i = lines.length - 1; i >= 0; i--) {
+        try {
+          const envelope = JSON.parse(lines[i]);
+          const packet = await extractPacketFromNtfyEnvelope(envelope);
+          if (packet?.type === 'GARDEN_SYNC_PACK' && packet.packParam) {
+            const dataset = decodeSeedPackFromInput(packet.packParam);
+            const candidate = {
+              dataset,
+              peerName: packet.peerName || 'Garden Peer',
+              timestamp: packet.timestamp || new Date().toISOString(),
+            };
+            if ((dataset.plantings?.length || 0) > 0) {
+              return candidate;
+            }
+            if (!fallbackEmptyResult) {
+              fallbackEmptyResult = candidate;
+            }
+          }
+        } catch {
+          // skip non-Grow messages
         }
       }
-    } catch {
-      // skip non-Grow messages
     }
+  } catch {
+    // ignore direct relay error
   }
 
-  // Check local browser cache if relay had no populated snapshot
+  // 3. Check local browser cache if relay had no populated snapshot
   if (typeof window !== 'undefined') {
     try {
       const cachedRaw = localStorage.getItem(getRoomCacheKey(roomId));
@@ -329,8 +443,9 @@ export function subscribeToP2PGardenRoom(
 }
 
 /**
- * Broadcasts a garden dataset to both local tabs (`BroadcastChannel`) and the cross-session
- * public relay (`ntfy.sh`) so other sessions/devices can pull or live-stream it.
+ * Broadcasts a garden dataset across:
+ * 1. Same-origin `/api/p2p` (instant server memory store + deflate-compressed `ntfy.sh` v2 relay)
+ * 2. Local `BroadcastChannel` + `localStorage` cache
  */
 export async function broadcastGardenToP2PRoom(
   roomId: string,
@@ -353,6 +468,7 @@ export async function broadcastGardenToP2PRoom(
     peerName: identity.displayName,
     packParam,
     gardenName: dataset.locations?.[0]?.name || 'Shared Garden',
+    gardenCount: dataset.locations?.length || 1,
     plantCount: dataset.plantings?.length || 0,
     timestamp: new Date().toISOString(),
   };
@@ -375,15 +491,28 @@ export async function broadcastGardenToP2PRoom(
     }
   }
 
-  const resp = await fetch(getRelayTopicUrl(roomId), {
+  // Primary publish via same-origin /api/p2p (stores in memory + deflate-compressed global relay)
+  const apiRes = await fetch('/api/p2p', {
     method: 'POST',
-    headers: {
-      Filename: 'seedpack.json',
-    },
-    body: `GROW_PACK:${JSON.stringify(packet)}`,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'broadcast',
+      roomId: roomId.trim(),
+      peerPubkey: identity.pubkey,
+      peerName: identity.displayName,
+      dataset: compactDataset,
+    }),
   });
-  if (!resp.ok) {
-    throw new Error(`Relay broadcast failed with HTTP ${resp.status}`);
+
+  if (!apiRes.ok) {
+    // Fallback to direct relay if /api/p2p failed
+    const resp = await fetch(getRelayTopicUrl(roomId), {
+      method: 'POST',
+      body: `GROW_PACK:${JSON.stringify(packet)}`,
+    });
+    if (!resp.ok) {
+      throw new Error(`Relay broadcast failed with HTTP ${resp.status}`);
+    }
   }
 
   return packet;
