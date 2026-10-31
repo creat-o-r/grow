@@ -45,11 +45,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ToastAction } from '@/components/ui/toast';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-
+import { REPO_URL } from '@/lib/constants';
 
 type PlantStatus = StatusHistory['status'];
-
-const REPO_URL = 'https://github.com/creat-o-r/grow';
 
 
 export default function Home() {
