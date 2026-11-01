@@ -460,7 +460,7 @@ export async function mergeSeedPackIntoDb(
 export function buildShareableSeedPackUrl(dataset: AiDataset, baseUrl?: string): string {
   const origin =
     baseUrl ||
-    (typeof window !== 'undefined' ? window.location.origin : 'https://grow.vercel.app');
+    (typeof window !== 'undefined' ? window.location.origin : 'https://grow-rho-two.vercel.app');
   const encoded = encodeSeedPackToParam(dataset);
   return `${origin}/?pack=${encoded}`;
 }

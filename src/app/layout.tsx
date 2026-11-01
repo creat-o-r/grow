@@ -5,8 +5,35 @@ import { Toaster } from '@/components/ui/toaster';
 import { ExperimentalVersionSash } from '@/components/ExperimentalVersionSash';
 
 export const metadata: Metadata = {
-  title: 'grow',
-  description: 'Your personal digital garden assistant.',
+  metadataBase: new URL('https://grow-rho-two.vercel.app'),
+  title: {
+    default: 'Grow — Garden Assistant & Plant Viability Tracker',
+    template: '%s | Grow',
+  },
+  description: 'Your personal digital garden assistant. Track microclimates, plant viability, and share seed packs with zero server costs.',
+  applicationName: 'Grow',
+  openGraph: {
+    title: 'Grow — Garden Assistant & Plant Viability Tracker',
+    description: 'Your personal digital garden assistant. Track microclimates, plant viability, and share seed packs with zero server costs.',
+    url: 'https://grow-rho-two.vercel.app',
+    siteName: 'Grow',
+    images: [
+      {
+        url: '/images/plants/veg-1.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Grow Garden Assistant',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Grow — Garden Assistant & Plant Viability Tracker',
+    description: 'Your personal digital garden assistant. Track microclimates, plant viability, and share seed packs with zero server costs.',
+    images: ['/images/plants/veg-1.jpg'],
+  },
 };
 
 export default function RootLayout({
