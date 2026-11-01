@@ -35,9 +35,6 @@ export const metadata: Metadata = {
     description: 'Your personal digital garden assistant. Track microclimates, plant viability, and share seed packs with zero server costs.',
     images: ['https://grow-rho-two.vercel.app/og-image.jpg'],
   },
-  other: {
-    'fb:app_id': process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '966242223397117',
-  },
 };
 
 export default function RootLayout({
@@ -45,10 +42,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '966242223397117';
+
   return (
     <html lang="en" className="dark">
       <head>
-        <meta property="fb:app_id" content="966242223397117" />
+        <meta property="fb:app_id" content={fbAppId} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

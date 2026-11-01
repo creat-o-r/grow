@@ -17,8 +17,6 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const viabilityParam = typeof resolved.viability === 'string' ? resolved.viability : undefined;
   const gardenParam = typeof resolved.garden === 'string' ? resolved.garden : undefined;
 
-  const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '966242223397117';
-
   // 1. If a 1-click seed pack or plant pack is passed
   if (packParam) {
     try {
@@ -99,12 +97,6 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
           description,
           images: [imageUrl],
         },
-        other: {
-          'fb:app_id': fbAppId,
-          'og:image:width': '1200',
-          'og:image:height': '630',
-          'og:image:type': imageType,
-        },
       };
     } catch (err: any) {
       console.error('PACK ERROR IN GENERATEMETADATA:', err?.message);
@@ -149,12 +141,6 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         description,
         images: ['https://grow-rho-two.vercel.app/og-image.jpg'],
       },
-      other: {
-        'fb:app_id': fbAppId,
-        'og:image:width': '1200',
-        'og:image:height': '630',
-        'og:image:type': 'image/jpeg',
-      },
     };
   }
 
@@ -187,12 +173,6 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       description:
         'Track plant viability, assess microclimates, and share seed packs with local-first, zero-server gardening tools.',
       images: ['https://grow-rho-two.vercel.app/og-image.jpg'],
-    },
-    other: {
-      'fb:app_id': fbAppId,
-      'og:image:width': '1200',
-      'og:image:height': '630',
-      'og:image:type': 'image/jpeg',
     },
   };
 }
