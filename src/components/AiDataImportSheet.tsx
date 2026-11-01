@@ -42,6 +42,7 @@ import {
   Link2,
   User,
   KeyRound,
+  X,
 } from 'lucide-react';
 import { createDataset } from '@/ai/flows/create-dataset-flow';
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
@@ -67,6 +68,14 @@ import { decodeSeedPackFromInput, buildShareableSeedPackUrl } from '@/lib/seed-p
 import {
   getSavedP2PRoomId,
   saveP2PRoomId,
+  getInwardStreamMode,
+  saveInwardStreamMode,
+  type InwardStreamMode,
+  getTrustedGrowers,
+  saveTrustedGrowers,
+  addTrustedGrower,
+  removeTrustedGrower,
+  isGrowerTrusted,
   getAutoMergePreference,
   saveAutoMergePreference,
   getAutoStreamPreference,
@@ -79,7 +88,7 @@ import {
   getOrCreateGrowerIdentity,
   updateGrowerIdentity,
 } from '@/lib/p2p-signals';
-import { notifyP2PRoomChanged } from '@/hooks/useP2PRoomLiveSync';
+import { notifyP2PRoomChanged, notifyTrustedGrowersChanged } from '@/hooks/useP2PRoomLiveSync';
 
 type ImportMode = 'replace' | 'add' | 'new';
 export type UnifiedImportTab = 'single' | 'ai-generate' | 'import-pack';
@@ -169,12 +178,29 @@ export function AiDataImportSheet({
   } | null>(null);
   const [shareApiKeysWithBroadcast, setShareApiKeysWithBroadcast] = useState(false);
   const [pulledApiKeys, setPulledApiKeys] = useState<FreeLlmConfig | null>(null);
-  const [autoMergeEnabled, setAutoMergeEnabled] = useState(false);
+  const [inwardMode, setInwardMode] = useState<InwardStreamMode>('off');
+  const [trustedGrowers, setTrustedGrowers] = useState<string[]>([]);
+  const [newGrowerInput, setNewGrowerInput] = useState('');
   const [autoStreamEnabled, setAutoStreamEnabled] = useState(false);
 
-  const handleToggleAutoMerge = (checked: boolean) => {
-    setAutoMergeEnabled(checked);
-    saveAutoMergePreference(checked);
+  const handleSelectInwardMode = (mode: InwardStreamMode) => {
+    setInwardMode(mode);
+    saveInwardStreamMode(mode);
+  };
+
+  const handleAddTrustedGrower = (growerName?: string) => {
+    const target = (growerName || newGrowerInput).trim();
+    if (!target) return;
+    const updated = addTrustedGrower(target);
+    setTrustedGrowers(updated);
+    notifyTrustedGrowersChanged(updated);
+    setNewGrowerInput('');
+  };
+
+  const handleRemoveTrustedGrower = (target: string) => {
+    const updated = removeTrustedGrower(target);
+    setTrustedGrowers(updated);
+    notifyTrustedGrowersChanged(updated);
   };
 
   const handleToggleAutoStream = (checked: boolean) => {
@@ -264,7 +290,8 @@ export function AiDataImportSheet({
       if (savedShareKeys !== null) {
         setShareApiKeysWithBroadcast(savedShareKeys === 'true');
       }
-      setAutoMergeEnabled(getAutoMergePreference());
+      setInwardMode(getInwardStreamMode());
+      setTrustedGrowers(getTrustedGrowers());
       setAutoStreamEnabled(getAutoStreamPreference());
       const identity = getOrCreateGrowerIdentity();
       setGrowerHandle(identity.displayName);
@@ -1621,7 +1648,7 @@ export function AiDataImportSheet({
                         </div>
 
                         {/* Real-Time Live Sync Automation */}
-                        <div className="rounded-lg border p-3 bg-muted/20 space-y-3">
+                        <div className="rounded-lg border p-3 bg-muted/20 space-y-3.5">
                           <div className="flex items-center justify-between">
                             <span className="font-semibold text-xs flex items-center gap-1.5 text-foreground">
                               <Sparkles className="h-3.5 w-3.5 text-primary" />
@@ -1632,29 +1659,137 @@ export function AiDataImportSheet({
                             </Badge>
                           </div>
 
-                          <div className="flex items-center justify-between gap-3 pt-1 border-t border-border/50">
-                            <div className="space-y-0.5">
-                              <Label htmlFor="auto-merge-toggle" className="text-xs font-medium cursor-pointer">
-                                Auto-Merge Incoming Updates
-                              </Label>
-                              <p className="text-[11px] text-muted-foreground">
-                                Seamlessly merges plantings streamed to this room into your active garden without prompting.
-                              </p>
+                          {/* Inward Auto-Streaming Controls */}
+                          <div className="space-y-2 pt-1 border-t border-border/50">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div className="space-y-0.5">
+                                <Label className="text-xs font-medium">Auto-Stream Inwards (Live Merge)</Label>
+                                <p className="text-[11px] text-muted-foreground">
+                                  Automatically ingest incoming room updates into your garden without prompting.
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={inwardMode === 'selected' ? 'default' : 'ghost'}
+                                  className="h-6 text-[11px] px-2"
+                                  onClick={() => handleSelectInwardMode('selected')}
+                                  title="Only auto-stream from selected trusted grower handles or devices"
+                                >
+                                  Selected
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={inwardMode === 'all' ? 'default' : 'ghost'}
+                                  className="h-6 text-[11px] px-2"
+                                  onClick={() => handleSelectInwardMode('all')}
+                                  title="Auto-stream inwards from any broadcaster in this room"
+                                >
+                                  All Peers
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={inwardMode === 'off' ? 'default' : 'ghost'}
+                                  className="h-6 text-[11px] px-2"
+                                  onClick={() => handleSelectInwardMode('off')}
+                                  title="Require manual review for all incoming updates"
+                                >
+                                  Off
+                                </Button>
+                              </div>
                             </div>
-                            <Switch
-                              id="auto-merge-toggle"
-                              checked={autoMergeEnabled}
-                              onCheckedChange={handleToggleAutoMerge}
-                            />
+
+                            {/* Selected Growers Management */}
+                            {inwardMode === 'selected' && (
+                              <div className="rounded-md border bg-background/80 p-2.5 space-y-2 text-xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium text-[11px] text-foreground">
+                                    Selected Growers ({trustedGrowers.length})
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    Only updates from these handles auto-merge
+                                  </span>
+                                </div>
+
+                                {trustedGrowers.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {trustedGrowers.map((grower) => (
+                                      <Badge
+                                        key={grower}
+                                        variant="secondary"
+                                        className="gap-1 py-0.5 px-2 text-xs font-mono font-medium"
+                                      >
+                                        <span>{grower.startsWith('@') ? grower : `@${grower}`}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveTrustedGrower(grower)}
+                                          className="text-muted-foreground hover:text-destructive ml-0.5"
+                                          title={`Remove ${grower}`}
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </button>
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-[11px] text-muted-foreground italic">
+                                    No growers selected yet. Add a grower handle below.
+                                  </p>
+                                )}
+
+                                {/* Add grower input row */}
+                                <div className="flex items-center gap-1.5 pt-1">
+                                  <Input
+                                    value={newGrowerInput}
+                                    onChange={(e) => setNewGrowerInput(e.target.value)}
+                                    placeholder="Add grower handle (e.g. @colby, Grower-4026)..."
+                                    className="h-7 text-xs font-mono"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleAddTrustedGrower();
+                                    }}
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="h-7 text-xs px-2.5 shrink-0"
+                                    onClick={() => handleAddTrustedGrower()}
+                                    disabled={!newGrowerInput.trim()}
+                                  >
+                                    + Add
+                                  </Button>
+                                </div>
+
+                                {/* Quick chip from snapshot peer if available */}
+                                {roomStatus?.packet?.peerName &&
+                                  !isGrowerTrusted(roomStatus.packet.peerName) && (
+                                    <div className="pt-0.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddTrustedGrower(roomStatus.packet?.peerName)}
+                                        className="text-[11px] text-primary hover:underline font-medium flex items-center gap-1"
+                                      >
+                                        <span>+ Add current room broadcaster</span>
+                                        <span className="font-mono font-semibold">
+                                          @{roomStatus.packet.peerName}
+                                        </span>
+                                      </button>
+                                    </div>
+                                  )}
+                              </div>
+                            )}
                           </div>
 
+                          {/* Outward Auto-Streaming Controls */}
                           <div className="flex items-center justify-between gap-3 pt-2 border-t border-border/50">
                             <div className="space-y-0.5">
                               <Label htmlFor="auto-stream-toggle" className="text-xs font-medium cursor-pointer">
-                                Auto-Stream Garden Edits
+                                Auto-Stream Outwards (Broadcast Edits)
                               </Label>
                               <p className="text-[11px] text-muted-foreground">
-                                Automatically broadcasts debounced garden updates whenever you add plants or log status changes.
+                                Automatically broadcasts debounced garden updates to this room whenever you add plants or log status changes.
                               </p>
                             </div>
                             <Switch

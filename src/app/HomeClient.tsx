@@ -127,7 +127,8 @@ export default function Home() {
   const {
     roomId: liveRoomId,
     isConnected: isLiveRoomConnected,
-    autoMerge: isLiveAutoMerge,
+    inwardMode: liveInwardMode,
+    trustedGrowers: liveTrustedGrowers,
     autoStream: isLiveAutoStream,
     triggerDebouncedStream,
   } = useP2PRoomLiveSync({
@@ -1989,11 +1990,15 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                     <span className="font-mono text-[10px] font-semibold truncate max-w-[70px]">
                       #{liveRoomId}
                     </span>
-                    {isLiveAutoMerge && (
-                      <span className="text-[8px] uppercase tracking-wider font-bold bg-emerald-500/25 px-1 rounded text-emerald-300">
-                        auto
+                    {liveInwardMode === 'selected' ? (
+                      <span className="text-[8px] uppercase tracking-wider font-bold bg-emerald-500/25 px-1 py-0.5 rounded text-emerald-300">
+                        {liveTrustedGrowers.length > 0 ? `sel (${liveTrustedGrowers.length})` : 'sel'}
                       </span>
-                    )}
+                    ) : liveInwardMode === 'all' ? (
+                      <span className="text-[8px] uppercase tracking-wider font-bold bg-emerald-500/25 px-1 py-0.5 rounded text-emerald-300">
+                        all
+                      </span>
+                    ) : null}
                   </button>
                 )}
                 <Button variant="outline" onClick={() => handleOpenAddSheet(undefined, 'import-pack')} className="gap-1.5 px-3">
@@ -2137,11 +2142,15 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                   <span className="font-mono text-xs font-semibold truncate max-w-[130px]">
                                     #{liveRoomId}
                                   </span>
-                                  {isLiveAutoMerge && (
-                                    <span className="text-[9px] uppercase tracking-wider font-bold bg-emerald-500/25 px-1 py-0.5 rounded text-emerald-300">
-                                      auto
+                                  {liveInwardMode === 'selected' ? (
+                                    <span className="text-[9px] uppercase tracking-wider font-bold bg-emerald-500/25 px-1.5 py-0.5 rounded text-emerald-300">
+                                      selected ({liveTrustedGrowers.length})
                                     </span>
-                                  )}
+                                  ) : liveInwardMode === 'all' ? (
+                                    <span className="text-[9px] uppercase tracking-wider font-bold bg-emerald-500/25 px-1.5 py-0.5 rounded text-emerald-300">
+                                      auto: all
+                                    </span>
+                                  ) : null}
                                 </button>
                               )}
                               <Button

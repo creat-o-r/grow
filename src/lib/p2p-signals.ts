@@ -12,6 +12,8 @@ const IDENTITY_STORAGE_KEY = 'grow_local_identity_v1';
 const P2P_ROOM_STORAGE_KEY = 'grow_p2p_room_id_v1';
 const P2P_AUTO_MERGE_KEY = 'grow_p2p_auto_merge_v1';
 const P2P_AUTO_STREAM_KEY = 'grow_p2p_auto_stream_v1';
+const P2P_INWARD_MODE_KEY = 'grow_p2p_inward_mode_v2';
+const P2P_TRUSTED_GROWERS_KEY = 'grow_p2p_trusted_growers_v2';
 const PUBLIC_RELAYS = ['https://ntfy.sh', 'wss://nos.lol', 'wss://relay.damus.io'];
 
 export interface LocalGrowerIdentity {
@@ -148,12 +150,13 @@ export function saveP2PRoomId(roomId: string): void {
 
 export function getAutoMergePreference(): boolean {
   if (typeof window === 'undefined') return false;
-  return localStorage.getItem(P2P_AUTO_MERGE_KEY) === 'true';
+  return getInwardStreamMode() !== 'off';
 }
 
 export function saveAutoMergePreference(enabled: boolean): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(P2P_AUTO_MERGE_KEY, enabled ? 'true' : 'false');
+  localStorage.setItem(P2P_INWARD_MODE_KEY, enabled ? 'all' : 'off');
 }
 
 export function getAutoStreamPreference(): boolean {
@@ -164,6 +167,82 @@ export function getAutoStreamPreference(): boolean {
 export function saveAutoStreamPreference(enabled: boolean): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(P2P_AUTO_STREAM_KEY, enabled ? 'true' : 'false');
+}
+
+export type InwardStreamMode = 'off' | 'all' | 'selected';
+
+export function getInwardStreamMode(): InwardStreamMode {
+  if (typeof window === 'undefined') return 'off';
+  const saved = localStorage.getItem(P2P_INWARD_MODE_KEY);
+  if (saved === 'all' || saved === 'selected' || saved === 'off') {
+    return saved;
+  }
+  const legacyAutoMerge = localStorage.getItem(P2P_AUTO_MERGE_KEY);
+  if (legacyAutoMerge === 'true') return 'all';
+  return 'off';
+}
+
+export function saveInwardStreamMode(mode: InwardStreamMode): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(P2P_INWARD_MODE_KEY, mode);
+  localStorage.setItem(P2P_AUTO_MERGE_KEY, mode === 'off' ? 'false' : 'true');
+}
+
+export function getTrustedGrowers(): string[] {
+  if (typeof window === 'undefined') return [];
+  const raw = localStorage.getItem(P2P_TRUSTED_GROWERS_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => String(item).trim()).filter(Boolean);
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+export function saveTrustedGrowers(growers: string[]): void {
+  if (typeof window === 'undefined') return;
+  const cleaned = Array.from(
+    new Set(
+      growers
+        .map((g) => g.trim())
+        .filter(Boolean)
+    )
+  );
+  localStorage.setItem(P2P_TRUSTED_GROWERS_KEY, JSON.stringify(cleaned));
+}
+
+export function addTrustedGrower(grower: string): string[] {
+  const current = getTrustedGrowers();
+  const trimmed = grower.trim();
+  if (!trimmed) return current;
+  const updated = Array.from(new Set([...current, trimmed]));
+  saveTrustedGrowers(updated);
+  return updated;
+}
+
+export function removeTrustedGrower(grower: string): string[] {
+  const current = getTrustedGrowers();
+  const normalized = grower.trim().toLowerCase().replace(/^@/, '');
+  const updated = current.filter(
+    (g) => g.trim().toLowerCase().replace(/^@/, '') !== normalized
+  );
+  saveTrustedGrowers(updated);
+  return updated;
+}
+
+export function isGrowerTrusted(handleOrPubkey?: string | null): boolean {
+  if (!handleOrPubkey) return false;
+  const candidate = handleOrPubkey.trim().toLowerCase().replace(/^@/, '');
+  if (!candidate) return false;
+  const trusted = getTrustedGrowers();
+  return trusted.some((entry) => {
+    const cleanEntry = entry.trim().toLowerCase().replace(/^@/, '');
+    return cleanEntry === candidate;
+  });
 }
 
 function getRelayTopicUrl(roomId: string): string {
@@ -463,7 +542,8 @@ export function subscribeToP2PGardenRoom(
     dataset: AiDataset,
     peerName: string,
     timestamp: string,
-    apiKeys?: FreeLlmConfig
+    apiKeys?: FreeLlmConfig,
+    peerPubkey?: string
   ) => void
 ): () => void {
   if (typeof window === 'undefined' || !roomId.trim()) {
@@ -501,7 +581,8 @@ export function subscribeToP2PGardenRoom(
         dataset,
         packet.peerName || 'Garden Peer',
         packet.timestamp || new Date().toISOString(),
-        packet.apiKeys
+        packet.apiKeys,
+        packet.peerPubkey
       );
     } catch {
       // ignore malformed packet

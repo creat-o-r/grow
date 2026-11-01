@@ -10,12 +10,18 @@ import {
 } from '@/lib/seed-pack';
 import type { AiDataset } from '@/lib/types';
 import {
-  APP_VERSION,
   REPO_URL,
   FEEDBACK_URL,
   ISSUES_URL,
   DISCUSSIONS_URL,
 } from '@/lib/constants';
+import {
+  getStoredUsageTelemetry,
+  recordUsageEvent,
+  resetUsageTelemetry,
+  USAGE_STATS_CHANGED_EVENT,
+  type UsageTelemetryData,
+} from '@/lib/usage-stats';
 import { getOrCreateGrowerIdentity, getSavedP2PRoomId } from '@/lib/p2p-signals';
 import { openSettingsToExtensions, OPEN_SETTINGS_EVENT } from '../use-extensions';
 import { Badge } from '@/components/ui/badge';
@@ -32,14 +38,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import {
   Activity,
   BarChart3,
   HardDrive,
   ShieldCheck,
-  AlertTriangle,
   CheckCircle2,
   Copy,
   Check,
@@ -52,15 +56,15 @@ import {
   Layers,
   Globe,
   RefreshCw,
-  Info,
   Lock,
-  Unlock,
   Package,
-  Share2,
-  Zap,
-  Terminal,
   Sliders,
   Radio,
+  Clock,
+  Calendar,
+  MousePointerClick,
+  Trash2,
+  TrendingUp,
 } from 'lucide-react';
 
 function formatBytes(bytes?: number): string {
@@ -76,7 +80,13 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
   const [copiedMcp, setCopiedMcp] = useState(false);
   const [copiedA2A, setCopiedA2A] = useState(false);
   const [copiedBackup, setCopiedBackup] = useState(false);
+  const [copiedSummary, setCopiedSummary] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Live gathered usage telemetry from localStorage
+  const [telemetry, setTelemetry] = useState<UsageTelemetryData>(() =>
+    getStoredUsageTelemetry()
+  );
 
   // Storage estimation and persistence state
   const [storageEstimate, setStorageEstimate] = useState<{
@@ -110,6 +120,30 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
   }, []);
 
   const aiLogs = useLiveQuery(() => db.aiLogs.toArray(), []);
+
+  // Sync telemetry state with custom events
+  useEffect(() => {
+    const handleTelemetryChange = (e: Event) => {
+      const custom = e as CustomEvent<UsageTelemetryData>;
+      if (custom.detail) {
+        setTelemetry(custom.detail);
+      } else {
+        setTelemetry(getStoredUsageTelemetry());
+      }
+    };
+
+    window.addEventListener(USAGE_STATS_CHANGED_EVENT, handleTelemetryChange);
+    return () => {
+      window.removeEventListener(USAGE_STATS_CHANGED_EVENT, handleTelemetryChange);
+    };
+  }, []);
+
+  // Record statsViewed when opened
+  useEffect(() => {
+    if (isOpen) {
+      recordUsageEvent('statsViewed', 1);
+    }
+  }, [isOpen]);
 
   // Refresh storage estimate and persistence status
   const refreshStorageInfo = useCallback(async () => {
@@ -145,6 +179,7 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
       return;
     }
     setIsRequestingPersist(true);
+    recordUsageEvent('persistenceRequested', 1);
     try {
       const granted = await navigator.storage.persist();
       setIsPersisted(granted);
@@ -190,6 +225,7 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
   // Copy full seed pack URL
   const handleCopyBackupUrl = async () => {
     setIsExporting(true);
+    recordUsageEvent('seedPacksExported', 1);
     try {
       const dataset = await buildFullBackupDataset();
       const url = buildShareableSeedPackUrl(dataset);
@@ -215,6 +251,7 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
   // Download raw JSON backup
   const handleDownloadJsonBackup = async () => {
     setIsExporting(true);
+    recordUsageEvent('seedPacksExported', 1);
     try {
       const dataset = await buildFullBackupDataset();
       const blob = new Blob([JSON.stringify(dataset, null, 2)], {
@@ -268,6 +305,7 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
   // Open settings to AI section
   const handleOpenAiSettings = () => {
     setIsOpen(false);
+    recordUsageEvent('settingsViewed', 1);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent(OPEN_SETTINGS_EVENT, {
@@ -275,6 +313,87 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
         })
       );
     }
+  };
+
+  // Export full usage telemetry report as JSON
+  const handleExportUsageReport = () => {
+    const report = {
+      telemetry,
+      databaseMetrics: {
+        plantsCount: dbCounts?.plantCount ?? plants.length,
+        plantingsCount: dbCounts?.plantingCount ?? plantings.length,
+        locationsCount: dbCounts?.locationCount ?? 1,
+        aiLogsCount: dbCounts?.aiLogCount ?? 0,
+      },
+      storageMetrics: {
+        usedBytes: storageEstimate.usage || 0,
+        quotaBytes: storageEstimate.quota || 0,
+        persisted: isPersisted,
+      },
+      exportTimestamp: new Date().toISOString(),
+    };
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: 'application/json',
+    });
+    const downloadUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `grow-usage-statistics-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(downloadUrl);
+
+    toast({
+      title: 'Usage Statistics Exported',
+      description: 'Downloaded full JSON usage telemetry report.',
+    });
+  };
+
+  // Copy textual usage summary to clipboard
+  const handleCopyUsageSummary = async () => {
+    const lines = [
+      '--- Grow Garden Usage Statistics ---',
+      `Total Gathered Interactions: ${telemetry.totalInteractions}`,
+      `Total App Sessions: ${telemetry.totalSessions}`,
+      `Active Days: ${telemetry.activeDaysCount}`,
+      `First Session: ${new Date(telemetry.firstSessionTimestamp).toLocaleDateString()}`,
+      `Last Active: ${new Date(telemetry.lastActiveTimestamp).toLocaleString()}`,
+      '',
+      '--- Feature Usage Breakdown ---',
+      `Viability Checks: ${telemetry.featureCounts.viabilityChecked}`,
+      `Plants Added: ${telemetry.featureCounts.plantsAdded}`,
+      `Plants Edited: ${telemetry.featureCounts.plantsEdited}`,
+      `Seed Packs Exported: ${telemetry.featureCounts.seedPacksExported}`,
+      `Seed Packs Imported: ${telemetry.featureCounts.seedPacksImported}`,
+      `Seed Swaps Viewed: ${telemetry.featureCounts.seedSwapsViewed}`,
+      `AI Logs Consulted: ${telemetry.featureCounts.aiLogsViewed}`,
+      `AI Datasets Generated: ${telemetry.featureCounts.aiDatasetsGenerated}`,
+      '',
+      '--- Garden Inventory Footprint ---',
+      `Catalog Plants: ${dbCounts?.plantCount ?? plants.length}`,
+      `Active Plantings: ${dbCounts?.plantingCount ?? plantings.length}`,
+      `IndexedDB Storage Used: ${formatBytes(storageEstimate.usage)}`,
+      `Storage Persistence: ${isPersisted ? 'Protected' : 'Ephemeral'}`,
+      `Est. Server & API Cost: $0.00 (Zero-Cost Local Architecture)`,
+    ];
+
+    await navigator.clipboard.writeText(lines.join('\n'));
+    setCopiedSummary(true);
+    setTimeout(() => setCopiedSummary(false), 2500);
+    toast({
+      title: 'Usage Summary Copied!',
+      description: 'Copied structured usage statistics to clipboard.',
+    });
+  };
+
+  // Reset telemetry counters
+  const handleResetTelemetry = () => {
+    const refreshed = resetUsageTelemetry();
+    setTelemetry(refreshed);
+    toast({
+      title: 'Usage Statistics Reset',
+      description: 'All local usage interaction telemetry has been reset.',
+    });
   };
 
   // Calculate garden inventory and stage metrics
@@ -325,7 +444,7 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
     };
   }, [plantings]);
 
-  // Calculate AI operation statistics
+  // Calculate AI operation statistics from Dexie aiLogs
   const aiStats = useMemo(() => {
     if (!aiLogs || aiLogs.length === 0) {
       return {
@@ -398,12 +517,12 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
           variant="outline"
           size="sm"
           className="gap-2 text-xs font-medium"
-          title="Garden usage metrics, local storage health, and project sustainability"
+          title="Garden usage statistics telemetry, local storage health, and sustainability"
         >
-          <Activity className="h-4 w-4 text-primary animate-pulse" />
-          <span>Stats &amp; Info</span>
-          <Badge variant="secondary" className="hidden sm:inline-flex px-1.5 py-0 text-[10px]">
-            100% Free
+          <BarChart3 className="h-4 w-4 text-primary" />
+          <span>Usage Stats</span>
+          <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-mono">
+            {telemetry.totalInteractions}
           </Badge>
         </Button>
       </DialogTrigger>
@@ -418,30 +537,30 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
               </div>
               <div>
                 <DialogTitle className="font-headline text-lg sm:text-xl flex items-center gap-2">
-                  Usage Stats &amp; Sustainability Hub
+                  Usage Statistics &amp; Sustainability
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Live garden inventory, storage resilience, zero-cost architecture, and what keeps Grow thriving.
+                  Gathered telemetry on feature interactions, garden lifecycle, storage health, and zero-cost longevity.
                 </DialogDescription>
               </div>
             </div>
             <Badge variant="outline" className="hidden sm:flex text-[11px] font-mono border-primary/40 text-primary">
-              v{APP_VERSION}
+              Local Telemetry
             </Badge>
           </div>
         </DialogHeader>
 
-        {/* Tabbed Content Area */}
-        <Tabs defaultValue="sustainability" className="flex-1 flex flex-col min-h-0">
+        {/* Tabbed Content Area: Primary focus is Usage Statistics */}
+        <Tabs defaultValue="usage-stats" className="flex-1 flex flex-col min-h-0">
           <div className="px-6 pt-3 border-b bg-background">
             <TabsList className="grid grid-cols-3 w-full sm:w-auto sm:inline-flex h-9">
+              <TabsTrigger value="usage-stats" className="text-xs gap-1.5 font-medium">
+                <BarChart3 className="h-3.5 w-3.5 text-primary" />
+                <span>Usage Statistics</span>
+              </TabsTrigger>
               <TabsTrigger value="sustainability" className="text-xs gap-1.5 font-medium">
                 <ShieldCheck className="h-3.5 w-3.5 text-primary" />
                 <span>Keeping It Going</span>
-              </TabsTrigger>
-              <TabsTrigger value="stats" className="text-xs gap-1.5 font-medium">
-                <BarChart3 className="h-3.5 w-3.5 text-primary" />
-                <span>Usage &amp; Storage</span>
               </TabsTrigger>
               <TabsTrigger value="system" className="text-xs gap-1.5 font-medium">
                 <Cpu className="h-3.5 w-3.5 text-primary" />
@@ -452,7 +571,323 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
 
           <ScrollArea className="flex-1 p-6 overflow-y-auto">
             {/* ========================================================================= */}
-            {/* TAB 1: KEEPING IT GOING (SUSTAINABILITY & DATA RESILIENCE)               */}
+            {/* TAB 1: GATHERED USAGE STATISTICS (PRIMARY PURPOSE)                        */}
+            {/* ========================================================================= */}
+            <TabsContent value="usage-stats" className="m-0 space-y-6">
+              {/* Telemetry Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Card className="p-3.5 bg-card">
+                  <div className="text-[11px] font-medium text-muted-foreground flex items-center justify-between">
+                    <span>Gathered Actions</span>
+                    <MousePointerClick className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <div className="text-2xl font-bold font-headline mt-1">
+                    {telemetry.totalInteractions}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    Across {telemetry.totalSessions} session{telemetry.totalSessions === 1 ? '' : 's'}
+                  </div>
+                </Card>
+
+                <Card className="p-3.5 bg-card">
+                  <div className="text-[11px] font-medium text-muted-foreground flex items-center justify-between">
+                    <span>Active Days</span>
+                    <Calendar className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <div className="text-2xl font-bold font-headline mt-1">
+                    {telemetry.activeDaysCount}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    First: {new Date(telemetry.firstSessionTimestamp).toLocaleDateString()}
+                  </div>
+                </Card>
+
+                <Card className="p-3.5 bg-card">
+                  <div className="text-[11px] font-medium text-muted-foreground flex items-center justify-between">
+                    <span>Plantings Tracked</span>
+                    <Layers className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <div className="text-2xl font-bold font-headline mt-1">
+                    {dbCounts?.plantingCount ?? plantings.length}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    {dbCounts?.plantCount ?? plants.length} unique cultivars
+                  </div>
+                </Card>
+
+                <Card className="p-3.5 bg-card">
+                  <div className="text-[11px] font-medium text-muted-foreground flex items-center justify-between">
+                    <span>AI Reasoning Volume</span>
+                    <Activity className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <div className="text-2xl font-bold font-headline mt-1">
+                    {dbCounts?.aiLogCount ?? aiStats.total}
+                  </div>
+                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
+                    100% Free ($0.00)
+                  </div>
+                </Card>
+              </div>
+
+              {/* Feature Usage Telemetry Breakdown */}
+              <Card>
+                <CardHeader className="p-4 pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-primary" />
+                      <span>Feature Usage Telemetry</span>
+                    </CardTitle>
+                    <Badge variant="outline" className="text-[10px] font-mono">
+                      Gathered Locally
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-xs">
+                    Frequency of features invoked in your local garden session.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                    <div className="p-2.5 rounded-lg border bg-muted/20">
+                      <div className="text-muted-foreground">Viability Analyses</div>
+                      <div className="text-lg font-bold font-headline mt-0.5 text-foreground">
+                        {telemetry.featureCounts.viabilityChecked}
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-lg border bg-muted/20">
+                      <div className="text-muted-foreground">Plants Added / Edited</div>
+                      <div className="text-lg font-bold font-headline mt-0.5 text-foreground">
+                        {telemetry.featureCounts.plantsAdded + telemetry.featureCounts.plantsEdited}
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-lg border bg-muted/20">
+                      <div className="text-muted-foreground">Seed Packs Exported</div>
+                      <div className="text-lg font-bold font-headline mt-0.5 text-foreground">
+                        {telemetry.featureCounts.seedPacksExported}
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-lg border bg-muted/20">
+                      <div className="text-muted-foreground">Seed Packs Imported</div>
+                      <div className="text-lg font-bold font-headline mt-0.5 text-foreground">
+                        {telemetry.featureCounts.seedPacksImported}
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-lg border bg-muted/20">
+                      <div className="text-muted-foreground">Seed Swap Invocations</div>
+                      <div className="text-lg font-bold font-headline mt-0.5 text-foreground">
+                        {telemetry.featureCounts.seedSwapsViewed}
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-lg border bg-muted/20">
+                      <div className="text-muted-foreground">AI Reasoning Lookups</div>
+                      <div className="text-lg font-bold font-headline mt-0.5 text-foreground">
+                        {telemetry.featureCounts.aiLogsViewed}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Plantings Lifecycle Movements */}
+              <Card>
+                <CardHeader className="p-4 pb-3">
+                  <CardTitle className="text-sm font-semibold flex items-center justify-between">
+                    <span>Garden Lifecycle &amp; Harvest Distribution</span>
+                    <Badge variant="outline" className="text-xs font-mono">
+                      {plantings.length} Active
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Current stage distribution and seed bank balances.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                    <div className="p-2.5 rounded-lg border bg-muted/30">
+                      <div className="font-semibold text-muted-foreground">Wishlist</div>
+                      <div className="text-xl font-bold mt-1 text-foreground">{stageMetrics.wishlist}</div>
+                      <div className="text-[10px] text-muted-foreground">Planning</div>
+                    </div>
+                    <div className="p-2.5 rounded-lg border bg-amber-500/5 border-amber-500/20">
+                      <div className="font-semibold text-amber-600 dark:text-amber-400">Planting / Sown</div>
+                      <div className="text-xl font-bold mt-1 text-foreground">{stageMetrics.planting}</div>
+                      <div className="text-[10px] text-muted-foreground">Germinating</div>
+                    </div>
+                    <div className="p-2.5 rounded-lg border bg-blue-500/5 border-blue-500/20">
+                      <div className="font-semibold text-blue-600 dark:text-blue-400">Growing</div>
+                      <div className="text-xl font-bold mt-1 text-foreground">{stageMetrics.growing}</div>
+                      <div className="text-[10px] text-muted-foreground">Vegetative</div>
+                    </div>
+                    <div className="p-2.5 rounded-lg border bg-emerald-500/5 border-emerald-500/20">
+                      <div className="font-semibold text-emerald-600 dark:text-emerald-400">Harvest</div>
+                      <div className="text-xl font-bold mt-1 text-foreground">{stageMetrics.harvest}</div>
+                      <div className="text-[10px] text-muted-foreground">Harvested</div>
+                    </div>
+                  </div>
+
+                  {/* Seed Balances */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-md bg-muted/40 text-xs font-mono">
+                    <span className="font-medium font-sans text-muted-foreground">Seed Inventory:</span>
+                    <div className="flex items-center gap-2">
+                      <span>{stageMetrics.totalOnHand} On Hand</span>
+                      <span className="text-muted-foreground">/</span>
+                      <span>{stageMetrics.totalPlanned} Planned</span>
+                      <span className="text-muted-foreground">/</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                        +{stageMetrics.totalSurplus} Surplus
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* IndexedDB Local Storage Footprint */}
+              <Card>
+                <CardHeader className="p-4 pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <HardDrive className="h-4 w-4 text-primary" />
+                      <span>IndexedDB Storage Footprint</span>
+                    </CardTitle>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground"
+                      onClick={refreshStorageInfo}
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      <span>Refresh</span>
+                    </Button>
+                  </div>
+                  <CardDescription className="text-xs">
+                    Storage consumed locally by database <code className="bg-muted px-1 py-0.5 rounded font-mono">growDB</code>.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-3">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-mono">
+                      <span>Used: {formatBytes(storageEstimate.usage)}</span>
+                      <span className="text-muted-foreground">
+                        Quota: {formatBytes(storageEstimate.quota)} ({storagePercent.toFixed(3)}%)
+                      </span>
+                    </div>
+                    <Progress value={Math.max(1, storagePercent)} className="h-2" />
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-center text-[11px] font-mono pt-1 text-muted-foreground">
+                    <div className="p-1.5 bg-muted/30 rounded border">
+                      <div className="font-bold text-foreground">{dbCounts?.plantCount ?? 0}</div>
+                      <div>plants</div>
+                    </div>
+                    <div className="p-1.5 bg-muted/30 rounded border">
+                      <div className="font-bold text-foreground">{dbCounts?.plantingCount ?? 0}</div>
+                      <div>plantings</div>
+                    </div>
+                    <div className="p-1.5 bg-muted/30 rounded border">
+                      <div className="font-bold text-foreground">{dbCounts?.locationCount ?? 0}</div>
+                      <div>locations</div>
+                    </div>
+                    <div className="p-1.5 bg-muted/30 rounded border">
+                      <div className="font-bold text-foreground">{dbCounts?.aiLogCount ?? 0}</div>
+                      <div>aiLogs</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* AI Inference Stats */}
+              {aiStats.total > 0 && (
+                <Card>
+                  <CardHeader className="p-4 pb-3">
+                    <CardTitle className="text-sm font-semibold flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        <span>AI Inference Volume &amp; Satisfaction</span>
+                      </span>
+                      <Badge variant="outline" className="text-xs font-mono">
+                        {aiStats.successRate}% Success
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Telemetry from logged botanical reasoning operations.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0 space-y-3">
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="p-2 border rounded-md">
+                        <div className="text-muted-foreground font-mono">Successes</div>
+                        <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                          {aiStats.success}
+                        </div>
+                      </div>
+                      <div className="p-2 border rounded-md">
+                        <div className="text-muted-foreground font-mono">Retries / Errors</div>
+                        <div className="text-lg font-bold text-amber-600 dark:text-amber-400 mt-0.5">
+                          {aiStats.errors}
+                        </div>
+                      </div>
+                      <div className="p-2 border rounded-md">
+                        <div className="text-muted-foreground font-mono">Satisfaction</div>
+                        <div className="text-lg font-bold text-primary mt-0.5">
+                          {aiStats.satisfactionRate}%
+                        </div>
+                      </div>
+                    </div>
+
+                    {Object.keys(aiStats.modelsUsed).length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          Models &amp; Engines Invoked
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {Object.entries(aiStats.modelsUsed).map(([model, count]) => (
+                            <Badge key={model} variant="secondary" className="text-[11px] font-mono gap-1">
+                              <span>{model}</span>
+                              <span className="text-muted-foreground font-normal">({count})</span>
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Telemetry Action Controls */}
+              <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border bg-muted/20">
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs gap-1.5"
+                    onClick={handleExportUsageReport}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Download Stats JSON</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-8 text-xs gap-1.5"
+                    onClick={handleCopyUsageSummary}
+                  >
+                    {copiedSummary ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    <span>{copiedSummary ? 'Copied' : 'Copy Summary'}</span>
+                  </Button>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 text-xs gap-1 text-muted-foreground hover:text-destructive"
+                  onClick={handleResetTelemetry}
+                  title="Reset gathered telemetry counters"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Reset Counters</span>
+                </Button>
+              </div>
+            </TabsContent>
+
+            {/* ========================================================================= */}
+            {/* TAB 2: KEEPING IT GOING (SUSTAINABILITY & DATA RESILIENCE)               */}
             {/* ========================================================================= */}
             <TabsContent value="sustainability" className="m-0 space-y-6">
               {/* Core Philosophy Banner */}
@@ -463,7 +898,7 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
                   </div>
                   <div className="space-y-1.5">
                     <h3 className="font-headline text-base font-semibold text-foreground">
-                      What It Takes to Keep Grow Going
+                      What It Takes to Keep It Going
                     </h3>
                     <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                       Grow is built under a strict <strong>Zero-Server-Cost &amp; Local-First architecture</strong>.
@@ -732,226 +1167,13 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
             </TabsContent>
 
             {/* ========================================================================= */}
-            {/* TAB 2: USAGE & STORAGE METRICS                                           */}
-            {/* ========================================================================= */}
-            <TabsContent value="stats" className="m-0 space-y-6">
-              {/* Top 4 Stat Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <Card className="p-3.5 bg-card">
-                  <div className="text-[11px] font-medium text-muted-foreground flex items-center justify-between">
-                    <span>Species Library</span>
-                    <Sprout className="h-3.5 w-3.5 text-primary" />
-                  </div>
-                  <div className="text-2xl font-bold font-headline mt-1">
-                    {dbCounts?.plantCount ?? plants.length}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">
-                    Unique cultivars
-                  </div>
-                </Card>
-
-                <Card className="p-3.5 bg-card">
-                  <div className="text-[11px] font-medium text-muted-foreground flex items-center justify-between">
-                    <span>Active Plantings</span>
-                    <Layers className="h-3.5 w-3.5 text-primary" />
-                  </div>
-                  <div className="text-2xl font-bold font-headline mt-1">
-                    {dbCounts?.plantingCount ?? plantings.length}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">
-                    Across {dbCounts?.locationCount ?? 1} garden bed{(dbCounts?.locationCount ?? 1) === 1 ? '' : 's'}
-                  </div>
-                </Card>
-
-                <Card className="p-3.5 bg-card">
-                  <div className="text-[11px] font-medium text-muted-foreground flex items-center justify-between">
-                    <span>Seed Inventory</span>
-                    <Package className="h-3.5 w-3.5 text-primary" />
-                  </div>
-                  <div className="text-2xl font-bold font-headline mt-1">
-                    {stageMetrics.totalOnHand}
-                  </div>
-                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
-                    +{stageMetrics.totalSurplus} surplus for swap
-                  </div>
-                </Card>
-
-                <Card className="p-3.5 bg-card">
-                  <div className="text-[11px] font-medium text-muted-foreground flex items-center justify-between">
-                    <span>AI &amp; Viability Logs</span>
-                    <Activity className="h-3.5 w-3.5 text-primary" />
-                  </div>
-                  <div className="text-2xl font-bold font-headline mt-1">
-                    {dbCounts?.aiLogCount ?? aiStats.total}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">
-                    Est. Cost: <strong className="text-emerald-600 dark:text-emerald-400">$0.00</strong>
-                  </div>
-                </Card>
-              </div>
-
-              {/* Lifecycle Stage Breakdown */}
-              <Card>
-                <CardHeader className="p-4 pb-3">
-                  <CardTitle className="text-sm font-semibold flex items-center justify-between">
-                    <span>Planting Lifecycle Distribution</span>
-                    <Badge variant="outline" className="text-xs font-mono">
-                      {plantings.length} Total
-                    </Badge>
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Current stage distribution across your active garden.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 space-y-3">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-                    <div className="p-2.5 rounded-lg border bg-muted/30">
-                      <div className="font-semibold text-muted-foreground">Wishlist</div>
-                      <div className="text-xl font-bold mt-1 text-foreground">{stageMetrics.wishlist}</div>
-                      <div className="text-[10px] text-muted-foreground">Planning phase</div>
-                    </div>
-                    <div className="p-2.5 rounded-lg border bg-amber-500/5 border-amber-500/20">
-                      <div className="font-semibold text-amber-600 dark:text-amber-400">Planting / Sown</div>
-                      <div className="text-xl font-bold mt-1 text-foreground">{stageMetrics.planting}</div>
-                      <div className="text-[10px] text-muted-foreground">Germinating</div>
-                    </div>
-                    <div className="p-2.5 rounded-lg border bg-blue-500/5 border-blue-500/20">
-                      <div className="font-semibold text-blue-600 dark:text-blue-400">Growing</div>
-                      <div className="text-xl font-bold mt-1 text-foreground">{stageMetrics.growing}</div>
-                      <div className="text-[10px] text-muted-foreground">Vegetative</div>
-                    </div>
-                    <div className="p-2.5 rounded-lg border bg-emerald-500/5 border-emerald-500/20">
-                      <div className="font-semibold text-emerald-600 dark:text-emerald-400">Harvest</div>
-                      <div className="text-xl font-bold mt-1 text-foreground">{stageMetrics.harvest}</div>
-                      <div className="text-[10px] text-muted-foreground">Harvest ready</div>
-                    </div>
-                  </div>
-
-                  {/* Viability Summary Pill */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-md bg-muted/40 text-xs">
-                    <span className="font-medium text-muted-foreground">Viability Health:</span>
-                    <div className="flex items-center gap-2 font-mono">
-                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{stageMetrics.highViability} High</span>
-                      <span className="text-muted-foreground">/</span>
-                      <span className="text-amber-600 dark:text-amber-400 font-semibold">{stageMetrics.medViability} Med</span>
-                      <span className="text-muted-foreground">/</span>
-                      <span className="text-red-600 dark:text-red-400 font-semibold">{stageMetrics.lowViability} Low</span>
-                      {stageMetrics.unassessedViability > 0 && (
-                        <>
-                          <span className="text-muted-foreground">/</span>
-                          <span className="text-muted-foreground">{stageMetrics.unassessedViability} Unassessed</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Local Storage Meter */}
-              <Card>
-                <CardHeader className="p-4 pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <HardDrive className="h-4 w-4 text-primary" />
-                      <span>IndexedDB Local Storage Meter</span>
-                    </CardTitle>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground"
-                      onClick={refreshStorageInfo}
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                      <span>Refresh</span>
-                    </Button>
-                  </div>
-                  <CardDescription className="text-xs">
-                    Physical browser storage consumed by <code className="bg-muted px-1 py-0.5 rounded font-mono">growDB</code>.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 space-y-3">
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-mono">
-                      <span>Used: {formatBytes(storageEstimate.usage)}</span>
-                      <span className="text-muted-foreground">
-                        Quota: {formatBytes(storageEstimate.quota)} ({storagePercent.toFixed(3)}%)
-                      </span>
-                    </div>
-                    <Progress value={Math.max(1, storagePercent)} className="h-2" />
-                  </div>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    IndexedDB storage is local-first and private to your device. No user data leaves your browser unless you explicitly copy a seed pack or broadcast a P2P signal.
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* AI Operations Breakdown */}
-              {aiStats.total > 0 && (
-                <Card>
-                  <CardHeader className="p-4 pb-3">
-                    <CardTitle className="text-sm font-semibold flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-primary" />
-                        <span>AI Inference Analytics</span>
-                      </span>
-                      <Badge variant="outline" className="text-xs font-mono">
-                        {aiStats.successRate}% Success
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription className="text-xs">
-                      Breakdown of reasoning flows executed through the Free-LLM router.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0 space-y-3">
-                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                      <div className="p-2 border rounded-md">
-                        <div className="text-muted-foreground font-mono">Successes</div>
-                        <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                          {aiStats.success}
-                        </div>
-                      </div>
-                      <div className="p-2 border rounded-md">
-                        <div className="text-muted-foreground font-mono">Errors / 429s</div>
-                        <div className="text-lg font-bold text-amber-600 dark:text-amber-400 mt-0.5">
-                          {aiStats.errors}
-                        </div>
-                      </div>
-                      <div className="p-2 border rounded-md">
-                        <div className="text-muted-foreground font-mono">Satisfaction</div>
-                        <div className="text-lg font-bold text-primary mt-0.5">
-                          {aiStats.satisfactionRate}%
-                        </div>
-                      </div>
-                    </div>
-
-                    {Object.keys(aiStats.modelsUsed).length > 0 && (
-                      <div className="space-y-1.5 pt-1">
-                        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                          Models &amp; Engines Invoked
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {Object.entries(aiStats.modelsUsed).map(([model, count]) => (
-                            <Badge key={model} variant="secondary" className="text-[11px] font-mono gap-1">
-                              <span>{model}</span>
-                              <span className="text-muted-foreground font-normal">({count})</span>
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-
-            {/* ========================================================================= */}
             {/* TAB 3: SYSTEM, MCP & PROTOCOL HEALTH                                     */}
             {/* ========================================================================= */}
             <TabsContent value="system" className="m-0 space-y-6">
               {/* Agent Protocol Endpoints */}
               <div className="space-y-3">
                 <h4 className="font-headline text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Terminal className="h-4 w-4 text-primary" />
+                  <Activity className="h-4 w-4 text-primary" />
                   <span>Autonomous Agent Endpoints (MCP &amp; Google A2A)</span>
                 </h4>
 
@@ -1084,7 +1306,7 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
               {/* Upstream & Community Links */}
               <div className="border-t pt-4 flex flex-wrap gap-2 justify-between items-center text-xs">
                 <span className="text-muted-foreground">
-                  Grow {APP_VERSION} • Open Source under MIT
+                  Grow • Local-First Architecture
                 </span>
                 <div className="flex gap-2">
                   <a href={REPO_URL} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
@@ -1113,9 +1335,9 @@ export function UsageStatsInfoWidget({ plants, plantings, activeLocation }: Exte
 
 export const usageStatsInfoExtension: GrowExtension = {
   id: 'usage-stats-info',
-  name: 'Usage Stats & Info',
+  name: 'Usage Statistics',
   description:
-    'Live garden metrics, storage persistence, and clear insights on what keeps Grow running forever.',
+    'Gathers and displays local garden usage telemetry, interaction frequency, storage health, and what keeps Grow running forever.',
   version: '1.0.0',
   slots: ['dashboard-toolbar'],
   contributor: {

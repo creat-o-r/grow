@@ -6,6 +6,8 @@ Welcome! This repository is architected for **zero-merge-conflict crowd developm
 1. **Local-First & Zero Server Cost**: All user garden state lives in `IndexedDB` via Dexie ([`src/lib/db.ts`](./src/lib/db.ts)). Never introduce paid databases or persistent WebSocket backend servers that break **Vercel's Free Hobby Tier**.
 2. **Never Destructively Wipe Data**: When importing or syncing plant data, always use [`mergeSeedPackIntoDb`](./src/lib/seed-pack.ts) so existing user gardens are preserved.
 3. **Browser Support Policy**: Allow Newly Available web platform features (such as Chrome's Built-in AI `LanguageModel` Prompt API and `WebMCP`), provided they are strictly feature-detected (`'LanguageModel' in self`) and gracefully fall back to the free LLM cascade in [`src/ai/model.ts`](./src/ai/model.ts) or deterministic logic in [`src/lib/viability.ts`](./src/lib/viability.ts).
+4. **No Version Numbers or License Boilerplate in UI**: Never hardcode or display arbitrary semantic version numbers (such as `Grow 1.1.0`) or licensing notices (such as `Open Source under MIT`) in extensions, widgets, or UI components. Version tracking is handled dynamically via Git commits ([`src/lib/git-version.ts`](./src/lib/git-version.ts)) if needed, and licensing is governed repository-wide without cluttering user interfaces.
+5. **Usage Statistics Gathering Standard**: Extensions or tools built for usage statistics have the explicit primary purpose of **gathering, aggregating, and visualizing usage statistics** (sessions, active days, feature invocation frequencies, lifecycle transitions, storage footprint, and AI inference volume) while keeping all telemetry local-first and zero-cost.
 
 ---
 
