@@ -29,6 +29,7 @@ import {
   Calendar,
   AlertCircle,
   ExternalLink,
+  Info,
 } from 'lucide-react';
 import { buildShareableSeedPackUrl } from '@/lib/seed-pack';
 import { cn } from '@/lib/utils';
@@ -234,7 +235,21 @@ export function SharePlantDialog({
     }
   };
 
-  const handleFacebookShare = () => {
+  const handleFacebookShare = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(shareSummaryText);
+      }
+      setCopiedSummary(true);
+      setTimeout(() => setCopiedSummary(false), 3000);
+    } catch {
+      // ignore
+    }
+    toast({
+      title: '📋 Viability Summary Copied to Clipboard!',
+      description: 'Facebook link cards often hide descriptions in feeds. Paste (Ctrl+V / Cmd+V) into your post to include the full garden assessment!',
+      duration: 6000,
+    });
     const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
     if (typeof window !== 'undefined') {
       window.open(fbUrl, '_blank', 'width=626,height=436,noopener,noreferrer');
@@ -414,6 +429,14 @@ export function SharePlantDialog({
           <p className="text-[11px] text-muted-foreground leading-tight">
             Anyone opening this link can view this plant with its viability insights and import it directly into their own garden.
           </p>
+        </div>
+
+        {/* Facebook tip callout */}
+        <div className="flex items-start gap-2 text-[11px] text-muted-foreground bg-muted/40 rounded-md p-2.5 border border-muted">
+          <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+          <span>
+            <strong>Sharing to Facebook:</strong> Facebook often hides link descriptions in mobile feeds. When you click <strong>Facebook</strong>, your complete garden viability assessment is automatically copied to your clipboard so you can easily <strong>paste (Ctrl+V)</strong> it into your post!
+          </span>
         </div>
 
         {/* Footer actions */}

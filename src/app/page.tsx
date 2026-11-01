@@ -32,7 +32,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       const reasoning = planting?.viabilityReasoning;
 
       const title = viability
-        ? `${plantName} — ${viability} Viability in ${gardenName}`
+        ? `${plantName} (${viability} Viability in ${gardenName}${season ? ` • ${season}` : ''})`
         : `${plantName} (${gardenName}) — Grow Plant Pack`;
 
       const description = [
@@ -65,6 +65,17 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         ? 'image/webp'
         : 'image/jpeg';
 
+      const ogCardParams = new URLSearchParams();
+      ogCardParams.set('name', plantName);
+      if (plant?.species) ogCardParams.set('species', plant.species);
+      if (viability) ogCardParams.set('viability', viability);
+      if (gardenName) ogCardParams.set('garden', gardenName);
+      if (season) ogCardParams.set('season', season);
+      if (imageUrl && !imageUrl.includes('og-image.jpg')) {
+        ogCardParams.set('photo', imageUrl);
+      }
+      const dynamicOgImageUrl = `https://grow-rho-two.vercel.app/api/og?${ogCardParams.toString()}`;
+
       const canonicalParams = new URLSearchParams();
       canonicalParams.set('pack', packParam);
       if (plantName) canonicalParams.set('name', plantName);
@@ -82,12 +93,20 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
           type: 'article',
           images: [
             {
+              url: dynamicOgImageUrl,
+              secureUrl: dynamicOgImageUrl,
+              width: 1200,
+              height: 630,
+              type: 'image/png',
+              alt: `${plantName} — ${viability || 'Viability'} in ${gardenName}`,
+            },
+            {
               url: imageUrl,
               secureUrl: isHttps ? imageUrl : undefined,
               width: 1200,
               height: 630,
               type: imageType,
-              alt: `${plantName} — ${viability || 'Viability'} in ${gardenName}`,
+              alt: `${plantName} Photograph`,
             },
           ],
         },
@@ -95,7 +114,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
           card: 'summary_large_image',
           title,
           description,
-          images: [imageUrl],
+          images: [dynamicOgImageUrl],
         },
       };
     } catch (err: any) {
@@ -106,8 +125,14 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   // 2. Fallback if shared with query parameters only
   if (nameParam) {
     const gardenName = gardenParam || 'My Garden';
+    const ogCardParams = new URLSearchParams();
+    ogCardParams.set('name', nameParam);
+    if (viabilityParam) ogCardParams.set('viability', viabilityParam);
+    ogCardParams.set('garden', gardenName);
+    const dynamicOgImageUrl = `https://grow-rho-two.vercel.app/api/og?${ogCardParams.toString()}`;
+
     const title = viabilityParam
-      ? `${nameParam} — ${viabilityParam} Viability in ${gardenName}`
+      ? `${nameParam} (${viabilityParam} Viability in ${gardenName})`
       : `${nameParam} — Grow Plant`;
 
     const description = viabilityParam
@@ -126,11 +151,11 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         type: 'article',
         images: [
           {
-            url: 'https://grow-rho-two.vercel.app/og-image.jpg',
-            secureUrl: 'https://grow-rho-two.vercel.app/og-image.jpg',
+            url: dynamicOgImageUrl,
+            secureUrl: dynamicOgImageUrl,
             width: 1200,
             height: 630,
-            type: 'image/jpeg',
+            type: 'image/png',
             alt: title,
           },
         ],
@@ -139,7 +164,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         card: 'summary_large_image',
         title,
         description,
-        images: ['https://grow-rho-two.vercel.app/og-image.jpg'],
+        images: [dynamicOgImageUrl],
       },
     };
   }
