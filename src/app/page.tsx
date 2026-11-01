@@ -2175,8 +2175,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                 
                 {/* Mobile Sticky 4-Column All-In-One Pill Bar: Wish, Plant, Grow, Harv (Apart from All, All Totals & Viabilities, Only Pills on Columns) */}
                 <div className="sm:hidden sticky top-0 z-20 -mx-4 px-4 py-2 bg-background/95 backdrop-blur-md border-b border-border/40 mb-4 transition-all">
-                  {/* Apart from All: Includes Total Plant Count and Total Viability Pills */}
-                  <div className="flex items-center justify-between gap-2 mb-2">
+                  {/* Apart from All: Centered, Includes Total Plant Count and Total Viability Pills */}
+                  <div className="flex items-center justify-center gap-2 mb-2 relative">
                     <button
                       type="button"
                       onClick={() => setStatusFilter('All')}
@@ -2208,7 +2208,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                       <Button
                         variant="destructive"
                         size="sm"
-                        className="h-6 px-2 text-xs gap-1 rounded-full shrink-0"
+                        className="h-6 px-2 text-xs gap-1 rounded-full absolute right-0"
                         onClick={() => setIsDuplicateReviewSheetOpen(true)}
                         title="Review duplicate plants"
                       >
