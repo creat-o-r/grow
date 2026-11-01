@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import type { PlantingWithPlant, Conditions, StatusHistory } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight, Fence } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight, Fence, Share2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { ViabilityIndicator } from './ViabilityIndicator';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ import { getSuitableSeasons } from '@/lib/viability';
 import { Viability } from '@/lib/viability';
 import { useExtensions } from '@/extensions/use-extensions';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
+import { SharePlantDialog } from './SharePlantDialog';
 
 type PlantCardProps = {
   planting: PlantingWithPlant;
@@ -84,7 +85,7 @@ export function PlantCard({
     const suitableSeasons = getSuitableSeasons(plant);
     const { getBySlot } = useExtensions();
     const cardBadgeExtensions = getBySlot('plant-card-badge');
-
+    const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
     const statusConfig: { [key: string]: string } = {
         Wishlist: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800',
@@ -138,6 +139,13 @@ export function PlantCard({
                                 <DropdownMenuItem onClick={onGetViability}>
                                     <Sparkles className="mr-2 h-4 w-4" />
                                     Viability Analysis
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsShareDialogOpen(true);
+                                }}>
+                                    <Share2 className="mr-2 h-4 w-4" />
+                                    Share My Plant
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={onMarkAsDuplicate}>
                                     <Copy className="mr-2 h-4 w-4" />
@@ -222,6 +230,21 @@ export function PlantCard({
         </>
     );
 
+    const shareDialogElement = (
+        <SharePlantDialog
+            isOpen={isShareDialogOpen}
+            onOpenChange={setIsShareDialogOpen}
+            planting={planting}
+            viability={viability}
+            viabilityReasoning={viabilityReasoning}
+            upcomingViability={upcomingViability}
+            upcomingTiming={upcomingTiming}
+            upcomingReasoning={upcomingReasoning}
+            currentSeason={currentSeason}
+            onGetViability={onGetViability}
+        />
+    );
+
     if (isSelectionMode) {
         return (
              <div
@@ -250,13 +273,17 @@ export function PlantCard({
                 )}>
                     {cardContent}
                 </Card>
+                {shareDialogElement}
              </div>
         );
     }
     
     return (
-        <Card className="flex flex-col transition-all hover:shadow-lg hover:-translate-y-1">
-            {cardContent}
-        </Card>
+        <>
+            <Card className="flex flex-col transition-all hover:shadow-lg hover:-translate-y-1">
+                {cardContent}
+            </Card>
+            {shareDialogElement}
+        </>
     );
 }

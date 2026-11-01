@@ -31,12 +31,13 @@ import { DuplicateReviewSheet } from '@/components/DuplicateReviewSheet';
 import { PlantingDashboard } from '@/components/PlantingDashboard';
 import { GardenEditor, type GardenEnvField, type FieldShareStatus } from '@/components/GardenEditor';
 import { GardenEditSheet } from '@/components/GardenEditSheet';
+import { PlantSearchBar } from '@/components/PlantSearchBar';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Plus, Upload, Locate, Loader2, X, Sparkles, NotebookText, Settings, Info, Rocket, AlertCircle, Fence, Square, Layers, Split, CopyCheck, Radio } from 'lucide-react';
+import { Plus, Upload, Locate, Loader2, X, Sparkles, NotebookText, Settings, Info, Rocket, AlertCircle, Fence, Square, Layers, Split, CopyCheck, Radio, Search } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -57,6 +58,7 @@ export default function Home() {
   const [isClient, setIsClient] = useState(false);
   const [accordionValue, setAccordionValue] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const [hoveredTab, setHoveredTab] = useState<PlantStatus | 'All' | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState<string | null>(null);
@@ -1549,11 +1551,105 @@ const unspecifiedSeasonCount = useMemo(() => {
     return plantingsWithPlants.filter(p => p.history && p.history.length > 0 && ['Wishlist', 'Harvest'].includes(p.history[p.history.length-1].status));
   }, [plantingsWithPlants]);
 
+  const searchMatches = useMemo(() => {
+    if (!searchQuery.trim() || !plantingsWithPlants) {
+      return {
+        inCurrentSelection: [] as PlantingWithPlant[],
+        inOtherSections: [] as PlantingWithPlant[],
+        byStatus: { Wishlist: [], Planting: [], Growing: [], Harvest: [] } as Record<PlantStatus, PlantingWithPlant[]>,
+        all: [] as PlantingWithPlant[],
+        counts: { All: 0, Wishlist: 0, Planting: 0, Growing: 0, Harvest: 0 },
+      };
+    }
+
+    const q = searchQuery.toLowerCase().trim();
+    const getStatus = (p: Planting) =>
+      (p.history && p.history.length > 0 ? p.history[p.history.length - 1].status : 'Wishlist') as PlantStatus;
+
+    const matches = plantingsWithPlants.filter((p) => {
+      const nameMatch = p.name?.toLowerCase().includes(q);
+      const speciesMatch = p.plant?.species?.toLowerCase().includes(q);
+      const condMatch = p.plant?.optimalConditions?.toLowerCase().includes(q);
+      const germMatch = p.plant?.germinationNeeds?.toLowerCase().includes(q);
+      const notesMatch = p.history?.some((h) => h.notes?.toLowerCase().includes(q));
+      const viabilityMatch = (p.viability || currentViabilityData[p.id])?.toLowerCase().includes(q);
+      return !!(nameMatch || speciesMatch || condMatch || germMatch || notesMatch || viabilityMatch);
+    });
+
+    const byStatus: Record<PlantStatus, PlantingWithPlant[]> = {
+      Wishlist: [],
+      Planting: [],
+      Growing: [],
+      Harvest: [],
+    };
+
+    matches.forEach((p) => {
+      const status = getStatus(p);
+      if (byStatus[status]) {
+        byStatus[status].push(p);
+      }
+    });
+
+    const inCurrentSelection =
+      statusFilter === 'All' ? matches : byStatus[statusFilter as PlantStatus] || [];
+
+    const inOtherSections =
+      statusFilter === 'All' ? [] : matches.filter((p) => getStatus(p) !== statusFilter);
+
+    const counts = {
+      All: matches.length,
+      Wishlist: byStatus.Wishlist.length,
+      Planting: byStatus.Planting.length,
+      Growing: byStatus.Growing.length,
+      Harvest: byStatus.Harvest.length,
+    };
+
+    return {
+      inCurrentSelection,
+      inOtherSections,
+      byStatus,
+      all: matches,
+      counts,
+    };
+  }, [searchQuery, plantingsWithPlants, statusFilter, currentViabilityData]);
+
+  const otherGardenSearchMatches = useMemo(() => {
+    if (!searchQuery.trim() || !locations || locations.length <= 1 || !plantings || !plants) {
+      return [] as PlantingWithPlant[];
+    }
+    const q = searchQuery.toLowerCase().trim();
+    const plantMap = new Map(plants.map((p) => [p.id, p]));
+
+    const currentGardenIds = effectivelySingleGardenView
+      ? (activeLocationId ? [activeLocationId] : [])
+      : selectedGardenIds;
+
+    const otherPlantings = plantings.filter((p) => !currentGardenIds.includes(p.gardenId));
+    return otherPlantings
+      .map((p) => ({
+        ...p,
+        plant: plantMap.get(p.plantId)!,
+        garden: locations.find((l) => l.id === p.gardenId),
+      }))
+      .filter((p) => p.plant)
+      .filter((p) => {
+        const nameMatch = p.name?.toLowerCase().includes(q);
+        const speciesMatch = p.plant?.species?.toLowerCase().includes(q);
+        const notesMatch = p.history?.some((h) => h.notes?.toLowerCase().includes(q));
+        return !!(nameMatch || speciesMatch || notesMatch);
+      });
+  }, [searchQuery, locations, plantings, plants, effectivelySingleGardenView, activeLocationId, selectedGardenIds]);
+
   const statusCounts = useMemo(() => {
     const counts: { [key in PlantStatus | 'All']: number } = {
         All: 0, Wishlist: 0, Planting: 0, Growing: 0, Harvest: 0
     };
     if (!plantingsWithPlants) return counts;
+
+    if (searchQuery.trim().length > 0) {
+      return searchMatches.counts;
+    }
+
     counts.All = plantingsWithPlants.length;
     plantingsWithPlants.forEach(p => {
         if (p.history && p.history.length > 0) {
@@ -1562,7 +1658,7 @@ const unspecifiedSeasonCount = useMemo(() => {
         }
     });
     return counts;
-  }, [plantingsWithPlants]);
+  }, [plantingsWithPlants, searchQuery, searchMatches.counts]);
 
   const tabViabilityData = useMemo(() => {
     const data: Record<PlantStatus | 'All', { High: number; Medium: number; Low: number; pending: number }> = {
@@ -1573,7 +1669,9 @@ const unspecifiedSeasonCount = useMemo(() => {
       Harvest: { High: 0, Medium: 0, Low: 0, pending: 0 },
     };
 
-    plantingsWithPlants?.forEach(p => {
+    const targetPlantings = searchQuery.trim().length > 0 ? searchMatches.all : plantingsWithPlants;
+
+    targetPlantings?.forEach(p => {
       const viability = p.viability || currentViabilityData[p.id];
       const lastStatus = (p.history && p.history.length > 0 ? p.history[p.history.length - 1].status : null) as PlantStatus | null;
 
@@ -1593,7 +1691,7 @@ const unspecifiedSeasonCount = useMemo(() => {
     });
 
     return data;
-  }, [plantingsWithPlants, currentViabilityData]);
+  }, [plantingsWithPlants, currentViabilityData, searchQuery, searchMatches.all]);
 
   const viabilityCounts = useMemo(() => {
     return {
@@ -2172,6 +2270,20 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                   activeLocation={activeLocation}
                   conditions={activeLocation?.conditions}
                 />
+
+                {/* Search Bar */}
+                <div className="mb-4">
+                  <PlantSearchBar
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    statusFilter={statusFilter}
+                    onClearStatusFilter={() => setStatusFilter('All')}
+                    currentSectionMatchesCount={searchMatches.inCurrentSelection.length}
+                    otherSectionMatchesCount={searchMatches.inOtherSections.length}
+                    otherGardenMatchesCount={otherGardenSearchMatches.length}
+                    totalMatches={searchMatches.all.length}
+                  />
+                </div>
                 
                 {/* Mobile Sticky 4-Column All-In-One Pill Bar: Wish, Plant, Grow, Harv (Apart from All, All Totals & Viabilities, Only Pills on Columns) */}
                 <div className="sm:hidden sticky top-0 z-20 -mx-4 px-4 py-2 bg-background/95 backdrop-blur-md border-b border-border/40 mb-4 transition-all">
@@ -2382,7 +2494,339 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                 
                 {plantings && plantings.length > 0 ? (
                     <>
-                      {statusFilter === 'Wishlist' ? (
+                      {searchQuery.trim().length > 0 ? (
+                        <div className="space-y-8">
+                          {/* Case A: Filtered by current selection (statusFilter !== 'All') */}
+                          {statusFilter !== 'All' ? (
+                            <>
+                              {/* Section 1: In Current Selection */}
+                              <section className="space-y-4">
+                                <div className="flex items-center justify-between border-b pb-2">
+                                  <div className="flex items-center gap-2">
+                                    <h2 className="text-xl font-headline font-semibold flex items-center gap-2">
+                                      <span>In {statusFilter}</span>
+                                      <Badge variant="secondary" className="font-mono text-xs">
+                                        {searchMatches.inCurrentSelection.length}
+                                      </Badge>
+                                    </h2>
+                                    <Badge variant="outline" className="text-xs text-muted-foreground border-dashed">
+                                      Current Selection
+                                    </Badge>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-xs h-7 gap-1 text-muted-foreground hover:text-foreground"
+                                    onClick={() => setStatusFilter('All')}
+                                  >
+                                    <span>Show all sections</span>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+
+                                {searchMatches.inCurrentSelection.length > 0 ? (
+                                  <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                    {searchMatches.inCurrentSelection.map((p, idx) => (
+                                      <div key={p.id} role="button" onClick={() => handleEditPlanting(p)} onKeyDown={(e) => e.key === 'Enter' && handleEditPlanting(p)} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-primary rounded-lg">
+                                        <PlantCard
+                                          planting={p}
+                                          viability={p.viability || currentViabilityData[p.id]}
+                                          viabilityReasoning={p.viabilityReasoning || currentReasoningData[p.id]}
+                                          upcomingViability={currentUpcomingData[p.id]?.upcomingViability || p.upcomingViability}
+                                          upcomingTiming={currentUpcomingData[p.id]?.upcomingTiming || p.upcomingTiming}
+                                          upcomingReasoning={currentUpcomingData[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                          currentSeason={activeLocation?.conditions?.currentSeason}
+                                          onEdit={() => handleEditPlanting(p)}
+                                          onDelete={() => promptDelete(p)}
+                                          onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                          onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
+                                          isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                          isSelectionMode={!!duplicateSelectionMode}
+                                          onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                          onGetViability={() => handleGetViability(p)}
+                                          showGardenLabel={!effectivelySingleGardenView}
+                                          isPriority={idx === 0}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <Card className="p-5 border-dashed bg-muted/20 text-center space-y-2">
+                                    <p className="text-sm font-medium text-foreground">
+                                      No plants matching &ldquo;{searchQuery}&rdquo; in <span className="font-semibold">{statusFilter}</span>.
+                                    </p>
+                                    {searchMatches.inOtherSections.length > 0 && (
+                                      <p className="text-xs text-muted-foreground">
+                                        Found <strong className="text-foreground font-semibold">{searchMatches.inOtherSections.length} match{searchMatches.inOtherSections.length === 1 ? '' : 'es'}</strong> in other sections below!
+                                      </p>
+                                    )}
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-xs h-7 gap-1 mt-1"
+                                      onClick={() => setStatusFilter('All')}
+                                    >
+                                      <span>Clear {statusFilter} filter and search all sections</span>
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </Card>
+                                )}
+                              </section>
+
+                              {/* Section 2: Results from Other Sections ("actually better results from other sections too") */}
+                              {searchMatches.inOtherSections.length > 0 && (
+                                <section className="space-y-6 pt-4 border-t">
+                                  <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <Layers className="h-4 w-4 text-primary" />
+                                      <h2 className="text-lg font-headline font-semibold">
+                                        Results from Other Sections
+                                      </h2>
+                                      <Badge variant="secondary" className="font-mono text-xs">
+                                        {searchMatches.inOtherSections.length}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {(['Wishlist', 'Planting', 'Growing', 'Harvest'] as PlantStatus[])
+                                        .filter((st) => st !== statusFilter && searchMatches.byStatus[st].length > 0)
+                                        .map((st) => (
+                                          <Button
+                                            key={st}
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-6 text-xs px-2 gap-1.5"
+                                            onClick={() => setStatusFilter(st)}
+                                            title={`Switch filter to ${st}`}
+                                          >
+                                            <span>{st}</span>
+                                            <Badge variant="secondary" className="h-4 px-1 text-[10px] font-mono">
+                                              {searchMatches.byStatus[st].length}
+                                            </Badge>
+                                          </Button>
+                                        ))}
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-6">
+                                    {(['Wishlist', 'Planting', 'Growing', 'Harvest'] as PlantStatus[])
+                                      .filter((st) => st !== statusFilter && searchMatches.byStatus[st].length > 0)
+                                      .map((st) => (
+                                        <div key={st} className="space-y-3">
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                              <Badge className="font-semibold text-xs">{st}</Badge>
+                                              <span className="text-xs text-muted-foreground font-mono">
+                                                ({searchMatches.byStatus[st].length} plant{searchMatches.byStatus[st].length === 1 ? '' : 's'})
+                                              </span>
+                                            </div>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="text-xs h-6 px-2 text-primary hover:bg-primary/10"
+                                              onClick={() => setStatusFilter(st)}
+                                            >
+                                              Switch to {st} tab
+                                            </Button>
+                                          </div>
+                                          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                            {searchMatches.byStatus[st].map((p) => (
+                                              <div key={p.id} role="button" onClick={() => handleEditPlanting(p)} onKeyDown={(e) => e.key === 'Enter' && handleEditPlanting(p)} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-primary rounded-lg">
+                                                <PlantCard
+                                                  planting={p}
+                                                  viability={p.viability || currentViabilityData[p.id]}
+                                                  viabilityReasoning={p.viabilityReasoning || currentReasoningData[p.id]}
+                                                  upcomingViability={currentUpcomingData[p.id]?.upcomingViability || p.upcomingViability}
+                                                  upcomingTiming={currentUpcomingData[p.id]?.upcomingTiming || p.upcomingTiming}
+                                                  upcomingReasoning={currentUpcomingData[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                                  currentSeason={activeLocation?.conditions?.currentSeason}
+                                                  onEdit={() => handleEditPlanting(p)}
+                                                  onDelete={() => promptDelete(p)}
+                                                  onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                                  onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
+                                                  isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                                  isSelectionMode={!!duplicateSelectionMode}
+                                                  onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                                  onGetViability={() => handleGetViability(p)}
+                                                  showGardenLabel={!effectivelySingleGardenView}
+                                                />
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ))}
+                                  </div>
+                                </section>
+                              )}
+                            </>
+                          ) : (
+                            /* Case B: All Sections (statusFilter === 'All') */
+                            <>
+                              <div className="flex items-center justify-between border-b pb-2">
+                                <div className="flex items-center gap-2">
+                                  <h2 className="text-xl font-headline font-semibold">
+                                    Matching Plants Across All Sections
+                                  </h2>
+                                  <Badge variant="secondary" className="font-mono text-xs">
+                                    {searchMatches.all.length}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {(['Wishlist', 'Planting', 'Growing', 'Harvest'] as PlantStatus[])
+                                    .filter((st) => searchMatches.byStatus[st].length > 0)
+                                    .map((st) => (
+                                      <Button
+                                        key={st}
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-6 text-xs px-2 gap-1.5"
+                                        onClick={() => setStatusFilter(st)}
+                                        title={`Filter search to ${st}`}
+                                      >
+                                        <span>{st}</span>
+                                        <Badge variant="secondary" className="h-4 px-1 text-[10px] font-mono">
+                                          {searchMatches.byStatus[st].length}
+                                        </Badge>
+                                      </Button>
+                                    ))}
+                                </div>
+                              </div>
+
+                              {searchMatches.all.length > 0 ? (
+                                <div className="space-y-6">
+                                  {(['Wishlist', 'Planting', 'Growing', 'Harvest'] as PlantStatus[])
+                                    .filter((st) => searchMatches.byStatus[st].length > 0)
+                                    .map((st) => (
+                                      <div key={st} className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-2">
+                                            <Badge className="font-semibold text-xs">{st}</Badge>
+                                            <span className="text-xs text-muted-foreground font-mono">
+                                              ({searchMatches.byStatus[st].length} plant{searchMatches.byStatus[st].length === 1 ? '' : 's'})
+                                            </span>
+                                          </div>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-xs h-6 px-2 text-primary hover:bg-primary/10"
+                                            onClick={() => setStatusFilter(st)}
+                                          >
+                                            Filter to {st}
+                                          </Button>
+                                        </div>
+                                        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                          {searchMatches.byStatus[st].map((p, idx) => (
+                                            <div key={p.id} role="button" onClick={() => handleEditPlanting(p)} onKeyDown={(e) => e.key === 'Enter' && handleEditPlanting(p)} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-primary rounded-lg">
+                                              <PlantCard
+                                                planting={p}
+                                                viability={p.viability || currentViabilityData[p.id]}
+                                                viabilityReasoning={p.viabilityReasoning || currentReasoningData[p.id]}
+                                                upcomingViability={currentUpcomingData[p.id]?.upcomingViability || p.upcomingViability}
+                                                upcomingTiming={currentUpcomingData[p.id]?.upcomingTiming || p.upcomingTiming}
+                                                upcomingReasoning={currentUpcomingData[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                                currentSeason={activeLocation?.conditions?.currentSeason}
+                                                onEdit={() => handleEditPlanting(p)}
+                                                onDelete={() => promptDelete(p)}
+                                                onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                                onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
+                                                isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                                isSelectionMode={!!duplicateSelectionMode}
+                                                onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                                onGetViability={() => handleGetViability(p)}
+                                                showGardenLabel={!effectivelySingleGardenView}
+                                                isPriority={idx === 0}
+                                              />
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                </div>
+                              ) : null}
+                            </>
+                          )}
+
+                          {/* Matches in Other Gardens (if any) */}
+                          {otherGardenSearchMatches.length > 0 && (
+                            <section className="space-y-4 pt-4 border-t">
+                              <div className="flex items-center gap-2">
+                                <Fence className="h-4 w-4 text-primary" />
+                                <h2 className="text-lg font-headline font-semibold">
+                                  Matches in Other Gardens
+                                </h2>
+                                <Badge variant="secondary" className="font-mono text-xs">
+                                  {otherGardenSearchMatches.length}
+                                </Badge>
+                              </div>
+
+                              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                                {otherGardenSearchMatches.map((p) => (
+                                  <Card key={p.id} className="p-4 flex items-center justify-between gap-3 bg-muted/30 hover:border-primary/50 transition-colors">
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5 mb-1">
+                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                          {p.garden?.name || 'Other Garden'}
+                                        </Badge>
+                                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                          {p.history?.[p.history.length - 1]?.status || 'Wishlist'}
+                                        </Badge>
+                                      </div>
+                                      <h4 className="font-semibold text-sm truncate">{p.name}</h4>
+                                      <p className="text-xs text-muted-foreground italic truncate">{p.plant.species}</p>
+                                    </div>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="shrink-0 text-xs h-8"
+                                      onClick={() => {
+                                        setActiveLocationId(p.gardenId);
+                                        if (gardenViewMode === 'selected') {
+                                          setSelectedGardenIds([p.gardenId]);
+                                        }
+                                      }}
+                                    >
+                                      Switch Garden
+                                    </Button>
+                                  </Card>
+                                ))}
+                              </div>
+                            </section>
+                          )}
+
+                          {/* Zero Results Across All Sections and Gardens */}
+                          {searchMatches.all.length === 0 && otherGardenSearchMatches.length === 0 && (
+                            <Card className="flex flex-col items-center justify-center py-16 text-center border-dashed">
+                              <CardHeader className="space-y-2">
+                                <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground mb-2">
+                                  <Search className="h-6 w-6" />
+                                </div>
+                                <CardTitle className="font-headline text-xl">
+                                  No plants found matching &ldquo;{searchQuery}&rdquo;
+                                </CardTitle>
+                                <CardDescription className="max-w-md mx-auto text-sm">
+                                  {statusFilter !== 'All'
+                                    ? `We checked ${statusFilter} and other sections in this garden, but found no matching plants.`
+                                    : 'We searched across all statuses, notes, and care requirements in your garden.'}
+                                </CardDescription>
+                              </CardHeader>
+                              <CardContent className="flex flex-col sm:flex-row items-center gap-3">
+                                <Button variant="outline" onClick={() => setSearchQuery('')}>
+                                  Clear Search
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    handleOpenAddSheet(statusFilter === 'All' ? 'Wishlist' : statusFilter, 'single');
+                                  }}
+                                  className="gap-2"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  <span>Add &ldquo;{searchQuery}&rdquo; to {statusFilter === 'All' ? 'Garden' : statusFilter}</span>
+                                </Button>
+                              </CardContent>
+                            </Card>
+                          )}
+                        </div>
+                      ) : (
+                        statusFilter === 'Wishlist' ? (
                           wishlistPlantings.length > 0 ? (
                             <>
                               <div className="flex justify-end items-center mb-4">
@@ -2578,7 +3022,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                   </CardHeader>
                               </Card>
                           )
-                      )}
+                      )
+                    )}
                     </>
                 ) : (
                   <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
@@ -2716,6 +3161,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
             setIsAiImportSheetOpen(false);
             setIsSettingsSheetOpen(true);
         }}
+        onApiKeysChange={handleApiKeysChange}
         plants={plants || []}
         onPublish={handlePublish}
       />

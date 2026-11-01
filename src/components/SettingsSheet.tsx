@@ -32,9 +32,18 @@ import {
   Eye,
   User,
   LayoutGrid,
+  Radio,
+  Loader2,
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { getOrCreateGrowerIdentity, updateGrowerIdentity } from '@/lib/p2p-signals';
+import {
+  getOrCreateGrowerIdentity,
+  updateGrowerIdentity,
+  getSavedP2PRoomId,
+  broadcastApiKeysToP2PRoom,
+  fetchLatestFromP2PRoom,
+} from '@/lib/p2p-signals';
 import { availableDatasets, loadDataset } from '@/lib/datasets';
 import {
   AlertDialog,
@@ -127,6 +136,9 @@ export function SettingsSheet({
   const [copiedMcp, setCopiedMcp] = useState(false);
   const [growerHandle, setGrowerHandle] = useState('');
   const [growerRegion, setGrowerRegion] = useState('');
+  const [shareApiKeysWithBroadcast, setShareApiKeysWithBroadcast] = useState(false);
+  const [keySyncRoomId, setKeySyncRoomId] = useState('');
+  const [isKeySyncing, setIsKeySyncing] = useState(false);
 
   const { toast } = useToast();
   const { enabledExtensions } = useExtensions();
@@ -226,6 +238,11 @@ export function SettingsSheet({
   useEffect(() => {
     if (isOpen) {
       setLocalApiKeys(apiKeys);
+      setKeySyncRoomId(getSavedP2PRoomId());
+      const savedShare = localStorage.getItem('grow_share_keys_with_broadcast');
+      if (savedShare !== null) {
+        setShareApiKeysWithBroadcast(savedShare === 'true');
+      }
 
       if (typeof self !== 'undefined' && 'LanguageModel' in self) {
         (self as any).LanguageModel.availability()
@@ -341,6 +358,65 @@ export function SettingsSheet({
   const handleSaveApiKeys = () => {
     onApiKeysChange(localApiKeys);
     onOpenChange(false);
+  };
+
+  const handleBroadcastApiKeys = async () => {
+    if (!keySyncRoomId.trim()) return;
+    setIsKeySyncing(true);
+    try {
+      await broadcastApiKeysToP2PRoom(keySyncRoomId.trim(), localApiKeys);
+      toast({
+        title: `API Keys Broadcasted to "${keySyncRoomId.trim()}"`,
+        description: 'Enter this room code on your other device or browser profile and click "Pull Keys" to sync.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Broadcast Failed',
+        description: err?.message || 'Could not broadcast API keys.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsKeySyncing(false);
+    }
+  };
+
+  const handlePullApiKeys = async () => {
+    if (!keySyncRoomId.trim()) return;
+    setIsKeySyncing(true);
+    try {
+      const latest = await fetchLatestFromP2PRoom(keySyncRoomId.trim());
+      if (!latest?.apiKeys || !Object.values(latest.apiKeys).some(Boolean)) {
+        toast({
+          title: 'No Keys Found in Room',
+          description: `No API keys were found in room "${keySyncRoomId.trim()}". Make sure the other device clicked "Broadcast Keys".`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      const newKeys: FreeLlmConfig = {
+        gemini: latest.apiKeys.gemini || localApiKeys.gemini || '',
+        groq: latest.apiKeys.groq || localApiKeys.groq,
+        openrouter: latest.apiKeys.openrouter || localApiKeys.openrouter,
+        ollamaUrl: latest.apiKeys.ollamaUrl || localApiKeys.ollamaUrl,
+      };
+      setLocalApiKeys(newKeys);
+      onApiKeysChange(newKeys);
+      const configured = (['gemini', 'groq', 'openrouter', 'ollamaUrl'] as const)
+        .filter((k) => Boolean(latest.apiKeys?.[k]))
+        .join(', ');
+      toast({
+        title: 'API Keys Pulled & Saved',
+        description: `Imported keys from ${latest.peerName} (${configured}).`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Pull Failed',
+        description: err?.message || 'Could not pull keys from room.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsKeySyncing(false);
+    }
   };
 
   const handleClipboardImport = (openInReviewSheet = false) => {
@@ -775,6 +851,82 @@ export function SettingsSheet({
                   <Button onClick={handleSaveApiKeys} className="w-full">
                     Save API Keys
                   </Button>
+
+                  {/* P2P Broadcast & Key Sharing */}
+                  <div className="border-t pt-4 space-y-3">
+                    <div className="space-y-0.5">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Radio className="h-3.5 w-3.5 text-primary animate-pulse" />
+                        <span>P2P Broadcast &amp; Key Sharing</span>
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Broadcast configured AI credentials to other devices on a private room code ($0 server cost).
+                      </p>
+                    </div>
+
+                    {/* Option toggle for garden broadcast */}
+                    <div className="flex items-center justify-between rounded-lg border p-2.5 bg-muted/20">
+                      <div className="space-y-0.5 pr-2">
+                        <Label htmlFor="settings-share-keys-toggle" className="text-xs font-medium cursor-pointer">
+                          Share API keys with garden broadcasts
+                        </Label>
+                        <div className="text-[11px] text-muted-foreground">
+                          When streaming gardens in Share &amp; Sync, bundle your AI keys so receiving devices can run AI directly.
+                        </div>
+                      </div>
+                      <Switch
+                        id="settings-share-keys-toggle"
+                        checked={shareApiKeysWithBroadcast}
+                        onCheckedChange={(checked) => {
+                          setShareApiKeysWithBroadcast(checked);
+                          localStorage.setItem('grow_share_keys_with_broadcast', checked ? 'true' : 'false');
+                        }}
+                      />
+                    </div>
+
+                    {/* Room Code + Broadcast / Pull Buttons */}
+                    <div className="space-y-2">
+                      <div className="space-y-1">
+                        <Label htmlFor="settings-key-sync-room" className="text-xs">
+                          Broadcast Room Code
+                        </Label>
+                        <Input
+                          id="settings-key-sync-room"
+                          value={keySyncRoomId}
+                          onChange={(e) => setKeySyncRoomId(e.target.value)}
+                          placeholder="e.g., my-keys-room-2026"
+                          className="text-xs h-8 font-mono"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 text-xs h-8 gap-1"
+                          disabled={!keySyncRoomId.trim() || isKeySyncing || !areApiKeysSet}
+                          onClick={handleBroadcastApiKeys}
+                        >
+                          {isKeySyncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Radio className="h-3.5 w-3.5" />}
+                          <span>Broadcast Keys</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 text-xs h-8 gap-1"
+                          disabled={!keySyncRoomId.trim() || isKeySyncing}
+                          onClick={handlePullApiKeys}
+                        >
+                          {isKeySyncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                          <span>Pull Keys</span>
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Note: Anyone with this room code can access broadcasted keys. Only use private room codes.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

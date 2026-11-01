@@ -1,6 +1,6 @@
 'use client';
 
-import type { AiDataset, CommunityViabilitySignal } from '@/lib/types';
+import type { AiDataset, CommunityViabilitySignal, FreeLlmConfig } from '@/lib/types';
 import {
   toSpeciesUid,
   encodeSeedPackToParam,
@@ -149,6 +149,26 @@ function getRelayTopicUrl(roomId: string): string {
   return `https://ntfy.sh/grow-p2p-pack-${slug}`;
 }
 
+function createEmptySyncDataset(): AiDataset {
+  return {
+    locations: [
+      {
+        id: 'keys-sync',
+        name: 'API Key Broadcast',
+        location: 'Shared Sync',
+        temperatureUnit: 'C',
+        conditions: {
+          temperature: '20',
+          sunlight: 'Full Sun',
+          soil: 'Standard',
+        },
+      },
+    ],
+    plants: [],
+    plantings: [],
+  };
+}
+
 export interface P2PRoomPacket {
   packetId: string;
   type: 'GARDEN_SYNC_PACK';
@@ -159,6 +179,7 @@ export interface P2PRoomPacket {
   gardenCount?: number;
   plantCount: number;
   timestamp: string;
+  apiKeys?: FreeLlmConfig;
 }
 
 function getRoomCacheKey(roomId: string): string {
@@ -191,6 +212,8 @@ export async function inspectP2PRoom(roomId: string): Promise<{
   source: string;
   fingerprint: string | null;
   fromThisSession: boolean;
+  hasApiKeys?: boolean;
+  sharedKeyProviders?: string[];
   packet: {
     packetId?: string;
     peerName: string;
@@ -198,6 +221,8 @@ export async function inspectP2PRoom(roomId: string): Promise<{
     gardenCount: number;
     plantCount: number;
     timestamp: string;
+    hasApiKeys?: boolean;
+    sharedKeyProviders?: string[];
   } | null;
 } | null> {
   if (!roomId.trim()) return null;
@@ -213,6 +238,8 @@ export async function inspectP2PRoom(roomId: string): Promise<{
       source: data?.source || 'none',
       fingerprint: data?.hasSnapshot ? data.fingerprint || null : null,
       fromThisSession: Boolean(data?.packet?.peerPubkey && data.packet.peerPubkey === identity.pubkey),
+      hasApiKeys: Boolean(data?.packet?.hasApiKeys),
+      sharedKeyProviders: data?.packet?.sharedKeyProviders || [],
       packet: data?.packet || null,
     };
   } catch {
@@ -233,7 +260,7 @@ async function extractPacketFromNtfyEnvelope(envelope: any): Promise<P2PRoomPack
           ? rawText.slice('GROW_PACK:'.length)
           : rawText;
         const parsed = JSON.parse(cleaned);
-        if (parsed?.type === 'GARDEN_SYNC_PACK' && parsed.packParam) {
+        if (parsed?.type === 'GARDEN_SYNC_PACK' && (parsed.packParam || parsed.apiKeys)) {
           return parsed as P2PRoomPacket;
         }
       }
@@ -250,7 +277,7 @@ async function extractPacketFromNtfyEnvelope(envelope: any): Promise<P2PRoomPack
         ? rawText.slice('GROW_PACK:'.length)
         : rawText;
       const parsed = JSON.parse(cleaned);
-      if (parsed?.type === 'GARDEN_SYNC_PACK' && parsed.packParam) {
+      if (parsed?.type === 'GARDEN_SYNC_PACK' && (parsed.packParam || parsed.apiKeys)) {
         return parsed as P2PRoomPacket;
       }
     } catch {
@@ -267,7 +294,7 @@ async function extractPacketFromNtfyEnvelope(envelope: any): Promise<P2PRoomPack
  */
 export async function fetchLatestFromP2PRoom(
   roomId: string
-): Promise<{ dataset: AiDataset; peerName: string; timestamp: string } | null> {
+): Promise<{ dataset: AiDataset; peerName: string; timestamp: string; apiKeys?: FreeLlmConfig } | null> {
   if (!roomId.trim()) return null;
 
   // 1. Primary path: same-origin /api/p2p (immune to browser adblockers/CORS, uses deflate compression + server memory)
@@ -277,11 +304,17 @@ export async function fetchLatestFromP2PRoom(
     });
     if (apiRes.ok) {
       const apiData = await apiRes.json();
-      if (apiData?.hasSnapshot && apiData?.dataset && (apiData.dataset.plantings?.length || 0) > 0) {
+      const hasDataset = Boolean(apiData?.hasSnapshot && apiData?.dataset);
+      const hasKeys = Boolean(
+        apiData?.apiKeys &&
+        (apiData.apiKeys.gemini || apiData.apiKeys.groq || apiData.apiKeys.openrouter || apiData.apiKeys.ollamaUrl)
+      );
+      if (hasDataset || hasKeys) {
         return {
-          dataset: apiData.dataset as AiDataset,
+          dataset: (apiData.dataset || createEmptySyncDataset()) as AiDataset,
           peerName: apiData.packet?.peerName || 'Garden Peer',
           timestamp: apiData.packet?.timestamp || new Date().toISOString(),
+          apiKeys: apiData.apiKeys || apiData.packet?.apiKeys,
         };
       }
     }
@@ -290,7 +323,7 @@ export async function fetchLatestFromP2PRoom(
   }
 
   // 2. Fallback: legacy direct ntfy.sh topic poll
-  let fallbackEmptyResult: { dataset: AiDataset; peerName: string; timestamp: string } | null = null;
+  let fallbackEmptyResult: { dataset: AiDataset; peerName: string; timestamp: string; apiKeys?: FreeLlmConfig } | null = null;
   try {
     const topicUrl = `${getRelayTopicUrl(roomId)}/json?poll=1&since=24h`;
     const resp = await fetch(topicUrl, { cache: 'no-store' });
@@ -305,14 +338,17 @@ export async function fetchLatestFromP2PRoom(
         try {
           const envelope = JSON.parse(lines[i]);
           const packet = await extractPacketFromNtfyEnvelope(envelope);
-          if (packet?.type === 'GARDEN_SYNC_PACK' && packet.packParam) {
-            const dataset = decodeSeedPackFromInput(packet.packParam);
+          if (packet?.type === 'GARDEN_SYNC_PACK') {
+            const dataset = packet.packParam
+              ? decodeSeedPackFromInput(packet.packParam)
+              : createEmptySyncDataset();
             const candidate = {
               dataset,
               peerName: packet.peerName || 'Garden Peer',
               timestamp: packet.timestamp || new Date().toISOString(),
+              apiKeys: packet.apiKeys,
             };
-            if ((dataset.plantings?.length || 0) > 0) {
+            if ((dataset.plantings?.length || 0) > 0 || packet.apiKeys) {
               return candidate;
             }
             if (!fallbackEmptyResult) {
@@ -334,12 +370,15 @@ export async function fetchLatestFromP2PRoom(
       const cachedRaw = localStorage.getItem(getRoomCacheKey(roomId));
       if (cachedRaw) {
         const cachedPacket: P2PRoomPacket = JSON.parse(cachedRaw);
-        const dataset = decodeSeedPackFromInput(cachedPacket.packParam);
-        if ((dataset.plantings?.length || 0) > 0) {
+        const dataset = cachedPacket.packParam
+          ? decodeSeedPackFromInput(cachedPacket.packParam)
+          : createEmptySyncDataset();
+        if ((dataset.plantings?.length || 0) > 0 || cachedPacket.apiKeys) {
           return {
             dataset,
             peerName: cachedPacket.peerName || 'Local Peer',
             timestamp: cachedPacket.timestamp,
+            apiKeys: cachedPacket.apiKeys,
           };
         }
       }
@@ -358,7 +397,12 @@ export async function fetchLatestFromP2PRoom(
  */
 export function subscribeToP2PGardenRoom(
   roomId: string,
-  onPeerDatasetReceived: (dataset: AiDataset, peerName: string, timestamp: string) => void
+  onPeerDatasetReceived: (
+    dataset: AiDataset,
+    peerName: string,
+    timestamp: string,
+    apiKeys?: FreeLlmConfig
+  ) => void
 ): () => void {
   if (typeof window === 'undefined' || !roomId.trim()) {
     return () => {};
@@ -369,17 +413,20 @@ export function subscribeToP2PGardenRoom(
   const channelName = `grow_room_${toSpeciesUid(roomId)}`;
 
   const handlePacket = (packet: P2PRoomPacket) => {
-    if (!packet || packet.type !== 'GARDEN_SYNC_PACK' || !packet.packParam) return;
+    if (!packet || packet.type !== 'GARDEN_SYNC_PACK') return;
     if (seenPacketIds.has(packet.packetId)) return;
     seenPacketIds.add(packet.packetId);
     // Ignore our own broadcasts from echoing back via SSE
     if (packet.peerPubkey && packet.peerPubkey === identity.pubkey) return;
     try {
-      const dataset = decodeSeedPackFromInput(packet.packParam);
+      const dataset = packet.packParam
+        ? decodeSeedPackFromInput(packet.packParam)
+        : createEmptySyncDataset();
       onPeerDatasetReceived(
         dataset,
         packet.peerName || 'Garden Peer',
-        packet.timestamp || new Date().toISOString()
+        packet.timestamp || new Date().toISOString(),
+        packet.apiKeys
       );
     } catch {
       // ignore malformed packet
@@ -436,7 +483,11 @@ export function subscribeToP2PGardenRoom(
  */
 export async function broadcastGardenToP2PRoom(
   roomId: string,
-  dataset: AiDataset
+  dataset: AiDataset,
+  options?: {
+    apiKeys?: FreeLlmConfig;
+    shareApiKeys?: boolean;
+  }
 ): Promise<P2PRoomPacket> {
   const identity = getOrCreateGrowerIdentity();
   // Strip any huge inline base64 data:image URIs so the relay payload stays compact
@@ -448,16 +499,32 @@ export async function broadcastGardenToP2PRoom(
     })),
   };
   const packParam = encodeSeedPackToParam(compactDataset);
+
+  let cleanKeys: FreeLlmConfig | undefined = undefined;
+  if (options?.shareApiKeys && options.apiKeys) {
+    const raw = options.apiKeys;
+    const sanitized: FreeLlmConfig = {
+      gemini: raw.gemini ? String(raw.gemini).trim() : '',
+      groq: raw.groq ? String(raw.groq).trim() : undefined,
+      openrouter: raw.openrouter ? String(raw.openrouter).trim() : undefined,
+      ollamaUrl: raw.ollamaUrl ? String(raw.ollamaUrl).trim() : undefined,
+    };
+    if (sanitized.gemini || sanitized.groq || sanitized.openrouter || sanitized.ollamaUrl) {
+      cleanKeys = sanitized;
+    }
+  }
+
   const packet: P2PRoomPacket = {
     packetId: `pkt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     type: 'GARDEN_SYNC_PACK',
     peerPubkey: identity.pubkey,
     peerName: identity.displayName,
     packParam,
-    gardenName: dataset.locations?.[0]?.name || 'Shared Garden',
-    gardenCount: dataset.locations?.length || 1,
+    gardenName: dataset.locations?.[0]?.name || (cleanKeys ? 'API Key Broadcast' : 'Shared Garden'),
+    gardenCount: dataset.locations?.length || (cleanKeys ? 1 : 0),
     plantCount: dataset.plantings?.length || 0,
     timestamp: new Date().toISOString(),
+    apiKeys: cleanKeys,
   };
 
   if (typeof window !== 'undefined') {
@@ -488,6 +555,7 @@ export async function broadcastGardenToP2PRoom(
       peerPubkey: identity.pubkey,
       peerName: identity.displayName,
       dataset: compactDataset,
+      apiKeys: cleanKeys,
     }),
   });
 
@@ -503,6 +571,21 @@ export async function broadcastGardenToP2PRoom(
   }
 
   return packet;
+}
+
+/**
+ * Convenience helper to broadcast API keys to a P2P room (e.g., from SettingsSheet)
+ * without needing plants or plantings.
+ */
+export async function broadcastApiKeysToP2PRoom(
+  roomId: string,
+  apiKeys: FreeLlmConfig
+): Promise<P2PRoomPacket> {
+  const placeholderDataset: AiDataset = createEmptySyncDataset();
+  return broadcastGardenToP2PRoom(roomId, placeholderDataset, {
+    apiKeys,
+    shareApiKeys: true,
+  });
 }
 
 export { PUBLIC_RELAYS };

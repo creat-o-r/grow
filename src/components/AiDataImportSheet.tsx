@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
 import {
@@ -40,6 +41,7 @@ import {
   Share2,
   Link2,
   User,
+  KeyRound,
 } from 'lucide-react';
 import { createDataset } from '@/ai/flows/create-dataset-flow';
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
@@ -102,6 +104,7 @@ type AiDataImportSheetProps = {
   defaultStatus?: StatusHistory['status'];
   onPlantSubmit?: (plantingData: any, plantData: any) => void;
   onConfigureApiKey?: () => void;
+  onApiKeysChange?: (keys: FreeLlmConfig) => void;
   plants?: Plant[];
   onPublish?: () => void;
 };
@@ -122,6 +125,7 @@ export function AiDataImportSheet({
   defaultStatus = 'Wishlist',
   onPlantSubmit,
   onConfigureApiKey,
+  onApiKeysChange,
   plants = [],
   onPublish,
 }: AiDataImportSheetProps) {
@@ -145,6 +149,8 @@ export function AiDataImportSheet({
     source: string;
     fingerprint: string | null;
     fromThisSession: boolean;
+    hasApiKeys?: boolean;
+    sharedKeyProviders?: string[];
     packet: {
       packetId?: string;
       peerName: string;
@@ -152,8 +158,47 @@ export function AiDataImportSheet({
       gardenCount: number;
       plantCount: number;
       timestamp: string;
+      hasApiKeys?: boolean;
+      sharedKeyProviders?: string[];
     } | null;
   } | null>(null);
+  const [shareApiKeysWithBroadcast, setShareApiKeysWithBroadcast] = useState(false);
+  const [pulledApiKeys, setPulledApiKeys] = useState<FreeLlmConfig | null>(null);
+
+  const activeKeyProviders = useMemo(() => {
+    const list: string[] = [];
+    if (apiKeys?.gemini) list.push('Gemini');
+    if (apiKeys?.groq) list.push('Groq');
+    if (apiKeys?.openrouter) list.push('OpenRouter');
+    if (apiKeys?.ollamaUrl) list.push('Ollama');
+    return list;
+  }, [apiKeys]);
+
+  const formatKeyProviders = (keys?: FreeLlmConfig | null) => {
+    if (!keys) return '';
+    const list: string[] = [];
+    if (keys.gemini) list.push('Gemini');
+    if (keys.groq) list.push('Groq');
+    if (keys.openrouter) list.push('OpenRouter');
+    if (keys.ollamaUrl) list.push('Ollama');
+    return list.join(', ');
+  };
+
+  const handleApplySharedApiKeys = () => {
+    if (!pulledApiKeys) return;
+    const merged: FreeLlmConfig = {
+      gemini: pulledApiKeys.gemini || apiKeys.gemini || '',
+      groq: pulledApiKeys.groq || apiKeys.groq,
+      openrouter: pulledApiKeys.openrouter || apiKeys.openrouter,
+      ollamaUrl: pulledApiKeys.ollamaUrl || apiKeys.ollamaUrl,
+    };
+    localStorage.setItem('grow_apiKeys', JSON.stringify(merged));
+    onApiKeysChange?.(merged);
+    toast({
+      title: 'Shared API Keys Applied',
+      description: `Configured ${formatKeyProviders(pulledApiKeys)} for this device.`,
+    });
+  };
   // Last room snapshot (packetId) this session has seen, used to detect new streams from other sessions
   const seenPacketIdRef = useRef<string | null>(null);
   const pullRef = useRef<() => void>(() => {});
@@ -198,6 +243,10 @@ export function AiDataImportSheet({
   useEffect(() => {
     if (isOpen) {
       setP2pRoomId(getSavedP2PRoomId());
+      const savedShareKeys = localStorage.getItem('grow_share_keys_with_broadcast');
+      if (savedShareKeys !== null) {
+        setShareApiKeysWithBroadcast(savedShareKeys === 'true');
+      }
       const identity = getOrCreateGrowerIdentity();
       setGrowerHandle(identity.displayName);
       setTempHandle(identity.displayName);
@@ -246,9 +295,10 @@ export function AiDataImportSheet({
       if (id && id !== seenPacketIdRef.current) {
         seenPacketIdRef.current = id;
         if (!res.fromThisSession) {
+          const keysNote = res.hasApiKeys ? ' (with shared API keys)' : '';
           toast({
             title: `New garden snapshot in "${p2pRoomId.trim()}"`,
-            description: `${res.packet?.peerName || 'Another session'} streamed ${res.packet?.plantCount ?? 0} plants across ${res.packet?.gardenCount ?? 1} garden(s).`,
+            description: `${res.packet?.peerName || 'Another session'} streamed ${res.packet?.plantCount ?? 0} plants across ${res.packet?.gardenCount ?? 1} garden(s)${keysNote}.`,
             action: (
               <ToastAction altText="Pull now" onClick={() => pullRef.current()}>
                 Pull now
@@ -265,15 +315,19 @@ export function AiDataImportSheet({
     };
     document.addEventListener('visibilitychange', onVisible);
 
-    const unsubscribe = subscribeToP2PGardenRoom(p2pRoomId, (peerDataset, peerName) => {
+    const unsubscribe = subscribeToP2PGardenRoom(p2pRoomId, (peerDataset, peerName, timestamp, peerApiKeys) => {
       const packName = `${peerDataset.locations?.[0]?.name || 'Shared Garden'} (from ${peerName})`;
       setGeneratedData(peerDataset);
       setLoadedPackTitle(packName);
       setTheme(packName);
       setSelectedPlantingIds(new Set((peerDataset.plantings || []).map((p) => String(p.id))));
+      if (peerApiKeys && Object.values(peerApiKeys).some(Boolean)) {
+        setPulledApiKeys(peerApiKeys);
+      }
+      const hasKeys = Boolean(peerApiKeys && Object.values(peerApiKeys).some(Boolean));
       toast({
         title: `Live P2P Garden Received`,
-        description: `${peerName} broadcasted "${peerDataset.locations?.[0]?.name || 'Garden'}" (${peerDataset.plantings?.length || 0} plants). Review below to import!`,
+        description: `${peerName} broadcasted "${peerDataset.locations?.[0]?.name || 'Garden'}" (${peerDataset.plantings?.length || 0} plants)${hasKeys ? ` with shared API keys (${formatKeyProviders(peerApiKeys)})` : ''}. Review below to import!`,
       });
     });
     return () => {
@@ -381,7 +435,10 @@ export function AiDataImportSheet({
           'Your garden currently has 0 plants to stream. Add or import plants into your garden first before streaming to the room.'
         );
       }
-      await broadcastGardenToP2PRoom(p2pRoomId, ds);
+      await broadcastGardenToP2PRoom(p2pRoomId, ds, {
+        shareApiKeys: shareApiKeysWithBroadcast,
+        apiKeys,
+      });
       const fp = fingerprintDataset(ds);
       setLastStreamFingerprint(fp);
       const updatedStatus = await inspectP2PRoom(p2pRoomId);
@@ -390,9 +447,12 @@ export function AiDataImportSheet({
         ds.locations.length > 1
           ? `All ${ds.locations.length} Gardens`
           : `"${ds.locations[0].name}"`;
+      const keysSuffix = shareApiKeysWithBroadcast && activeKeyProviders.length > 0
+        ? ` with shared API keys (${activeKeyProviders.join(', ')})`
+        : '';
       toast({
         title: `Streamed to Room "${p2pRoomId.trim()}"`,
-        description: `${label} (${ds.plantings.length} plants, fingerprint ${fp}). Now open a DIFFERENT session (other browser/profile/device), enter the same room code and Pull — it must show the same fingerprint.`,
+        description: `${label} (${ds.plantings.length} plants, fingerprint ${fp})${keysSuffix}. Now open a DIFFERENT session (other browser/profile/device), enter the same room code and Pull — it must show the same fingerprint.`,
       });
     } catch (err: any) {
       setError(err?.message || 'Could not broadcast to P2P room.');
@@ -465,15 +525,21 @@ export function AiDataImportSheet({
       }
       const fp = fingerprintDataset(normalizedDataset);
       setLastPullFingerprint(fp);
+      if (latest.apiKeys && Object.values(latest.apiKeys).some(Boolean)) {
+        setPulledApiKeys(latest.apiKeys);
+      }
       const roomNow = await inspectP2PRoom(p2pRoomId);
       const sameSession = Boolean(roomNow?.fromThisSession);
+      const keysSuffix = latest.apiKeys && Object.values(latest.apiKeys).some(Boolean)
+        ? ` (includes shared API keys: ${formatKeyProviders(latest.apiKeys)})`
+        : '';
       toast({
         title: sameSession
           ? `Pulled ${baseTitle} — but written by THIS session`
           : `Pulled ${baseTitle} from another session`,
         description: sameSession
-          ? `This snapshot was streamed by this same browser profile, so it does NOT prove cross-session sync. Pull from a different browser/profile/device. (fingerprint ${fp})`
-          : `Loaded ${normalizedDataset.plantings.length} plants across ${locCount} garden${locCount === 1 ? '' : 's'} from ${latest.peerName} (fingerprint ${fp} — must match the sender's). Review and click Import below.`,
+          ? `This snapshot was streamed by this same browser profile, so it does NOT prove cross-session sync. Pull from a different browser/profile/device. (fingerprint ${fp})${keysSuffix}`
+          : `Loaded ${normalizedDataset.plantings.length} plants across ${locCount} garden${locCount === 1 ? '' : 's'} from ${latest.peerName} (fingerprint ${fp} — must match the sender's)${keysSuffix}. Review and click Import below.`,
         variant: sameSession ? 'destructive' : undefined,
       });
     } catch (err: any) {
@@ -1500,6 +1566,66 @@ export function AiDataImportSheet({
                           </div>
                         </div>
 
+                        {/* Option to share API keys with broadcast */}
+                        <div className="rounded-lg border p-2.5 bg-muted/20 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="space-y-0.5">
+                              <Label htmlFor="share-api-keys-toggle" className="text-xs font-medium flex items-center gap-1.5 cursor-pointer">
+                                <KeyRound className="h-3.5 w-3.5 text-primary" />
+                                <span>Share API Keys with this broadcast</span>
+                              </Label>
+                              <p className="text-[11px] text-muted-foreground">
+                                {areApiKeysSet
+                                  ? `Include configured credentials (${activeKeyProviders.join(', ')}) so other devices on this room can use AI.`
+                                  : 'Configure free API keys in Settings to share them with other devices.'}
+                              </p>
+                            </div>
+                            <Switch
+                              id="share-api-keys-toggle"
+                              checked={shareApiKeysWithBroadcast}
+                              onCheckedChange={(checked) => {
+                                setShareApiKeysWithBroadcast(checked);
+                                localStorage.setItem('grow_share_keys_with_broadcast', checked ? 'true' : 'false');
+                              }}
+                              disabled={!areApiKeysSet}
+                            />
+                          </div>
+                          {shareApiKeysWithBroadcast && (
+                            <div className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1 rounded">
+                              <AlertTriangle className="h-3 w-3 shrink-0" />
+                              <span>Security note: Anyone with room code &quot;{p2pRoomId || '...'}&quot; will receive your keys. Only use private room codes.</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Banner if received shared API keys */}
+                        {pulledApiKeys && Object.values(pulledApiKeys).some(Boolean) && (
+                          <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 text-xs space-y-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div className="flex items-start gap-2">
+                                <KeyRound className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                                <div>
+                                  <div className="font-semibold text-foreground">
+                                    Shared API Keys Received ({formatKeyProviders(pulledApiKeys)})
+                                  </div>
+                                  <div className="text-[11px] text-muted-foreground">
+                                    The broadcaster shared their free AI provider keys. Apply them to enable AI generation and viability diagnosis on this device.
+                                  </div>
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="h-8 text-xs shrink-0 gap-1.5 self-end sm:self-center"
+                                onClick={handleApplySharedApiKeys}
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                                <span>Apply to Device</span>
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Live Room Status Alert Box */}
                         <div
                           className={cn(
@@ -1532,9 +1658,16 @@ export function AiDataImportSheet({
                               )}
                             </div>
                             {roomStatus?.hasSnapshot && (
-                              <Badge variant="secondary" className="text-[10px] shrink-0 font-normal">
-                                {roomStatus.fromThisSession ? 'From this device' : `By ${roomStatus.packet?.peerName}`}
-                              </Badge>
+                              <div className="flex items-center gap-1.5">
+                                {roomStatus.hasApiKeys && (
+                                  <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30 shrink-0">
+                                    🔑 Includes API Keys
+                                  </Badge>
+                                )}
+                                <Badge variant="secondary" className="text-[10px] shrink-0 font-normal">
+                                  {roomStatus.fromThisSession ? 'From this device' : `By ${roomStatus.packet?.peerName}`}
+                                </Badge>
+                              </div>
                             )}
                           </div>
 
@@ -1917,12 +2050,54 @@ export function AiDataImportSheet({
                                                 Unselected
                                               </Badge>
                                             )}
+                                            {planting.viability && (
+                                              <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                  "text-[10px] py-0 px-1.5 h-4 font-normal flex items-center gap-1",
+                                                  planting.viability === 'High' &&
+                                                    "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-300",
+                                                  planting.viability === 'Medium' &&
+                                                    "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-300",
+                                                  planting.viability === 'Low' &&
+                                                    "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-900/50 dark:text-rose-300"
+                                                )}
+                                              >
+                                                <Sparkles className="h-2.5 w-2.5" />
+                                                <span>{planting.viability} Viability</span>
+                                              </Badge>
+                                            )}
                                           </div>
                                           <span className="text-xs text-muted-foreground truncate">{plant.species}</span>
                                         </div>
                                       </AccordionTrigger>
                                     </div>
                                     <AccordionContent className="pb-4 space-y-4">
+                                      {planting.viability && (
+                                        <div className="rounded-md border border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-950/20 p-2.5 text-xs space-y-1">
+                                          <div className="flex items-center gap-1.5 font-semibold text-emerald-900 dark:text-emerald-200">
+                                            <Sparkles className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                            <span>
+                                              Viability in Shared Garden
+                                              {generatedData.locations?.find((l) => l.id === planting.gardenId)?.name
+                                                ? ` (${generatedData.locations.find((l) => l.id === planting.gardenId)!.name})`
+                                                : ''}
+                                              : {planting.viability}
+                                            </span>
+                                          </div>
+                                          {planting.viabilityReasoning && (
+                                            <p className="text-muted-foreground leading-relaxed">
+                                              {planting.viabilityReasoning}
+                                            </p>
+                                          )}
+                                          {planting.upcomingTiming && (
+                                            <p className="text-[11px] text-muted-foreground font-medium pt-0.5">
+                                              Upcoming outlook: {planting.upcomingViability || 'High'} in {planting.upcomingTiming}
+                                              {planting.upcomingReasoning ? ` — ${planting.upcomingReasoning}` : ''}
+                                            </p>
+                                          )}
+                                        </div>
+                                      )}
                                       <div className="text-xs text-muted-foreground space-y-2 mt-2">
                                         <div>
                                           <p className="font-semibold text-foreground/80">Germination</p>

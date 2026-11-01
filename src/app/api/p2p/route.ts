@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import zlib from 'zlib';
-import type { AiDataset } from '@/lib/types';
+import type { AiDataset, FreeLlmConfig } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +18,8 @@ export interface P2PRoomWirePacket {
   compressedDataset?: string;
   /** Legacy uncompressed base64url JSON of AiDataset */
   packParam?: string;
+  /** Optional shared API keys (Gemini, Groq, OpenRouter, Ollama) */
+  apiKeys?: FreeLlmConfig;
 }
 
 interface GlobalP2PStore {
@@ -168,7 +170,11 @@ export async function GET(req: NextRequest) {
           const pkt = await parseEnvelopeToPacket(env);
           if (pkt) {
             const ds = decompressDataset(pkt);
-            if (ds && (ds.plantings?.length || 0) > 0) {
+            const hasKeys = Boolean(
+              pkt.apiKeys &&
+              (pkt.apiKeys.gemini || pkt.apiKeys.groq || pkt.apiKeys.openrouter || pkt.apiKeys.ollamaUrl)
+            );
+            if (ds && ((ds.plantings?.length || 0) > 0 || hasKeys)) {
               relayPacket = pkt;
               relayDataset = ds;
               break;
@@ -238,9 +244,22 @@ export async function GET(req: NextRequest) {
           gardenCount: chosenPacket.gardenCount,
           plantCount: chosenPacket.plantCount,
           timestamp: chosenPacket.timestamp,
+          hasApiKeys: Boolean(
+            chosenPacket.apiKeys &&
+            (chosenPacket.apiKeys.gemini ||
+              chosenPacket.apiKeys.groq ||
+              chosenPacket.apiKeys.openrouter ||
+              chosenPacket.apiKeys.ollamaUrl)
+          ),
+          sharedKeyProviders: chosenPacket.apiKeys
+            ? (['gemini', 'groq', 'openrouter', 'ollamaUrl'] as const).filter(
+                (k) => Boolean(chosenPacket?.apiKeys?.[k])
+              )
+            : [],
         }
       : null,
     dataset: peek ? undefined : chosenDataset,
+    apiKeys: peek ? undefined : chosenPacket?.apiKeys,
     fingerprint: chosenDataset ? fingerprintDataset(chosenDataset) : null,
   });
 }
@@ -319,6 +338,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const incomingApiKeys = body?.apiKeys as FreeLlmConfig | undefined;
+    const sanitizedApiKeys: FreeLlmConfig | undefined = incomingApiKeys
+      ? {
+          gemini: incomingApiKeys.gemini ? String(incomingApiKeys.gemini).trim() : '',
+          groq: incomingApiKeys.groq ? String(incomingApiKeys.groq).trim() : undefined,
+          openrouter: incomingApiKeys.openrouter ? String(incomingApiKeys.openrouter).trim() : undefined,
+          ollamaUrl: incomingApiKeys.ollamaUrl ? String(incomingApiKeys.ollamaUrl).trim() : undefined,
+        }
+      : undefined;
+    const hasKeys = Boolean(
+      sanitizedApiKeys &&
+      (sanitizedApiKeys.gemini || sanitizedApiKeys.groq || sanitizedApiKeys.openrouter || sanitizedApiKeys.ollamaUrl)
+    );
+
     const compressedDataset = compressDataset(dataset);
     const packet: P2PRoomWirePacket = {
       packetId: `pkt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -326,11 +359,12 @@ export async function POST(req: NextRequest) {
       roomId,
       peerPubkey: String(body?.peerPubkey || 'local-peer'),
       peerName: String(body?.peerName || 'Grower-Local'),
-      gardenName: dataset.locations?.[0]?.name || 'Shared Garden',
-      gardenCount: dataset.locations?.length || 1,
+      gardenName: dataset.locations?.[0]?.name || (hasKeys ? 'API Key Broadcast' : 'Shared Garden'),
+      gardenCount: dataset.locations?.length || (hasKeys ? 1 : 0),
       plantCount: dataset.plantings?.length || 0,
       timestamp: new Date().toISOString(),
       compressedDataset,
+      apiKeys: hasKeys ? sanitizedApiKeys : undefined,
     };
 
     // 1. Always save immediately to server memory store (instant cross-browser / cross-session sync)
