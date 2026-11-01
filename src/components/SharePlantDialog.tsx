@@ -34,7 +34,6 @@ import {
 } from 'lucide-react';
 import { buildShareableSeedPackUrl } from '@/lib/seed-pack';
 import { getPlantGuildStatus } from '@/extensions/companion-guild/rules';
-import { getPlantSurplus } from '@/extensions/surplus-seed-swap';
 import { cn } from '@/lib/utils';
 
 export type SharePlantDialogProps = {
@@ -107,11 +106,11 @@ export function SharePlantDialog({
     ? `${effectiveUpcomingViability || 'High'} in ${effectiveUpcomingTiming}`
     : undefined;
 
-  // 3. Surplus seed swap availability (using surplus-seed-swap extension)
-  const { surplus: surplusSeeds, isAvailable: isSwapAvailable } = useMemo(
-    () => getPlantSurplus(planting),
-    [planting]
-  );
+  // 3. Surplus seed swap availability
+  const onHand = planting.seedsOnHand ?? 0;
+  const planned = planting.plannedQty ?? 0;
+  const surplusSeeds = Math.max(0, onHand - planned);
+  const isSwapAvailable = Boolean(planting.swapAvailable || surplusSeeds > 0);
   const surplusSummary = surplusSeeds > 0
     ? `${surplusSeeds} Seeds for Swap`
     : isSwapAvailable
