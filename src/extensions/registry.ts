@@ -56,6 +56,7 @@ export interface GrowExtension {
 import { surplusSeedSwapExtension } from './surplus-seed-swap';
 import { companionGuildExtension } from './companion-guild';
 import { browserMcpBridgeExtension } from './browser-mcp-bridge';
+import { usageStatsInfoExtension } from './usage-stats-info';
 
 /**
  * Central zero-conflict registry for crowd-developed extensions.
@@ -65,6 +66,7 @@ export const registeredExtensions: GrowExtension[] = [
   surplusSeedSwapExtension,
   companionGuildExtension,
   browserMcpBridgeExtension,
+  usageStatsInfoExtension,
 ];
 
 export const DISABLED_EXTENSIONS_KEY = 'grow_disabled_extensions';
