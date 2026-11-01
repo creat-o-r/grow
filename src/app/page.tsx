@@ -55,7 +55,11 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         .join(' ');
 
       const rawImage = plant?.imageUrl || (plant ? getCuratedPlantImage(plant, plantName) : undefined);
-      const imageUrl = rawImage || 'https://grow-rho-two.vercel.app/images/plants/veg-1.jpg';
+      const imageUrl = rawImage
+        ? rawImage.startsWith('http')
+          ? rawImage
+          : `https://grow-rho-two.vercel.app${rawImage.startsWith('/') ? '' : '/'}${rawImage}`
+        : 'https://grow-rho-two.vercel.app/og-image.jpg';
       const isHttps = imageUrl.startsWith('https://');
       const imageType = imageUrl.toLowerCase().endsWith('.png')
         ? 'image/png'
@@ -121,8 +125,8 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         type: 'article',
         images: [
           {
-            url: 'https://grow-rho-two.vercel.app/images/plants/veg-1.jpg',
-            secureUrl: 'https://grow-rho-two.vercel.app/images/plants/veg-1.jpg',
+            url: 'https://grow-rho-two.vercel.app/og-image.jpg',
+            secureUrl: 'https://grow-rho-two.vercel.app/og-image.jpg',
             width: 1200,
             height: 630,
             type: 'image/jpeg',
@@ -134,7 +138,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         card: 'summary_large_image',
         title,
         description,
-        images: ['https://grow-rho-two.vercel.app/images/plants/veg-1.jpg'],
+        images: ['https://grow-rho-two.vercel.app/og-image.jpg'],
       },
       other: {
         'fb:app_id': fbAppId,
@@ -163,8 +167,8 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       type: 'website',
       images: [
         {
-          url: 'https://grow-rho-two.vercel.app/images/plants/veg-1.jpg',
-          secureUrl: 'https://grow-rho-two.vercel.app/images/plants/veg-1.jpg',
+          url: 'https://grow-rho-two.vercel.app/og-image.jpg',
+          secureUrl: 'https://grow-rho-two.vercel.app/og-image.jpg',
           width: 1200,
           height: 630,
           type: 'image/jpeg',
@@ -177,7 +181,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       title: 'Grow — Garden Assistant & Plant Viability Tracker',
       description:
         'Track plant viability, assess microclimates, and share seed packs with local-first, zero-server gardening tools.',
-      images: ['https://grow-rho-two.vercel.app/images/plants/veg-1.jpg'],
+      images: ['https://grow-rho-two.vercel.app/og-image.jpg'],
     },
     other: {
       'og:url': defaultUrl,
