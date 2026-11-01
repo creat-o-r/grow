@@ -20,6 +20,7 @@ import {
   fetchLatestFromP2PRoom,
 } from '@/lib/p2p-signals';
 import { ExtensionSlotBar } from '@/extensions/ExtensionSlotBar';
+import { useP2PRoomLiveSync } from '@/hooks/useP2PRoomLiveSync';
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
@@ -110,6 +111,42 @@ export default function Home() {
   const previousViabilityMechanism = usePrevious(viabilityMechanism);
   const activeLocation = useMemo(() => locations?.find(loc => loc.id === activeLocationId), [locations, activeLocationId]);
   const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(REPO_URL)}`;
+
+  const getCurrentGardenDataset = useCallback(async (): Promise<AiDataset | null> => {
+    const allLocations = await db.locations.toArray();
+    const allPlants = await db.plants.toArray();
+    const allPlantings = await db.plantings.toArray();
+    if (allLocations.length === 0) return null;
+    return {
+      locations: allLocations,
+      plants: allPlants,
+      plantings: allPlantings,
+    };
+  }, []);
+
+  const {
+    roomId: liveRoomId,
+    isConnected: isLiveRoomConnected,
+    autoMerge: isLiveAutoMerge,
+    autoStream: isLiveAutoStream,
+    triggerDebouncedStream,
+  } = useP2PRoomLiveSync({
+    activeLocationId: activeLocationId || undefined,
+    onReviewRequested: (incoming, peer) => {
+      setPreloadedDatasetForReview({
+        data: incoming,
+        title: `${incoming.locations?.[0]?.name || 'Shared Garden'} (from @${peer})`,
+      });
+      setUnifiedImportTab('import-pack');
+    },
+    onApiKeysReceived: (keys, peer) => {
+      handleApiKeysChange(keys);
+      toast({
+        title: `AI Credentials Received from @${peer}`,
+        description: 'Free AI provider keys have been applied to this session.',
+      });
+    },
+  });
 
   useEffect(() => {
     setIsClient(true);
@@ -318,6 +355,7 @@ export default function Home() {
         gardenId: activeLocationId || '',
     };
     await db.plantings.add(newPlanting);
+    triggerDebouncedStream(getCurrentGardenDataset);
 
     setIsSheetOpen(false);
     setIsAiImportSheetOpen(false);
@@ -330,6 +368,7 @@ export default function Home() {
 const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant) => {
     await db.plantings.put(updatedPlanting);
     await db.plants.put(updatedPlant);
+    triggerDebouncedStream(getCurrentGardenDataset);
 
     setPlantingToEdit(null);
     setIsSheetOpen(false);
@@ -343,6 +382,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   const handleDeletePlanting = async () => {
     if (!plantingToDelete) return;
     await db.plantings.delete(plantingToDelete.id);
+    triggerDebouncedStream(getCurrentGardenDataset);
     toast({
       title: 'Plant Removed',
       description: `${plantingToDelete.name} has been removed.`,
@@ -1000,6 +1040,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     try {
       await db.plantings.update(planting.id, { history: newHistory });
+      triggerDebouncedStream(getCurrentGardenDataset);
 
       if (newStatus === 'Harvest') {
         await publishCommunityViabilitySignal({
@@ -1934,6 +1975,27 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                     <Plus className="mr-2 h-4 w-4" />
                     Add Plant
                 </Button>
+                {liveRoomId.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAddSheet(undefined, 'import-pack')}
+                    className="flex items-center gap-1.5 px-2 py-2 rounded-md text-xs font-medium border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors shrink-0"
+                    title={`Live Room #${liveRoomId} is active. Click to open sync.`}
+                  >
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span className="font-mono text-[10px] font-semibold truncate max-w-[70px]">
+                      #{liveRoomId}
+                    </span>
+                    {isLiveAutoMerge && (
+                      <span className="text-[8px] uppercase tracking-wider font-bold bg-emerald-500/25 px-1 rounded text-emerald-300">
+                        auto
+                      </span>
+                    )}
+                  </button>
+                )}
                 <Button variant="outline" onClick={() => handleOpenAddSheet(undefined, 'import-pack')} className="gap-1.5 px-3">
                     <Radio className="h-4 w-4 text-primary" />
                     <span>Sync</span>
@@ -2061,6 +2123,27 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                   <Plus className="mr-2 h-4 w-4" />
                                   Add Plant
                               </Button>
+                              {liveRoomId.trim() && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAddSheet(undefined, 'import-pack')}
+                                  className="flex items-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-medium border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                                  title={`Live Room #${liveRoomId} is active. Click to open sync panel.`}
+                                >
+                                  <span className="relative flex h-2 w-2 shrink-0">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                  </span>
+                                  <span className="font-mono text-xs font-semibold truncate max-w-[130px]">
+                                    #{liveRoomId}
+                                  </span>
+                                  {isLiveAutoMerge && (
+                                    <span className="text-[9px] uppercase tracking-wider font-bold bg-emerald-500/25 px-1 py-0.5 rounded text-emerald-300">
+                                      auto
+                                    </span>
+                                  )}
+                                </button>
+                              )}
                               <Button
                                 variant="outline"
                                 onClick={() => handleOpenAddSheet(undefined, 'import-pack')}

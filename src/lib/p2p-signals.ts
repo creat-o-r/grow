@@ -10,6 +10,8 @@ import {
 const SIGNALS_STORAGE_KEY = 'grow_community_signals_v1';
 const IDENTITY_STORAGE_KEY = 'grow_local_identity_v1';
 const P2P_ROOM_STORAGE_KEY = 'grow_p2p_room_id_v1';
+const P2P_AUTO_MERGE_KEY = 'grow_p2p_auto_merge_v1';
+const P2P_AUTO_STREAM_KEY = 'grow_p2p_auto_stream_v1';
 const PUBLIC_RELAYS = ['https://ntfy.sh', 'wss://nos.lol', 'wss://relay.damus.io'];
 
 export interface LocalGrowerIdentity {
@@ -144,9 +146,55 @@ export function saveP2PRoomId(roomId: string): void {
   }
 }
 
+export function getAutoMergePreference(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(P2P_AUTO_MERGE_KEY) === 'true';
+}
+
+export function saveAutoMergePreference(enabled: boolean): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(P2P_AUTO_MERGE_KEY, enabled ? 'true' : 'false');
+}
+
+export function getAutoStreamPreference(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(P2P_AUTO_STREAM_KEY) === 'true';
+}
+
+export function saveAutoStreamPreference(enabled: boolean): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(P2P_AUTO_STREAM_KEY, enabled ? 'true' : 'false');
+}
+
 function getRelayTopicUrl(roomId: string): string {
   const slug = toSpeciesUid(roomId) || 'default-room';
-  return `https://ntfy.sh/grow-p2p-pack-${slug}`;
+  return `https://ntfy.sh/grow-p2p-v2-${slug}`;
+}
+
+/**
+ * Decompresses a deflate-raw base64url encoded wire dataset across modern browser and Node environments.
+ */
+export async function decompressDatasetFromWire(wireCompressed: string): Promise<AiDataset | null> {
+  if (!wireCompressed || typeof wireCompressed !== 'string') return null;
+  try {
+    if (typeof window !== 'undefined' && typeof DecompressionStream !== 'undefined') {
+      const base64 = wireCompressed.replace(/-/g, '+').replace(/_/g, '/');
+      const pad = base64.length % 4 === 0 ? '' : '='.repeat(4 - (base64.length % 4));
+      const binStr = atob(base64 + pad);
+      const bytes = new Uint8Array(binStr.length);
+      for (let i = 0; i < binStr.length; i++) {
+        bytes[i] = binStr.charCodeAt(i);
+      }
+      const stream = new Response(bytes).body?.pipeThrough(new DecompressionStream('deflate-raw'));
+      if (stream) {
+        const text = await new Response(stream).text();
+        return JSON.parse(text) as AiDataset;
+      }
+    }
+  } catch (err) {
+    console.warn('[P2P] Could not decompress dataset from wire:', err);
+  }
+  return null;
 }
 
 function createEmptySyncDataset(): AiDataset {
@@ -174,7 +222,8 @@ export interface P2PRoomPacket {
   type: 'GARDEN_SYNC_PACK';
   peerPubkey: string;
   peerName: string;
-  packParam: string;
+  packParam?: string;
+  compressedDataset?: string;
   gardenName: string;
   gardenCount?: number;
   plantCount: number;
@@ -260,7 +309,10 @@ async function extractPacketFromNtfyEnvelope(envelope: any): Promise<P2PRoomPack
           ? rawText.slice('GROW_PACK:'.length)
           : rawText;
         const parsed = JSON.parse(cleaned);
-        if (parsed?.type === 'GARDEN_SYNC_PACK' && (parsed.packParam || parsed.apiKeys)) {
+        if (
+          parsed?.type === 'GARDEN_SYNC_PACK' &&
+          (parsed.compressedDataset || parsed.packParam || parsed.apiKeys)
+        ) {
           return parsed as P2PRoomPacket;
         }
       }
@@ -277,7 +329,10 @@ async function extractPacketFromNtfyEnvelope(envelope: any): Promise<P2PRoomPack
         ? rawText.slice('GROW_PACK:'.length)
         : rawText;
       const parsed = JSON.parse(cleaned);
-      if (parsed?.type === 'GARDEN_SYNC_PACK' && (parsed.packParam || parsed.apiKeys)) {
+      if (
+        parsed?.type === 'GARDEN_SYNC_PACK' &&
+        (parsed.compressedDataset || parsed.packParam || parsed.apiKeys)
+      ) {
         return parsed as P2PRoomPacket;
       }
     } catch {
@@ -339,9 +394,16 @@ export async function fetchLatestFromP2PRoom(
           const envelope = JSON.parse(lines[i]);
           const packet = await extractPacketFromNtfyEnvelope(envelope);
           if (packet?.type === 'GARDEN_SYNC_PACK') {
-            const dataset = packet.packParam
-              ? decodeSeedPackFromInput(packet.packParam)
-              : createEmptySyncDataset();
+            let dataset: AiDataset | null = null;
+            if (packet.compressedDataset) {
+              dataset = await decompressDatasetFromWire(packet.compressedDataset);
+            }
+            if (!dataset && packet.packParam) {
+              dataset = decodeSeedPackFromInput(packet.packParam);
+            }
+            if (!dataset) {
+              dataset = createEmptySyncDataset();
+            }
             const candidate = {
               dataset,
               peerName: packet.peerName || 'Garden Peer',
@@ -412,16 +474,29 @@ export function subscribeToP2PGardenRoom(
   const seenPacketIds = new Set<string>();
   const channelName = `grow_room_${toSpeciesUid(roomId)}`;
 
-  const handlePacket = (packet: P2PRoomPacket) => {
+  const handlePacket = async (packet: P2PRoomPacket) => {
     if (!packet || packet.type !== 'GARDEN_SYNC_PACK') return;
     if (seenPacketIds.has(packet.packetId)) return;
     seenPacketIds.add(packet.packetId);
     // Ignore our own broadcasts from echoing back via SSE
     if (packet.peerPubkey && packet.peerPubkey === identity.pubkey) return;
     try {
-      const dataset = packet.packParam
-        ? decodeSeedPackFromInput(packet.packParam)
-        : createEmptySyncDataset();
+      let dataset: AiDataset | null = null;
+      if (packet.compressedDataset) {
+        dataset = await decompressDatasetFromWire(packet.compressedDataset);
+      }
+      if (!dataset && packet.packParam) {
+        dataset = decodeSeedPackFromInput(packet.packParam);
+      }
+      if (!dataset && !packet.apiKeys) {
+        const latest = await fetchLatestFromP2PRoom(roomId);
+        if (latest) {
+          dataset = latest.dataset;
+        }
+      }
+      if (!dataset) {
+        dataset = createEmptySyncDataset();
+      }
       onPeerDatasetReceived(
         dataset,
         packet.peerName || 'Garden Peer',
@@ -436,7 +511,7 @@ export function subscribeToP2PGardenRoom(
   let bc: BroadcastChannel | null = null;
   const bcHandler = (ev: MessageEvent) => {
     if (ev.data?.type === 'GARDEN_SYNC_PACK') {
-      handlePacket(ev.data as P2PRoomPacket);
+      void handlePacket(ev.data as P2PRoomPacket);
     }
   };
 
@@ -454,7 +529,7 @@ export function subscribeToP2PGardenRoom(
           const envelope = JSON.parse(ev.data);
           const packet = await extractPacketFromNtfyEnvelope(envelope);
           if (packet) {
-            handlePacket(packet);
+            await handlePacket(packet);
           }
         } catch {
           // ignore

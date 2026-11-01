@@ -71,6 +71,16 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       if (viability) ogCardParams.set('viability', viability);
       if (gardenName) ogCardParams.set('garden', gardenName);
       if (season) ogCardParams.set('season', season);
+      if (reasoning) {
+        const cleanReason = reasoning.replace(/["\n\r]/g, ' ').replace(/\s+/g, ' ').trim();
+        const firstSentence = cleanReason.split(/[.!?]\s/)[0] || '';
+        const snippet = firstSentence.length > 130
+          ? firstSentence.slice(0, 125).trim() + '...'
+          : firstSentence;
+        if (snippet) {
+          ogCardParams.set('reason', snippet);
+        }
+      }
       if (imageUrl && !imageUrl.includes('og-image.jpg')) {
         ogCardParams.set('photo', imageUrl);
       }
@@ -129,6 +139,9 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     ogCardParams.set('name', nameParam);
     if (viabilityParam) ogCardParams.set('viability', viabilityParam);
     ogCardParams.set('garden', gardenName);
+    if (viabilityParam) {
+      ogCardParams.set('reason', `Assessed as ${viabilityParam} Viability for ${gardenName}.`);
+    }
     const dynamicOgImageUrl = `https://grow-rho-two.vercel.app/api/og?${ogCardParams.toString()}`;
 
     const title = viabilityParam

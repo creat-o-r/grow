@@ -67,6 +67,10 @@ import { decodeSeedPackFromInput, buildShareableSeedPackUrl } from '@/lib/seed-p
 import {
   getSavedP2PRoomId,
   saveP2PRoomId,
+  getAutoMergePreference,
+  saveAutoMergePreference,
+  getAutoStreamPreference,
+  saveAutoStreamPreference,
   broadcastGardenToP2PRoom,
   fetchLatestFromP2PRoom,
   subscribeToP2PGardenRoom,
@@ -75,6 +79,7 @@ import {
   getOrCreateGrowerIdentity,
   updateGrowerIdentity,
 } from '@/lib/p2p-signals';
+import { notifyP2PRoomChanged } from '@/hooks/useP2PRoomLiveSync';
 
 type ImportMode = 'replace' | 'add' | 'new';
 export type UnifiedImportTab = 'single' | 'ai-generate' | 'import-pack';
@@ -164,6 +169,18 @@ export function AiDataImportSheet({
   } | null>(null);
   const [shareApiKeysWithBroadcast, setShareApiKeysWithBroadcast] = useState(false);
   const [pulledApiKeys, setPulledApiKeys] = useState<FreeLlmConfig | null>(null);
+  const [autoMergeEnabled, setAutoMergeEnabled] = useState(false);
+  const [autoStreamEnabled, setAutoStreamEnabled] = useState(false);
+
+  const handleToggleAutoMerge = (checked: boolean) => {
+    setAutoMergeEnabled(checked);
+    saveAutoMergePreference(checked);
+  };
+
+  const handleToggleAutoStream = (checked: boolean) => {
+    setAutoStreamEnabled(checked);
+    saveAutoStreamPreference(checked);
+  };
 
   const activeKeyProviders = useMemo(() => {
     const list: string[] = [];
@@ -247,6 +264,8 @@ export function AiDataImportSheet({
       if (savedShareKeys !== null) {
         setShareApiKeysWithBroadcast(savedShareKeys === 'true');
       }
+      setAutoMergeEnabled(getAutoMergePreference());
+      setAutoStreamEnabled(getAutoStreamPreference());
       const identity = getOrCreateGrowerIdentity();
       setGrowerHandle(identity.displayName);
       setTempHandle(identity.displayName);
@@ -275,6 +294,7 @@ export function AiDataImportSheet({
       return;
     }
     saveP2PRoomId(p2pRoomId);
+    notifyP2PRoomChanged(p2pRoomId);
 
     // Cross-session updates: poll the room (cheap "peek", no dataset download) while this sheet is
     // open and the tab is visible. A new packetId written by a DIFFERENT session raises a toast.
@@ -426,6 +446,7 @@ export function AiDataImportSheet({
     setError(null);
     try {
       saveP2PRoomId(p2pRoomId);
+    notifyP2PRoomChanged(p2pRoomId);
       const ds = await buildCurrentGardenDataset(shareScope);
       if (!ds) {
         throw new Error('No gardens found to broadcast.');
@@ -483,6 +504,7 @@ export function AiDataImportSheet({
     setError(null);
     try {
       saveP2PRoomId(p2pRoomId);
+    notifyP2PRoomChanged(p2pRoomId);
       const latest = await fetchLatestFromP2PRoom(p2pRoomId);
       if (!latest) {
         toast({
@@ -1596,6 +1618,51 @@ export function AiDataImportSheet({
                               <span>Security note: Anyone with room code &quot;{p2pRoomId || '...'}&quot; will receive your keys. Only use private room codes.</span>
                             </div>
                           )}
+                        </div>
+
+                        {/* Real-Time Live Sync Automation */}
+                        <div className="rounded-lg border p-3 bg-muted/20 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-xs flex items-center gap-1.5 text-foreground">
+                              <Sparkles className="h-3.5 w-3.5 text-primary" />
+                              Real-Time Sync Automation
+                            </span>
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground font-mono">
+                              Zero Server Cost
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-3 pt-1 border-t border-border/50">
+                            <div className="space-y-0.5">
+                              <Label htmlFor="auto-merge-toggle" className="text-xs font-medium cursor-pointer">
+                                Auto-Merge Incoming Updates
+                              </Label>
+                              <p className="text-[11px] text-muted-foreground">
+                                Seamlessly merges plantings streamed to this room into your active garden without prompting.
+                              </p>
+                            </div>
+                            <Switch
+                              id="auto-merge-toggle"
+                              checked={autoMergeEnabled}
+                              onCheckedChange={handleToggleAutoMerge}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between gap-3 pt-2 border-t border-border/50">
+                            <div className="space-y-0.5">
+                              <Label htmlFor="auto-stream-toggle" className="text-xs font-medium cursor-pointer">
+                                Auto-Stream Garden Edits
+                              </Label>
+                              <p className="text-[11px] text-muted-foreground">
+                                Automatically broadcasts debounced garden updates whenever you add plants or log status changes.
+                              </p>
+                            </div>
+                            <Switch
+                              id="auto-stream-toggle"
+                              checked={autoStreamEnabled}
+                              onCheckedChange={handleToggleAutoStream}
+                            />
+                          </div>
                         </div>
 
                         {/* Banner if received shared API keys */}
