@@ -3,6 +3,9 @@ import HomeClient from './HomeClient';
 import { decodeSeedPackFromInput } from '@/lib/seed-pack';
 import { getCuratedPlantImage } from '@/lib/plant-images';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 type PageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
@@ -13,6 +16,8 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const nameParam = typeof resolved.name === 'string' ? resolved.name : undefined;
   const viabilityParam = typeof resolved.viability === 'string' ? resolved.viability : undefined;
   const gardenParam = typeof resolved.garden === 'string' ? resolved.garden : undefined;
+
+  const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '966242223397117';
 
   // 1. If a 1-click seed pack or plant pack is passed
   if (packParam) {
@@ -50,7 +55,8 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         .join(' ');
 
       const rawImage = plant?.imageUrl || (plant ? getCuratedPlantImage(plant, plantName) : undefined);
-      const imageUrl = rawImage || '/images/plants/veg-1.jpg';
+      const imageUrl = rawImage || 'https://grow-rho-two.vercel.app/images/plants/veg-1.jpg';
+      const isHttps = imageUrl.startsWith('https://');
 
       return {
         title,
@@ -58,12 +64,12 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         openGraph: {
           title,
           description,
-          url: `https://grow-rho-two.vercel.app/?pack=${encodeURIComponent(packParam)}`,
           siteName: 'Grow',
           type: 'article',
           images: [
             {
               url: imageUrl,
+              secureUrl: isHttps ? imageUrl : undefined,
               width: 1200,
               height: 630,
               alt: `${plantName} — ${viability || 'Viability'} in ${gardenName}`,
@@ -76,13 +82,16 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
           description,
           images: [imageUrl],
         },
+        other: {
+          'fb:app_id': fbAppId,
+        },
       };
-    } catch (err) {
-      console.warn('Could not decode packParam for metadata:', err);
+    } catch (err: any) {
+      console.error('PACK ERROR IN GENERATEMETADATA:', err?.message);
     }
   }
 
-  // 2. Fallback if shared with query parameters
+  // 2. Fallback if shared with query parameters only
   if (nameParam) {
     const gardenName = gardenParam || 'My Garden';
     const title = viabilityParam
@@ -103,7 +112,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         type: 'article',
         images: [
           {
-            url: '/images/plants/veg-1.jpg',
+            url: 'https://grow-rho-two.vercel.app/images/plants/veg-1.jpg',
             width: 1200,
             height: 630,
             alt: title,
@@ -114,26 +123,33 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         card: 'summary_large_image',
         title,
         description,
-        images: ['/images/plants/veg-1.jpg'],
+        images: ['https://grow-rho-two.vercel.app/images/plants/veg-1.jpg'],
+      },
+      other: {
+        'fb:app_id': fbAppId,
       },
     };
   }
 
   // 3. Default base Open Graph metadata for root homepage
+  const defaultUrl = 'https://grow-rho-two.vercel.app';
   return {
     title: 'Grow — Garden Assistant & Plant Viability Tracker',
     description:
       'Track plant viability, assess microclimates, and share seed packs with local-first, zero-server gardening tools.',
+    alternates: {
+      canonical: defaultUrl,
+    },
     openGraph: {
       title: 'Grow — Garden Assistant & Plant Viability Tracker',
       description:
         'Track plant viability, assess microclimates, and share seed packs with local-first, zero-server gardening tools.',
-      url: 'https://grow-rho-two.vercel.app',
+      url: defaultUrl,
       siteName: 'Grow',
       type: 'website',
       images: [
         {
-          url: '/images/plants/veg-1.jpg',
+          url: 'https://grow-rho-two.vercel.app/images/plants/veg-1.jpg',
           width: 1200,
           height: 630,
           alt: 'Grow Garden Assistant',
@@ -145,7 +161,11 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       title: 'Grow — Garden Assistant & Plant Viability Tracker',
       description:
         'Track plant viability, assess microclimates, and share seed packs with local-first, zero-server gardening tools.',
-      images: ['/images/plants/veg-1.jpg'],
+      images: ['https://grow-rho-two.vercel.app/images/plants/veg-1.jpg'],
+    },
+    other: {
+      'og:url': defaultUrl,
+      'fb:app_id': fbAppId,
     },
   };
 }

@@ -15,7 +15,6 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Grow — Garden Assistant & Plant Viability Tracker',
     description: 'Your personal digital garden assistant. Track microclimates, plant viability, and share seed packs with zero server costs.',
-    url: 'https://grow-rho-two.vercel.app',
     siteName: 'Grow',
     images: [
       {
@@ -34,6 +33,9 @@ export const metadata: Metadata = {
     description: 'Your personal digital garden assistant. Track microclimates, plant viability, and share seed packs with zero server costs.',
     images: ['/images/plants/veg-1.jpg'],
   },
+  other: {
+    'fb:app_id': process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '966242223397117',
+  },
 };
 
 export default function RootLayout({
@@ -44,6 +46,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
+        <meta property="fb:app_id" content="966242223397117" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
