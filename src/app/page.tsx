@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import HomeClient from './HomeClient';
 import { decodeSeedPackFromInput } from '@/lib/seed-pack';
 import { getCuratedPlantImage } from '@/lib/plant-images';
-import { getPlantGuildProfile } from '@/lib/companion-guild';
+import { getPlantGuildStatus } from '@/extensions/companion-guild';
+import { getPlantSurplus } from '@/extensions/surplus-seed-swap';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -49,22 +50,20 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         upcoming = `${planting.upcomingViability || 'High'} in ${planting.upcomingTiming}`;
       }
 
-      // Seed swap surplus
+      // Seed swap surplus from surplus-seed-swap extension
       let surplus = surplusParam;
       if (!surplus && planting) {
-        const onHand = planting.seedsOnHand ?? 0;
-        const planned = planting.plannedQty ?? 0;
-        const surplusCount = Math.max(0, onHand - planned);
-        if (surplusCount > 0) {
-          surplus = `${surplusCount} Seeds for Swap`;
-        } else if (planting.swapAvailable) {
+        const { surplus: count, isAvailable } = getPlantSurplus(planting);
+        if (count > 0) {
+          surplus = `${count} Seeds for Swap`;
+        } else if (isAvailable) {
           surplus = 'Seeds for Swap';
         }
       }
 
-      // Companion guild profile
-      const guildProfile = getPlantGuildProfile(plantName, plant?.species);
-      const guild = guildParam || guildProfile.tag;
+      // Companion guild status from companion-guild extension
+      const guildStatus = getPlantGuildStatus(plantName, plant?.species);
+      const guild = guildParam || guildStatus.badgeLabel;
 
       const title = viability
         ? `${plantName} (${viability} Viability${status ? ` • ${status}` : ''} in ${gardenName}${season ? ` • ${season}` : ''})`
@@ -74,7 +73,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         viability ? `✨ ${viability} Viability in ${gardenName}${season ? ` (${season})` : ''}.` : null,
         status ? `🌱 Lifecycle: ${status}.` : null,
         upcoming ? `📈 Upcoming: ${upcoming}.` : null,
-        guildProfile ? `🌿 Guild: ${guildProfile.name}.` : null,
+        guildStatus.summaryText ? `🌿 ${guildStatus.summaryText}.` : null,
         surplus ? `🤝 Seed Swap: ${surplus}.` : null,
         reasoning ? `"${reasoning}"` : null,
         location?.conditions
@@ -182,8 +181,8 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   // 2. Fallback if shared with query parameters only
   if (nameParam) {
     const gardenName = gardenParam || 'My Garden';
-    const guildProfile = getPlantGuildProfile(nameParam);
-    const guild = guildParam || guildProfile.tag;
+    const guildStatus = getPlantGuildStatus(nameParam);
+    const guild = guildParam || guildStatus.badgeLabel;
 
     const ogCardParams = new URLSearchParams();
     ogCardParams.set('name', nameParam);

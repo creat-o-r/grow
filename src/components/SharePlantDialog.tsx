@@ -26,15 +26,15 @@ import {
   Thermometer,
   Sun,
   Layers,
-  Calendar,
-  AlertCircle,
-  ExternalLink,
   Info,
   Sprout,
   Network,
+  ThumbsUp,
+  AlertTriangle,
 } from 'lucide-react';
 import { buildShareableSeedPackUrl } from '@/lib/seed-pack';
-import { getPlantGuildProfile, detectGardenSynergies } from '@/lib/companion-guild';
+import { getPlantGuildStatus } from '@/extensions/companion-guild';
+import { getPlantSurplus } from '@/extensions/surplus-seed-swap';
 import { cn } from '@/lib/utils';
 
 export type SharePlantDialogProps = {
@@ -49,6 +49,13 @@ export type SharePlantDialogProps = {
   currentSeason?: string;
   onGetViability?: () => void;
   otherPlantings?: PlantingWithPlant[];
+};
+
+const statusConfig: { [key: string]: string } = {
+  Wishlist: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800',
+  Planting: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-800',
+  Growing: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-800',
+  Harvest: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-800',
 };
 
 export function SharePlantDialog({
@@ -89,7 +96,7 @@ export function SharePlantDialog({
   const effectiveSeason = currentSeason || gardenLocation.conditions?.currentSeason;
   const gardenName = gardenLocation.name || 'My Garden';
 
-  // 1. Current lifecycle status
+  // 1. Current lifecycle status (from planting history)
   const status =
     planting.history && planting.history.length > 0
       ? planting.history[planting.history.length - 1].status
@@ -100,28 +107,23 @@ export function SharePlantDialog({
     ? `${effectiveUpcomingViability || 'High'} in ${effectiveUpcomingTiming}`
     : undefined;
 
-  // 3. Surplus seed swap availability
-  const onHand = planting.seedsOnHand ?? 0;
-  const planned = planting.plannedQty ?? 0;
-  const surplusSeeds = Math.max(0, onHand - planned);
-  const isSwapAvailable = Boolean(planting.swapAvailable || surplusSeeds > 0);
+  // 3. Surplus seed swap availability (using surplus-seed-swap extension)
+  const { surplus: surplusSeeds, isAvailable: isSwapAvailable } = useMemo(
+    () => getPlantSurplus(planting),
+    [planting]
+  );
   const surplusSummary = surplusSeeds > 0
     ? `${surplusSeeds} Seeds for Swap`
     : isSwapAvailable
     ? 'Seeds for Swap'
     : undefined;
 
-  // 4. Companion Guild & Permaculture polyculture analysis
-  const guildProfile = useMemo(() => {
-    return getPlantGuildProfile(planting.name, planting.plant.species);
-  }, [planting.name, planting.plant.species]);
-
-  const gardenSynergies = useMemo(() => {
-    if (!otherPlantings || otherPlantings.length === 0) return { synergies: [], conflicts: [] };
-    return detectGardenSynergies(
+  // 4. Companion Guild status (using companion-guild extension)
+  const guildStatus = useMemo(() => {
+    return getPlantGuildStatus(
       planting.name,
       planting.plant.species,
-      otherPlantings.map((p) => ({ name: p.name, species: p.plant?.species }))
+      otherPlantings?.map((p) => ({ name: p.name, species: p.plant?.species }))
     );
   }, [planting.name, planting.plant.species, otherPlantings]);
 
@@ -162,7 +164,7 @@ export function SharePlantDialog({
     if (status) params.set('status', status);
     if (upcomingSummary) params.set('upcoming', upcomingSummary);
     if (surplusSummary) params.set('surplus', surplusSummary);
-    if (guildProfile?.tag) params.set('guild', guildProfile.tag);
+    if (guildStatus.badgeLabel) params.set('guild', guildStatus.badgeLabel);
     const queryStr = params.toString();
     return queryStr ? `${baseUrl}&${queryStr}` : baseUrl;
   }, [
@@ -177,7 +179,7 @@ export function SharePlantDialog({
     status,
     upcomingSummary,
     surplusSummary,
-    guildProfile?.tag,
+    guildStatus.badgeLabel,
     isSwapAvailable,
   ]);
 
@@ -194,21 +196,14 @@ export function SharePlantDialog({
 
     if (upcomingSummary) {
       lines.push(
-        `📈 Upcoming Viability: Soon ${upcomingSummary}${
+        `📈 Upcoming Viability: ↑ ${upcomingSummary}${
           effectiveUpcomingReasoning ? ` (${effectiveUpcomingReasoning})` : ''
         }`
       );
     }
 
-    if (guildProfile) {
-      lines.push(`🌿 Companion Guild: ${guildProfile.name} (${guildProfile.role})`);
-      if (gardenSynergies.synergies.length > 0) {
-        lines.push(
-          `🤝 Active Garden Synergy: ${gardenSynergies.synergies.map((s) => `${s.partnerName} (${s.reason})`).join('; ')}`
-        );
-      } else if (guildProfile.beneficialCompanions?.length > 0) {
-        lines.push(`💡 Great Companions: ${guildProfile.beneficialCompanions.join(', ')}`);
-      }
+    if (guildStatus.summaryText) {
+      lines.push(`🌿 Companion Guild: ${guildStatus.summaryText}`);
     }
 
     if (isSwapAvailable) {
@@ -249,8 +244,7 @@ export function SharePlantDialog({
     status,
     upcomingSummary,
     effectiveUpcomingReasoning,
-    guildProfile,
-    gardenSynergies,
+    guildStatus.summaryText,
     isSwapAvailable,
     surplusSeeds,
     effectiveReasoning,
@@ -355,22 +349,11 @@ export function SharePlantDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Viability in My Garden - Highlighted Section */}
-        <div
-          className={cn(
-            'rounded-lg border p-4 space-y-3 transition-colors',
-            effectiveViability === 'High' &&
-              'bg-emerald-500/10 border-emerald-500/30 dark:bg-emerald-950/20 dark:border-emerald-800/50',
-            effectiveViability === 'Medium' &&
-              'bg-amber-500/10 border-amber-500/30 dark:bg-amber-950/20 dark:border-amber-800/50',
-            effectiveViability === 'Low' &&
-              'bg-rose-500/10 border-rose-500/30 dark:bg-rose-950/20 dark:border-rose-800/50',
-            !effectiveViability && 'bg-muted/40 border-border'
-          )}
-        >
-          {/* Header row: Garden Name, Status & Viability Badge */}
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+        {/* Plant Card Preview — Styled consistently with Grow's PlantCard */}
+        <div className="rounded-lg border bg-card text-card-foreground p-4 space-y-3 shadow-sm">
+          {/* Header row: Garden Name & Season */}
+          <div className="flex items-center justify-between gap-2 flex-wrap pb-1 border-b border-border/40">
+            <div className="flex items-center gap-1.5 min-w-0">
               <Fence className="h-4 w-4 text-primary shrink-0" />
               <span className="font-semibold text-sm truncate">{gardenName}</span>
               {effectiveSeason && (
@@ -378,23 +361,34 @@ export function SharePlantDialog({
                   {effectiveSeason}
                 </Badge>
               )}
-              <Badge variant="outline" className="text-[11px] py-0 px-1.5 h-4 gap-1 font-medium bg-background/70">
-                <Sprout className="h-2.5 w-2.5 text-primary" />
-                <span>{status}</span>
-              </Badge>
             </div>
+            <span className="text-[11px] text-muted-foreground font-mono">Grow Seed Pack</span>
+          </div>
 
+          {/* Plant Name & Species */}
+          <div>
+            <h3 className="font-headline text-xl leading-tight font-semibold text-foreground">
+              {planting.name}
+            </h3>
+            <p className="text-xs text-muted-foreground italic pt-0.5">
+              {planting.plant.species}
+            </p>
+          </div>
+
+          {/* Badges Row — Matching app's PlantCard & ViabilityIndicator exactly */}
+          <div className="flex flex-wrap gap-2 items-center pt-1">
+            {/* Viability Badge */}
             {effectiveViability ? (
               <Badge
                 variant="outline"
                 className={cn(
-                  'font-medium text-xs px-2 py-0.5 flex items-center gap-1 shadow-sm',
+                  'font-normal text-xs px-2 py-0.5 flex items-center gap-1 shadow-sm select-none',
                   effectiveViability === 'High' &&
-                    'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/60 dark:text-emerald-300 dark:border-emerald-700',
+                    'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-800',
                   effectiveViability === 'Medium' &&
-                    'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/60 dark:text-amber-300 dark:border-amber-700',
+                    'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-800',
                   effectiveViability === 'Low' &&
-                    'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-900/60 dark:text-rose-300 dark:border-rose-700'
+                    'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800'
                 )}
               >
                 <Sparkles className="h-3 w-3" />
@@ -405,21 +399,68 @@ export function SharePlantDialog({
                 Unassessed
               </Badge>
             )}
+
+            {/* Upcoming Outlook Badge (dashed border like ViabilityIndicator.tsx) */}
+            {effectiveUpcomingTiming && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  'text-[11px] font-medium flex items-center gap-1 select-none border-dashed',
+                  effectiveUpcomingViability === 'High'
+                    ? 'bg-green-50 text-green-700 border-green-400 dark:bg-green-950/40 dark:text-green-300 dark:border-green-700'
+                    : 'bg-yellow-50 text-yellow-700 border-yellow-400 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-700'
+                )}
+              >
+                <TrendingUp className="h-3 w-3 shrink-0" />
+                <span>↑ {effectiveUpcomingViability || 'High'} ({effectiveUpcomingTiming})</span>
+              </Badge>
+            )}
+
+            {/* Lifecycle Status Badge (matching PlantCard.tsx statusConfig) */}
+            <Badge
+              variant="outline"
+              className={cn('font-normal text-xs', statusConfig[status] || statusConfig.Wishlist)}
+            >
+              {status}
+            </Badge>
+
+            {/* Seed Swap Surplus Badge (matching surplus-seed-swap extension) */}
+            {isSwapAvailable && (
+              <Badge variant="secondary" className="flex items-center gap-1.5 text-xs font-normal">
+                <Sprout className="h-3 w-3 text-primary" />
+                <span>{surplusSeeds > 0 ? `${surplusSeeds} seeds for swap` : 'Seed swap available'}</span>
+              </Badge>
+            )}
+
+            {/* Companion Guild Badge (matching companion-guild extension) */}
+            {guildStatus.badgeLabel && (
+              <Badge
+                variant={guildStatus.activeSynergies.length > 0 ? 'default' : 'secondary'}
+                className="flex items-center gap-1.5 text-xs font-normal"
+              >
+                {guildStatus.activeSynergies.length > 0 ? (
+                  <ThumbsUp className="h-3 w-3" />
+                ) : (
+                  <Network className="h-3 w-3" />
+                )}
+                <span>{guildStatus.badgeLabel}</span>
+              </Badge>
+            )}
           </div>
 
-          {/* Viability Reasoning Callout */}
+          {/* Viability Reasoning Callout Box */}
           {effectiveReasoning ? (
-            <div className="rounded-md bg-background/80 border border-border/60 p-2.5 text-xs space-y-1">
+            <div className="rounded-md bg-muted/50 border border-border p-2.5 text-xs space-y-1">
               <div className="flex items-center gap-1.5 font-semibold text-foreground">
                 <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
-                <span>Viability in this Garden:</span>
+                <span>Viability Assessment:</span>
               </div>
               <p className="text-muted-foreground leading-relaxed pl-5">
                 "{effectiveReasoning}"
               </p>
             </div>
           ) : (
-            <div className="rounded-md bg-background/60 border border-dashed border-border/70 p-3 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="rounded-md bg-muted/30 border border-dashed border-border p-3 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <span className="text-muted-foreground">
                 Viability has not been analyzed for this garden yet.
               </span>
@@ -441,87 +482,42 @@ export function SharePlantDialog({
             </div>
           )}
 
+          {/* Companion Guild Synergies Detail (if detected) */}
+          {guildStatus.summaryText && (
+            <div className="flex items-start gap-2 text-xs bg-muted/40 border border-border/70 rounded-md p-2.5">
+              <Network className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <span className="font-semibold text-foreground">
+                  Companion &amp; Guild Matrix
+                </span>
+                <p className="text-[11px] text-muted-foreground">
+                  {guildStatus.summaryText}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Garden microclimate condition badges */}
           {gardenLocation.conditions && (
             <div className="flex flex-wrap gap-1.5 pt-1 text-[11px] text-muted-foreground">
               {gardenLocation.conditions.temperature && (
-                <div className="flex items-center gap-1 bg-background/60 px-2 py-0.5 rounded border border-border/50">
+                <div className="flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded border border-border/50">
                   <Thermometer className="h-3 w-3 text-primary/70 shrink-0" />
                   <span>{gardenLocation.conditions.temperature}</span>
                 </div>
               )}
               {gardenLocation.conditions.sunlight && (
-                <div className="flex items-center gap-1 bg-background/60 px-2 py-0.5 rounded border border-border/50">
+                <div className="flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded border border-border/50">
                   <Sun className="h-3 w-3 text-amber-500 shrink-0" />
                   <span>{gardenLocation.conditions.sunlight}</span>
                 </div>
               )}
               {gardenLocation.conditions.soil && (
-                <div className="flex items-center gap-1 bg-background/60 px-2 py-0.5 rounded border border-border/50">
+                <div className="flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded border border-border/50">
                   <Layers className="h-3 w-3 text-primary/70 shrink-0" />
                   <span>{gardenLocation.conditions.soil}</span>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Upcoming seasonal window ("viability soon") */}
-          {effectiveUpcomingTiming && (
-            <div className="flex items-center gap-2 text-xs text-foreground/90 font-medium bg-background/80 rounded-md p-2.5 border border-border/60">
-              <TrendingUp className="h-4 w-4 text-emerald-500 shrink-0" />
-              <span>
-                Upcoming Window: <strong>{effectiveUpcomingViability || 'High'}</strong> in{' '}
-                <strong>{effectiveUpcomingTiming}</strong>
-                {effectiveUpcomingReasoning ? ` — "${effectiveUpcomingReasoning}"` : ''}
-              </span>
-            </div>
-          )}
-
-          {/* Permaculture Companion Guild Matrix */}
-          {guildProfile && (
-            <div className="flex items-start gap-2 text-xs bg-teal-500/10 border border-teal-500/25 dark:bg-teal-950/20 dark:border-teal-800/40 rounded-md p-2.5">
-              <Network className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
-              <div className="space-y-0.5 min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-semibold text-teal-900 dark:text-teal-200">
-                    {guildProfile.name}
-                  </span>
-                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 text-teal-700 dark:text-teal-300 border-teal-500/40">
-                    {guildProfile.tag}
-                  </Badge>
-                </div>
-                <p className="text-[11px] text-muted-foreground">{guildProfile.role}</p>
-                {gardenSynergies.synergies.length > 0 ? (
-                  <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium pt-0.5">
-                    🤝 Active Garden Synergy with: <strong>{gardenSynergies.synergies.map((s) => s.partnerName).join(', ')}</strong> ({gardenSynergies.synergies[0]?.reason})
-                  </p>
-                ) : (
-                  guildProfile.beneficialCompanions?.length > 0 && (
-                    <p className="text-[11px] text-muted-foreground pt-0.5">
-                      Beneficial Companions: {guildProfile.beneficialCompanions.join(', ')}
-                    </p>
-                  )
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Seed Swap Surplus Availability */}
-          {isSwapAvailable && (
-            <div className="flex items-center gap-2 text-xs bg-amber-500/10 border border-amber-500/30 dark:bg-amber-950/20 dark:border-amber-800/40 rounded-md p-2.5">
-              <Sprout className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
-              <div className="space-y-0.5">
-                <span className="font-semibold text-amber-900 dark:text-amber-200">
-                  Seed Swap Surplus Available
-                </span>
-                <p className="text-[11px] text-muted-foreground">
-                  {surplusSeeds > 0 ? (
-                    <><strong>{surplusSeeds} surplus seeds</strong> ready for local seed swap with neighboring growers!</>
-                  ) : (
-                    <>Listed as available for seed swap with neighboring growers!</>
-                  )}
-                </p>
-              </div>
             </div>
           )}
         </div>

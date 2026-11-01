@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
-import { getPlantGuildProfile } from '@/lib/companion-guild';
+import { getPlantGuildStatus } from '@/extensions/companion-guild';
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,64 +17,63 @@ export async function GET(req: NextRequest) {
     const surplusParam = searchParams.get('surplus');
     const guildParam = searchParams.get('guild');
 
-    // Viability theme colors
-    let badgeBg = '#059669'; // Emerald (High)
-    let badgeBorder = '#10b981';
-    let badgeLabel = 'HIGH VIABILITY';
-    let accentColor = '#34d399';
+    // 1. Viability badge styling matching app's ViabilityIndicator.tsx
+    let viabilityText = 'High Viability';
+    let viabilityBg = '#dcfce7'; // green-100
+    let viabilityTextCol = '#166534'; // green-800
+    let viabilityBorder = '#86efac'; // green-300
 
     if (viability.toLowerCase().includes('medium')) {
-      badgeBg = '#d97706'; // Amber Gold (Medium)
-      badgeBorder = '#f59e0b';
-      badgeLabel = 'MEDIUM VIABILITY';
-      accentColor = '#fbbf24';
+      viabilityText = 'Medium Viability';
+      viabilityBg = '#fef9c3'; // yellow-100
+      viabilityTextCol = '#854d0e'; // yellow-800
+      viabilityBorder = '#fde047'; // yellow-300
     } else if (viability.toLowerCase().includes('low')) {
-      badgeBg = '#dc2626'; // Coral Red (Low)
-      badgeBorder = '#ef4444';
-      badgeLabel = 'LOW VIABILITY';
-      accentColor = '#f87171';
+      viabilityText = 'Low Viability';
+      viabilityBg = '#fee2e2'; // red-100
+      viabilityTextCol = '#991b1b'; // red-800
+      viabilityBorder = '#fca5a5'; // red-300
     }
 
-    // Status styling
+    // 2. Status badge styling matching app's PlantCard.tsx statusConfig
     let statusLabel = '';
-    let statusBg = 'rgba(255, 255, 255, 0.08)';
-    let statusBorder = 'rgba(255, 255, 255, 0.2)';
-    let statusColor = '#e2e8f0';
+    let statusBg = '#dbeafe';
+    let statusTextCol = '#1e40af';
+    let statusBorder = '#bfdbfe';
 
     if (statusParam) {
-      const lowerStatus = statusParam.toLowerCase();
-      if (lowerStatus.includes('grow')) {
-        statusLabel = '🌱 GROWING';
-        statusBg = '#064e3b';
-        statusBorder = '#10b981';
-        statusColor = '#6ee7b7';
-      } else if (lowerStatus.includes('plant') || lowerStatus.includes('sown')) {
-        statusLabel = '🪴 SOWN';
-        statusBg = '#1e3a8a';
-        statusBorder = '#3b82f6';
-        statusColor = '#93c5fd';
-      } else if (lowerStatus.includes('harvest')) {
-        statusLabel = '🌾 HARVESTED';
-        statusBg = '#78350f';
-        statusBorder = '#f59e0b';
-        statusColor = '#fde68a';
-      } else if (lowerStatus.includes('wishlist') || lowerStatus.includes('plan')) {
-        statusLabel = '📋 WISHLIST';
-        statusBg = '#334155';
-        statusBorder = '#64748b';
-        statusColor = '#cbd5e1';
+      const lower = statusParam.toLowerCase();
+      if (lower.includes('grow')) {
+        statusLabel = 'Growing';
+        statusBg = '#dcfce7'; // green-100
+        statusTextCol = '#166534'; // green-800
+        statusBorder = '#bbf7d0'; // green-200
+      } else if (lower.includes('plant') || lower.includes('sown')) {
+        statusLabel = 'Planting';
+        statusBg = '#ffedd5'; // orange-100
+        statusTextCol = '#9a3412'; // orange-800
+        statusBorder = '#fed7aa'; // orange-200
+      } else if (lower.includes('harvest')) {
+        statusLabel = 'Harvest';
+        statusBg = '#f3e8ff'; // purple-100
+        statusTextCol = '#6b21a8'; // purple-800
+        statusBorder = '#e9d5ff'; // purple-200
       } else {
-        statusLabel = `🌱 ${statusParam.toUpperCase()}`;
+        statusLabel = 'Wishlist';
+        statusBg = '#dbeafe'; // blue-100
+        statusTextCol = '#1e40af'; // blue-800
+        statusBorder = '#bfdbfe'; // blue-200
       }
     }
 
-    // Guild tag (use param or infer from species/name)
-    const effectiveGuild = guildParam || getPlantGuildProfile(name, species).tag;
+    // 3. Upcoming viability badge matching app's ViabilityIndicator dashed badge
+    const effectiveUpcoming = upcomingParam ? `↑ ${upcomingParam}` : null;
 
-    // Upcoming viability tag
-    const effectiveUpcoming = upcomingParam ? `📈 Soon: ${upcomingParam}` : null;
+    // 4. Guild status from companion-guild extension
+    const guildStatus = getPlantGuildStatus(name, species);
+    const effectiveGuild = guildParam || guildStatus.badgeLabel;
 
-    // Seed swap surplus tag
+    // 5. Seed swap surplus tag matching app's surplus-seed-swap widget
     const effectiveSurplus = surplusParam ? `🤝 ${surplusParam}` : null;
 
     return new ImageResponse(
@@ -84,300 +83,323 @@ export async function GET(req: NextRequest) {
             height: '100%',
             width: '100%',
             display: 'flex',
-            flexDirection: 'row',
-            backgroundColor: '#04130d',
-            backgroundImage: 'radial-gradient(circle at 18% 28%, #0a2f20 0%, #04130d 75%)',
-            color: '#ffffff',
-            fontFamily: 'sans-serif',
-            padding: '34px',
+            flexDirection: 'column',
+            backgroundColor: '#edf2ee', // App's soothing sage garden background
+            padding: '28px',
             boxSizing: 'border-box',
+            fontFamily: 'sans-serif',
           }}
         >
-          {/* Left Column: Content */}
+          {/* Main Card Container styled like Grow's PlantCard */}
           <div
             style={{
-              flex: 1,
               height: '100%',
+              width: '100%',
               display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              paddingRight: photo ? '32px' : '0px',
+              flexDirection: 'row',
+              backgroundColor: '#ffffff', // App's card surface
+              borderRadius: '20px',
+              border: '1.5px solid #d5ded6',
+              boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08)',
+              padding: '28px',
               boxSizing: 'border-box',
             }}
           >
-            {/* Top Header: Brand, Season & Garden */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor: '#092d1f',
-                  border: '1.5px solid #10b981',
-                  borderRadius: '30px',
-                  padding: '6px 16px',
-                  fontSize: '16px',
-                  fontWeight: 800,
-                  color: '#34d399',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                🌱 GROW ASSISTANT
-              </div>
-
-              {season ? (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    backgroundColor: '#0c261b',
-                    border: '1.5px solid #1d4d38',
-                    borderRadius: '30px',
-                    padding: '6px 14px',
-                    fontSize: '15px',
-                    fontWeight: 700,
-                    color: '#93c5fd',
-                  }}
-                >
-                  {`🗓️ ${season}`}
-                </div>
-              ) : null}
-
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  backgroundColor: '#0a3022',
-                  border: '1.5px solid #10b981',
-                  borderRadius: '30px',
-                  padding: '6px 14px',
-                  fontSize: '15px',
-                  fontWeight: 700,
-                  color: '#6ee7b7',
-                }}
-              >
-                {`🏡 ${garden}`}
-              </div>
-            </div>
-
-            {/* Middle Section: Badges, Title, Social Chips & Reason */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {/* Primary Badges: Viability + Status */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {viability ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      backgroundColor: badgeBg,
-                      border: `2px solid ${badgeBorder}`,
-                      color: '#ffffff',
-                      padding: '7px 18px',
-                      borderRadius: '10px',
-                      fontSize: '18px',
-                      fontWeight: 900,
-                      letterSpacing: '0.04em',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    {`✨ ${badgeLabel}`}
-                  </div>
-                ) : null}
-
-                {statusLabel ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      backgroundColor: statusBg,
-                      border: `1.5px solid ${statusBorder}`,
-                      color: statusColor,
-                      padding: '7px 16px',
-                      borderRadius: '10px',
-                      fontSize: '16px',
-                      fontWeight: 800,
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    {statusLabel}
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Plant Name */}
-              <div
-                style={{
-                  display: 'flex',
-                  fontSize: name.length > 20 ? '44px' : '54px',
-                  fontWeight: 900,
-                  color: '#ffffff',
-                  lineHeight: 1.08,
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                {name}
-              </div>
-
-              {/* Species Botanical Name */}
-              {species ? (
-                <div
-                  style={{
-                    display: 'flex',
-                    fontSize: '19px',
-                    fontStyle: 'italic',
-                    color: '#94a3b8',
-                    marginTop: '-4px',
-                  }}
-                >
-                  {species}
-                </div>
-              ) : null}
-
-              {/* Contextual Social Badges (Upcoming Viability, Guild, Seed Swap Surplus) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
-                {effectiveUpcoming ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      backgroundColor: '#0d3222',
-                      border: '1.5px solid #10b981',
-                      borderRadius: '20px',
-                      padding: '5px 13px',
-                      fontSize: '15px',
-                      fontWeight: 800,
-                      color: '#a7f3d0',
-                    }}
-                  >
-                    {effectiveUpcoming}
-                  </div>
-                ) : null}
-
-                {effectiveGuild ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      backgroundColor: '#0b2b2b',
-                      border: '1.5px solid #14b8a6',
-                      borderRadius: '20px',
-                      padding: '5px 13px',
-                      fontSize: '15px',
-                      fontWeight: 800,
-                      color: '#5eead4',
-                    }}
-                  >
-                    {effectiveGuild}
-                  </div>
-                ) : null}
-
-                {effectiveSurplus ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      backgroundColor: '#2e1c07',
-                      border: '1.5px solid #f59e0b',
-                      borderRadius: '20px',
-                      padding: '5px 13px',
-                      fontSize: '15px',
-                      fontWeight: 800,
-                      color: '#fde68a',
-                    }}
-                  >
-                    {effectiveSurplus}
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Viability Reasoning Callout Box */}
-              {reason ? (
-                <div
-                  style={{
-                    display: 'flex',
-                    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-                    border: '1.5px solid rgba(255, 255, 255, 0.12)',
-                    borderLeft: `5px solid ${accentColor}`,
-                    borderRadius: '12px',
-                    padding: '12px 18px',
-                    marginTop: '4px',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      fontSize: '17px',
-                      lineHeight: 1.35,
-                      color: '#f8fafc',
-                      fontWeight: 500,
-                    }}
-                  >
-                    {`"${reason}"`}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            {/* Bottom Footer */}
+            {/* Left Content Column */}
             <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                borderTop: '1px solid rgba(255, 255, 255, 0.12)',
-                paddingTop: '14px',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  fontSize: '15px',
-                  color: '#94a3b8',
-                  fontWeight: 600,
-                }}
-              >
-                ⚡ Local-First Gardening • Tap to Import Seed Pack
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  fontSize: '16px',
-                  fontWeight: 800,
-                  color: '#10b981',
-                }}
-              >
-                grow-rho-two.vercel.app
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Framed Photo Card with Rounded Corners & Glow Border */}
-          {photo ? (
-            <div
-              style={{
-                width: '450px',
+                flex: 1,
                 height: '100%',
                 display: 'flex',
-                borderRadius: '24px',
-                overflow: 'hidden',
-                border: '2.5px solid rgba(52, 211, 153, 0.5)',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
-                backgroundColor: '#0a2318',
-                position: 'relative',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                paddingRight: photo ? '28px' : '0px',
+                boxSizing: 'border-box',
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={photo}
-                alt={name}
+              {/* Top Row: App Brand & Garden Pill */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      backgroundColor: '#e6f4ea',
+                      border: '1px solid #b7e1cd',
+                      borderRadius: '20px',
+                      padding: '4px 12px',
+                      fontSize: '15px',
+                      fontWeight: 800,
+                      color: '#137333',
+                    }}
+                  >
+                    🌱 Grow
+                  </div>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 500 }}>
+                    Digital Garden Assistant
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {season ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        backgroundColor: '#f1f5f9',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '20px',
+                        padding: '4px 12px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: '#475569',
+                      }}
+                    >
+                      {`🗓️ ${season}`}
+                    </div>
+                  ) : null}
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      backgroundColor: '#f1f5f9',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '20px',
+                      padding: '4px 12px',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      color: '#334155',
+                    }}
+                  >
+                    {`🏡 ${garden}`}
+                  </div>
+                </div>
+              </div>
+
+              {/* Middle Section: Title, Species, Badges & Reasoning */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+                {/* Plant Name */}
+                <div
+                  style={{
+                    display: 'flex',
+                    fontSize: name.length > 20 ? '42px' : '50px',
+                    fontWeight: 900,
+                    color: '#0f172a',
+                    lineHeight: 1.1,
+                    letterSpacing: '-0.02em',
+                  }}
+                >
+                  {name}
+                </div>
+
+                {/* Botanical Species */}
+                {species ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      fontSize: '20px',
+                      fontStyle: 'italic',
+                      color: '#64748b',
+                      marginTop: '-4px',
+                    }}
+                  >
+                    {species}
+                  </div>
+                ) : null}
+
+                {/* Badges Row — Exactly styled like Grow's PlantCard & ViabilityIndicator */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                  {/* Viability Badge */}
+                  {viability ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        backgroundColor: viabilityBg,
+                        border: `1.5px solid ${viabilityBorder}`,
+                        color: viabilityTextCol,
+                        padding: '5px 14px',
+                        borderRadius: '8px',
+                        fontSize: '15px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      <span>✨</span>
+                      <span>{viabilityText}</span>
+                    </div>
+                  ) : null}
+
+                  {/* Upcoming Viability (dashed badge like app) */}
+                  {effectiveUpcoming ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        backgroundColor: '#f0fdf4',
+                        border: '1.5px dashed #4ade80',
+                        color: '#15803d',
+                        padding: '5px 14px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {effectiveUpcoming}
+                    </div>
+                  ) : null}
+
+                  {/* Status Badge */}
+                  {statusLabel ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        backgroundColor: statusBg,
+                        border: `1.5px solid ${statusBorder}`,
+                        color: statusTextCol,
+                        padding: '5px 14px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {statusLabel}
+                    </div>
+                  ) : null}
+
+                  {/* Seed Swap Surplus */}
+                  {effectiveSurplus ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        backgroundColor: '#fef3c7',
+                        border: '1.5px solid #fde68a',
+                        color: '#92400e',
+                        padding: '5px 14px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {effectiveSurplus}
+                    </div>
+                  ) : null}
+
+                  {/* Guild Matrix Status */}
+                  {effectiveGuild ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: '#f0fdfa',
+                        border: '1.5px solid #99f6e4',
+                        color: '#0f766e',
+                        padding: '5px 14px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      <span>🌿</span>
+                      <span>{effectiveGuild}</span>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Viability Assessment Reasoning Box */}
+                {reason ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      backgroundColor: '#f8fafc',
+                      border: '1.5px solid #e2e8f0',
+                      borderLeft: '4px solid #10b981',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
+                      marginTop: '6px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        fontSize: '16px',
+                        lineHeight: 1.35,
+                        color: '#334155',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {`"${reason}"`}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Bottom Footer */}
+              <div
                 style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderTop: '1px solid #e2e8f0',
+                  paddingTop: '12px',
+                  marginTop: '6px',
                 }}
-              />
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    fontSize: '14px',
+                    color: '#64748b',
+                    fontWeight: 500,
+                  }}
+                >
+                  Local-First Garden • Tap to View & Import Seed Pack
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    color: '#059669',
+                  }}
+                >
+                  grow-rho-two.vercel.app
+                </div>
+              </div>
             </div>
-          ) : null}
+
+            {/* Right Column: Framed Photo Card matching PlantCard image frame */}
+            {photo ? (
+              <div
+                style={{
+                  width: '420px',
+                  height: '100%',
+                  display: 'flex',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                  border: '1.5px solid #e2e8f0',
+                  backgroundColor: '#f1f5f9',
+                  position: 'relative',
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photo}
+                  alt={name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
         </div>
       ),
       {

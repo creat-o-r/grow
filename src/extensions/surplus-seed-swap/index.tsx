@@ -16,6 +16,14 @@ import { Sprout, Share2, Check } from 'lucide-react';
 import { buildShareableSeedPackUrl } from '@/lib/seed-pack';
 import { useToast } from '@/hooks/use-toast';
 
+export function getPlantSurplus(planting: { seedsOnHand?: number; plannedQty?: number; swapAvailable?: boolean }): { surplus: number; isAvailable: boolean } {
+  const onHand = planting.seedsOnHand ?? 0;
+  const planned = planting.plannedQty ?? 0;
+  const surplus = Math.max(0, onHand - planned);
+  const isAvailable = Boolean(planting.swapAvailable || surplus > 0);
+  return { surplus, isAvailable };
+}
+
 function SurplusSeedSwapWidget({ plantings, activeLocation }: ExtensionContext) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
