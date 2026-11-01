@@ -13,57 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Network, ThumbsUp, AlertTriangle } from 'lucide-react';
-
-interface CompanionRule {
-  a: string[];
-  b: string[];
-  relation: 'synergy' | 'conflict';
-  reason: string;
-}
-
-const COMPANION_RULES: CompanionRule[] = [
-  {
-    a: ['tomato', 'solanum lycopersicum'],
-    b: ['basil', 'ocimum'],
-    relation: 'synergy',
-    reason: 'Basil repels thrips/hornworms and enhances tomato vigor.',
-  },
-  {
-    a: ['carrot', 'daucus'],
-    b: ['onion', 'leek', 'chive', 'allium', 'rosemary'],
-    relation: 'synergy',
-    reason: 'Alliums & aromatic herbs mask carrot scent from carrot rust fly.',
-  },
-  {
-    a: ['corn', 'maize', 'zea'],
-    b: ['bean', 'phaseolus', 'squash', 'cucurbita', 'kumara'],
-    relation: 'synergy',
-    reason: 'Three Sisters / Polyculture guild: nitrogen fixation + living mulch groundcover.',
-  },
-  {
-    a: ['feijoa', 'acca'],
-    b: ['kawakawa', 'comfrey', 'clover', 'nasturtium'],
-    relation: 'synergy',
-    reason: 'Subtropical orchard guild: dynamic nutrient accumulation & pollinator attraction.',
-  },
-  {
-    a: ['tomato', 'solanum lycopersicum'],
-    b: ['potato', 'taewa', 'solanum tuberosum', 'fennel'],
-    relation: 'conflict',
-    reason: 'Shared blight susceptibility (Solanaceae) or allelopathic root inhibition.',
-  },
-  {
-    a: ['bean', 'pea', 'legume'],
-    b: ['onion', 'garlic', 'allium'],
-    relation: 'conflict',
-    reason: 'Allium root exudates can inhibit rhizobia nitrogen-fixing bacteria on legumes.',
-  },
-];
-
-function matchesKeywords(speciesText: string, keywords: string[]): boolean {
-  const lower = speciesText.toLowerCase();
-  return keywords.some((k) => lower.includes(k));
-}
+import { COMPANION_RULES, matchesKeywords } from '@/lib/companion-guild';
 
 function CompanionGuildWidget({ plantings }: ExtensionContext) {
   const matches = useMemo(() => {

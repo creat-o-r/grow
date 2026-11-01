@@ -30,8 +30,11 @@ import {
   AlertCircle,
   ExternalLink,
   Info,
+  Sprout,
+  Network,
 } from 'lucide-react';
 import { buildShareableSeedPackUrl } from '@/lib/seed-pack';
+import { getPlantGuildProfile, detectGardenSynergies } from '@/lib/companion-guild';
 import { cn } from '@/lib/utils';
 
 export type SharePlantDialogProps = {
@@ -45,6 +48,7 @@ export type SharePlantDialogProps = {
   upcomingReasoning?: string;
   currentSeason?: string;
   onGetViability?: () => void;
+  otherPlantings?: PlantingWithPlant[];
 };
 
 export function SharePlantDialog({
@@ -58,6 +62,7 @@ export function SharePlantDialog({
   upcomingReasoning,
   currentSeason,
   onGetViability,
+  otherPlantings,
 }: SharePlantDialogProps) {
   const { toast } = useToast();
   const [copiedLink, setCopiedLink] = useState(false);
@@ -84,6 +89,42 @@ export function SharePlantDialog({
   const effectiveSeason = currentSeason || gardenLocation.conditions?.currentSeason;
   const gardenName = gardenLocation.name || 'My Garden';
 
+  // 1. Current lifecycle status
+  const status =
+    planting.history && planting.history.length > 0
+      ? planting.history[planting.history.length - 1].status
+      : 'Wishlist';
+
+  // 2. Upcoming viability summary
+  const upcomingSummary = effectiveUpcomingTiming
+    ? `${effectiveUpcomingViability || 'High'} in ${effectiveUpcomingTiming}`
+    : undefined;
+
+  // 3. Surplus seed swap availability
+  const onHand = planting.seedsOnHand ?? 0;
+  const planned = planting.plannedQty ?? 0;
+  const surplusSeeds = Math.max(0, onHand - planned);
+  const isSwapAvailable = Boolean(planting.swapAvailable || surplusSeeds > 0);
+  const surplusSummary = surplusSeeds > 0
+    ? `${surplusSeeds} Seeds for Swap`
+    : isSwapAvailable
+    ? 'Seeds for Swap'
+    : undefined;
+
+  // 4. Companion Guild & Permaculture polyculture analysis
+  const guildProfile = useMemo(() => {
+    return getPlantGuildProfile(planting.name, planting.plant.species);
+  }, [planting.name, planting.plant.species]);
+
+  const gardenSynergies = useMemo(() => {
+    if (!otherPlantings || otherPlantings.length === 0) return { synergies: [], conflicts: [] };
+    return detectGardenSynergies(
+      planting.name,
+      planting.plant.species,
+      otherPlantings.map((p) => ({ name: p.name, species: p.plant?.species }))
+    );
+  }, [planting.name, planting.plant.species, otherPlantings]);
+
   // Build the 1-click self-contained ?pack= URL containing the plant, planting, garden and viability
   const shareUrl = useMemo(() => {
     const singlePlantDataset: AiDataset = {
@@ -99,6 +140,7 @@ export function SharePlantDialog({
           history: planting.history || [],
           seedsOnHand: planting.seedsOnHand,
           plannedQty: planting.plannedQty,
+          swapAvailable: isSwapAvailable,
           viability: effectiveViability,
           viabilityReasoning: effectiveReasoning,
           viabilityAssessedAt: planting.viabilityAssessedAt || new Date().toISOString(),
@@ -117,6 +159,10 @@ export function SharePlantDialog({
     if (planting.name) params.set('name', planting.name);
     if (effectiveViability) params.set('viability', effectiveViability);
     if (gardenName) params.set('garden', gardenName);
+    if (status) params.set('status', status);
+    if (upcomingSummary) params.set('upcoming', upcomingSummary);
+    if (surplusSummary) params.set('surplus', surplusSummary);
+    if (guildProfile?.tag) params.set('guild', guildProfile.tag);
     const queryStr = params.toString();
     return queryStr ? `${baseUrl}&${queryStr}` : baseUrl;
   }, [
@@ -128,20 +174,57 @@ export function SharePlantDialog({
     effectiveUpcomingTiming,
     effectiveUpcomingReasoning,
     gardenName,
+    status,
+    upcomingSummary,
+    surplusSummary,
+    guildProfile?.tag,
+    isSwapAvailable,
   ]);
 
-  // Formatted text card emphasizing garden viability
+  // Formatted text card emphasizing garden viability, status, upcoming window, guild and seed swap
   const shareSummaryText = useMemo(() => {
     const lines: string[] = [];
     lines.push(`🌱 ${planting.name} (${planting.plant.species})`);
     lines.push(`🏡 Garden: ${gardenName}${effectiveSeason ? ` • ${effectiveSeason}` : ''}`);
 
     if (effectiveViability) {
-      lines.push(`✨ Viability in My Garden: ${effectiveViability} Viability`);
+      lines.push(`✨ Current Viability: ${effectiveViability} Viability`);
     }
+    lines.push(`🌱 Lifecycle Status: ${status}`);
+
+    if (upcomingSummary) {
+      lines.push(
+        `📈 Upcoming Viability: Soon ${upcomingSummary}${
+          effectiveUpcomingReasoning ? ` (${effectiveUpcomingReasoning})` : ''
+        }`
+      );
+    }
+
+    if (guildProfile) {
+      lines.push(`🌿 Companion Guild: ${guildProfile.name} (${guildProfile.role})`);
+      if (gardenSynergies.synergies.length > 0) {
+        lines.push(
+          `🤝 Active Garden Synergy: ${gardenSynergies.synergies.map((s) => `${s.partnerName} (${s.reason})`).join('; ')}`
+        );
+      } else if (guildProfile.beneficialCompanions?.length > 0) {
+        lines.push(`💡 Great Companions: ${guildProfile.beneficialCompanions.join(', ')}`);
+      }
+    }
+
+    if (isSwapAvailable) {
+      lines.push(
+        `🤝 Seed Swap: ${
+          surplusSeeds > 0
+            ? `${surplusSeeds} Surplus Seeds available for local swap!`
+            : 'Seeds available for local swap!'
+        }`
+      );
+    }
+
     if (effectiveReasoning) {
-      lines.push(`📋 Viability Assessment: "${effectiveReasoning}"`);
+      lines.push(`📋 Assessment: "${effectiveReasoning}"`);
     }
+
     if (gardenLocation.conditions) {
       const c = gardenLocation.conditions;
       const condList = [
@@ -155,25 +238,23 @@ export function SharePlantDialog({
         lines.push(`☀️ Microclimate Conditions: ${condList}`);
       }
     }
-    if (effectiveUpcomingTiming) {
-      lines.push(
-        `📈 Upcoming Outlook: ${effectiveUpcomingViability || 'High'} in ${effectiveUpcomingTiming}${
-          effectiveUpcomingReasoning ? ` (${effectiveUpcomingReasoning})` : ''
-        }`
-      );
-    }
-    lines.push(`\n🔗 View & import into your garden in Grow:\n${shareUrl}`);
+
+    lines.push(`\n🔗 View plant & import seed pack in Grow:\n${shareUrl}`);
     return lines.join('\n');
   }, [
     planting,
     gardenName,
     effectiveSeason,
     effectiveViability,
+    status,
+    upcomingSummary,
+    effectiveUpcomingReasoning,
+    guildProfile,
+    gardenSynergies,
+    isSwapAvailable,
+    surplusSeeds,
     effectiveReasoning,
     gardenLocation.conditions,
-    effectiveUpcomingTiming,
-    effectiveUpcomingViability,
-    effectiveUpcomingReasoning,
     shareUrl,
   ]);
 
@@ -287,9 +368,9 @@ export function SharePlantDialog({
             !effectiveViability && 'bg-muted/40 border-border'
           )}
         >
-          {/* Header row: Garden Name & Viability Badge */}
+          {/* Header row: Garden Name, Status & Viability Badge */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
               <Fence className="h-4 w-4 text-primary shrink-0" />
               <span className="font-semibold text-sm truncate">{gardenName}</span>
               {effectiveSeason && (
@@ -297,6 +378,10 @@ export function SharePlantDialog({
                   {effectiveSeason}
                 </Badge>
               )}
+              <Badge variant="outline" className="text-[11px] py-0 px-1.5 h-4 gap-1 font-medium bg-background/70">
+                <Sprout className="h-2.5 w-2.5 text-primary" />
+                <span>{status}</span>
+              </Badge>
             </div>
 
             {effectiveViability ? (
@@ -380,15 +465,63 @@ export function SharePlantDialog({
             </div>
           )}
 
-          {/* Upcoming seasonal window */}
+          {/* Upcoming seasonal window ("viability soon") */}
           {effectiveUpcomingTiming && (
-            <div className="flex items-center gap-1.5 text-xs text-foreground/80 pt-1 font-medium">
-              <TrendingUp className="h-3.5 w-3.5 text-primary shrink-0" />
+            <div className="flex items-center gap-2 text-xs text-foreground/90 font-medium bg-background/80 rounded-md p-2.5 border border-border/60">
+              <TrendingUp className="h-4 w-4 text-emerald-500 shrink-0" />
               <span>
                 Upcoming Window: <strong>{effectiveUpcomingViability || 'High'}</strong> in{' '}
                 <strong>{effectiveUpcomingTiming}</strong>
-                {effectiveUpcomingReasoning ? ` (${effectiveUpcomingReasoning})` : ''}
+                {effectiveUpcomingReasoning ? ` — "${effectiveUpcomingReasoning}"` : ''}
               </span>
+            </div>
+          )}
+
+          {/* Permaculture Companion Guild Matrix */}
+          {guildProfile && (
+            <div className="flex items-start gap-2 text-xs bg-teal-500/10 border border-teal-500/25 dark:bg-teal-950/20 dark:border-teal-800/40 rounded-md p-2.5">
+              <Network className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-semibold text-teal-900 dark:text-teal-200">
+                    {guildProfile.name}
+                  </span>
+                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 text-teal-700 dark:text-teal-300 border-teal-500/40">
+                    {guildProfile.tag}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground">{guildProfile.role}</p>
+                {gardenSynergies.synergies.length > 0 ? (
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium pt-0.5">
+                    🤝 Active Garden Synergy with: <strong>{gardenSynergies.synergies.map((s) => s.partnerName).join(', ')}</strong> ({gardenSynergies.synergies[0]?.reason})
+                  </p>
+                ) : (
+                  guildProfile.beneficialCompanions?.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground pt-0.5">
+                      Beneficial Companions: {guildProfile.beneficialCompanions.join(', ')}
+                    </p>
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Seed Swap Surplus Availability */}
+          {isSwapAvailable && (
+            <div className="flex items-center gap-2 text-xs bg-amber-500/10 border border-amber-500/30 dark:bg-amber-950/20 dark:border-amber-800/40 rounded-md p-2.5">
+              <Sprout className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <div className="space-y-0.5">
+                <span className="font-semibold text-amber-900 dark:text-amber-200">
+                  Seed Swap Surplus Available
+                </span>
+                <p className="text-[11px] text-muted-foreground">
+                  {surplusSeeds > 0 ? (
+                    <><strong>{surplusSeeds} surplus seeds</strong> ready for local seed swap with neighboring growers!</>
+                  ) : (
+                    <>Listed as available for seed swap with neighboring growers!</>
+                  )}
+                </p>
+              </div>
             </div>
           )}
         </div>

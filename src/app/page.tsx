@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import HomeClient from './HomeClient';
 import { decodeSeedPackFromInput } from '@/lib/seed-pack';
 import { getCuratedPlantImage } from '@/lib/plant-images';
+import { getPlantGuildProfile } from '@/lib/companion-guild';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -16,6 +17,10 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const nameParam = typeof resolved.name === 'string' ? resolved.name : undefined;
   const viabilityParam = typeof resolved.viability === 'string' ? resolved.viability : undefined;
   const gardenParam = typeof resolved.garden === 'string' ? resolved.garden : undefined;
+  const statusParam = typeof resolved.status === 'string' ? resolved.status : undefined;
+  const upcomingParam = typeof resolved.upcoming === 'string' ? resolved.upcoming : undefined;
+  const surplusParam = typeof resolved.surplus === 'string' ? resolved.surplus : undefined;
+  const guildParam = typeof resolved.guild === 'string' ? resolved.guild : undefined;
 
   // 1. If a 1-click seed pack or plant pack is passed
   if (packParam) {
@@ -31,12 +36,46 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       const season = location?.conditions?.currentSeason;
       const reasoning = planting?.viabilityReasoning;
 
+      // Lifecycle status
+      const status =
+        statusParam ||
+        (planting?.history && planting.history.length > 0
+          ? planting.history[planting.history.length - 1].status
+          : undefined);
+
+      // Upcoming viability & timing
+      let upcoming = upcomingParam;
+      if (!upcoming && planting?.upcomingTiming) {
+        upcoming = `${planting.upcomingViability || 'High'} in ${planting.upcomingTiming}`;
+      }
+
+      // Seed swap surplus
+      let surplus = surplusParam;
+      if (!surplus && planting) {
+        const onHand = planting.seedsOnHand ?? 0;
+        const planned = planting.plannedQty ?? 0;
+        const surplusCount = Math.max(0, onHand - planned);
+        if (surplusCount > 0) {
+          surplus = `${surplusCount} Seeds for Swap`;
+        } else if (planting.swapAvailable) {
+          surplus = 'Seeds for Swap';
+        }
+      }
+
+      // Companion guild profile
+      const guildProfile = getPlantGuildProfile(plantName, plant?.species);
+      const guild = guildParam || guildProfile.tag;
+
       const title = viability
-        ? `${plantName} (${viability} Viability in ${gardenName}${season ? ` • ${season}` : ''})`
+        ? `${plantName} (${viability} Viability${status ? ` • ${status}` : ''} in ${gardenName}${season ? ` • ${season}` : ''})`
         : `${plantName} (${gardenName}) — Grow Plant Pack`;
 
       const description = [
         viability ? `✨ ${viability} Viability in ${gardenName}${season ? ` (${season})` : ''}.` : null,
+        status ? `🌱 Lifecycle: ${status}.` : null,
+        upcoming ? `📈 Upcoming: ${upcoming}.` : null,
+        guildProfile ? `🌿 Guild: ${guildProfile.name}.` : null,
+        surplus ? `🤝 Seed Swap: ${surplus}.` : null,
         reasoning ? `"${reasoning}"` : null,
         location?.conditions
           ? `Microclimate: ${[
@@ -71,6 +110,10 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       if (viability) ogCardParams.set('viability', viability);
       if (gardenName) ogCardParams.set('garden', gardenName);
       if (season) ogCardParams.set('season', season);
+      if (status) ogCardParams.set('status', status);
+      if (upcoming) ogCardParams.set('upcoming', upcoming);
+      if (guild) ogCardParams.set('guild', guild);
+      if (surplus) ogCardParams.set('surplus', surplus);
       if (reasoning) {
         const cleanReason = reasoning.replace(/["\n\r]/g, ' ').replace(/\s+/g, ' ').trim();
         const firstSentence = cleanReason.split(/[.!?]\s/)[0] || '';
@@ -91,6 +134,10 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       if (plantName) canonicalParams.set('name', plantName);
       if (viability) canonicalParams.set('viability', viability);
       if (gardenName) canonicalParams.set('garden', gardenName);
+      if (status) canonicalParams.set('status', status);
+      if (upcoming) canonicalParams.set('upcoming', upcoming);
+      if (surplus) canonicalParams.set('surplus', surplus);
+      if (guild) canonicalParams.set('guild', guild);
       const canonicalUrl = `https://grow-rho-two.vercel.app/?${canonicalParams.toString()}`;
 
       return {
@@ -135,21 +182,28 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   // 2. Fallback if shared with query parameters only
   if (nameParam) {
     const gardenName = gardenParam || 'My Garden';
+    const guildProfile = getPlantGuildProfile(nameParam);
+    const guild = guildParam || guildProfile.tag;
+
     const ogCardParams = new URLSearchParams();
     ogCardParams.set('name', nameParam);
     if (viabilityParam) ogCardParams.set('viability', viabilityParam);
     ogCardParams.set('garden', gardenName);
+    if (statusParam) ogCardParams.set('status', statusParam);
+    if (upcomingParam) ogCardParams.set('upcoming', upcomingParam);
+    if (surplusParam) ogCardParams.set('surplus', surplusParam);
+    if (guild) ogCardParams.set('guild', guild);
     if (viabilityParam) {
       ogCardParams.set('reason', `Assessed as ${viabilityParam} Viability for ${gardenName}.`);
     }
     const dynamicOgImageUrl = `https://grow-rho-two.vercel.app/api/og?${ogCardParams.toString()}`;
 
     const title = viabilityParam
-      ? `${nameParam} (${viabilityParam} Viability in ${gardenName})`
+      ? `${nameParam} (${viabilityParam} Viability${statusParam ? ` • ${statusParam}` : ''} in ${gardenName})`
       : `${nameParam} — Grow Plant`;
 
     const description = viabilityParam
-      ? `✨ ${viabilityParam} Viability in ${gardenName}. View microclimate insights and import into your garden on Grow.`
+      ? `✨ ${viabilityParam} Viability in ${gardenName}.${statusParam ? ` Status: ${statusParam}.` : ''}${upcomingParam ? ` Upcoming: ${upcomingParam}.` : ''} View microclimate insights and import into your garden on Grow.`
       : `Check out ${nameParam} on Grow — local-first digital garden assistant.`;
 
     const canonicalUrl = `https://grow-rho-two.vercel.app/?name=${encodeURIComponent(nameParam)}&viability=${encodeURIComponent(viabilityParam || '')}&garden=${encodeURIComponent(gardenName)}`;
@@ -221,6 +275,10 @@ export default async function Page({ searchParams }: PageProps) {
   const nameParam = typeof resolved.name === 'string' ? resolved.name : undefined;
   const viabilityParam = typeof resolved.viability === 'string' ? resolved.viability : undefined;
   const gardenParam = typeof resolved.garden === 'string' ? resolved.garden : undefined;
+  const statusParam = typeof resolved.status === 'string' ? resolved.status : undefined;
+  const upcomingParam = typeof resolved.upcoming === 'string' ? resolved.upcoming : undefined;
+  const surplusParam = typeof resolved.surplus === 'string' ? resolved.surplus : undefined;
+  const guildParam = typeof resolved.guild === 'string' ? resolved.guild : undefined;
 
   let canonicalUrl = 'https://grow-rho-two.vercel.app';
   if (packParam) {
@@ -229,9 +287,21 @@ export default async function Page({ searchParams }: PageProps) {
     if (nameParam) canonicalParams.set('name', nameParam);
     if (viabilityParam) canonicalParams.set('viability', viabilityParam);
     if (gardenParam) canonicalParams.set('garden', gardenParam);
+    if (statusParam) canonicalParams.set('status', statusParam);
+    if (upcomingParam) canonicalParams.set('upcoming', upcomingParam);
+    if (surplusParam) canonicalParams.set('surplus', surplusParam);
+    if (guildParam) canonicalParams.set('guild', guildParam);
     canonicalUrl = `https://grow-rho-two.vercel.app/?${canonicalParams.toString()}`;
   } else if (nameParam) {
-    canonicalUrl = `https://grow-rho-two.vercel.app/?name=${encodeURIComponent(nameParam)}&viability=${encodeURIComponent(viabilityParam || '')}&garden=${encodeURIComponent(gardenParam || 'My Garden')}`;
+    const fallbackParams = new URLSearchParams();
+    fallbackParams.set('name', nameParam);
+    if (viabilityParam) fallbackParams.set('viability', viabilityParam);
+    if (gardenParam) fallbackParams.set('garden', gardenParam);
+    if (statusParam) fallbackParams.set('status', statusParam);
+    if (upcomingParam) fallbackParams.set('upcoming', upcomingParam);
+    if (surplusParam) fallbackParams.set('surplus', surplusParam);
+    if (guildParam) fallbackParams.set('guild', guildParam);
+    canonicalUrl = `https://grow-rho-two.vercel.app/?${fallbackParams.toString()}`;
   }
 
   return (

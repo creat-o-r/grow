@@ -2638,6 +2638,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                           onGetViability={() => handleGetViability(p)}
                                           showGardenLabel={!effectivelySingleGardenView}
                                           isPriority={idx === 0}
+                                          otherPlantings={plantingsWithPlants}
                                         />
                                       </div>
                                     ))}
@@ -2740,6 +2741,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                   onSelectDuplicate={() => handleDuplicateSelection(p)}
                                                   onGetViability={() => handleGetViability(p)}
                                                   showGardenLabel={!effectivelySingleGardenView}
+                                                  otherPlantings={plantingsWithPlants}
                                                 />
                                               </div>
                                             ))}
@@ -2826,6 +2828,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                 onGetViability={() => handleGetViability(p)}
                                                 showGardenLabel={!effectivelySingleGardenView}
                                                 isPriority={idx === 0}
+                                                otherPlantings={plantingsWithPlants}
                                               />
                                             </div>
                                           ))}
@@ -2980,6 +2983,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                               onSelectDuplicate={() => handleDuplicateSelection(p)}
                                               onGetViability={() => handleGetViability(p)}
                                               showGardenLabel={!effectivelySingleGardenView}
+                                              otherPlantings={plantingsWithPlants}
                                           />
                                         </div>
                                       ))}
@@ -3016,6 +3020,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                         onSelectDuplicate={() => handleDuplicateSelection(p)}
                                                         onGetViability={() => handleGetViability(p)}
                                                         showGardenLabel={!effectivelySingleGardenView}
+                                                        otherPlantings={plantingsWithPlants}
                                                     />
                                                   </div>
                                                 ))}
@@ -3060,6 +3065,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                   onSelectDuplicate={() => handleDuplicateSelection(p)}
                                                   onGetViability={() => handleGetViability(p)}
                                                   showGardenLabel={!effectivelySingleGardenView}
+                                                  otherPlantings={plantingsWithPlants}
                                               />
                                             </div>
                                         ))}
@@ -3100,6 +3106,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                             onGetViability={() => handleGetViability(p)}
                                             showGardenLabel={!effectivelySingleGardenView}
                                             isPriority={idx === 0}
+                                            otherPlantings={plantingsWithPlants}
                                         />
                                       </div>
                                   ))}

@@ -36,6 +36,7 @@ type PlantCardProps = {
   onGetViability: () => void;
   showGardenLabel?: boolean;
   isPriority?: boolean;
+  otherPlantings?: PlantingWithPlant[];
 };
 
 export function PlantCard({
@@ -56,6 +57,7 @@ export function PlantCard({
     onGetViability,
     showGardenLabel,
     isPriority = false,
+    otherPlantings,
 }: PlantCardProps) {
     const { plant } = planting;
     const syncImageUrl = getCuratedPlantImage(plant, planting.name);
@@ -242,6 +244,7 @@ export function PlantCard({
             upcomingReasoning={upcomingReasoning}
             currentSeason={currentSeason}
             onGetViability={onGetViability}
+            otherPlantings={otherPlantings}
         />
     );
 
