@@ -61,9 +61,21 @@ export function PlantSearchBar({
   const isFilteredBySection = statusFilter !== 'All';
 
   return (
-    <div className={cn("w-full space-y-2", className)}>
-      <div className="relative flex items-center w-full rounded-xl border border-input bg-background/95 backdrop-blur-xs px-3 shadow-xs focus-within:ring-2 focus-within:ring-primary/40 focus-within:border-primary transition-all">
-        <Search className="h-4 w-4 shrink-0 text-muted-foreground mr-2 pointer-events-none" />
+    <div className={cn("w-full space-y-1.5", className)}>
+      <div
+        className={cn(
+          "relative flex items-center w-full rounded-xl border bg-background/95 backdrop-blur-xs px-3 shadow-xs transition-all",
+          hasActiveQuery
+            ? "border-primary ring-2 ring-primary/25 bg-primary/[0.03]"
+            : "border-input focus-within:ring-2 focus-within:ring-primary/40 focus-within:border-primary"
+        )}
+      >
+        <Search
+          className={cn(
+            "h-4 w-4 shrink-0 mr-2 pointer-events-none transition-colors",
+            hasActiveQuery ? "text-primary" : "text-muted-foreground"
+          )}
+        />
 
         {/* Scoped Filter Chip: Shows current selection with an [x] to remove */}
         {isFilteredBySection && (
@@ -102,7 +114,7 @@ export function PlantSearchBar({
               ? `Search in ${statusFilter} (and other sections)...`
               : "Search plants by name, species, notes, conditions..."
           }
-          className="flex-1 bg-transparent py-2.5 text-sm outline-hidden placeholder:text-muted-foreground/70 min-w-0"
+          className="flex-1 bg-transparent py-2 text-sm outline-hidden placeholder:text-muted-foreground/70 min-w-0"
           aria-label="Search plants in garden"
         />
 
@@ -110,16 +122,17 @@ export function PlantSearchBar({
           {hasActiveQuery ? (
             <Button
               type="button"
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 rounded-full text-muted-foreground hover:text-foreground"
+              variant="secondary"
+              size="sm"
+              className="h-6 px-2 text-xs font-semibold rounded-full gap-1 bg-muted/80 hover:bg-destructive hover:text-destructive-foreground text-foreground transition-all shadow-2xs active:scale-95"
               onClick={() => {
                 onSearchChange('');
                 inputRef.current?.focus();
               }}
-              title="Clear search query (Esc)"
-              aria-label="Clear search query"
+              title="Exit search view (Esc)"
+              aria-label="Exit search view"
             >
+              <span>Exit</span>
               <X className="h-3.5 w-3.5" />
             </Button>
           ) : (

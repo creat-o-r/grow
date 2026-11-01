@@ -2363,8 +2363,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                   conditions={activeLocation?.conditions}
                 />
 
-                {/* Search Bar */}
-                <div className="mb-4">
+                {/* Mobile Floating Search Bar */}
+                <div className="sm:hidden mb-2">
                   <PlantSearchBar
                     searchQuery={searchQuery}
                     onSearchChange={setSearchQuery}
@@ -2471,9 +2471,9 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                   </div>
                 </div>
 
-                {/* Desktop Tab Bar: Preserved for larger screens */}
-                <div className="hidden sm:block mb-4">
-                  <div className="relative w-full">
+                {/* Desktop Bar: Tabs on Left, Floating Search Bar Horizontally on Right */}
+                <div className="hidden sm:flex items-center justify-between gap-4 mb-4">
+                  <div className="relative flex-1 min-w-0">
                     <ScrollArea className="w-full whitespace-nowrap">
                       <div role="tablist" aria-label="Filter plants by status" className="flex w-max items-center space-x-2 py-0.5">
                           {allFilters.map((status) => {
@@ -2582,12 +2582,82 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                       <ScrollBar orientation="horizontal" />
                     </ScrollArea>
                   </div>
+
+                  {/* Floating Horizontal Search Bar on Desktop */}
+                  <div className={cn(
+                    "shrink-0 transition-all duration-200",
+                    searchQuery.trim().length > 0 ? "w-80 lg:w-96" : "w-64 lg:w-72"
+                  )}>
+                    <PlantSearchBar
+                      searchQuery={searchQuery}
+                      onSearchChange={setSearchQuery}
+                      statusFilter={statusFilter}
+                      onClearStatusFilter={() => setStatusFilter('All')}
+                      currentSectionMatchesCount={searchMatches.inCurrentSelection.length}
+                      otherSectionMatchesCount={searchMatches.inOtherSections.length}
+                      otherGardenMatchesCount={otherGardenSearchMatches.length}
+                      totalMatches={searchMatches.all.length}
+                    />
+                  </div>
                 </div>
                 
                 {plantings && plantings.length > 0 ? (
                     <>
                       {searchQuery.trim().length > 0 ? (
                         <div className="space-y-8">
+                          {/* Floating Sticky Search Mode Ribbon: Clearly shows user is in Search View with an unmissable exit button */}
+                          <div className="sticky top-2 z-30 rounded-xl border border-primary/30 bg-background/95 backdrop-blur-md px-4 py-2.5 shadow-md flex items-center justify-between gap-3 flex-wrap transition-all">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <Badge className="bg-primary text-primary-foreground text-xs font-semibold gap-1.5 py-1 px-2.5 shadow-xs">
+                                <Search className="h-3.5 w-3.5" />
+                                <span>Search View</span>
+                              </Badge>
+                              <span className="text-sm font-medium">
+                                Results for <strong className="text-foreground">&ldquo;{searchQuery}&rdquo;</strong>
+                              </span>
+                              {statusFilter !== 'All' ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs cursor-pointer hover:bg-primary/20 gap-1.5 border-primary/40 bg-primary/10 text-primary font-medium select-none"
+                                  onClick={() => setStatusFilter('All')}
+                                  title="Filtered by current selection. Click to search all sections."
+                                >
+                                  <span>Filtered: {statusFilter}</span>
+                                  <X className="h-3 w-3" />
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs text-muted-foreground font-mono">
+                                  All Sections
+                                </Badge>
+                              )}
+                              <span className="text-xs text-muted-foreground font-mono">
+                                ({searchMatches.all.length} match{searchMatches.all.length === 1 ? '' : 'es'})
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {statusFilter !== 'All' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs gap-1"
+                                  onClick={() => setStatusFilter('All')}
+                                >
+                                  <span>Show All Sections</span>
+                                </Button>
+                              )}
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="h-7 text-xs font-semibold gap-1.5 px-3 rounded-lg shadow-xs hover:bg-destructive/90 transition-all active:scale-95"
+                                onClick={() => setSearchQuery('')}
+                                title="Exit Search View (Esc)"
+                              >
+                                <span>Exit Search</span>
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
                           {/* Case A: Filtered by current selection (statusFilter !== 'All') */}
                           {statusFilter !== 'All' ? (
                             <>
@@ -2918,6 +2988,23 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                 </Button>
                               </CardContent>
                             </Card>
+                          )}
+                          {/* Bottom Exit Bar for long result pages */}
+                          {searchMatches.all.length > 0 && (
+                            <div className="pt-4 border-t flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
+                              <span>
+                                Showing {searchMatches.all.length} matching plant{searchMatches.all.length === 1 ? '' : 's'} for &ldquo;{searchQuery}&rdquo;
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs h-7 gap-1.5 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
+                                onClick={() => setSearchQuery('')}
+                              >
+                                <span>Exit Search View</span>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
                           )}
                         </div>
                       ) : (

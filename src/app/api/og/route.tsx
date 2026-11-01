@@ -409,6 +409,6 @@ export async function GET(req: NextRequest) {
     );
   } catch (e: any) {
     console.error('OG Image Generation Error:', e);
-    return new Response('Failed to generate OG image', { status: 500 });
+    return new Response(`OG Error: ${e?.message}\n${e?.stack}`, { status: 500 });
   }
 }
