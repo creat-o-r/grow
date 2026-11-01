@@ -3,7 +3,6 @@ import HomeClient from './HomeClient';
 import { decodeSeedPackFromInput } from '@/lib/seed-pack';
 import { getCuratedPlantImage } from '@/lib/plant-images';
 import { getPlantGuildStatus } from '@/extensions/companion-guild/rules';
-import { getPlantSurplus } from '@/extensions/surplus-seed-swap';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -50,13 +49,15 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         upcoming = `${planting.upcomingViability || 'High'} in ${planting.upcomingTiming}`;
       }
 
-      // Seed swap surplus from surplus-seed-swap extension
+      // Seed swap surplus
       let surplus = surplusParam;
       if (!surplus && planting) {
-        const { surplus: count, isAvailable } = getPlantSurplus(planting);
-        if (count > 0) {
-          surplus = `${count} Seeds for Swap`;
-        } else if (isAvailable) {
+        const onHand = planting.seedsOnHand ?? 0;
+        const planned = planting.plannedQty ?? 0;
+        const surplusCount = Math.max(0, onHand - planned);
+        if (surplusCount > 0) {
+          surplus = `${surplusCount} Seeds for Swap`;
+        } else if (planting.swapAvailable) {
           surplus = 'Seeds for Swap';
         }
       }
