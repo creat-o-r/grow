@@ -67,6 +67,13 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
         ? 'image/webp'
         : 'image/jpeg';
 
+      const canonicalParams = new URLSearchParams();
+      canonicalParams.set('pack', packParam);
+      if (plantName) canonicalParams.set('name', plantName);
+      if (viability) canonicalParams.set('viability', viability);
+      if (gardenName) canonicalParams.set('garden', gardenName);
+      const canonicalUrl = `https://grow-rho-two.vercel.app/?${canonicalParams.toString()}`;
+
       return {
         title,
         description,
@@ -115,6 +122,8 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       ? `✨ ${viabilityParam} Viability in ${gardenName}. View microclimate insights and import into your garden on Grow.`
       : `Check out ${nameParam} on Grow — local-first digital garden assistant.`;
 
+    const canonicalUrl = `https://grow-rho-two.vercel.app/?name=${encodeURIComponent(nameParam)}&viability=${encodeURIComponent(viabilityParam || '')}&garden=${encodeURIComponent(gardenName)}`;
+
     return {
       title,
       description,
@@ -155,14 +164,10 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     title: 'Grow — Garden Assistant & Plant Viability Tracker',
     description:
       'Track plant viability, assess microclimates, and share seed packs with local-first, zero-server gardening tools.',
-    alternates: {
-      canonical: defaultUrl,
-    },
     openGraph: {
       title: 'Grow — Garden Assistant & Plant Viability Tracker',
       description:
         'Track plant viability, assess microclimates, and share seed packs with local-first, zero-server gardening tools.',
-      url: defaultUrl,
       siteName: 'Grow',
       type: 'website',
       images: [
@@ -184,7 +189,6 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       images: ['https://grow-rho-two.vercel.app/og-image.jpg'],
     },
     other: {
-      'og:url': defaultUrl,
       'fb:app_id': fbAppId,
       'og:image:width': '1200',
       'og:image:height': '630',
@@ -193,6 +197,30 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   };
 }
 
-export default function Page() {
-  return <HomeClient />;
+export default async function Page({ searchParams }: PageProps) {
+  const resolved = await searchParams;
+  const packParam = typeof resolved.pack === 'string' ? resolved.pack : undefined;
+  const nameParam = typeof resolved.name === 'string' ? resolved.name : undefined;
+  const viabilityParam = typeof resolved.viability === 'string' ? resolved.viability : undefined;
+  const gardenParam = typeof resolved.garden === 'string' ? resolved.garden : undefined;
+
+  let canonicalUrl = 'https://grow-rho-two.vercel.app';
+  if (packParam) {
+    const canonicalParams = new URLSearchParams();
+    canonicalParams.set('pack', packParam);
+    if (nameParam) canonicalParams.set('name', nameParam);
+    if (viabilityParam) canonicalParams.set('viability', viabilityParam);
+    if (gardenParam) canonicalParams.set('garden', gardenParam);
+    canonicalUrl = `https://grow-rho-two.vercel.app/?${canonicalParams.toString()}`;
+  } else if (nameParam) {
+    canonicalUrl = `https://grow-rho-two.vercel.app/?name=${encodeURIComponent(nameParam)}&viability=${encodeURIComponent(viabilityParam || '')}&garden=${encodeURIComponent(gardenParam || 'My Garden')}`;
+  }
+
+  return (
+    <>
+      <link rel="canonical" href={canonicalUrl} />
+      <meta property="og:url" content={canonicalUrl} />
+      <HomeClient />
+    </>
+  );
 }
