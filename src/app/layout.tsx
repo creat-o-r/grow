@@ -18,9 +18,11 @@ export const metadata: Metadata = {
     siteName: 'Grow',
     images: [
       {
-        url: '/images/plants/veg-1.jpg',
+        url: 'https://grow-rho-two.vercel.app/images/plants/veg-1.jpg',
+        secureUrl: 'https://grow-rho-two.vercel.app/images/plants/veg-1.jpg',
         width: 1200,
         height: 630,
+        type: 'image/jpeg',
         alt: 'Grow Garden Assistant',
       },
     ],
@@ -31,7 +33,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Grow — Garden Assistant & Plant Viability Tracker',
     description: 'Your personal digital garden assistant. Track microclimates, plant viability, and share seed packs with zero server costs.',
-    images: ['/images/plants/veg-1.jpg'],
+    images: ['https://grow-rho-two.vercel.app/images/plants/veg-1.jpg'],
   },
   other: {
     'fb:app_id': process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '966242223397117',
