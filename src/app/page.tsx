@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import HomeClient from './HomeClient';
 import { decodeSeedPackFromInput } from '@/lib/seed-pack';
 import { getCuratedPlantImage } from '@/lib/plant-images';
-import { getPlantGuildStatus } from '@/extensions/companion-guild';
+import { getPlantGuildStatus } from '@/extensions/companion-guild/rules';
 import { getPlantSurplus } from '@/extensions/surplus-seed-swap';
 
 export const dynamic = 'force-dynamic';

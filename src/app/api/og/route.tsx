@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
-import { getPlantGuildStatus } from '@/extensions/companion-guild';
+import { getPlantGuildStatus } from '@/extensions/companion-guild/rules';
 
 export async function GET(req: NextRequest) {
   try {
@@ -66,14 +66,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3. Upcoming viability badge matching app's ViabilityIndicator dashed badge
+    // 3. Upcoming viability badge
     const effectiveUpcoming = upcomingParam ? `↑ ${upcomingParam}` : null;
 
-    // 4. Guild status from companion-guild extension
+    // 4. Guild status from companion-guild extension rules
     const guildStatus = getPlantGuildStatus(name, species);
     const effectiveGuild = guildParam || guildStatus.badgeLabel;
 
-    // 5. Seed swap surplus tag matching app's surplus-seed-swap widget
+    // 5. Seed swap surplus tag
     const effectiveSurplus = surplusParam ? `🤝 ${surplusParam}` : null;
 
     return new ImageResponse(
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
             display: 'flex',
             flexDirection: 'column',
             backgroundColor: '#edf2ee', // App's soothing sage garden background
-            padding: '28px',
+            padding: '24px',
             boxSizing: 'border-box',
             fontFamily: 'sans-serif',
           }}
@@ -99,8 +99,7 @@ export async function GET(req: NextRequest) {
               flexDirection: 'row',
               backgroundColor: '#ffffff', // App's card surface
               borderRadius: '20px',
-              border: '1.5px solid #d5ded6',
-              boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08)',
+              border: '2px solid #d5ded6',
               padding: '28px',
               boxSizing: 'border-box',
             }}
@@ -126,9 +125,9 @@ export async function GET(req: NextRequest) {
                       alignItems: 'center',
                       gap: '6px',
                       backgroundColor: '#e6f4ea',
-                      border: '1px solid #b7e1cd',
+                      border: '1.5px solid #b7e1cd',
                       borderRadius: '20px',
-                      padding: '4px 12px',
+                      padding: '4px 14px',
                       fontSize: '15px',
                       fontWeight: 800,
                       color: '#137333',
@@ -136,7 +135,7 @@ export async function GET(req: NextRequest) {
                   >
                     🌱 Grow
                   </div>
-                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 500 }}>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600 }}>
                     Digital Garden Assistant
                   </span>
                 </div>
@@ -232,14 +231,14 @@ export async function GET(req: NextRequest) {
                     </div>
                   ) : null}
 
-                  {/* Upcoming Viability (dashed badge like app) */}
+                  {/* Upcoming Viability */}
                   {effectiveUpcoming ? (
                     <div
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         backgroundColor: '#f0fdf4',
-                        border: '1.5px dashed #4ade80',
+                        border: '1.5px solid #4ade80',
                         color: '#15803d',
                         padding: '5px 14px',
                         borderRadius: '8px',

@@ -33,7 +33,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { buildShareableSeedPackUrl } from '@/lib/seed-pack';
-import { getPlantGuildStatus } from '@/extensions/companion-guild';
+import { getPlantGuildStatus } from '@/extensions/companion-guild/rules';
 import { getPlantSurplus } from '@/extensions/surplus-seed-swap';
 import { cn } from '@/lib/utils';
 
