@@ -190,10 +190,12 @@ export function ViabilityIndicator({
     if (isPrepNA) {
       return (
         <span className="inline-flex items-center gap-1 pl-1 ml-0.5 border-l border-current/30 font-normal text-[10px]">
-          <span className="line-through opacity-70">{activeMethodInfo?.icon || '🌱'} {activeMethodInfo?.shortLabel || activeMethod}</span>
+          <span className="line-through opacity-70">{activeMethodInfo?.icon || '🌱'}</span>
           {applicableMethods.length > 0 && (
-            <span className="font-semibold text-primary ml-0.5">
-              (Use: {applicableMethods.slice(0, 2).map(m => `${m.icon} ${m.shortLabel}`).join(', ')})
+            <span className="font-semibold text-primary ml-0.5 flex items-center gap-0.5" title={`Incompatible! Applicable methods: ${applicableMethods.map(m => m.label).join(', ')}`}>
+              <span>(Use:</span>
+              <span className="tracking-tight">{applicableMethods.map(m => m.icon).join(' ')}</span>
+              <span>)</span>
             </span>
           )}
         </span>
@@ -205,21 +207,36 @@ export function ViabilityIndicator({
     const icon = currentInfo.icon;
     const label = currentInfo.shortLabel;
 
+    // Rule: If only 1 method is applicable (e.g. Carrot has only Seed), show icon + shortLabel
+    if (applicableMethods.length <= 1) {
+      return (
+        <span 
+          className="inline-flex items-center gap-1 pl-1 ml-0.5 border-l border-current/30 font-normal text-[10px]"
+          title={`Only 1 applicable propagation method: ${label} (${currentInfo.overallViability})`}
+        >
+          <span>{icon}</span>
+          <span>{label}</span>
+        </span>
+      );
+    }
+
+    // Rule: "if its more than one method, just show the icons"
+    // Active method icon is underlined, followed by alternative applicable method icons
     return (
       <span 
-        className="inline-flex items-center gap-1 pl-1 ml-0.5 border-l border-current/30 font-normal text-[10px]"
-        title={`Applicable methods: ${applicableMethods.map(m => `${m.label} (${m.overallViability})`).join(', ')}`}
+        className="inline-flex items-center gap-1 pl-1 ml-0.5 border-l border-current/30 font-normal text-[11px]"
+        title={`Applicable methods: ${applicableMethods.map(m => `${m.label} (${m.overallViability}${m.method === activeMethod ? ' - Active' : ''})`).join(', ')} - Click to view details and switch`}
       >
-        <span>{icon}</span>
-        <span>{label}</span>
-        {otherApplicableCount > 0 && (
-          <span className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px] font-bold bg-background/85 text-foreground border border-current/30 shadow-xs">
-            <span>+{otherApplicableCount}</span>
-            <span className="opacity-80 tracking-tighter">
-              {otherApplicableMethods.slice(0, 3).map(m => m.icon).join('')}
+        <span className="font-bold underline decoration-current/40 decoration-1 underline-offset-2" title={`Active: ${label} (${currentInfo.overallViability})`}>
+          {icon}
+        </span>
+        <span className="opacity-80 flex items-center gap-0.5 tracking-tight">
+          {otherApplicableMethods.map(m => (
+            <span key={m.method} title={`${m.label} (${m.overallViability})`}>
+              {m.icon}
             </span>
-          </span>
-        )}
+          ))}
+        </span>
       </span>
     );
   };
@@ -231,19 +248,19 @@ export function ViabilityIndicator({
     const incompatibleList = allMethods.filter(m => m.isIncompatible || m.overallViability === 'N/A');
 
     return (
-      <div className="space-y-3 border-t border-border/60 pt-2.5">
+      <div className="space-y-3 pt-1">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
               <span>🌿</span>
-              <span>Applicable Methods ({compatibleList.length})</span>
+              <span>Botanical Methods ({compatibleList.length})</span>
             </span>
             {onSelectPropagationMethod && (
-              <span className="text-[10px] text-muted-foreground font-normal">Tap to switch</span>
+              <span className="text-[10px] text-primary font-medium">1-click switch</span>
             )}
           </div>
 
-          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-0.5">
             {compatibleList.map((m) => {
               const isActive = m.method === activeMethod;
               const vCfg = viabilityConfig[m.overallViability] || viabilityConfig.Low;
@@ -258,42 +275,54 @@ export function ViabilityIndicator({
                     }
                   }}
                   className={cn(
-                    "p-2 rounded-md border text-xs flex items-center justify-between transition-colors",
-                    isActive ? "border-primary bg-primary/10 shadow-xs" : 
-                    isClickable ? "border-border/50 bg-muted/30 hover:bg-muted/60 cursor-pointer" : "border-border/50 bg-muted/20"
+                    "p-2.5 rounded-lg border text-xs flex flex-col gap-1 transition-all",
+                    isActive ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/30" : 
+                    isClickable ? "border-border/60 bg-muted/30 hover:bg-muted/60 hover:border-primary/40 cursor-pointer" : "border-border/50 bg-muted/20"
                   )}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm shrink-0">{m.icon}</span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-base shrink-0">{m.icon}</span>
+                      <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                         <span className={cn("font-medium truncate", isActive && "font-semibold text-primary")}>
                           {m.label}
                         </span>
                         {isActive && (
-                          <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/40 text-primary bg-primary/10">
-                            Active
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-primary/50 text-primary bg-primary/15 font-semibold">
+                            ✓ Active
                           </Badge>
                         )}
                         {m.isRecommended && !isActive && (
-                          <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
-                            Recommended
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-emerald-500/50 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 font-semibold">
+                            ★ Recommended
                           </Badge>
                         )}
                       </div>
-                      {m.prepReasoning && (
-                        <p className="text-[10px] text-muted-foreground truncate max-w-[220px]">
-                          {m.prepReasoning}
-                        </p>
-                      )}
                     </div>
+                    <Badge 
+                      variant="outline" 
+                      className={cn("text-[10px] px-1.5 py-0 shrink-0 font-mono font-semibold", vCfg.className)}
+                    >
+                      {m.overallViability}
+                    </Badge>
                   </div>
-                  <Badge 
-                    variant="outline" 
-                    className={cn("text-[10px] px-1.5 py-0 shrink-0 font-mono", vCfg.className)}
-                  >
-                    {m.overallViability} Viability
-                  </Badge>
+                  {m.prepReasoning && (
+                    <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+                      {m.prepReasoning}
+                    </p>
+                  )}
+                  <div className="text-[9px] text-muted-foreground/80 font-mono flex items-center gap-1 mt-0.5">
+                    <span>Prep {m.prepViability}</span>
+                    <span>➔</span>
+                    <span>Grow {m.growViability}</span>
+                    <span>➔</span>
+                    <span>Harv {m.harvestViability}</span>
+                    {isClickable && (
+                      <span className="ml-auto text-primary font-sans font-medium text-[10px]">
+                        Tap to select
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -301,33 +330,40 @@ export function ViabilityIndicator({
         </div>
 
         {incompatibleList.length > 0 && (
-          <div className="space-y-1.5 pt-1 border-t border-border/30">
+          <div className="space-y-1.5 pt-2 border-t border-border/40">
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
               <span>🚫</span>
               <span>Incompatible with this Species ({incompatibleList.length})</span>
             </span>
-            <div className="space-y-1 opacity-70">
+            <div className="space-y-1.5 opacity-75">
               {incompatibleList.map((m) => {
                 const isActive = m.method === activeMethod;
                 return (
                   <div
                     key={m.method}
-                    className="p-1.5 rounded border border-border/30 bg-muted/10 text-xs flex items-center justify-between"
+                    className="p-1.5 rounded-md border border-border/30 bg-muted/15 text-xs flex flex-col gap-0.5"
                   >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-xs shrink-0">{m.icon}</span>
-                      <span className="font-medium line-through text-muted-foreground text-[11px] truncate">
-                        {m.label}
-                      </span>
-                      {isActive && (
-                        <Badge variant="destructive" className="text-[8px] px-1 py-0 h-3.5">
-                          Active (Incompatible)
-                        </Badge>
-                      )}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs shrink-0">{m.icon}</span>
+                        <span className="font-medium line-through text-muted-foreground text-[11px] truncate">
+                          {m.label}
+                        </span>
+                        {isActive && (
+                          <Badge variant="destructive" className="text-[8px] px-1 py-0 h-3.5">
+                            Active (Incompatible)
+                          </Badge>
+                        )}
+                      </div>
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 font-mono text-muted-foreground border-border/40">
+                        No Use / N/A
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 font-mono text-muted-foreground border-border/40">
-                      No Use / N/A
-                    </Badge>
+                    {m.prepReasoning && (
+                      <p className="text-[10px] text-muted-foreground/80 leading-tight">
+                        {m.prepReasoning}
+                      </p>
+                    )}
                   </div>
                 );
               })}
@@ -407,7 +443,10 @@ export function ViabilityIndicator({
             </p>
           )}
 
-          <div className="space-y-2">
+          {/* Methods screen expanded directly from clicking viability */}
+          {renderMethodsSection()}
+
+          <div className="space-y-2 border-t border-border/60 pt-2.5">
             <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
               <span>Seasonal Feasibility</span>
               <span className="text-[10px] lowercase text-primary font-normal">All viable windows listed</span>
@@ -455,8 +494,6 @@ export function ViabilityIndicator({
               </p>
             </div>
           )}
-
-          {renderMethodsSection()}
         </PopoverContent>
       </Popover>
     );
@@ -503,7 +540,7 @@ export function ViabilityIndicator({
           </button>
         </PopoverTrigger>
         <PopoverContent 
-          className={cn("w-80 sm:w-96 p-4 text-sm z-50 shadow-xl space-y-3 bg-popover text-popover-foreground", overallCfg.borderClass)}
+          className={cn("w-80 sm:w-96 p-4 text-sm z-50 shadow-xl space-y-3 bg-popover text-popover-foreground max-h-[85vh] overflow-y-auto", overallCfg.borderClass)}
           side="top"
           align="start"
           onClick={(e) => e.stopPropagation()}
@@ -513,7 +550,7 @@ export function ViabilityIndicator({
           <div className="flex items-center justify-between border-b border-border/60 pb-2">
             <div className="flex items-center gap-1.5 font-semibold text-xs">
               <Sprout className="h-3.5 w-3.5 text-primary" />
-              <span>Prep Lifecycle Forecast</span>
+              <span>Prep Lifecycle &amp; Botanical Methods</span>
             </div>
             <Badge variant="outline" className={cn("text-xs font-semibold", overallCfg.className)}>
               {isPrepNA ? 'No Use / N/A' : `Overall: ${resolvedPrep.overallViability}`}
@@ -541,9 +578,12 @@ export function ViabilityIndicator({
             </div>
           )}
 
-          <div className="space-y-2">
+          {/* Methods screen expanded directly on click */}
+          {renderMethodsSection()}
+
+          <div className="space-y-2 border-t border-border/60 pt-2.5">
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-              Lifecycle Trajectory
+              Selected Method Lifecycle ({activeMethodInfo?.label || activeMethod})
             </span>
             <div className="grid grid-cols-3 gap-1.5 text-center">
               <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
@@ -596,8 +636,6 @@ export function ViabilityIndicator({
               💡 {resolvedPrep.summary}
             </div>
           )}
-
-          {renderMethodsSection()}
         </PopoverContent>
       </Popover>
     );
