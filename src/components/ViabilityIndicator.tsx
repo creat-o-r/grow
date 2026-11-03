@@ -1,15 +1,33 @@
-
 'use client';
 
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { Viability } from '@/lib/viability';
+import type { 
+  Viability, 
+  SeasonalViability, 
+  PrepViabilityData, 
+  GrowViabilityData, 
+  HarvestViabilityData, 
+  StageViability,
+  SeasonName 
+} from '@/lib/viability';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Sparkles, Info, TrendingUp } from 'lucide-react';
+import { 
+  Sparkles, 
+  Info, 
+  TrendingUp, 
+  Calendar, 
+  ArrowRight, 
+  AlertTriangle, 
+  Sprout, 
+  Leaf, 
+  CheckCircle2 
+} from 'lucide-react';
 
-type ViabilityIndicatorProps = {
-  viability: Viability;
+export type ViabilityIndicatorProps = {
+  stageViability?: StageViability;
+  viability?: Viability;
   reasoning?: string;
   plantName?: string;
   gardenName?: string;
@@ -17,9 +35,42 @@ type ViabilityIndicatorProps = {
   upcomingTiming?: string;
   upcomingReasoning?: string;
   currentSeason?: string;
+  seasonalViabilities?: SeasonalViability[];
+  prepForecast?: PrepViabilityData;
+  growAssessment?: GrowViabilityData;
+  harvestAssessment?: HarvestViabilityData;
+};
+
+const viabilityConfig: Record<Viability, { text: string; className: string; borderClass: string; dotClass: string }> = {
+  High: { 
+    text: 'High Viability', 
+    className: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-800 hover:bg-green-200 dark:hover:bg-green-900/70',
+    borderClass: 'border-green-500/30',
+    dotClass: 'bg-green-600',
+  },
+  Medium: { 
+    text: 'Medium Viability', 
+    className: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-800 hover:bg-yellow-200 dark:hover:bg-yellow-900/70',
+    borderClass: 'border-yellow-500/30',
+    dotClass: 'bg-yellow-500',
+  },
+  Low: { 
+    text: 'Low Viability', 
+    className: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800 hover:bg-red-200 dark:hover:bg-red-900/70',
+    borderClass: 'border-red-500/30',
+    dotClass: 'bg-red-600',
+  },
+};
+
+const seasonIcons: Record<string, string> = {
+  Spring: '🌱',
+  Summer: '☀️',
+  Autumn: '🍂',
+  Winter: '❄️',
 };
 
 export function ViabilityIndicator({ 
+  stageViability,
   viability, 
   reasoning, 
   plantName, 
@@ -28,28 +79,429 @@ export function ViabilityIndicator({
   upcomingTiming,
   upcomingReasoning,
   currentSeason,
+  seasonalViabilities: propSeasonalViabilities,
+  prepForecast: propPrepForecast,
+  growAssessment: propGrowAssessment,
+  harvestAssessment: propHarvestAssessment,
 }: ViabilityIndicatorProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const viabilityConfig: Record<Viability, { text: string; className: string; borderClass: string }> = {
-    High: { 
-      text: 'High Viability', 
-      className: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-800 hover:bg-green-200 dark:hover:bg-green-900/70',
-      borderClass: 'border-green-500/30'
-    },
-    Medium: { 
-      text: 'Medium Viability', 
-      className: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-800 hover:bg-yellow-200 dark:hover:bg-yellow-900/70',
-      borderClass: 'border-yellow-500/30'
-    },
-    Low: { 
-      text: 'Low Viability', 
-      className: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800 hover:bg-red-200 dark:hover:bg-red-900/70',
-      borderClass: 'border-red-500/30'
-    },
-  };
+  // 1. Resolve active stage data
+  const resolvedWish = stageViability?.stage === 'Wishlist' ? stageViability : undefined;
+  const wishSeasons = resolvedWish?.seasons || propSeasonalViabilities;
 
-  const config = viabilityConfig[viability];
+  const resolvedPrep = stageViability?.stage === 'Planting' ? stageViability : propPrepForecast;
+  const resolvedGrow = stageViability?.stage === 'Growing' ? stageViability : propGrowAssessment;
+  const resolvedHarvest = stageViability?.stage === 'Harvest' ? stageViability : propHarvestAssessment;
+
+  // 1. WISHLIST VIEW: List of viabilities per season (> Low)
+  if (resolvedWish || (wishSeasons && wishSeasons.length > 0)) {
+    const seasons = wishSeasons || [];
+    const overallViab = resolvedWish?.overallViability || (seasons.some(s => s.viability === 'High') ? 'High' : seasons.some(s => s.viability === 'Medium') ? 'Medium' : 'Low');
+    const primaryBorderClass = viabilityConfig[overallViab]?.borderClass || 'border-border';
+
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(prev => !prev);
+            }}
+            onMouseEnter={() => setIsOpen(true)}
+            onMouseLeave={() => setIsOpen(false)}
+            className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap"
+            title="Click or hover to view seasonal viability breakdown"
+          >
+            {seasons.map((sv) => {
+              const cfg = viabilityConfig[sv.viability] || viabilityConfig.Medium;
+              const isCurrentSeason = currentSeason && sv.season.toLowerCase() === currentSeason.toLowerCase();
+              return (
+                <Badge
+                  key={sv.season}
+                  variant="outline"
+                  className={cn(
+                    "text-[11px] font-medium cursor-pointer transition-colors flex items-center gap-1 select-none py-0.5",
+                    cfg.className,
+                    isCurrentSeason && "ring-1 ring-primary/80 font-semibold"
+                  )}
+                >
+                  <span>{seasonIcons[sv.season] || '🌿'}</span>
+                  <span>{sv.season}: {sv.viability}</span>
+                  {isCurrentSeason && <span className="text-[10px] opacity-90 font-mono">• Now</span>}
+                </Badge>
+              );
+            })}
+            <Info className="h-3 w-3 opacity-60 ml-0.5" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent 
+          className={cn("w-80 sm:w-96 p-4 text-sm z-50 shadow-xl space-y-3 bg-popover text-popover-foreground", primaryBorderClass)}
+          side="top"
+          align="start"
+          onClick={(e) => e.stopPropagation()}
+          onMouseEnter={() => setIsOpen(true)}
+          onMouseLeave={() => setIsOpen(false)}
+        >
+          <div className="flex items-center justify-between border-b border-border/60 pb-2">
+            <div className="flex items-center gap-1.5 font-semibold text-xs">
+              <Calendar className="h-3.5 w-3.5 text-primary" />
+              <span>Wishlist Seasonal Planning</span>
+            </div>
+            {currentSeason && (
+              <Badge variant="outline" className="text-[10px] font-mono">
+                Current: {currentSeason}
+              </Badge>
+            )}
+          </div>
+
+          {plantName && (
+            <p className="font-medium text-xs text-foreground/90">
+              {plantName} {gardenName ? <span className="text-muted-foreground font-normal">({gardenName})</span> : ''}
+            </p>
+          )}
+
+          <div className="space-y-2">
+            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+              <span>Seasonal Feasibility</span>
+              <span className="text-[10px] lowercase text-primary font-normal">All viable windows listed</span>
+            </div>
+            <div className="space-y-1.5">
+              {seasons.map((s) => {
+                const sCfg = viabilityConfig[s.viability];
+                const isCurrent = currentSeason && s.season.toLowerCase() === currentSeason.toLowerCase();
+                return (
+                  <div 
+                    key={s.season} 
+                    className={cn(
+                      "p-2 rounded-md border text-xs flex flex-col gap-1",
+                      isCurrent ? "border-primary/50 bg-primary/5" : "border-border/50 bg-muted/20"
+                    )}
+                  >
+                    <div className="flex items-center justify-between font-medium">
+                      <span className="flex items-center gap-1.5">
+                        <span>{seasonIcons[s.season] || '🌿'}</span>
+                        <span className="font-semibold">{s.season}</span>
+                        {isCurrent && (
+                          <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-primary/20 text-primary">
+                            Active Season
+                          </Badge>
+                        )}
+                      </span>
+                      <Badge variant="outline" className={cn("text-[10px] py-0 h-4 font-mono", sCfg?.className)}>
+                        {s.viability}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      {s.reasoning}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {resolvedWish?.bestSeason && (
+            <div className="p-2 rounded-lg border border-primary/30 bg-primary/5 text-xs flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary shrink-0" />
+              <p className="text-[11px] text-foreground/90">
+                Recommended target: <span className="font-semibold text-primary">{resolvedWish.bestSeason}</span> for optimal yield and vigor.
+              </p>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  // 2. PREP VIEW: 3-Stage Lifecycle Pipeline (Prep -> Grow -> Harv)
+  if (resolvedPrep) {
+    const overallCfg = viabilityConfig[resolvedPrep.overallViability] || viabilityConfig.Medium;
+    const prepCfg = viabilityConfig[resolvedPrep.prepViability] || viabilityConfig.Medium;
+    const harvCfg = viabilityConfig[resolvedPrep.harvestViability] || viabilityConfig.Medium;
+
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(prev => !prev);
+            }}
+            onMouseEnter={() => setIsOpen(true)}
+            onMouseLeave={() => setIsOpen(false)}
+            className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap"
+            title="Click or hover to view Prep lifecycle forecast"
+          >
+            <Badge 
+              variant="outline" 
+              className={cn("font-normal cursor-pointer transition-colors flex items-center gap-1 select-none", overallCfg.className)}
+            >
+              <Sprout className="h-3 w-3" />
+              <span>Prep: {resolvedPrep.prepViability}</span>
+              <ArrowRight className="h-2.5 w-2.5 opacity-60" />
+              <span>Harv: {resolvedPrep.harvestViability}</span>
+              <Info className="h-3 w-3 opacity-60 ml-0.5" />
+            </Badge>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent 
+          className={cn("w-80 sm:w-96 p-4 text-sm z-50 shadow-xl space-y-3 bg-popover text-popover-foreground", overallCfg.borderClass)}
+          side="top"
+          align="start"
+          onClick={(e) => e.stopPropagation()}
+          onMouseEnter={() => setIsOpen(true)}
+          onMouseLeave={() => setIsOpen(false)}
+        >
+          <div className="flex items-center justify-between border-b border-border/60 pb-2">
+            <div className="flex items-center gap-1.5 font-semibold text-xs">
+              <Sprout className="h-3.5 w-3.5 text-primary" />
+              <span>Prep Lifecycle Forecast</span>
+            </div>
+            <Badge variant="outline" className={cn("text-xs font-semibold", overallCfg.className)}>
+              Overall: {resolvedPrep.overallViability}
+            </Badge>
+          </div>
+
+          {plantName && (
+            <p className="font-medium text-xs text-foreground/90">
+              {plantName} {gardenName ? <span className="text-muted-foreground font-normal">({gardenName})</span> : ''}
+            </p>
+          )}
+
+          <div className="space-y-2">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Lifecycle Trajectory
+            </span>
+            <div className="grid grid-cols-3 gap-1.5 text-center">
+              <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
+                <span className="text-[10px] text-muted-foreground font-semibold">1. Prep</span>
+                <span className={cn("text-xs font-bold mt-0.5", prepCfg.className.split(' ')[1])}>
+                  {resolvedPrep.prepViability}
+                </span>
+                <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Germination</span>
+              </div>
+              <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
+                <span className="text-[10px] text-muted-foreground font-semibold">2. Grow</span>
+                <span className={cn("text-xs font-bold mt-0.5", viabilityConfig[resolvedPrep.growViability]?.className.split(' ')[1])}>
+                  {resolvedPrep.growViability}
+                </span>
+                <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Vegetative</span>
+              </div>
+              <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
+                <span className="text-[10px] text-muted-foreground font-semibold">3. Harv</span>
+                <span className={cn("text-xs font-bold mt-0.5", harvCfg.className.split(' ')[1])}>
+                  {resolvedPrep.harvestViability}
+                </span>
+                <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Maturity</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-1.5 text-xs text-muted-foreground">
+            {resolvedPrep.prepReasoning && (
+              <div>
+                <span className="font-semibold text-foreground/80">Prep Phase: </span>
+                <span>{resolvedPrep.prepReasoning}</span>
+              </div>
+            )}
+            {resolvedPrep.growReasoning && (
+              <div>
+                <span className="font-semibold text-foreground/80">Grow Phase: </span>
+                <span>{resolvedPrep.growReasoning}</span>
+              </div>
+            )}
+            {resolvedPrep.harvestReasoning && (
+              <div>
+                <span className="font-semibold text-foreground/80">Harvest Phase: </span>
+                <span>{resolvedPrep.harvestReasoning}</span>
+              </div>
+            )}
+          </div>
+
+          {resolvedPrep.summary && (
+            <div className="p-2 rounded border border-primary/20 bg-primary/5 text-xs text-foreground/90 font-medium">
+              💡 {resolvedPrep.summary}
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  // 3. GROW VIEW: In-Ground Vigor & Acute Stress Monitoring
+  if (resolvedGrow) {
+    const cfg = viabilityConfig[resolvedGrow.vigorViability] || viabilityConfig.High;
+    const hasStress = resolvedGrow.stressFactor && resolvedGrow.stressFactor !== 'None';
+
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(prev => !prev);
+            }}
+            onMouseEnter={() => setIsOpen(true)}
+            onMouseLeave={() => setIsOpen(false)}
+            className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap"
+            title="Click or hover to view in-ground vigor and stress factor"
+          >
+            <Badge 
+              variant="outline" 
+              className={cn("font-normal cursor-pointer transition-colors flex items-center gap-1 select-none", cfg.className)}
+            >
+              <Leaf className="h-3 w-3" />
+              <span>Grow: {resolvedGrow.vigorViability}</span>
+              {hasStress && (
+                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 ml-0.5 flex items-center gap-0.5">
+                  <AlertTriangle className="h-2.5 w-2.5" />
+                  {resolvedGrow.stressFactor}
+                </span>
+              )}
+              <Info className="h-3 w-3 opacity-60 ml-0.5" />
+            </Badge>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent 
+          className={cn("w-80 sm:w-96 p-4 text-sm z-50 shadow-xl space-y-3 bg-popover text-popover-foreground", cfg.borderClass)}
+          side="top"
+          align="start"
+          onClick={(e) => e.stopPropagation()}
+          onMouseEnter={() => setIsOpen(true)}
+          onMouseLeave={() => setIsOpen(false)}
+        >
+          <div className="flex items-center justify-between border-b border-border/60 pb-2">
+            <div className="flex items-center gap-1.5 font-semibold text-xs">
+              <Leaf className="h-3.5 w-3.5 text-primary" />
+              <span>In-Ground Vigor &amp; Stress Watch</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Badge variant="outline" className={cn("text-xs font-semibold", cfg.className)}>
+                Vigor: {resolvedGrow.vigorViability}
+              </Badge>
+            </div>
+          </div>
+
+          {plantName && (
+            <p className="font-medium text-xs text-foreground/90">
+              {plantName} {gardenName ? <span className="text-muted-foreground font-normal">({gardenName})</span> : ''}
+            </p>
+          )}
+
+          {hasStress ? (
+            <div className="p-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-xs space-y-1">
+              <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-semibold">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span>Stress Alert: {resolvedGrow.stressFactor}</span>
+              </div>
+              <p className="text-[11px] text-amber-900/90 dark:text-amber-200/90 leading-snug">
+                {resolvedGrow.reasoning}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1 text-xs">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Growth Status</span>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                {resolvedGrow.reasoning}
+              </p>
+            </div>
+          )}
+
+          <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 text-xs space-y-1">
+            <span className="text-[11px] font-semibold text-primary flex items-center gap-1">
+              <span>🌿</span> Tending Action Plan:
+            </span>
+            <p className="text-[11px] text-foreground/90 leading-snug font-medium">
+              {resolvedGrow.tendingAdvice}
+            </p>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  // 4. HARVEST VIEW: Peak Window & Bed Succession Advice
+  if (resolvedHarvest) {
+    const cfg = viabilityConfig[resolvedHarvest.ripenessViability] || viabilityConfig.High;
+
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(prev => !prev);
+            }}
+            onMouseEnter={() => setIsOpen(true)}
+            onMouseLeave={() => setIsOpen(false)}
+            className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap"
+            title="Click or hover to view harvest window and bed turnover succession"
+          >
+            <Badge 
+              variant="outline" 
+              className={cn("font-normal cursor-pointer transition-colors flex items-center gap-1 select-none", cfg.className)}
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              <span>Harv: {resolvedHarvest.ripenessViability}</span>
+              <span className="text-[10px] font-mono opacity-85 ml-0.5">• {resolvedHarvest.harvestWindow}</span>
+              <Info className="h-3 w-3 opacity-60 ml-0.5" />
+            </Badge>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent 
+          className={cn("w-80 sm:w-96 p-4 text-sm z-50 shadow-xl space-y-3 bg-popover text-popover-foreground", cfg.borderClass)}
+          side="top"
+          align="start"
+          onClick={(e) => e.stopPropagation()}
+          onMouseEnter={() => setIsOpen(true)}
+          onMouseLeave={() => setIsOpen(false)}
+        >
+          <div className="flex items-center justify-between border-b border-border/60 pb-2">
+            <div className="flex items-center gap-1.5 font-semibold text-xs">
+              <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+              <span>Harvest Window &amp; Succession</span>
+            </div>
+            <Badge variant="outline" className={cn("text-xs font-semibold", cfg.className)}>
+              {resolvedHarvest.harvestWindow}
+            </Badge>
+          </div>
+
+          {plantName && (
+            <p className="font-medium text-xs text-foreground/90">
+              {plantName} {gardenName ? <span className="text-muted-foreground font-normal">({gardenName})</span> : ''}
+            </p>
+          )}
+
+          <div className="space-y-1 text-xs">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Ripeness Status</span>
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              {resolvedHarvest.reasoning}
+            </p>
+          </div>
+
+          {resolvedHarvest.successionAdvice && (
+            <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 text-xs space-y-1">
+              <span className="text-[11px] font-semibold text-primary flex items-center gap-1">
+                <span>🔄</span> Succession Crop for this Bed:
+              </span>
+              <p className="text-[11px] text-foreground/90 leading-snug">
+                {resolvedHarvest.successionAdvice}
+              </p>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  // 5. STANDARD / LEGACY FALLBACK VIEW
+  const effectiveViability = viability || 'Low';
+  const config = viabilityConfig[effectiveViability];
 
   if (!config) {
     return null;
@@ -57,7 +509,7 @@ export function ViabilityIndicator({
 
   // Check if upcoming viability is higher than current
   const viabilityRanks: Record<Viability, number> = { High: 2, Medium: 1, Low: 0 };
-  const hasUpcomingHigher = upcomingViability && viabilityRanks[upcomingViability] > viabilityRanks[viability];
+  const hasUpcomingHigher = upcomingViability && viabilityRanks[upcomingViability] > viabilityRanks[effectiveViability];
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -108,11 +560,11 @@ export function ViabilityIndicator({
         <div className="flex items-center justify-between border-b border-border/60 pb-2">
           <div className="flex items-center gap-1.5 font-semibold text-xs">
             <Sparkles className="h-3.5 w-3.5 text-primary" />
-            <span>AI Viability Analysis</span>
+            <span>Viability Analysis</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Badge variant="outline" className={cn("text-xs font-normal", config.className)}>
-              {viability} (Current)
+              {effectiveViability} (Current)
             </Badge>
           </div>
         </div>
@@ -123,7 +575,6 @@ export function ViabilityIndicator({
           </p>
         )}
 
-        {/* Highlight upcoming higher viability in current season */}
         {hasUpcomingHigher && (
           <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 space-y-1">
             <div className="flex items-center justify-between text-xs font-semibold">

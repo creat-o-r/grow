@@ -1,19 +1,16 @@
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import type { PlantingWithPlant, Conditions, StatusHistory } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight, Fence, Share2 } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight, Fence, Share2, ChevronDown, ChevronUp, Sprout } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { ViabilityIndicator } from './ViabilityIndicator';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
-import { getSuitableSeasons } from '@/lib/viability';
-import { Viability } from '@/lib/viability';
+import { getSuitableSeasons, evaluatePlantingViability, Viability } from '@/lib/viability';
 import { useExtensions } from '@/extensions/use-extensions';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import { SharePlantDialog } from './SharePlantDialog';
@@ -37,6 +34,8 @@ type PlantCardProps = {
   showGardenLabel?: boolean;
   isPriority?: boolean;
   otherPlantings?: PlantingWithPlant[];
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 };
 
 export function PlantCard({
@@ -58,6 +57,8 @@ export function PlantCard({
     showGardenLabel,
     isPriority = false,
     otherPlantings,
+    isCollapsed = false,
+    onToggleCollapse,
 }: PlantCardProps) {
     const { plant } = planting;
     const syncImageUrl = getCuratedPlantImage(plant, planting.name);
@@ -95,7 +96,123 @@ export function PlantCard({
         Growing: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-800',
         Harvest: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-800',
     };
-    
+
+    const gardenConditions = planting.garden?.conditions;
+    const activeSeason = currentSeason || gardenConditions?.currentSeason;
+
+    // Unified 4-stage viability analysis
+    const stageViability = evaluatePlantingViability(planting, gardenConditions, {
+        growingSystems: planting.garden?.growingSystems,
+        growingMethods: planting.garden?.growingMethods,
+    });
+
+    const viabilityIndicatorElement = (
+        <ViabilityIndicator 
+            stageViability={stageViability}
+            viability={viability || planting.viability} 
+            reasoning={viabilityReasoning || planting.viabilityReasoning} 
+            plantName={planting.name}
+            gardenName={planting.garden?.name}
+            upcomingViability={upcomingViability || planting.upcomingViability}
+            upcomingTiming={upcomingTiming || planting.upcomingTiming}
+            upcomingReasoning={upcomingReasoning || planting.upcomingReasoning}
+            currentSeason={activeSeason}
+        />
+    );
+
+    const dropdownMenuContent = (
+        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            {latestStatus?.status === 'Wishlist' && <DropdownMenuItem onClick={() => onQuickStatusChange('Planting')}><ArrowRight className="mr-2 h-4 w-4" />Mark as Planting</DropdownMenuItem>}
+            {latestStatus?.status === 'Planting' && <DropdownMenuItem onClick={() => onQuickStatusChange('Growing')}><ArrowRight className="mr-2 h-4 w-4" />Mark as Growing</DropdownMenuItem>}
+            {latestStatus?.status === 'Growing' && <DropdownMenuItem onClick={() => onQuickStatusChange('Harvest')}><ArrowRight className="mr-2 h-4 w-4" />Mark for Harvest</DropdownMenuItem>}
+            {(latestStatus?.status && latestStatus.status !== 'Harvest') && <DropdownMenuSeparator />}
+            <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+            <DropdownMenuItem onClick={onGetViability}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Viability Analysis
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => {
+                e.stopPropagation();
+                setIsShareDialogOpen(true);
+            }}>
+                <Share2 className="mr-2 h-4 w-4" />
+                Share My Plant
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onMarkAsDuplicate}>
+                <Copy className="mr-2 h-4 w-4" />
+                Mark as Duplicate...
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">Delete</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                {latestStatus ? `Last update: ${format(parseISO(latestStatus.date), 'MMM d, yyyy')}` : 'No history'}
+            </DropdownMenuItem>
+        </DropdownMenuContent>
+    );
+
+    // Collapsed list view rendering
+    if (isCollapsed) {
+        return (
+            <Card className="flex items-center justify-between p-3 transition-all hover:bg-muted/30 gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {activeImageUrl ? (
+                        <div className="relative w-12 h-12 flex-shrink-0 rounded-md overflow-hidden bg-muted/40">
+                            <img
+                                src={activeImageUrl}
+                                alt={plant.species}
+                                width={48}
+                                height={48}
+                                className="w-full h-full object-cover"
+                                onError={() => setImgFailed(true)}
+                                loading="lazy"
+                            />
+                        </div>
+                    ) : (
+                        <div className="w-12 h-12 flex-shrink-0 rounded-md bg-muted/50 flex items-center justify-center text-muted-foreground">
+                            <Sprout className="h-6 w-6 opacity-60" />
+                        </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-headline font-semibold text-sm truncate">{planting.name}</h4>
+                            <span className="text-xs text-muted-foreground truncate hidden sm:inline">({plant.species})</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                            {viabilityIndicatorElement}
+                            {latestStatus && (
+                                <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-normal", statusConfig[latestStatus.status])}>
+                                    {latestStatus.status}
+                                </Badge>
+                            )}
+                            {showGardenLabel && planting.garden && (
+                                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                    <Fence className="h-2.5 w-2.5" />
+                                    {planting.garden.name}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {onToggleCollapse && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleCollapse} title="Expand card">
+                            <ChevronDown className="h-4 w-4" />
+                        </Button>
+                    )}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        {dropdownMenuContent}
+                    </DropdownMenu>
+                </div>
+            </Card>
+        );
+    }
+
     const cardContent = (
         <>
             {activeImageUrl && (
@@ -126,56 +243,26 @@ export function PlantCard({
                         </CardDescription>
                     </div>
                     <div className="flex items-center -mt-1 -mr-2">
+                        {onToggleCollapse && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleCollapse();
+                            }} title="Collapse card">
+                                <ChevronUp className="h-4 w-4" />
+                            </Button>
+                        )}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                     <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                {latestStatus?.status === 'Wishlist' && <DropdownMenuItem onClick={() => onQuickStatusChange('Planting')}><ArrowRight className="mr-2 h-4 w-4" />Mark as Planting</DropdownMenuItem>}
-                                {latestStatus?.status === 'Planting' && <DropdownMenuItem onClick={() => onQuickStatusChange('Growing')}><ArrowRight className="mr-2 h-4 w-4" />Mark as Growing</DropdownMenuItem>}
-                                {latestStatus?.status === 'Growing' && <DropdownMenuItem onClick={() => onQuickStatusChange('Harvest')}><ArrowRight className="mr-2 h-4 w-4" />Mark for Harvest</DropdownMenuItem>}
-                                {(latestStatus?.status && latestStatus.status !== 'Harvest') && <DropdownMenuSeparator />}
-                                <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
-                                <DropdownMenuItem onClick={onGetViability}>
-                                    <Sparkles className="mr-2 h-4 w-4" />
-                                    Viability Analysis
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsShareDialogOpen(true);
-                                }}>
-                                    <Share2 className="mr-2 h-4 w-4" />
-                                    Share My Plant
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={onMarkAsDuplicate}>
-                                    <Copy className="mr-2 h-4 w-4" />
-                                    Mark as Duplicate...
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">Delete</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem disabled className="text-xs text-muted-foreground">
-                                    {latestStatus ? `Last update: ${format(parseISO(latestStatus.date), 'MMM d, yyyy')}` : 'No history'}
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
+                            {dropdownMenuContent}
                         </DropdownMenu>
                     </div>
                 </div>
                  <div className="flex flex-wrap gap-2 items-center pt-2">
-                    {viability && (
-                      <ViabilityIndicator 
-                        viability={viability} 
-                        reasoning={viabilityReasoning || planting.viabilityReasoning} 
-                        plantName={planting.name}
-                        gardenName={planting.garden?.name}
-                        upcomingViability={upcomingViability || planting.upcomingViability}
-                        upcomingTiming={upcomingTiming || planting.upcomingTiming}
-                        upcomingReasoning={upcomingReasoning || planting.upcomingReasoning}
-                        currentSeason={currentSeason || planting.garden?.conditions?.currentSeason}
-                      />
-                    )}
+                    {viabilityIndicatorElement}
                     {latestStatus && (
                         <Badge variant="outline" className={cn("font-normal", statusConfig[latestStatus.status])}>
                             {latestStatus.status}

@@ -1,8 +1,10 @@
 
 
+export type PlantStatus = 'Wishlist' | 'Planting' | 'Growing' | 'Harvest';
+
 export type StatusHistory = {
   id: string;
-  status: 'Wishlist' | 'Planting' | 'Growing' | 'Harvest';
+  status: PlantStatus;
   date: string; // ISO String
   notes?: string;
 };
@@ -61,6 +63,63 @@ export type Plant = {
   verifiedGrowerCount?: number;
 };
 
+export type ViabilityLevel = 'High' | 'Medium' | 'Low';
+export type SeasonName = 'Spring' | 'Summer' | 'Autumn' | 'Winter';
+
+export type SeasonalViability = {
+  season: SeasonName;
+  viability: ViabilityLevel;
+  score?: number;
+  reasoning: string;
+};
+
+export type WishViabilityData = {
+  stage?: 'Wishlist';
+  overallViability: ViabilityLevel;
+  seasons: SeasonalViability[];
+  activeSeasonMatch?: boolean;
+  bestSeason?: SeasonName;
+  reasoning?: string;
+};
+
+export type PrepViabilityData = {
+  stage?: 'Planting';
+  prepViability: ViabilityLevel;
+  growViability: ViabilityLevel;
+  harvestViability: ViabilityLevel;
+  overallViability: ViabilityLevel;
+  prepReasoning?: string;
+  growReasoning?: string;
+  harvestReasoning?: string;
+  summary?: string;
+};
+
+export type GrowViabilityData = {
+  stage?: 'Growing';
+  vigorViability: ViabilityLevel;
+  stressFactor?: 'None' | 'Heat Stress' | 'Frost Risk' | 'Drought Risk' | 'Light Deficit';
+  tendingAdvice: string;
+  reasoning: string;
+};
+
+export type HarvestViabilityData = {
+  stage?: 'Harvest';
+  ripenessViability: ViabilityLevel;
+  harvestWindow: 'Peak Window' | 'Approaching End' | 'Overdue / Bolt Risk';
+  successionAdvice: string;
+  reasoning: string;
+};
+
+export type StageViability =
+  | WishViabilityData
+  | PrepViabilityData
+  | GrowViabilityData
+  | HarvestViabilityData;
+
+export type PrepForecast = PrepViabilityData;
+export type GrowAssessment = GrowViabilityData;
+export type HarvestAssessment = HarvestViabilityData;
+
 // Represents a specific instance or "lot" of a plant being grown
 export type Planting = {
   id: string;
@@ -73,12 +132,17 @@ export type Planting = {
   seedsOnHand?: number;
   plannedQty?: number;
   swapAvailable?: boolean;
-  viability?: 'High' | 'Medium' | 'Low';
+  viability?: ViabilityLevel;
   viabilityReasoning?: string;
   viabilityAssessedAt?: string;
   upcomingViability?: 'High' | 'Medium';
   upcomingTiming?: string;
   upcomingReasoning?: string;
+  stageViability?: StageViability;
+  seasonalViabilities?: SeasonalViability[];
+  prepForecast?: PrepViabilityData;
+  growAssessment?: GrowAssessment;
+  harvestAssessment?: HarvestAssessment;
   forkedFrom?: ForkProvenance;
 }
 
@@ -88,6 +152,8 @@ export type Conditions = {
   soil: string;
   currentSeason?: 'Spring' | 'Summer' | 'Autumn' | 'Winter';
 };
+
+export type GardenSyncTopology = 'mirror' | 'coop' | 'none';
 
 export type GardenLocation = {
   id: string;
@@ -99,6 +165,11 @@ export type GardenLocation = {
   growingSystems?: string;
   growingMethods?: string;
   p2pRoomId?: string;
+  syncTopology?: GardenSyncTopology;
+  trustedGrowers?: string[];
+  autoSyncInward?: boolean;
+  autoSyncOutward?: boolean;
+  lastSyncedAt?: string;
   forkedFrom?: ForkProvenance;
 };
 

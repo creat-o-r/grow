@@ -3,7 +3,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import type { PlantingWithPlant, StatusHistory } from '@/lib/types';
-import type { Viability } from '@/lib/viability';
+import { evaluatePlantingViability, Viability } from '@/lib/viability';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -177,17 +177,16 @@ export function PlantingDashboardCard({
                     </a>
                 </CardDescription>
                 <div className="flex flex-wrap gap-2 items-center pt-2">
-                    {effectiveViability && (
-                        <ViabilityIndicator 
-                            viability={effectiveViability} 
-                            reasoning={viabilityReasoning || planting.viabilityReasoning} 
-                            plantName={planting.name}
-                            upcomingViability={upcomingViability || planting.upcomingViability}
-                            upcomingTiming={upcomingTiming || planting.upcomingTiming}
-                            upcomingReasoning={upcomingReasoning || planting.upcomingReasoning}
-                            currentSeason={currentSeason}
-                        />
-                    )}
+                    <ViabilityIndicator 
+                        stageViability={evaluatePlantingViability(planting, undefined)}
+                        viability={effectiveViability} 
+                        reasoning={viabilityReasoning || planting.viabilityReasoning} 
+                        plantName={planting.name}
+                        upcomingViability={upcomingViability || planting.upcomingViability}
+                        upcomingTiming={upcomingTiming || planting.upcomingTiming}
+                        upcomingReasoning={upcomingReasoning || planting.upcomingReasoning}
+                        currentSeason={currentSeason}
+                    />
                     {latestStatus && (
                         <Badge variant="outline" className={cn("font-normal w-fit", statusConfig[latestStatus.status])}>
                             {latestStatus.status}

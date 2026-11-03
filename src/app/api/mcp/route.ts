@@ -5,6 +5,11 @@ import {
   generateLocalViabilityReasoning,
   getSuitableSeasons,
   getUpcomingViability,
+  evaluateStageViability,
+  analyzeWishViability,
+  analyzePrepViability,
+  analyzeGrowViability,
+  analyzeHarvestViability,
 } from '@/lib/viability';
 import {
   decodeSeedPackFromInput,
@@ -271,6 +276,10 @@ function formatBrowserGardenReport(dataset: AiDataset, origin: string) {
     const suitableSeasons = plant ? getSuitableSeasons(plant) : [];
     const latestStatus =
       planting.history?.[planting.history.length - 1]?.status || 'Wishlist';
+    const stageViability = plant ? evaluateStageViability(latestStatus, plant, conditions, {
+      growingSystems: location?.growingSystems,
+      growingMethods: location?.growingMethods,
+    }) : undefined;
 
     return {
       plantingId: planting.id,
@@ -281,6 +290,7 @@ function formatBrowserGardenReport(dataset: AiDataset, origin: string) {
       seedsOnHand: planting.seedsOnHand ?? 0,
       plannedQty: planting.plannedQty ?? 0,
       viability,
+      stageViability,
       suitableSeasons,
       optimalConditions: plant?.optimalConditions || '',
       germinationNeeds: plant?.germinationNeeds || '',
@@ -635,6 +645,10 @@ async function handleJsonRpcMessage(
       const reasoning = generateLocalViabilityReasoning(plant, conditions);
       const suitableSeasons = getSuitableSeasons(plant);
       const upcoming = getUpcomingViability(plant, conditions, viability);
+      const wishViability = analyzeWishViability(plant, conditions);
+      const prepForecast = analyzePrepViability(plant, conditions);
+      const growAssessment = analyzeGrowViability(plant, conditions);
+      const harvestAssessment = analyzeHarvestViability(plant, conditions);
 
       const formattedCard = [
         formatMicroclimateHeader(null, conditions),
@@ -642,6 +656,8 @@ async function handleJsonRpcMessage(
         `### 🌿 ${plant.species}`,
         `- **Viability:** \`${getViabilityBadge(viability)}\`${upcoming.upcomingTiming ? ` *(Improves to ${getViabilityBadge(upcoming.upcomingViability || 'High')} in ${upcoming.upcomingTiming})*` : ''}`,
         `- **Suitable Seasons:** ${suitableSeasons.length > 0 ? suitableSeasons.join(', ') : 'All Seasons'}`,
+        `- **Wishlist Horizon:** ${wishViability.seasons.map(s => `${s.season}: ${s.viability}`).join(' | ')}`,
+        `- **Prep ➔ Harv Lifecycle:** Prep: ${prepForecast.prepViability} ➔ Grow: ${prepForecast.growViability} ➔ Harv: ${prepForecast.harvestViability} (${prepForecast.overallViability})`,
         `- **Germination Needs:** ${plant.germinationNeeds}`,
         `- **Optimal Conditions:** ${plant.optimalConditions}`,
         `- **Seed Inventory:** Seeds on Hand: \`0\` • Planned Qty: \`0\``,
@@ -664,6 +680,10 @@ async function handleJsonRpcMessage(
                   viabilityBadge: getViabilityBadge(viability),
                   reasoning,
                   suitableSeasons,
+                  wishViability,
+                  prepForecast,
+                  growAssessment,
+                  harvestAssessment,
                   ...upcoming,
                   interactiveAppUrl: origin,
                 },

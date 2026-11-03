@@ -11,7 +11,7 @@ import { usePrevious } from '@/hooks/use-previous';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
 import { loadDataset } from '@/lib/datasets';
-import { Viability, getSuitableSeasons, getUpcomingViability } from '@/lib/viability';
+import { Viability, SeasonName, getSuitableSeasons, getUpcomingViability, evaluatePlantingViability, getOverallViabilityLevel } from '@/lib/viability';
 import { decodeSeedPackFromInput, mergeSeedPackIntoDb } from '@/lib/seed-pack';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import {
@@ -920,6 +920,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             upcomingViability: result.upcomingViability,
             upcomingTiming: result.upcomingTiming,
             upcomingReasoning: result.upcomingReasoning,
+            ...(result.seasonalViabilities ? { seasonalViabilities: result.seasonalViabilities } : {}),
+            ...(result.prepForecast ? { prepForecast: result.prepForecast } : {}),
+            ...(result.growAssessment ? { growAssessment: result.growAssessment } : {}),
+            ...(result.harvestAssessment ? { harvestAssessment: result.harvestAssessment } : {}),
           });
         }
 
@@ -1291,6 +1295,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
               upcomingViability: result.upcomingViability,
               upcomingTiming: result.upcomingTiming,
               upcomingReasoning: result.upcomingReasoning,
+              ...(result.seasonalViabilities ? { seasonalViabilities: result.seasonalViabilities } : {}),
+              ...(result.prepForecast ? { prepForecast: result.prepForecast } : {}),
+              ...(result.growAssessment ? { growAssessment: result.growAssessment } : {}),
+              ...(result.harvestAssessment ? { harvestAssessment: result.harvestAssessment } : {}),
             });
             newViabilityData[planting.id] = result.viability;
           }
@@ -1476,8 +1484,8 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
         
         return filtered.slice().sort((a, b) => {
-            const viabilityA = currentViabilityData[a.id] || 'Low';
-            const viabilityB = currentViabilityData[b.id] || 'Low';
+            const viabilityA = currentViabilityData[a.id] || a.viability || getOverallViabilityLevel(evaluatePlantingViability(a, activeLocation.conditions, { growingSystems: a.garden?.growingSystems, growingMethods: a.garden?.growingMethods }));
+            const viabilityB = currentViabilityData[b.id] || b.viability || getOverallViabilityLevel(evaluatePlantingViability(b, activeLocation.conditions, { growingSystems: b.garden?.growingSystems, growingMethods: b.garden?.growingMethods }));
             return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
         });
     }
@@ -1496,7 +1504,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         }
         if (suitableSeasons.length === 0) return 'Season Not Specified';
 
-        const seasonOrder = ['Spring', 'Summer', 'Autumn', 'Winter'];
+        const seasonOrder: SeasonName[] = ['Spring', 'Summer', 'Autumn', 'Winter'];
         const currentSeason = activeLocation.conditions.currentSeason;
         const currentSeasonIndex = currentSeason ? seasonOrder.indexOf(currentSeason) : -1;
 
@@ -1571,8 +1579,8 @@ const sortedWishlistByViability = useMemo(() => {
     if (!wishlistPlantings || !activeLocation?.conditions) return [];
     const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
     return [...wishlistPlantings].sort((a, b) => {
-        const viabilityA = currentViabilityData[a.id] || 'Low';
-        const viabilityB = currentViabilityData[b.id] || 'Low';
+        const viabilityA = currentViabilityData[a.id] || a.viability || getOverallViabilityLevel(evaluatePlantingViability(a, activeLocation.conditions, { growingSystems: a.garden?.growingSystems, growingMethods: a.garden?.growingMethods }));
+        const viabilityB = currentViabilityData[b.id] || b.viability || getOverallViabilityLevel(evaluatePlantingViability(b, activeLocation.conditions, { growingSystems: b.garden?.growingSystems, growingMethods: b.garden?.growingMethods }));
         return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
     });
 }, [wishlistPlantings, activeLocation?.conditions, currentViabilityData]);
@@ -1714,18 +1722,22 @@ const unspecifiedSeasonCount = useMemo(() => {
     const targetPlantings = searchQuery.trim().length > 0 ? searchMatches.all : plantingsWithPlants;
 
     targetPlantings?.forEach(p => {
-      const viability = p.viability || currentViabilityData[p.id];
+      const stageViability = evaluatePlantingViability(p, activeLocation?.conditions, {
+        growingSystems: p.garden?.growingSystems,
+        growingMethods: p.garden?.growingMethods,
+      });
+      const level = currentViabilityData[p.id] || p.viability || getOverallViabilityLevel(stageViability);
       const lastStatus = (p.history && p.history.length > 0 ? p.history[p.history.length - 1].status : null) as PlantStatus | null;
 
-      if (viability && (viability === 'High' || viability === 'Medium' || viability === 'Low')) {
-        data.All[viability]++;
+      if (level && (level === 'High' || level === 'Medium' || level === 'Low')) {
+        data.All[level]++;
       } else {
         data.All.pending++;
       }
 
       if (lastStatus && data[lastStatus]) {
-        if (viability && (viability === 'High' || viability === 'Medium' || viability === 'Low')) {
-          data[lastStatus][viability]++;
+        if (level && (level === 'High' || level === 'Medium' || level === 'Low')) {
+          data[lastStatus][level]++;
         } else {
           data[lastStatus].pending++;
         }
@@ -1733,7 +1745,7 @@ const unspecifiedSeasonCount = useMemo(() => {
     });
 
     return data;
-  }, [plantingsWithPlants, currentViabilityData, searchQuery, searchMatches.all]);
+  }, [plantingsWithPlants, currentViabilityData, searchQuery, searchMatches.all, activeLocation?.conditions]);
 
   const viabilityCounts = useMemo(() => {
     return {

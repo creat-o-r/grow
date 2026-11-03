@@ -44,6 +44,33 @@ const GetAiViabilityOutputSchema = z.object({
   upcomingViability: z.enum(['High', 'Medium']).optional().describe("If the plant currently has 'Low' or 'Medium' viability, but is likely to achieve a higher viability score ('Medium' or 'High') later within the CURRENT season as weather/soil warms or moderates, specify that higher score."),
   upcomingTiming: z.string().optional().describe("When during the current season the higher viability is expected, e.g. 'Mid-to-late Spring (once soil warms >15°C)' or 'Late Summer as heat moderates'."),
   upcomingReasoning: z.string().optional().describe("Brief explanation of what condition change during the current season will elevate viability."),
+  seasonalViabilities: z.array(z.object({
+    season: z.enum(['Spring', 'Summer', 'Autumn', 'Winter']),
+    viability: z.enum(['High', 'Medium', 'Low']),
+    reasoning: z.string(),
+  })).optional().describe("List of viabilities per season for Wishlist planning across the year. If viabilities are more than low in multiple seasons, list all qualifying seasons."),
+  prepForecast: z.object({
+    prepViability: z.enum(['High', 'Medium', 'Low']),
+    growViability: z.enum(['High', 'Medium', 'Low']),
+    harvestViability: z.enum(['High', 'Medium', 'Low']),
+    overallViability: z.enum(['High', 'Medium', 'Low']),
+    prepReasoning: z.string().optional(),
+    growReasoning: z.string().optional(),
+    harvestReasoning: z.string().optional(),
+    summary: z.string().optional(),
+  }).optional().describe("Forward-looking Prep evaluation factoring in immediate germination/strike, forecasted grow phase, and forecasted harvest before frost/bolting."),
+  growAssessment: z.object({
+    vigorViability: z.enum(['High', 'Medium', 'Low']),
+    stressFactor: z.enum(['None', 'Heat Stress', 'Frost Risk', 'Drought Risk', 'Light Deficit']).optional(),
+    tendingAdvice: z.string(),
+    reasoning: z.string(),
+  }).optional().describe("Active in-ground vigor rating, environmental stress watch, and actionable horticultural tending advice."),
+  harvestAssessment: z.object({
+    ripenessViability: z.enum(['High', 'Medium', 'Low']),
+    harvestWindow: z.enum(['Peak Window', 'Approaching End', 'Overdue / Bolt Risk']),
+    successionAdvice: z.string(),
+    reasoning: z.string(),
+  }).optional().describe("Harvest ripeness assessment and bed turnover succession advice."),
 });
 type GetAiViabilityOutput = z.infer<typeof GetAiViabilityOutputSchema>;
 
@@ -100,6 +127,19 @@ Analyze the following information:
       - "upcomingTiming": The timeframe within this current season (e.g. 'Mid-to-late Spring', 'Late Spring once soil exceeds 15°C', 'Late Summer').
       - "upcomingReasoning": A concise explanation of the expected seasonal change that will elevate its viability.
     - If no higher viability is likely during this current season, omit the upcoming fields.
+4.  **Evaluate Seasonal Viabilities for Wishlist Planning**:
+    - For each season (Spring, Summer, Autumn, Winter), evaluate if this plant can thrive in this climate.
+    - User rule: List all seasons where viability is 'High' or 'Medium'. If multiple seasons qualify, list all of them.
+5.  **Evaluate Prep Lifecycle Forecast (Prep ➔ Grow ➔ Harvest)**:
+    - Assess if starting today will successfully complete its lifecycle:
+      - prepViability: Can seeds/starts germinate/strike in current conditions?
+      - growViability: Will vegetative development succeed over the coming 4-8 weeks?
+      - harvestViability: Will maturity and harvest succeed before first frost or extreme summer heat bolting?
+      - overallViability: Composite feasibility score.
+6.  **Evaluate In-Ground Vigor & Acute Stress Factors (for Growing Stage)**:
+    - Assess current vegetative health, detect any acute stress factors ('None', 'Heat Stress', 'Frost Risk', 'Drought Risk', 'Light Deficit'), and provide actionable tending advice.
+7.  **Evaluate Harvest Window & Succession (for Harvest Stage)**:
+    - Assess ripeness viability, current window ('Peak Window', 'Approaching End', 'Overdue / Bolt Risk'), and provide specific succession advice for what crop to plant next in the vacated bed.
 
 Return your final analysis in the specified output format.
 `,
@@ -118,7 +158,7 @@ Return your final analysis in the specified output format.
         {
           hasGeminiKey: Boolean(apiKey),
           systemPrompt:
-            'You are an expert horticulturalist. Return JSON with fields: viability ("High" | "Medium" | "Low"), reasoning (string), and optional upcomingViability ("High" | "Medium"), upcomingTiming (string), upcomingReasoning (string).',
+            'You are an expert horticulturalist. Return JSON with fields: viability ("High" | "Medium" | "Low"), reasoning (string), optional upcomingViability ("High" | "Medium"), upcomingTiming (string), upcomingReasoning (string), optional seasonalViabilities (array of {season, viability, reasoning}), optional prepForecast ({prepViability, growViability, harvestViability, overallViability, prepReasoning, growReasoning, harvestReasoning, summary}), optional growAssessment ({vigorViability, stressFactor, tendingAdvice, reasoning}), and optional harvestAssessment ({ripenessViability, harvestWindow, successionAdvice, reasoning}).',
           userPrompt: `Analyze viability for Plant: ${flowInput.plant.species} (Germination: ${flowInput.plant.germinationNeeds}, Optimal: ${flowInput.plant.optimalConditions}) in Garden Conditions: Season=${flowInput.garden.conditions.currentSeason || 'N/A'}, Temp=${flowInput.garden.conditions.temperature}, Sunlight=${flowInput.garden.conditions.sunlight}, Soil=${flowInput.garden.conditions.soil}, Systems=${flowInput.garden.growingSystems || 'N/A'}, Methods=${flowInput.garden.growingMethods || 'N/A'}.`,
           groqApiKey: flowInput.apiKeys?.groq,
           openrouterApiKey: flowInput.apiKeys?.openrouter,
