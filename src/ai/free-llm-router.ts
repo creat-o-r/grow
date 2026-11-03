@@ -4,7 +4,7 @@
  * Maximizes all zero-cost LLM providers while keeping Vercel Hobby serverless usage near zero:
  * 1. Browser Built-in AI (`LanguageModel` Prompt API / Gemini Nano) — $0 server cost, runs on-device.
  * 2. Local Ollama / LM Studio (`http://localhost:11434/v1`) — $0 server cost, runs on local GPU.
- * 3. Google Gemini Free Tier (`gemini-3.8-flash` -> `gemini-3.5-flash-lite` -> `gemini-2.5-flash`).
+ * 3. Google Gemini Free Tier (`gemini-2.5-flash` -> `gemini-2.0-flash` -> `gemini-2.5-flash-lite`).
  * 4. Groq Free Tier (`llama-3.3-70b-versatile`).
  * 5. OpenRouter `:free` Model Pool (`meta-llama/llama-3.3-70b-instruct:free`, `google/gemma-3-27b-it:free`).
  */

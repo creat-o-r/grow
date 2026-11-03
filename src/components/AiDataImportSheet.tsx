@@ -75,7 +75,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { PlantForm } from '@/components/PlantForm';
 import { availableDatasets, loadDataset } from '@/lib/datasets';
-import { decodeSeedPackFromInput, buildShareableSeedPackUrl } from '@/lib/seed-pack';
+import { decodeSeedPackFromInput, buildShareableSeedPackUrl, toSpeciesUid } from '@/lib/seed-pack';
 import {
   getSavedP2PRoomId,
   saveP2PRoomId,
@@ -136,6 +136,8 @@ type AiDataImportSheetProps = {
   onComplete: () => void;
   activeLocation?: GardenLocation | null;
   existingPlantings?: PlantingWithPlant[];
+  allPlantings?: PlantingWithPlant[];
+  allLocations?: GardenLocation[];
   initialDataset?: { data: AiDataset; title: string } | null;
   onClearInitialDataset?: () => void;
   // Single Plant (PlantForm) & Export props for unified hub:
@@ -158,6 +160,8 @@ export function AiDataImportSheet({
   onComplete,
   activeLocation,
   existingPlantings,
+  allPlantings,
+  allLocations,
   initialDataset,
   onClearInitialDataset,
   plantingToEdit,
@@ -282,10 +286,20 @@ export function AiDataImportSheet({
   };
 
   const currentDiscrepancy = useMemo(() => {
-    if (!generatedData || !existingPlantings) return null;
+    if (!generatedData) return null;
     const peer = roomStatus?.packet?.peerName || 'Garden Peer';
-    return computeGardenDiscrepancy(existingPlantings, generatedData, peer);
-  }, [generatedData, existingPlantings, roomStatus]);
+    return computeGardenDiscrepancy(
+      existingPlantings || [],
+      generatedData,
+      peer,
+      {
+        targetGardenId: activeLocation?.id || null,
+        allLocalPlantings: allPlantings || existingPlantings || [],
+        allLocalLocations: allLocations || (activeLocation ? [activeLocation] : []),
+        peerPubkey: (roomStatus?.packet as any)?.peerPubkey,
+      }
+    );
+  }, [generatedData, existingPlantings, allPlantings, allLocations, activeLocation, roomStatus]);
 
   const handleMergeDiscrepancies = async () => {
     if (!currentDiscrepancy || !generatedData || !activeLocation?.id) return;
@@ -915,7 +929,7 @@ export function AiDataImportSheet({
         flow: 'createDataset',
         prompt: promptData,
         results: enrichedResult,
-        model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
+        model: (result as any)?._modelUsed || 'googleai/gemini-2.5-flash',
       };
       await db.aiLogs.add(newLog);
 
@@ -933,7 +947,7 @@ export function AiDataImportSheet({
         prompt: promptData,
         status: 'error',
         error: errorMessage,
-        model: 'googleai/gemini-3.8-flash',
+        model: 'googleai/gemini-2.5-flash',
       };
       await db.aiLogs.add(errorLog);
 
@@ -1372,12 +1386,23 @@ export function AiDataImportSheet({
       const plant = generatedPlantMap.get(String(planting.plantId));
       if (!plant) return;
 
-      const matchingExisting = existingPlantings?.find(ep => 
-        (ep.plant?.species && plant.species && ep.plant.species.toLowerCase().trim() === plant.species.toLowerCase().trim()) ||
-        (ep.name && planting.name && ep.name.toLowerCase().trim() === planting.name.toLowerCase().trim())
+      const incUid = plant.uid || toSpeciesUid(plant.species || planting.name);
+      const incNormSpecies = plant.species?.toLowerCase().trim();
+      const incNormName = planting.name?.toLowerCase().trim();
+
+      const matchingInActive = existingPlantings?.find(ep => 
+        (ep.plant?.species && incNormSpecies && ep.plant.species.toLowerCase().trim() === incNormSpecies) ||
+        (ep.name && incNormName && ep.name.toLowerCase().trim() === incNormName) ||
+        toSpeciesUid(ep.plant?.species || ep.name) === incUid
       );
 
-      if (plant.isExistingVariation || matchingExisting) {
+      const matchingInAny = !matchingInActive && allPlantings?.find(ap => 
+        (ap.plant?.species && incNormSpecies && ap.plant.species.toLowerCase().trim() === incNormSpecies) ||
+        (ap.name && incNormName && ap.name.toLowerCase().trim() === incNormName) ||
+        toSpeciesUid(ap.plant?.species || ap.name) === incUid
+      );
+
+      if (plant.isExistingVariation || matchingInActive || matchingInAny) {
         vars.push(planting);
       } else {
         recs.push(planting);
@@ -1385,7 +1410,7 @@ export function AiDataImportSheet({
     });
 
     return { recommendedPlantings: recs, variationPlantings: vars };
-  }, [generatedData, generatedPlantMap, existingPlantings]);
+  }, [generatedData, generatedPlantMap, existingPlantings, allPlantings]);
 
   const togglePlantingSelection = (plantingId: string) => {
     setSelectedPlantingIds(prev => {
@@ -2274,7 +2299,13 @@ export function AiDataImportSheet({
                             {currentDiscrepancy.newItems.map((item, idx) => (
                               <div key={`new-${idx}`} className="flex items-center justify-between text-emerald-800 dark:text-emerald-300">
                                 <span className="font-medium">+ {item.cultivarName || item.species}</span>
-                                <span className="text-[10px] text-muted-foreground font-mono">New planting ({item.stage})</span>
+                                <span className="text-[10px] text-muted-foreground font-mono">
+                                  {item.alreadyInOtherGarden
+                                    ? `In "${item.alreadyInOtherGarden}"`
+                                    : item.targetGardenName && item.targetGardenName !== 'Shared Garden'
+                                    ? `For ${item.targetGardenName} (${item.stage})`
+                                    : `New planting (${item.stage})`}
+                                </span>
                               </div>
                             ))}
                             {currentDiscrepancy.updatedItems.map((item, idx) => (
@@ -2298,6 +2329,23 @@ export function AiDataImportSheet({
                               <span>Merge Discrepancies Into Garden</span>
                             </Button>
                           </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Up-to-date Status Card (All In Sync) */}
+                    {currentDiscrepancy && !currentDiscrepancy.hasDiscrepancies && (
+                      <Card className="border-border bg-muted/20">
+                        <CardContent className="p-3 flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
+                            <span>
+                              All {currentDiscrepancy.totalIncoming} plant(s) across gardens are in sync. Existing plants will not be duplicated.
+                            </span>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/20 shrink-0">
+                            In Sync
+                          </Badge>
                         </CardContent>
                       </Card>
                     )}

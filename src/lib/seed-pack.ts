@@ -414,12 +414,72 @@ export async function mergeSeedPackIntoDb(
         continue;
       }
 
-      // If no explicit resolution was provided, check if an identical species planting already exists in activeLoc
-      const existingSameSpeciesPlanting = existingPlantings.find(
-        (ep) => ep.plantId === mappedPlantId
-      );
+      // Determine effective target garden (preserving multi-garden boundaries if dataset spans multiple locations)
+      let targetGardenForPlanting = activeLoc;
+      if (incoming.locations && incoming.locations.length > 1 && incomingPlanting.gardenId) {
+        const incLoc = incoming.locations.find((l) => l.id === incomingPlanting.gardenId);
+        if (incLoc) {
+          const matchingLoc = existingLocations.find(
+            (el) =>
+              el.id === incLoc.id ||
+              (el.uid && incLoc.uid && el.uid === incLoc.uid) ||
+              el.name.toLowerCase().trim() === incLoc.name.toLowerCase().trim()
+          );
+          if (matchingLoc) {
+            targetGardenForPlanting = matchingLoc;
+          }
+        }
+      }
+
+      // If no explicit resolution was provided, check if an identical species planting already exists in target garden
+      const incomingPlant = incoming.plants.find((p) => p.id === incomingPlanting.plantId);
+      const incomingUid = incomingPlant?.uid || toSpeciesUid(incomingPlant?.species || incomingPlanting.name);
+      const incomingNormSpecies = incomingPlant?.species?.toLowerCase().trim();
+      const incomingNormName = incomingPlanting.name?.toLowerCase().trim();
+
+      const existingSameSpeciesPlanting = existingPlantings.find((ep) => {
+        if (ep.gardenId !== targetGardenForPlanting.id) return false;
+        if (ep.id === incomingPlanting.id) return true;
+        if (ep.plantId === mappedPlantId) return true;
+        const epPlant = existingPlants.find((p) => p.id === ep.plantId);
+        const epNormSpecies = epPlant?.species?.toLowerCase().trim();
+        if (epNormSpecies && incomingNormSpecies && epNormSpecies === incomingNormSpecies) return true;
+        if (ep.name.toLowerCase().trim() === incomingNormName) return true;
+        if (toSpeciesUid(epPlant?.species || ep.name) === incomingUid) return true;
+        return false;
+      });
+
       if (existingSameSpeciesPlanting && !res) {
+        // Existing plant in this garden! Never add duplicate: merge updates non-destructively
         duplicatesDetected++;
+        const currentHistory = existingSameSpeciesPlanting.history || [];
+        const incomingHistory = incomingPlanting.history || [];
+        const lastIncStatus = incomingHistory.slice(-1)[0]?.status;
+        const lastLocalStatus = currentHistory.slice(-1)[0]?.status;
+
+        const updates: Partial<Planting> = {};
+        if (lastIncStatus && lastIncStatus !== lastLocalStatus) {
+          updates.history = [
+            ...currentHistory,
+            {
+              id: `merge-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              status: lastIncStatus,
+              date: new Date().toISOString(),
+              notes: `Stage updated via Seed Pack sync (${lastLocalStatus} -> ${lastIncStatus})`,
+            },
+          ];
+        }
+        if (
+          incomingPlanting.seedsOnHand !== undefined &&
+          incomingPlanting.seedsOnHand > (existingSameSpeciesPlanting.seedsOnHand ?? 0)
+        ) {
+          updates.seedsOnHand = incomingPlanting.seedsOnHand;
+        }
+        if (Object.keys(updates).length > 0) {
+          await db.plantings.update(existingSameSpeciesPlanting.id, updates);
+        }
+        mergedPlants++;
+        continue;
       }
 
       const newPlantingId = `planting-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -427,7 +487,7 @@ export async function mergeSeedPackIntoDb(
         ...incomingPlanting,
         id: newPlantingId,
         plantId: mappedPlantId,
-        gardenId: activeLoc.id,
+        gardenId: targetGardenForPlanting.id,
         seedsOnHand: incomingPlanting.seedsOnHand ?? 0,
         plannedQty: incomingPlanting.plannedQty ?? 0,
         forkedFrom: incomingPlanting.forkedFrom || provenance,

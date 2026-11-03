@@ -146,9 +146,18 @@ export function useP2PRoomLiveSync(options?: UseP2PRoomLiveSyncOptions) {
             });
 
             const modeLabel = currentMode === 'selected' ? ' [Trusted Grower]' : '';
+            let syncDesc = `All plants in ${result.targetGardenName || gardenName} are already in sync.`;
+            if (result.addedPlantings > 0 && result.mergedPlants > 0) {
+              syncDesc = `Added ${result.addedPlantings} new plant(s) and updated ${result.mergedPlants} in ${result.targetGardenName || gardenName}.`;
+            } else if (result.addedPlantings > 0) {
+              syncDesc = `Added ${result.addedPlantings} new planting(s) into ${result.targetGardenName || gardenName}.`;
+            } else if (result.mergedPlants > 0) {
+              syncDesc = `Updated ${result.mergedPlants} existing planting(s) in ${result.targetGardenName || gardenName}.`;
+            }
+
             toast({
               title: `🌿 Inward Stream: @${peerName}${modeLabel}`,
-              description: `Auto-merged ${result.addedPlantings} planting(s) into ${result.targetGardenName || gardenName}.`,
+              description: syncDesc,
             });
           } catch (err: any) {
             console.error('[P2P LiveSync] Inward auto-stream merge failed:', err);

@@ -21,9 +21,9 @@ async function runDiagnosis() {
   console.log(`🔑 Using API Key: ${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}`);
 
   const modelsToTest = [
-    'googleai/gemini-3.8-flash',
-    'googleai/gemini-3.5-flash-lite',
-    'googleai/gemini-1.5-flash',
+    'googleai/gemini-2.5-flash',
+    'googleai/gemini-2.0-flash',
+    'googleai/gemini-2.5-flash-lite',
   ];
 
   const ai = genkit({
