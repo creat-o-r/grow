@@ -929,7 +929,7 @@ export function AiDataImportSheet({
         flow: 'createDataset',
         prompt: promptData,
         results: enrichedResult,
-        model: (result as any)?._modelUsed || 'googleai/gemini-2.5-flash',
+        model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
       };
       await db.aiLogs.add(newLog);
 
@@ -947,7 +947,7 @@ export function AiDataImportSheet({
         prompt: promptData,
         status: 'error',
         error: errorMessage,
-        model: 'googleai/gemini-2.5-flash',
+        model: 'googleai/gemini-3.8-flash',
       };
       await db.aiLogs.add(errorLog);
 

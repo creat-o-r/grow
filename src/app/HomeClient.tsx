@@ -585,7 +585,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         flow: 'getEnvironmentalData',
         prompt: promptData,
         results: result,
-        model: (result as any)?._modelUsed || 'googleai/gemini-2.5-flash',
+        model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
       };
       
       await db.aiLogs.add(newLog);
@@ -610,7 +610,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           prompt: promptData,
           status: 'error',
           error: error.message || String(error),
-          model: 'googleai/gemini-2.5-flash',
+          model: 'googleai/gemini-3.8-flash',
         };
         await db.aiLogs.add(errorLog);
 
@@ -897,7 +897,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         prompt: promptData, 
         results: result, 
         viabilityType: 'ai' as const,
-        model: (result as any)?._modelUsed || 'googleai/gemini-2.5-flash',
+        model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
       };
       const finalViability = result.viability;
       
@@ -967,7 +967,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         prompt: { plant: planting.plant.species, garden: activeLocation.name },
         status: 'error',
         error: error.message || String(error),
-        model: 'googleai/gemini-2.5-flash',
+        model: 'googleai/gemini-3.8-flash',
       };
       await db.aiLogs.add(errorLog);
 
@@ -1367,7 +1367,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             prompt: promptData,
             results: result,
             viabilityType: 'ai' as const,
-            model: (result as any)?._modelUsed || 'googleai/gemini-2.5-flash',
+            model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
           };
           await db.aiLogs.add(batchLog);
 
