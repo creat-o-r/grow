@@ -11,7 +11,7 @@ import { usePrevious } from '@/hooks/use-previous';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
 import { loadDataset } from '@/lib/datasets';
-import { Viability, SeasonName, getSuitableSeasons, getUpcomingViability, evaluatePlantingViability, getOverallViabilityLevel, getWishSeasonalViabilities } from '@/lib/viability';
+import { Viability, SeasonName, getSuitableSeasons, getUpcomingViability, evaluatePlantingViability, getOverallViabilityLevel, getWishSeasonalViabilities, analyzeGrowViability, analyzeHarvestViability } from '@/lib/viability';
 import { decodeSeedPackFromInput, mergeSeedPackIntoDb } from '@/lib/seed-pack';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import {
@@ -38,7 +38,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Plus, Upload, Locate, Loader2, X, Sparkles, NotebookText, Settings, Info, Rocket, AlertCircle, Fence, Square, Layers, Split, CopyCheck, Radio, Search } from 'lucide-react';
+import { Plus, Upload, Locate, Loader2, X, Sparkles, NotebookText, Settings, Info, Rocket, AlertCircle, AlertTriangle, RefreshCw, Fence, Square, Layers, Split, CopyCheck, Radio, Search } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +59,7 @@ export default function Home() {
   const [isClient, setIsClient] = useState(false);
   const [accordionValue, setAccordionValue] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<PlantStatus | 'All'>('All');
+  const [viabilityFilter, setViabilityFilter] = useState<Viability | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [hoveredTab, setHoveredTab] = useState<PlantStatus | 'All' | null>(null);
   const [isLocating, setIsLocating] = useState(false);
@@ -138,7 +139,7 @@ export default function Home() {
         data: incoming,
         title: `${incoming.locations?.[0]?.name || 'Shared Garden'} (from @${peer})`,
       });
-      setUnifiedImportTab('import-pack');
+      setUnifiedImportTab('live-sync');
     },
     onApiKeysReceived: (keys, peer) => {
       handleApiKeysChange(keys);
@@ -249,7 +250,7 @@ export default function Home() {
           .catch((err) => console.warn('Could not load ?dataset= URL param:', err));
       } else if (p2pRoomParam) {
         saveP2PRoomId(p2pRoomParam);
-        setUnifiedImportTab('import-pack');
+        setUnifiedImportTab('live-sync');
         setIsAiImportSheetOpen(true);
         fetchLatestFromP2PRoom(p2pRoomParam)
           .then((latest) => {
@@ -852,7 +853,13 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     });
 
     try {
+      const stage: PlantStatus = (planting.history && planting.history.length > 0)
+        ? planting.history[planting.history.length - 1].status
+        : 'Wishlist';
+
       const promptData = {
+          stage,
+          propagationMethod: planting.propagationMethod,
           plant: {
               species: planting.plant.species,
               germinationNeeds: planting.plant.germinationNeeds,
@@ -1131,11 +1138,55 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     }
     setHasDuplicates(found);
   }, [plantingsWithPlants]);
+
+  const currentViabilityData = useMemo(() => {
+      const map: Record<string, Viability | undefined> = { ...viabilityData };
+      plantingsWithPlants?.forEach(p => {
+          if (p.viability && !map[p.id]) {
+              map[p.id] = p.viability;
+          }
+      });
+      return map;
+  }, [plantingsWithPlants, viabilityData]);
+
+  const currentReasoningData = useMemo(() => {
+      const map: Record<string, string | undefined> = {};
+      plantingsWithPlants?.forEach(p => {
+          if (p.viabilityReasoning) {
+              map[p.id] = p.viabilityReasoning;
+          }
+      });
+      return map;
+  }, [plantingsWithPlants]);
+
+  const currentUpcomingData = useMemo(() => {
+      const map: Record<string, { upcomingViability?: 'High' | 'Medium'; upcomingTiming?: string; upcomingReasoning?: string }> = {};
+      plantingsWithPlants?.forEach(p => {
+          if (p.upcomingViability) {
+              map[p.id] = {
+                  upcomingViability: p.upcomingViability,
+                  upcomingTiming: p.upcomingTiming,
+                  upcomingReasoning: p.upcomingReasoning,
+              };
+          } else {
+              const currentV = p.viability || currentViabilityData[p.id];
+              map[p.id] = getUpcomingViability(p.plant, activeLocation?.conditions, currentV);
+          }
+      });
+      return map;
+  }, [plantingsWithPlants, currentViabilityData, activeLocation?.conditions]);
   
   const wishlistPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
-    return plantingsWithPlants.filter(p => p.history?.slice(-1)[0]?.status === 'Wishlist');
-  }, [plantingsWithPlants]);
+    let list = plantingsWithPlants.filter(p => p.history?.slice(-1)[0]?.status === 'Wishlist');
+    if (viabilityFilter) {
+      list = list.filter(p => {
+        const v = currentViabilityData[p.id] || p.viability || getOverallViabilityLevel(evaluatePlantingViability(p, activeLocation?.conditions, { growingSystems: p.garden?.growingSystems, growingMethods: p.garden?.growingMethods, propagationMethod: p.propagationMethod }));
+        return v === viabilityFilter;
+      });
+    }
+    return list;
+  }, [plantingsWithPlants, viabilityFilter, currentViabilityData, activeLocation?.conditions]);
 
   const handleBatchAiViabilityAnalysis = useCallback(async (plantingsToAnalyze: PlantingWithPlant[]) => {
     if (!activeLocation?.conditions || plantingsToAnalyze.length === 0 || !areApiKeysSet) {
@@ -1254,7 +1305,13 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         const { plantings: group, samplePlanting } = groupsToAnalyze[i];
 
         try {
+          const stage: PlantStatus = (samplePlanting.history && samplePlanting.history.length > 0)
+            ? samplePlanting.history[samplePlanting.history.length - 1].status
+            : 'Wishlist';
+
           const promptData = {
+            stage,
+            propagationMethod: samplePlanting.propagationMethod,
             plant: samplePlanting.plant,
           garden: {
             conditions: {
@@ -1434,64 +1491,34 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     plantingsWithPlants
   ]);
 
-    const currentViabilityData = useMemo(() => {
-        const map: Record<string, Viability | undefined> = { ...viabilityData };
-        plantingsWithPlants?.forEach(p => {
-            if (p.viability && !map[p.id]) {
-                map[p.id] = p.viability;
-            }
-        });
-        return map;
-    }, [plantingsWithPlants, viabilityData]);
-
-    const currentReasoningData = useMemo(() => {
-        const map: Record<string, string | undefined> = {};
-        plantingsWithPlants?.forEach(p => {
-            if (p.viabilityReasoning) {
-                map[p.id] = p.viabilityReasoning;
-            }
-        });
-        return map;
-    }, [plantingsWithPlants]);
-
-    const currentUpcomingData = useMemo(() => {
-        const map: Record<string, { upcomingViability?: 'High' | 'Medium'; upcomingTiming?: string; upcomingReasoning?: string }> = {};
-        plantingsWithPlants?.forEach(p => {
-            if (p.upcomingViability) {
-                map[p.id] = {
-                    upcomingViability: p.upcomingViability,
-                    upcomingTiming: p.upcomingTiming,
-                    upcomingReasoning: p.upcomingReasoning,
-                };
-            } else {
-                const currentV = p.viability || currentViabilityData[p.id];
-                map[p.id] = getUpcomingViability(p.plant, activeLocation?.conditions, currentV);
-            }
-        });
-        return map;
-    }, [plantingsWithPlants, currentViabilityData, activeLocation?.conditions]);
-
   const sortedAndFilteredPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
 
     const getStatus = (p: Planting) => p.history && p.history.length > 0 ? p.history[p.history.length - 1].status : null;
 
-    const filtered = statusFilter === 'All'
+    let filtered = statusFilter === 'All'
         ? plantingsWithPlants 
         : plantingsWithPlants.filter(p => getStatus(p) === statusFilter);
+
+    if (viabilityFilter) {
+      filtered = filtered.filter(p => {
+        const v = currentViabilityData[p.id] || p.viability || getOverallViabilityLevel(evaluatePlantingViability(p, activeLocation?.conditions, { growingSystems: p.garden?.growingSystems, growingMethods: p.garden?.growingMethods, propagationMethod: p.propagationMethod }));
+        return v === viabilityFilter;
+      });
+    }
 
     if (activeLocation?.conditions) {
         const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
         
         return filtered.slice().sort((a, b) => {
-            const viabilityA = currentViabilityData[a.id] || a.viability || getOverallViabilityLevel(evaluatePlantingViability(a, activeLocation.conditions, { growingSystems: a.garden?.growingSystems, growingMethods: a.garden?.growingMethods }));
-            const viabilityB = currentViabilityData[b.id] || b.viability || getOverallViabilityLevel(evaluatePlantingViability(b, activeLocation.conditions, { growingSystems: b.garden?.growingSystems, growingMethods: b.garden?.growingMethods }));
+            const viabilityA = currentViabilityData[a.id] || a.viability || getOverallViabilityLevel(evaluatePlantingViability(a, activeLocation.conditions, { growingSystems: a.garden?.growingSystems, growingMethods: a.garden?.growingMethods, propagationMethod: a.propagationMethod }));
+            const viabilityB = currentViabilityData[b.id] || b.viability || getOverallViabilityLevel(evaluatePlantingViability(b, activeLocation.conditions, { growingSystems: b.garden?.growingSystems, growingMethods: b.garden?.growingMethods, propagationMethod: b.propagationMethod }));
             return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
         });
     }
     
     return filtered;
-  }, [plantingsWithPlants, statusFilter, activeLocation?.conditions, currentViabilityData]);
+  }, [plantingsWithPlants, statusFilter, viabilityFilter, activeLocation?.conditions, currentViabilityData]);
   
 
   const organizedWishlist = useMemo(() => {
@@ -1587,8 +1614,8 @@ const sortedWishlistByViability = useMemo(() => {
     if (!wishlistPlantings || !activeLocation?.conditions) return [];
     const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
     return [...wishlistPlantings].sort((a, b) => {
-        const viabilityA = currentViabilityData[a.id] || a.viability || getOverallViabilityLevel(evaluatePlantingViability(a, activeLocation.conditions, { growingSystems: a.garden?.growingSystems, growingMethods: a.garden?.growingMethods }));
-        const viabilityB = currentViabilityData[b.id] || b.viability || getOverallViabilityLevel(evaluatePlantingViability(b, activeLocation.conditions, { growingSystems: b.garden?.growingSystems, growingMethods: b.garden?.growingMethods }));
+        const viabilityA = currentViabilityData[a.id] || a.viability || getOverallViabilityLevel(evaluatePlantingViability(a, activeLocation.conditions, { growingSystems: a.garden?.growingSystems, growingMethods: a.garden?.growingMethods, propagationMethod: a.propagationMethod }));
+        const viabilityB = currentViabilityData[b.id] || b.viability || getOverallViabilityLevel(evaluatePlantingViability(b, activeLocation.conditions, { growingSystems: b.garden?.growingSystems, growingMethods: b.garden?.growingMethods, propagationMethod: b.propagationMethod }));
         return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
     });
 }, [wishlistPlantings, activeLocation?.conditions, currentViabilityData]);
@@ -1601,8 +1628,15 @@ const unspecifiedSeasonCount = useMemo(() => {
 
   const plantingsInPlantingStatus = useMemo(() => {
       if (!plantingsWithPlants) return [];
-      return plantingsWithPlants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length-1].status === 'Planting');
-  }, [plantingsWithPlants]);
+      let list = plantingsWithPlants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length-1].status === 'Planting');
+      if (viabilityFilter) {
+        list = list.filter(p => {
+          const v = currentViabilityData[p.id] || p.viability || getOverallViabilityLevel(evaluatePlantingViability(p, activeLocation?.conditions, { growingSystems: p.garden?.growingSystems, growingMethods: p.garden?.growingMethods, propagationMethod: p.propagationMethod }));
+          return v === viabilityFilter;
+        });
+      }
+      return list;
+  }, [plantingsWithPlants, viabilityFilter, currentViabilityData, activeLocation?.conditions]);
   
   const plantingDashboardPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
@@ -1631,7 +1665,8 @@ const unspecifiedSeasonCount = useMemo(() => {
       const germMatch = p.plant?.germinationNeeds?.toLowerCase().includes(q);
       const notesMatch = p.history?.some((h) => h.notes?.toLowerCase().includes(q));
       const viabilityMatch = (p.viability || currentViabilityData[p.id])?.toLowerCase().includes(q);
-      return !!(nameMatch || speciesMatch || condMatch || germMatch || notesMatch || viabilityMatch);
+      const methodMatch = p.propagationMethod?.toLowerCase().includes(q);
+      return !!(nameMatch || speciesMatch || condMatch || germMatch || notesMatch || viabilityMatch || methodMatch);
     });
 
     const byStatus: Record<PlantStatus, PlantingWithPlant[]> = {
@@ -1733,6 +1768,7 @@ const unspecifiedSeasonCount = useMemo(() => {
       const stageViability = evaluatePlantingViability(p, activeLocation?.conditions, {
         growingSystems: p.garden?.growingSystems,
         growingMethods: p.garden?.growingMethods,
+        propagationMethod: p.propagationMethod,
       });
       const level = currentViabilityData[p.id] || p.viability || getOverallViabilityLevel(stageViability);
       const lastStatus = (p.history && p.history.length > 0 ? p.history[p.history.length - 1].status : null) as PlantStatus | null;
@@ -1967,6 +2003,57 @@ const mainAddButtonDefaultStatus = useMemo(() => {
     return 'Wishlist';
 }, [statusFilter]);
 
+  const growingAnalysis = useMemo(() => {
+    if (!plantingsWithPlants) return null;
+    const growingPlants = plantingsWithPlants.filter(p => p.history?.slice(-1)[0]?.status === 'Growing');
+    if (growingPlants.length === 0) return null;
+
+    const stressed: { planting: PlantingWithPlant; data: ReturnType<typeof analyzeGrowViability> }[] = [];
+    const thriving: { planting: PlantingWithPlant; data: ReturnType<typeof analyzeGrowViability> }[] = [];
+
+    growingPlants.forEach(p => {
+      const data = analyzeGrowViability(p.plant, activeLocation?.conditions, {
+        growingSystems: p.garden?.growingSystems,
+        growingMethods: p.garden?.growingMethods,
+        propagationMethod: p.propagationMethod,
+      });
+      if (data.stressFactor && data.stressFactor !== 'None') {
+        stressed.push({ planting: p, data });
+      } else {
+        thriving.push({ planting: p, data });
+      }
+    });
+
+    return { growingPlants, stressed, thriving };
+  }, [plantingsWithPlants, activeLocation?.conditions]);
+
+  const harvestAnalysis = useMemo(() => {
+    if (!plantingsWithPlants) return null;
+    const harvestPlants = plantingsWithPlants.filter(p => p.history?.slice(-1)[0]?.status === 'Harvest');
+    if (harvestPlants.length === 0) return null;
+
+    const peak: { planting: PlantingWithPlant; data: ReturnType<typeof analyzeHarvestViability> }[] = [];
+    const urgent: { planting: PlantingWithPlant; data: ReturnType<typeof analyzeHarvestViability> }[] = [];
+    const standard: { planting: PlantingWithPlant; data: ReturnType<typeof analyzeHarvestViability> }[] = [];
+
+    harvestPlants.forEach(p => {
+      const data = analyzeHarvestViability(p.plant, activeLocation?.conditions, {
+        growingSystems: p.garden?.growingSystems,
+        growingMethods: p.garden?.growingMethods,
+        propagationMethod: p.propagationMethod,
+      });
+      if (data.harvestWindow === 'Overdue / Bolt Risk' || data.harvestWindow === 'Approaching End') {
+        urgent.push({ planting: p, data });
+      } else if (data.harvestWindow === 'Peak Window') {
+        peak.push({ planting: p, data });
+      } else {
+        standard.push({ planting: p, data });
+      }
+    });
+
+    return { harvestPlants, peak, urgent, standard };
+  }, [plantingsWithPlants, activeLocation?.conditions]);
+
   if (!isClient) {
     return null;
   }
@@ -1996,35 +2083,39 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                     <Plus className="mr-2 h-4 w-4" />
                     Add Plant
                 </Button>
-                {liveRoomId.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenAddSheet(undefined, 'import-pack')}
-                    className="flex items-center gap-1.5 px-2 py-2 rounded-md text-xs font-medium border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors shrink-0"
-                    title={`Live Room #${liveRoomId} is active. Click to open sync.`}
+                {liveRoomId.trim() ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleOpenAddSheet(undefined, 'live-sync')}
+                    className="flex items-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-medium border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors shrink-0"
+                    title={`Live Room #${liveRoomId} is active. Click to view sync.`}
                   >
                     <span className="relative flex h-2 w-2 shrink-0">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
-                    <span className="font-mono text-[10px] font-semibold truncate max-w-[70px]">
-                      #{liveRoomId}
-                    </span>
+                    <span className="font-mono text-xs font-semibold">#{liveRoomId}</span>
                     {liveInwardMode === 'selected' ? (
                       <span className="text-[8px] uppercase tracking-wider font-bold bg-emerald-500/25 px-1 py-0.5 rounded text-emerald-300">
-                        {liveTrustedGrowers.length > 0 ? `sel (${liveTrustedGrowers.length})` : 'sel'}
+                        co-op ({liveTrustedGrowers.length})
                       </span>
-                    ) : liveInwardMode === 'all' ? (
+                    ) : (
                       <span className="text-[8px] uppercase tracking-wider font-bold bg-emerald-500/25 px-1 py-0.5 rounded text-emerald-300">
-                        all
+                        live
                       </span>
-                    ) : null}
-                  </button>
-                )}
-                <Button variant="outline" onClick={() => handleOpenAddSheet(undefined, 'import-pack')} className="gap-1.5 px-3">
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleOpenAddSheet(undefined, 'live-sync')}
+                    className="gap-1.5 px-3"
+                    title="Live Garden Sync & Backup"
+                  >
                     <Radio className="h-4 w-4 text-primary" />
                     <span>Sync</span>
-                </Button>
+                  </Button>
+                )}
                 <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
                   <Settings className="h-4 w-4" />
                   <span className="sr-only">Settings</span>
@@ -2148,40 +2239,41 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                   <Plus className="mr-2 h-4 w-4" />
                                   Add Plant
                               </Button>
-                              {liveRoomId.trim() && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenAddSheet(undefined, 'import-pack')}
-                                  className="flex items-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-medium border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
-                                  title={`Live Room #${liveRoomId} is active. Click to open sync panel.`}
+                              {liveRoomId.trim() ? (
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleOpenAddSheet(undefined, 'live-sync')}
+                                  className="flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                                  title={`Live Room #${liveRoomId} is active. Click to view sync.`}
                                 >
                                   <span className="relative flex h-2 w-2 shrink-0">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                   </span>
-                                  <span className="font-mono text-xs font-semibold truncate max-w-[130px]">
+                                  <span className="font-mono text-xs font-semibold">
                                     #{liveRoomId}
                                   </span>
                                   {liveInwardMode === 'selected' ? (
                                     <span className="text-[9px] uppercase tracking-wider font-bold bg-emerald-500/25 px-1.5 py-0.5 rounded text-emerald-300">
-                                      selected ({liveTrustedGrowers.length})
+                                      co-op ({liveTrustedGrowers.length})
                                     </span>
-                                  ) : liveInwardMode === 'all' ? (
+                                  ) : (
                                     <span className="text-[9px] uppercase tracking-wider font-bold bg-emerald-500/25 px-1.5 py-0.5 rounded text-emerald-300">
-                                      auto: all
+                                      live
                                     </span>
-                                  ) : null}
-                                </button>
+                                  )}
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleOpenAddSheet(undefined, 'live-sync')}
+                                  className="gap-1.5"
+                                  title="Stream and sync gardens across devices"
+                                >
+                                  <Radio className="h-4 w-4 text-primary" />
+                                  <span>Sync</span>
+                                </Button>
                               )}
-                              <Button
-                                variant="outline"
-                                onClick={() => handleOpenAddSheet(undefined, 'import-pack')}
-                                className="gap-1.5"
-                                title="Stream and sync gardens across devices or share a link"
-                              >
-                                <Radio className="h-4 w-4 text-primary" />
-                                <span>Sync &amp; Share</span>
-                              </Button>
                               <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
                                 <Settings className="h-4 w-4" />
                                 <span className="sr-only">Settings</span>
@@ -2397,16 +2489,19 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                   />
                 </div>
                 
-                {/* Mobile Sticky 4-Column All-In-One Pill Bar: Wish, Plant, Grow, Harv (Apart from All, All Totals & Viabilities, Only Pills on Columns) */}
+                {/* Mobile Sticky 4-Column All-In-One Pill Bar: Wish, Prep, Grow, Harv (Apart from All, All Totals & Viabilities, Only Pills on Columns) */}
                 <div className="sm:hidden sticky top-0 z-20 -mx-4 px-4 py-2 bg-background/95 backdrop-blur-md border-b border-border/40 mb-4 transition-all">
                   {/* Apart from All: Centered, Includes Total Plant Count and Total Viability Pills */}
                   <div className="flex items-center justify-center gap-2 mb-2 relative">
                     <button
                       type="button"
-                      onClick={() => setStatusFilter('All')}
+                      onClick={() => {
+                        setStatusFilter('All');
+                        setViabilityFilter(null);
+                      }}
                       className={cn(
                         "text-xs font-semibold px-3 py-1 rounded-full transition-all flex items-center gap-1.5 active:scale-95 shrink-0",
-                        statusFilter === 'All'
+                        statusFilter === 'All' && !viabilityFilter
                           ? "bg-foreground text-background shadow-xs font-bold"
                           : "bg-muted/70 text-muted-foreground border border-border"
                       )}
@@ -2417,13 +2512,46 @@ const mainAddButtonDefaultStatus = useMemo(() => {
 
                     {/* Total Garden Viability Pills for All Plants */}
                     <div className="flex items-center gap-1 shrink-0">
-                      <Badge className="bg-green-600 hover:bg-green-600 text-white font-mono text-[9px] px-1.5 py-0 h-4.5 justify-center shrink-0">
+                      <Badge 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setStatusFilter('All');
+                          setViabilityFilter(prev => (prev === 'High' && statusFilter === 'All') ? null : 'High');
+                        }}
+                        className={cn(
+                          "bg-green-600 hover:bg-green-600 text-white font-mono text-[9px] px-1.5 py-0 h-4.5 justify-center shrink-0 cursor-pointer active:scale-90 transition-all",
+                          viabilityFilter === 'High' && statusFilter === 'All' && "ring-2 ring-primary ring-offset-1 font-bold shadow-xs"
+                        )}
+                        title="Filter All Plants to High Viability"
+                      >
                         {tabViabilityData.All.High}
                       </Badge>
-                      <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black font-mono text-[9px] px-1.5 py-0 h-4.5 justify-center shrink-0">
+                      <Badge 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setStatusFilter('All');
+                          setViabilityFilter(prev => (prev === 'Medium' && statusFilter === 'All') ? null : 'Medium');
+                        }}
+                        className={cn(
+                          "bg-yellow-500 hover:bg-yellow-500 text-black font-mono text-[9px] px-1.5 py-0 h-4.5 justify-center shrink-0 cursor-pointer active:scale-90 transition-all",
+                          viabilityFilter === 'Medium' && statusFilter === 'All' && "ring-2 ring-primary ring-offset-1 font-bold shadow-xs"
+                        )}
+                        title="Filter All Plants to Med Viability"
+                      >
                         {tabViabilityData.All.Medium}
                       </Badge>
-                      <Badge className="bg-red-600 hover:bg-red-600 text-white font-mono text-[9px] px-1.5 py-0 h-4.5 justify-center shrink-0">
+                      <Badge 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setStatusFilter('All');
+                          setViabilityFilter(prev => (prev === 'Low' && statusFilter === 'All') ? null : 'Low');
+                        }}
+                        className={cn(
+                          "bg-red-600 hover:bg-red-600 text-white font-mono text-[9px] px-1.5 py-0 h-4.5 justify-center shrink-0 cursor-pointer active:scale-90 transition-all",
+                          viabilityFilter === 'Low' && statusFilter === 'All' && "ring-2 ring-primary ring-offset-1 font-bold shadow-xs"
+                        )}
+                        title="Filter All Plants to Low Viability"
+                      >
                         {tabViabilityData.All.Low}
                       </Badge>
                     </div>
@@ -2441,11 +2569,11 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                     )}
                   </div>
 
-                  {/* 4 Columns: Wish, Plant, Grow, Harv (No Totals, Only Viability Pills) */}
+                  {/* 4 Columns: Wish, Prep, Grow, Harv (No Totals, Only Viability Pills) */}
                   <div className="grid grid-cols-4 gap-1.5">
                     {([
                       { status: 'Wishlist' as PlantStatus, shortLabel: 'Wish' },
-                      { status: 'Planting' as PlantStatus, shortLabel: 'Plant' },
+                      { status: 'Planting' as PlantStatus, shortLabel: 'Prep' },
                       { status: 'Growing' as PlantStatus, shortLabel: 'Grow' },
                       { status: 'Harvest' as PlantStatus, shortLabel: 'Harv' },
                     ]).map(({ status, shortLabel }) => {
@@ -2457,11 +2585,23 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                           role="tab"
                           aria-selected={isSelected}
                           tabIndex={0}
-                          onClick={() => setStatusFilter(isSelected ? 'All' : status)}
+                          onClick={() => {
+                            if (isSelected) {
+                              setStatusFilter('All');
+                              setViabilityFilter(null);
+                            } else {
+                              setStatusFilter(status);
+                            }
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault();
-                              setStatusFilter(isSelected ? 'All' : status);
+                              if (isSelected) {
+                                setStatusFilter('All');
+                                setViabilityFilter(null);
+                              } else {
+                                setStatusFilter(status);
+                              }
                             }
                           }}
                           className={cn(
@@ -2475,13 +2615,58 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                             {shortLabel}
                           </span>
                           <div className="flex items-center justify-center gap-0.5 w-full">
-                            <Badge className="bg-green-600 hover:bg-green-600 text-white font-mono text-[9px] px-1 py-0 h-4 min-w-[18px] justify-center shrink-0">
+                            <Badge 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (viabilityFilter === 'High' && statusFilter === status) {
+                                  setViabilityFilter(null);
+                                } else {
+                                  setStatusFilter(status);
+                                  setViabilityFilter('High');
+                                }
+                              }}
+                              className={cn(
+                                "bg-green-600 hover:bg-green-600 text-white font-mono text-[9px] px-1 py-0 h-4 min-w-[18px] justify-center shrink-0 cursor-pointer active:scale-90 transition-transform",
+                                viabilityFilter === 'High' && statusFilter === status && "ring-2 ring-foreground font-bold shadow-xs"
+                              )}
+                              title={`Filter ${status} to High Viability (${viab.High})`}
+                            >
                               {viab.High}
                             </Badge>
-                            <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black font-mono text-[9px] px-1 py-0 h-4 min-w-[18px] justify-center shrink-0">
+                            <Badge 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (viabilityFilter === 'Medium' && statusFilter === status) {
+                                  setViabilityFilter(null);
+                                } else {
+                                  setStatusFilter(status);
+                                  setViabilityFilter('Medium');
+                                }
+                              }}
+                              className={cn(
+                                "bg-yellow-500 hover:bg-yellow-500 text-black font-mono text-[9px] px-1 py-0 h-4 min-w-[18px] justify-center shrink-0 cursor-pointer active:scale-90 transition-transform",
+                                viabilityFilter === 'Medium' && statusFilter === status && "ring-2 ring-foreground font-bold shadow-xs"
+                              )}
+                              title={`Filter ${status} to Med Viability (${viab.Medium})`}
+                            >
                               {viab.Medium}
                             </Badge>
-                            <Badge className="bg-red-600 hover:bg-red-600 text-white font-mono text-[9px] px-1 py-0 h-4 min-w-[18px] justify-center shrink-0">
+                            <Badge 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (viabilityFilter === 'Low' && statusFilter === status) {
+                                  setViabilityFilter(null);
+                                } else {
+                                  setStatusFilter(status);
+                                  setViabilityFilter('Low');
+                                }
+                              }}
+                              className={cn(
+                                "bg-red-600 hover:bg-red-600 text-white font-mono text-[9px] px-1 py-0 h-4 min-w-[18px] justify-center shrink-0 cursor-pointer active:scale-90 transition-transform",
+                                viabilityFilter === 'Low' && statusFilter === status && "ring-2 ring-foreground font-bold shadow-xs"
+                              )}
+                              title={`Filter ${status} to Low Viability (${viab.Low})`}
+                            >
                               {viab.Low}
                             </Badge>
                           </div>
@@ -2502,6 +2687,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                             const hasViabilityBadges = isDisplayingViability && (
                               tabViability.High > 0 || tabViability.Medium > 0 || tabViability.Low > 0 || tabViability.pending > 0
                             );
+                            const shortLabel = status === 'Wishlist' ? 'Wish' : status === 'Planting' ? 'Prep' : status === 'Growing' ? 'Grow' : status === 'Harvest' ? 'Harv' : 'All';
 
                             return (
                               <div
@@ -2541,21 +2727,54 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                 {hasViabilityBadges ? (
                                   <>
                                     <div className="pl-3.5 pr-1.5 h-full flex items-center font-medium">
-                                      {status} ({statusCounts[status]})
+                                      {shortLabel} ({statusCounts[status]})
                                     </div>
                                     <div className="flex items-center gap-1 pr-2">
                                       {tabViability.High > 0 && (
-                                        <Badge className="bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono">
+                                        <Badge 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setStatusFilter(status);
+                                            setViabilityFilter(prev => (prev === 'High' && statusFilter === status) ? null : 'High');
+                                          }}
+                                          className={cn(
+                                            "bg-green-600 hover:bg-green-600 text-white px-1.5 py-0.5 text-xs font-mono cursor-pointer active:scale-90 transition-all",
+                                            viabilityFilter === 'High' && statusFilter === status && "ring-2 ring-white ring-offset-1 font-bold shadow-xs"
+                                          )}
+                                          title={`Filter ${status} by High Viability`}
+                                        >
                                           {tabViability.High} High
                                         </Badge>
                                       )}
                                       {tabViability.Medium > 0 && (
-                                        <Badge className="bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono">
+                                        <Badge 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setStatusFilter(status);
+                                            setViabilityFilter(prev => (prev === 'Medium' && statusFilter === status) ? null : 'Medium');
+                                          }}
+                                          className={cn(
+                                            "bg-yellow-500 hover:bg-yellow-500 text-black px-1.5 py-0.5 text-xs font-mono cursor-pointer active:scale-90 transition-all",
+                                            viabilityFilter === 'Medium' && statusFilter === status && "ring-2 ring-black ring-offset-1 font-bold shadow-xs"
+                                          )}
+                                          title={`Filter ${status} by Medium Viability`}
+                                        >
                                           {tabViability.Medium} Med
                                         </Badge>
                                       )}
                                       {tabViability.Low > 0 && (
-                                        <Badge className="bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono">
+                                        <Badge 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setStatusFilter(status);
+                                            setViabilityFilter(prev => (prev === 'Low' && statusFilter === status) ? null : 'Low');
+                                          }}
+                                          className={cn(
+                                            "bg-red-600 hover:bg-red-600 text-white px-1.5 py-0.5 text-xs font-mono cursor-pointer active:scale-90 transition-all",
+                                            viabilityFilter === 'Low' && statusFilter === status && "ring-2 ring-white ring-offset-1 font-bold shadow-xs"
+                                          )}
+                                          title={`Filter ${status} by Low Viability`}
+                                        >
                                           {tabViability.Low} Low
                                         </Badge>
                                       )}
@@ -2575,7 +2794,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                   </>
                                 ) : (
                                   <div className="px-3.5 h-full flex items-center font-medium gap-2">
-                                    <span>{status}</span>
+                                    <span>{shortLabel}</span>
                                     <Badge variant="secondary" className="rounded-full px-1.5 py-0.5 text-xs font-mono">
                                       {statusCounts[status]}
                                     </Badge>
@@ -2621,6 +2840,35 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                   </div>
                 </div>
                 
+                {/* Active Viability Filter Indicator Chip */}
+                {viabilityFilter && (
+                  <div className="flex items-center justify-between gap-2 mb-4 p-2.5 rounded-lg bg-muted/60 border border-border/80">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-muted-foreground">Viability Filter:</span>
+                      <Badge className={cn(
+                        "text-xs px-2.5 py-0.5 font-semibold",
+                        viabilityFilter === 'High' ? "bg-green-600 text-white" :
+                        viabilityFilter === 'Medium' ? "bg-yellow-500 text-black" :
+                        "bg-red-600 text-white"
+                      )}>
+                        {viabilityFilter} Viability Only
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        ({sortedAndFilteredPlantings.length} matching)
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setViabilityFilter(null)}
+                      className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      <span>Clear Filter</span>
+                    </Button>
+                  </div>
+                )}
+
                 {plantings && plantings.length > 0 ? (
                     <>
                       {searchQuery.trim().length > 0 ? (
@@ -3190,6 +3438,213 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                   onQuickStatusChange={handleQuickStatusChange}
                               />
                           </div>
+                      ) : statusFilter === 'Growing' ? (
+                          <div className="space-y-6">
+                            {/* In-Ground Vigor & Acute Stress Watch Banner */}
+                            <Card className="border-emerald-500/30 bg-emerald-500/5 overflow-hidden">
+                              <CardHeader className="p-4 pb-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div className="space-y-0.5">
+                                    <div className="flex items-center gap-2">
+                                      <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-xs font-semibold gap-1 px-2 py-0.5">
+                                        <span>🌿</span>
+                                        <span>Grow Stage</span>
+                                      </Badge>
+                                      <CardTitle className="text-base sm:text-lg font-headline font-bold">
+                                        In-Ground Vigor &amp; Acute Stress Watch
+                                      </CardTitle>
+                                    </div>
+                                    <CardDescription className="text-xs">
+                                      Continuous vegetative health monitoring and root-zone stress detection.
+                                    </CardDescription>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <Badge className="bg-green-600/90 text-white font-mono text-xs px-2 py-0.5">
+                                      {growingAnalysis?.thriving.length ?? 0} Thriving
+                                    </Badge>
+                                    {(growingAnalysis?.stressed.length ?? 0) > 0 ? (
+                                      <Badge className="bg-amber-600 text-white font-mono text-xs px-2 py-0.5 flex items-center gap-1">
+                                        <AlertTriangle className="h-3 w-3" />
+                                        <span>{growingAnalysis?.stressed.length} Stress Alerts</span>
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-emerald-600 border-emerald-500/40 text-xs px-2 py-0.5">
+                                        0 Stress Alerts
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </CardHeader>
+                              {growingAnalysis && growingAnalysis.stressed.length > 0 && (
+                                <CardContent className="p-4 pt-0 space-y-2">
+                                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+                                    <div className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                      <span>Active Acute Environmental Stressors &amp; Tending Priorities:</span>
+                                    </div>
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                      {growingAnalysis.stressed.map(({ planting, data }) => (
+                                        <div key={planting.id} className="text-xs rounded-md bg-background/80 border border-amber-500/20 p-2.5 space-y-1">
+                                          <div className="flex items-center justify-between gap-1">
+                                            <span className="font-semibold text-foreground truncate">{planting.name}</span>
+                                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/40 font-mono shrink-0">
+                                              {data.stressFactor}
+                                            </Badge>
+                                          </div>
+                                          <p className="text-[11px] text-muted-foreground leading-snug">
+                                            {data.tendingAdvice}
+                                          </p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              )}
+                            </Card>
+
+                            {sortedAndFilteredPlantings.length > 0 ? (
+                                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                    {sortedAndFilteredPlantings.map((p, idx) => (
+                                        <div key={p.id} role="button" onClick={() => handleEditPlanting(p)} onKeyDown={(e) => e.key === 'Enter' && handleEditPlanting(p)} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-primary rounded-lg">
+                                          <PlantCard 
+                                              planting={p} 
+                                              viability={p.viability || currentViabilityData[p.id]}
+                                              viabilityReasoning={p.viabilityReasoning || currentReasoningData[p.id]}
+                                              upcomingViability={currentUpcomingData[p.id]?.upcomingViability || p.upcomingViability}
+                                              upcomingTiming={currentUpcomingData[p.id]?.upcomingTiming || p.upcomingTiming}
+                                              upcomingReasoning={currentUpcomingData[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                              currentSeason={activeLocation?.conditions?.currentSeason}
+                                              onEdit={() => handleEditPlanting(p)}
+                                              onDelete={() => promptDelete(p)}
+                                              onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                              onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
+                                              isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                              isSelectionMode={!!duplicateSelectionMode}
+                                              onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                              onGetViability={() => handleGetViability(p)}
+                                              showGardenLabel={!effectivelySingleGardenView}
+                                              isPriority={idx === 0}
+                                              otherPlantings={plantingsWithPlants}
+                                          />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
+                                    <CardHeader>
+                                        <CardTitle className="font-headline">No Growing Plants Found</CardTitle>
+                                        <CardDescription>
+                                            {viabilityFilter ? `No growing plants matching ${viabilityFilter} viability.` : 'No plants currently growing in your garden.'}
+                                        </CardDescription>
+                                    </CardHeader>
+                                </Card>
+                            )}
+                          </div>
+                      ) : statusFilter === 'Harvest' ? (
+                          <div className="space-y-6">
+                            {/* Harvest Readiness & Bed Turnover Banner */}
+                            <Card className="border-purple-500/30 bg-purple-500/5 overflow-hidden">
+                              <CardHeader className="p-4 pb-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div className="space-y-0.5">
+                                    <div className="flex items-center gap-2">
+                                      <Badge className="bg-purple-600 hover:bg-purple-600 text-white text-xs font-semibold gap-1 px-2 py-0.5">
+                                        <span>🧺</span>
+                                        <span>Harv Stage</span>
+                                      </Badge>
+                                      <CardTitle className="text-base sm:text-lg font-headline font-bold">
+                                        Harvest Readiness &amp; Bed Turnover
+                                      </CardTitle>
+                                    </div>
+                                    <CardDescription className="text-xs">
+                                      Ripeness windows, pick deadlines, and succession planting for vacated beds.
+                                    </CardDescription>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <Badge className="bg-purple-600 text-white font-mono text-xs px-2 py-0.5">
+                                      {harvestAnalysis?.peak.length ?? 0} Peak Window
+                                    </Badge>
+                                    {(harvestAnalysis?.urgent.length ?? 0) > 0 && (
+                                      <Badge className="bg-amber-600 text-white font-mono text-xs px-2 py-0.5 flex items-center gap-1">
+                                        <AlertTriangle className="h-3 w-3" />
+                                        <span>{harvestAnalysis?.urgent.length} Urgent / Approaching End</span>
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </CardHeader>
+                              {harvestAnalysis && harvestAnalysis.harvestPlants.length > 0 && (
+                                <CardContent className="p-4 pt-0 space-y-2">
+                                  <div className="rounded-lg border border-purple-500/30 bg-purple-500/10 p-3 space-y-2">
+                                    <div className="text-xs font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
+                                      <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+                                      <span>Succession Recommendations for Vacated Beds:</span>
+                                    </div>
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                      {harvestAnalysis.harvestPlants.slice(0, 4).map((p) => {
+                                        const hData = analyzeHarvestViability(p.plant, activeLocation?.conditions, {
+                                          growingSystems: p.garden?.growingSystems,
+                                          growingMethods: p.garden?.growingMethods,
+                                          propagationMethod: p.propagationMethod,
+                                        });
+                                        return (
+                                          <div key={p.id} className="text-xs rounded-md bg-background/80 border border-purple-500/20 p-2.5 space-y-1">
+                                            <div className="flex items-center justify-between gap-1">
+                                              <span className="font-semibold text-foreground truncate">{p.name}</span>
+                                              <Badge variant="outline" className="text-[10px] text-purple-600 border-purple-500/40 font-mono shrink-0">
+                                                {hData.harvestWindow}
+                                              </Badge>
+                                            </div>
+                                            <p className="text-[11px] text-muted-foreground leading-snug">
+                                              {hData.successionAdvice}
+                                            </p>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              )}
+                            </Card>
+
+                            {sortedAndFilteredPlantings.length > 0 ? (
+                                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                    {sortedAndFilteredPlantings.map((p, idx) => (
+                                        <div key={p.id} role="button" onClick={() => handleEditPlanting(p)} onKeyDown={(e) => e.key === 'Enter' && handleEditPlanting(p)} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-primary rounded-lg">
+                                          <PlantCard 
+                                              planting={p} 
+                                              viability={p.viability || currentViabilityData[p.id]}
+                                              viabilityReasoning={p.viabilityReasoning || currentReasoningData[p.id]}
+                                              upcomingViability={currentUpcomingData[p.id]?.upcomingViability || p.upcomingViability}
+                                              upcomingTiming={currentUpcomingData[p.id]?.upcomingTiming || p.upcomingTiming}
+                                              upcomingReasoning={currentUpcomingData[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                              currentSeason={activeLocation?.conditions?.currentSeason}
+                                              onEdit={() => handleEditPlanting(p)}
+                                              onDelete={() => promptDelete(p)}
+                                              onMarkAsDuplicate={() => handleMarkAsDuplicate(p)}
+                                              onQuickStatusChange={(newStatus) => handleQuickStatusChange(p, newStatus)}
+                                              isDuplicateSource={duplicateSelectionMode?.id === p.id}
+                                              isSelectionMode={!!duplicateSelectionMode}
+                                              onSelectDuplicate={() => handleDuplicateSelection(p)}
+                                              onGetViability={() => handleGetViability(p)}
+                                              showGardenLabel={!effectivelySingleGardenView}
+                                              isPriority={idx === 0}
+                                              otherPlantings={plantingsWithPlants}
+                                          />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <Card className="flex flex-col items-center justify-center py-20 text-center border-dashed">
+                                    <CardHeader>
+                                        <CardTitle className="font-headline">No Harvest-Ready Plants Found</CardTitle>
+                                        <CardDescription>
+                                            {viabilityFilter ? `No harvest plants matching ${viabilityFilter} viability.` : 'No plants currently in harvest status.'}
+                                        </CardDescription>
+                                    </CardHeader>
+                                </Card>
+                            )}
+                          </div>
                       ) : (
                           sortedAndFilteredPlantings.length > 0 ? (
                               <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -3223,7 +3678,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                   <CardHeader>
                                       <CardTitle className="font-headline">No Plants Found</CardTitle>
                                       <CardDescription>
-                                          No plants with the status "{statusFilter}".
+                                          {viabilityFilter ? `No plants matching ${viabilityFilter} viability.` : `No plants with the status "${statusFilter}".`}
                                       </CardDescription>
                                   </CardHeader>
                               </Card>
@@ -3326,7 +3781,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
         onOpenDatasetReview={(dataset, title) => {
             setPlantingToEdit(null);
             setPreloadedDatasetForReview({ data: dataset, title });
-            setUnifiedImportTab('import-pack');
+            setUnifiedImportTab('packs');
             setIsSettingsSheetOpen(false);
             setIsAiImportSheetOpen(true);
         }}

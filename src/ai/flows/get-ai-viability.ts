@@ -14,6 +14,8 @@ import { googleAI } from '@genkit-ai/google-genai';
 import { executeWithModelFallback } from '@/ai/model';
 
 const GetAiViabilityInputSchema = z.object({
+    stage: z.enum(['Wishlist', 'Planting', 'Growing', 'Harvest']).optional().describe("Current lifecycle stage: 'Wishlist' (Wish), 'Planting' (Prep), 'Growing' (Grow), or 'Harvest' (Harv)."),
+    propagationMethod: z.enum(['seed', 'transplant', 'cutting', 'air-layering', 'division', 'runner', 'bulb-clove']).optional().describe("Botanical propagation method used or planned."),
     plant: z.object({
         species: z.string(),
         germinationNeeds: z.string(),
@@ -109,6 +111,10 @@ Analyze the following information:
 - Germination Needs: {{{plant.germinationNeeds}}}
 - Optimal Conditions: {{{plant.optimalConditions}}}
 
+**Analysis Context:**
+- Active Stage: {{{stage}}} (Wishlist=Wish, Planting=Prep, Growing=Grow, Harvest=Harv)
+- Propagation Method: {{{propagationMethod}}} (seed, transplant, cutting, air-layering, division, runner, bulb-clove)
+
 **Garden Conditions:**
 - Current Season: {{{garden.conditions.currentSeason}}}
 - Soil Temperature: {{{garden.conditions.temperature}}}
@@ -118,8 +124,8 @@ Analyze the following information:
 - Growing Methods: {{{garden.growingMethods}}}
 
 **Analysis Steps:**
-1.  **Determine Current Viability Score**: First, based on all the provided data right now, decide if current viability is 'High', 'Medium', or 'Low'. A 'High' score means a near-perfect match today. 'Medium' means some conditions are met, but some are not ideal. 'Low' means there are significant mismatches. Consider how growing systems (e.g., 'greenhouse') or methods (e.g., 'transplant') might increase viability.
-2.  **Generate Current Reasoning**: Explain *why* you chose that current score, comparing plant requirements to current garden conditions and systems.
+1.  **Determine Current Viability Score**: First, based on all the provided data right now, decide if current viability is 'High', 'Medium', or 'Low'. A 'High' score means a near-perfect match today. 'Medium' means some conditions are met, but some are not ideal. 'Low' means there are significant mismatches. Consider how growing systems (e.g., 'greenhouse') or propagation methods (e.g., 'transplant' bypassing cold outdoor soil, 'cutting' or 'air-layering' rooting in active spring sap flow, 'bulb-clove' requiring cold vernalization) influence viability.
+2.  **Generate Current Reasoning**: Explain *why* you chose that current score, comparing plant requirements to current garden conditions, active stage ({{{stage}}}), and propagation method ({{{propagationMethod}}}).
 3.  **Evaluate Upcoming Higher Viability in Current Season**:
     - If current viability is 'Low' or 'Medium', check if the plant's natural growing calendar aligns with the CURRENT season ({{{garden.conditions.currentSeason}}}) such that its viability is likely to rise to 'Medium' or 'High' later within this same season (for example: sweetcorn or tomatoes in early Spring with cool soil are Low right now, but will become High in mid-to-late Spring once soil warms to 15-18°C; or lettuce in early Summer that improves to High in late Summer).
     - If a higher viability is likely within the current season, provide:
@@ -159,7 +165,7 @@ Return your final analysis in the specified output format.
           hasGeminiKey: Boolean(apiKey),
           systemPrompt:
             'You are an expert horticulturalist. Return JSON with fields: viability ("High" | "Medium" | "Low"), reasoning (string), optional upcomingViability ("High" | "Medium"), upcomingTiming (string), upcomingReasoning (string), optional seasonalViabilities (array of {season, viability, reasoning}), optional prepForecast ({prepViability, growViability, harvestViability, overallViability, prepReasoning, growReasoning, harvestReasoning, summary}), optional growAssessment ({vigorViability, stressFactor, tendingAdvice, reasoning}), and optional harvestAssessment ({ripenessViability, harvestWindow, successionAdvice, reasoning}).',
-          userPrompt: `Analyze viability for Plant: ${flowInput.plant.species} (Germination: ${flowInput.plant.germinationNeeds}, Optimal: ${flowInput.plant.optimalConditions}) in Garden Conditions: Season=${flowInput.garden.conditions.currentSeason || 'N/A'}, Temp=${flowInput.garden.conditions.temperature}, Sunlight=${flowInput.garden.conditions.sunlight}, Soil=${flowInput.garden.conditions.soil}, Systems=${flowInput.garden.growingSystems || 'N/A'}, Methods=${flowInput.garden.growingMethods || 'N/A'}.`,
+          userPrompt: `Analyze viability for Plant: ${flowInput.plant.species} (Germination: ${flowInput.plant.germinationNeeds}, Optimal: ${flowInput.plant.optimalConditions}) in Stage=${flowInput.stage || 'Wishlist'}, PropagationMethod=${flowInput.propagationMethod || 'seed'}, Garden Conditions: Season=${flowInput.garden.conditions.currentSeason || 'N/A'}, Temp=${flowInput.garden.conditions.temperature}, Sunlight=${flowInput.garden.conditions.sunlight}, Soil=${flowInput.garden.conditions.soil}, Systems=${flowInput.garden.growingSystems || 'N/A'}, Methods=${flowInput.garden.growingMethods || 'N/A'}.`,
           groqApiKey: flowInput.apiKeys?.groq,
           openrouterApiKey: flowInput.apiKeys?.openrouter,
           ollamaUrl: flowInput.apiKeys?.ollamaUrl,

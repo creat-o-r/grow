@@ -13,9 +13,41 @@ export async function GET(req: NextRequest) {
     const reason = searchParams.get('reason') || '';
     const photo = searchParams.get('photo');
     const statusParam = searchParams.get('status');
+    const methodParam = searchParams.get('method');
     const upcomingParam = searchParams.get('upcoming');
     const surplusParam = searchParams.get('surplus');
     const guildParam = searchParams.get('guild');
+
+    // Propagation method parsing
+    let methodLabel = '';
+    let methodEmoji = '🌱';
+    if (methodParam) {
+      const m = methodParam.toLowerCase();
+      if (m.includes('transplant')) {
+        methodLabel = 'Transplant';
+        methodEmoji = '🪴';
+      } else if (m.includes('cutting')) {
+        methodLabel = 'Cutting';
+        methodEmoji = '✂️';
+      } else if (m.includes('air') || m.includes('layering')) {
+        methodLabel = 'Air Layering';
+        methodEmoji = '🎈';
+      } else if (m.includes('division')) {
+        methodLabel = 'Division';
+        methodEmoji = '🌿';
+      } else if (m.includes('runner')) {
+        methodLabel = 'Runner';
+        methodEmoji = '🌱';
+      } else if (m.includes('bulb') || m.includes('clove')) {
+        methodLabel = 'Bulb / Clove';
+        methodEmoji = '🧄';
+      } else if (m.includes('seed')) {
+        methodLabel = 'Seed';
+        methodEmoji = '🌱';
+      } else {
+        methodLabel = methodParam;
+      }
+    }
 
     // 1. Viability badge styling matching app's ViabilityIndicator.tsx
     let viabilityText = 'High Viability';
@@ -266,6 +298,27 @@ export async function GET(req: NextRequest) {
                       }}
                     >
                       {statusLabel}
+                    </div>
+                  ) : null}
+
+                  {/* Propagation Method Badge */}
+                  {methodLabel ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        backgroundColor: '#f8fafc',
+                        border: '1.5px solid #cbd5e1',
+                        color: '#334155',
+                        padding: '5px 12px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <span>{methodEmoji}</span>
+                      <span>{methodLabel}</span>
                     </div>
                   ) : null}
 

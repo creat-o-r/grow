@@ -153,6 +153,7 @@ export function SharePlantDialog({
           prepForecast: planting.prepForecast,
           growAssessment: planting.growAssessment,
           harvestAssessment: planting.harvestAssessment,
+          propagationMethod: planting.propagationMethod,
         },
       ],
       locations: [gardenLocation],
@@ -166,6 +167,7 @@ export function SharePlantDialog({
     if (effectiveViability) params.set('viability', effectiveViability);
     if (gardenName) params.set('garden', gardenName);
     if (status) params.set('status', status);
+    if (planting.propagationMethod) params.set('method', planting.propagationMethod);
     if (upcomingSummary) params.set('upcoming', upcomingSummary);
     if (surplusSummary) params.set('surplus', surplusSummary);
     if (guildStatus.badgeLabel) params.set('guild', guildStatus.badgeLabel);
@@ -197,6 +199,28 @@ export function SharePlantDialog({
       lines.push(`✨ Current Viability: ${effectiveViability} Viability`);
     }
     lines.push(`🌱 Lifecycle Status: ${status}`);
+
+    if (planting.propagationMethod) {
+      const methodLabels: Record<string, string> = {
+        'seed': 'Direct / Indoor Seed',
+        'transplant': 'Nursery Transplant / Starts',
+        'cutting': 'Softwood / Hardwood Cutting',
+        'air-layering': 'Air Layering / Marcottage',
+        'division': 'Crown / Rhizome Division',
+        'runner': 'Runner / Stolon',
+        'bulb-clove': 'Bulb / Clove / Tuber',
+      };
+      const methodIcons: Record<string, string> = {
+        'seed': '🌱',
+        'transplant': '🪴',
+        'cutting': '✂️',
+        'air-layering': '🎈',
+        'division': '🌿',
+        'runner': '🌱',
+        'bulb-clove': '🧄',
+      };
+      lines.push(`${methodIcons[planting.propagationMethod] || '🌱'} Propagation: ${methodLabels[planting.propagationMethod] || planting.propagationMethod}`);
+    }
 
     if (upcomingSummary) {
       lines.push(

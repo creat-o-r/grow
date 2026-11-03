@@ -531,7 +531,7 @@ export const analyzePrepViability = (
 export const analyzeGrowViability = (
     plant: Plant,
     conditions?: Conditions,
-    options?: { growingSystems?: string; growingMethods?: string }
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
 ): GrowViabilityData => {
     const currentSeason = (conditions?.currentSeason || 'Spring') as SeasonName;
     const plantInfo = `${plant.optimalConditions} ${plant.germinationNeeds} ${plant.species}`.toLowerCase();
@@ -588,7 +588,7 @@ export const analyzeGrowViability = (
 export const analyzeHarvestViability = (
     plant: Plant,
     conditions?: Conditions,
-    options?: { growingSystems?: string; growingMethods?: string }
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
 ): HarvestViabilityData => {
     const currentSeason = (conditions?.currentSeason || 'Spring') as SeasonName;
     const plantInfo = `${plant.optimalConditions} ${plant.germinationNeeds} ${plant.species}`.toLowerCase();
