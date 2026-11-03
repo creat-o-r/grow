@@ -107,6 +107,9 @@ export function PlantCard({
     const activePropagationMethod: PropagationMethod = (planting.propagationMethod as PropagationMethod) || 'seed';
 
     const methodViabilities = useMemo(() => {
+        if (planting.methodViabilities && planting.methodViabilities.length > 0) {
+            return planting.methodViabilities;
+        }
         const conds: Conditions = planting.garden?.conditions || {
             temperature: '20°C',
             sunlight: 'Full Sun',
@@ -117,7 +120,7 @@ export function PlantCard({
             growingSystems: planting.garden?.growingSystems,
             growingMethods: planting.garden?.growingMethods,
         });
-    }, [plant, planting.garden, activeSeason]);
+    }, [plant, planting.garden, activeSeason, planting.methodViabilities]);
 
     const activeMethodInfo = methodViabilities.find(m => m.method === activePropagationMethod) || methodViabilities[0];
 
@@ -155,6 +158,10 @@ export function PlantCard({
             upcomingTiming={upcomingTiming || planting.upcomingTiming}
             upcomingReasoning={upcomingReasoning || planting.upcomingReasoning}
             currentSeason={activeSeason}
+            seasonalViabilities={planting.seasonalViabilities}
+            prepForecast={planting.prepForecast}
+            growAssessment={planting.growAssessment}
+            harvestAssessment={planting.harvestAssessment}
             propagationMethod={activePropagationMethod}
             plant={plant}
             conditions={gardenConditions}

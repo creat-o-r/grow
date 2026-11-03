@@ -5,13 +5,13 @@
 import React, { useState, useEffect, useCallback, MouseEvent, useMemo, useRef, KeyboardEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, GardenViewMode, AiDataset, FreeLlmConfig } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, GardenViewMode, AiDataset, FreeLlmConfig, StageViability, PropagationMethodInfo } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { usePrevious } from '@/hooks/use-previous';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
 import { loadDataset } from '@/lib/datasets';
-import { Viability, SeasonName, getSuitableSeasons, getUpcomingViability, evaluatePlantingViability, getOverallViabilityLevel, getWishSeasonalViabilities, analyzeGrowViability, analyzeHarvestViability } from '@/lib/viability';
+import { Viability, SeasonName, getSuitableSeasons, getUpcomingViability, evaluatePlantingViability, getOverallViabilityLevel, getWishSeasonalViabilities, analyzeGrowViability, analyzeHarvestViability, ALL_PROPAGATION_METHODS } from '@/lib/viability';
 import { decodeSeedPackFromInput, mergeSeedPackIntoDb } from '@/lib/seed-pack';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import {
@@ -919,7 +919,80 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           )
         ) || [planting];
 
+        // Map AI methodViabilities to PropagationMethodInfo if returned
+        const mappedMethodViabilities = result.methodViabilities ? result.methodViabilities.map(mv => {
+          const meta = ALL_PROPAGATION_METHODS.find(m => m.method === mv.method) || {
+            method: mv.method,
+            label: mv.method,
+            shortLabel: mv.method,
+            icon: '🌱',
+          };
+          return {
+            method: mv.method,
+            label: meta.label,
+            shortLabel: meta.shortLabel,
+            icon: meta.icon,
+            prepViability: mv.viability,
+            growViability: mv.viability,
+            harvestViability: mv.viability,
+            overallViability: mv.viability,
+            prepReasoning: mv.reasoning || '',
+            isIncompatible: mv.viability === 'N/A' || mv.isIncompatible,
+            isRecommended: mv.viability === 'High',
+          };
+        }) : undefined;
+
         for (const p of duplicatePlantings) {
+          const pStage: PlantStatus = (p.history && p.history.length > 0)
+            ? p.history[p.history.length - 1].status
+            : 'Wishlist';
+
+          let aiStageViability: StageViability | undefined = undefined;
+          if (pStage === 'Wishlist') {
+            const seasons = (result.seasonalViabilities && result.seasonalViabilities.length > 0)
+              ? result.seasonalViabilities.filter(s => s.viability !== 'N/A')
+              : undefined;
+            const bestSeason = seasons && seasons.length > 0 ? seasons[0].season : 'Spring';
+            aiStageViability = {
+              stage: 'Wishlist',
+              overallViability: finalViability,
+              seasons: seasons || [],
+              activeSeasonMatch: activeLocation.conditions?.currentSeason ? (seasons || []).some(s => s.season === activeLocation.conditions.currentSeason) : false,
+              bestSeason,
+              reasoning: result.reasoning,
+            };
+          } else if (pStage === 'Planting' && result.prepForecast) {
+            aiStageViability = {
+              stage: 'Planting',
+              propagationMethod: p.propagationMethod || 'seed',
+              prepViability: result.prepForecast.prepViability,
+              growViability: result.prepForecast.growViability,
+              harvestViability: result.prepForecast.harvestViability,
+              overallViability: result.prepForecast.overallViability || finalViability,
+              isIncompatible: finalViability === 'N/A' || result.prepForecast.overallViability === 'N/A',
+              prepReasoning: result.prepForecast.prepReasoning || result.reasoning,
+              growReasoning: result.prepForecast.growReasoning,
+              harvestReasoning: result.prepForecast.harvestReasoning,
+              summary: result.prepForecast.summary || result.reasoning,
+            };
+          } else if (pStage === 'Growing' && result.growAssessment) {
+            aiStageViability = {
+              stage: 'Growing',
+              vigorViability: result.growAssessment.vigorViability,
+              stressFactor: result.growAssessment.stressFactor || 'None',
+              tendingAdvice: result.growAssessment.tendingAdvice,
+              reasoning: result.growAssessment.reasoning || result.reasoning,
+            };
+          } else if (pStage === 'Harvest' && result.harvestAssessment) {
+            aiStageViability = {
+              stage: 'Harvest',
+              ripenessViability: result.harvestAssessment.ripenessViability,
+              harvestWindow: result.harvestAssessment.harvestWindow,
+              successionAdvice: result.harvestAssessment.successionAdvice,
+              reasoning: result.harvestAssessment.reasoning || result.reasoning,
+            };
+          }
+
           await db.plantings.update(p.id, {
             viability: finalViability,
             viabilityReasoning: result.reasoning,
@@ -927,10 +1000,12 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             upcomingViability: result.upcomingViability,
             upcomingTiming: result.upcomingTiming,
             upcomingReasoning: result.upcomingReasoning,
+            ...(aiStageViability ? { stageViability: aiStageViability } : {}),
             ...(result.seasonalViabilities ? { seasonalViabilities: result.seasonalViabilities } : {}),
             ...(result.prepForecast ? { prepForecast: result.prepForecast } : {}),
             ...(result.growAssessment ? { growAssessment: result.growAssessment } : {}),
             ...(result.harvestAssessment ? { harvestAssessment: result.harvestAssessment } : {}),
+            ...(mappedMethodViabilities ? { methodViabilities: mappedMethodViabilities } : {}),
           });
         }
 
@@ -1343,8 +1418,81 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         if (result?.viability) {
           const assessedAt = new Date().toISOString();
 
+          // Map AI methodViabilities to PropagationMethodInfo if returned
+          const mappedMethodViabilities = result.methodViabilities ? result.methodViabilities.map(mv => {
+            const meta = ALL_PROPAGATION_METHODS.find(m => m.method === mv.method) || {
+              method: mv.method,
+              label: mv.method,
+              shortLabel: mv.method,
+              icon: '🌱',
+            };
+            return {
+              method: mv.method,
+              label: meta.label,
+              shortLabel: meta.shortLabel,
+              icon: meta.icon,
+              prepViability: mv.viability,
+              growViability: mv.viability,
+              harvestViability: mv.viability,
+              overallViability: mv.viability,
+              prepReasoning: mv.reasoning || '',
+              isIncompatible: mv.viability === 'N/A' || mv.isIncompatible,
+              isRecommended: mv.viability === 'High',
+            };
+          }) : undefined;
+
           // Apply the AI viability result to ALL duplicate plantings in this group
           for (const planting of group) {
+            const pStage: PlantStatus = (planting.history && planting.history.length > 0)
+              ? planting.history[planting.history.length - 1].status
+              : 'Wishlist';
+
+            let aiStageViability: StageViability | undefined = undefined;
+            if (pStage === 'Wishlist') {
+              const seasons = (result.seasonalViabilities && result.seasonalViabilities.length > 0)
+                ? result.seasonalViabilities.filter(s => s.viability !== 'N/A')
+                : undefined;
+              const bestSeason = seasons && seasons.length > 0 ? seasons[0].season : 'Spring';
+              aiStageViability = {
+                stage: 'Wishlist',
+                overallViability: result.viability,
+                seasons: seasons || [],
+                activeSeasonMatch: activeLocation.conditions?.currentSeason ? (seasons || []).some(s => s.season === activeLocation.conditions.currentSeason) : false,
+                bestSeason,
+                reasoning: result.reasoning,
+              };
+            } else if (pStage === 'Planting' && result.prepForecast) {
+              aiStageViability = {
+                stage: 'Planting',
+                propagationMethod: planting.propagationMethod || 'seed',
+                prepViability: result.prepForecast.prepViability,
+                growViability: result.prepForecast.growViability,
+                harvestViability: result.prepForecast.harvestViability,
+                overallViability: result.prepForecast.overallViability || result.viability,
+                isIncompatible: result.viability === 'N/A' || result.prepForecast.overallViability === 'N/A',
+                prepReasoning: result.prepForecast.prepReasoning || result.reasoning,
+                growReasoning: result.prepForecast.growReasoning,
+                harvestReasoning: result.prepForecast.harvestReasoning,
+                summary: result.prepForecast.summary || result.reasoning,
+              };
+            } else if (pStage === 'Growing' && result.growAssessment) {
+              aiStageViability = {
+                stage: 'Growing',
+                vigorViability: result.growAssessment.vigorViability,
+                stressFactor: result.growAssessment.stressFactor || 'None',
+                tendingAdvice: result.growAssessment.tendingAdvice,
+                reasoning: result.growAssessment.reasoning || result.reasoning,
+              };
+            } else if (pStage === 'Harvest' && result.harvestAssessment) {
+              aiStageViability = {
+                stage: 'Harvest',
+                ripenessViability: result.harvestAssessment.ripenessViability,
+                harvestWindow: result.harvestAssessment.harvestWindow,
+                successionAdvice: result.harvestAssessment.successionAdvice,
+                reasoning: result.harvestAssessment.reasoning || result.reasoning,
+              };
+            }
+
             await db.plantings.update(planting.id, {
               viability: result.viability,
               viabilityReasoning: result.reasoning,
@@ -1352,10 +1500,12 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
               upcomingViability: result.upcomingViability,
               upcomingTiming: result.upcomingTiming,
               upcomingReasoning: result.upcomingReasoning,
+              ...(aiStageViability ? { stageViability: aiStageViability } : {}),
               ...(result.seasonalViabilities ? { seasonalViabilities: result.seasonalViabilities } : {}),
               ...(result.prepForecast ? { prepForecast: result.prepForecast } : {}),
               ...(result.growAssessment ? { growAssessment: result.growAssessment } : {}),
               ...(result.harvestAssessment ? { harvestAssessment: result.harvestAssessment } : {}),
+              ...(mappedMethodViabilities ? { methodViabilities: mappedMethodViabilities } : {}),
             });
             newViabilityData[planting.id] = result.viability;
           }

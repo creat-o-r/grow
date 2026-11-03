@@ -177,6 +177,7 @@ export type Planting = {
   prepForecast?: PrepViabilityData;
   growAssessment?: GrowAssessment;
   harvestAssessment?: HarvestAssessment;
+  methodViabilities?: PropagationMethodInfo[];
   forkedFrom?: ForkProvenance;
 }
 

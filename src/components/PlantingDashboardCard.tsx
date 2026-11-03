@@ -68,6 +68,9 @@ export function PlantingDashboardCard({
     const activePropagationMethod: PropagationMethod = planting.propagationMethod || 'seed';
 
     const methodViabilities = useMemo(() => {
+        if (planting.methodViabilities && planting.methodViabilities.length > 0) {
+            return planting.methodViabilities;
+        }
         const conds = planting.garden?.conditions || {
             temperature: '20°C',
             sunlight: 'Full Sun',
@@ -78,7 +81,7 @@ export function PlantingDashboardCard({
             growingSystems: planting.garden?.growingSystems,
             growingMethods: planting.garden?.growingMethods,
         });
-    }, [planting.plant, planting.garden, currentSeason]);
+    }, [planting.plant, planting.garden, currentSeason, planting.methodViabilities]);
 
     const activeMethodInfo = methodViabilities.find(m => m.method === activePropagationMethod);
 
@@ -237,6 +240,10 @@ export function PlantingDashboardCard({
                         upcomingTiming={upcomingTiming || planting.upcomingTiming}
                         upcomingReasoning={upcomingReasoning || planting.upcomingReasoning}
                         currentSeason={currentSeason}
+                        seasonalViabilities={planting.seasonalViabilities}
+                        prepForecast={planting.prepForecast}
+                        growAssessment={planting.growAssessment}
+                        harvestAssessment={planting.harvestAssessment}
                         plant={planting.plant}
                         conditions={planting.garden?.conditions}
                         propagationMethod={activePropagationMethod}
