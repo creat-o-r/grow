@@ -668,10 +668,11 @@ export function PlantForm({
                             "text-[10px] font-mono px-1.5 py-0",
                             currentMethodInfo.overallViability === 'High' ? "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300" :
                             currentMethodInfo.overallViability === 'Medium' ? "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300" :
+                            currentMethodInfo.overallViability === 'N/A' ? "bg-muted text-muted-foreground border-border" :
                             "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/40 dark:text-red-300"
                           )}
                         >
-                          {currentMethodInfo.overallViability} Viability
+                          {currentMethodInfo.overallViability === 'N/A' ? 'No Use / N/A' : `${currentMethodInfo.overallViability} Viability`}
                         </Badge>
                       )}
                     </div>
@@ -682,27 +683,31 @@ export function PlantForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {methodViabilities.map((info) => (
-                          <SelectItem key={info.method} value={info.method}>
-                            <div className="flex items-center justify-between gap-3 w-full">
-                              <span className="flex items-center gap-1.5">
-                                <span>{info.icon}</span>
-                                <span className="font-medium">{info.label}</span>
-                                {info.isRecommended && (
-                                  <span className="text-[10px] text-primary font-bold">★ Recommended</span>
-                                )}
-                              </span>
-                              <span className={cn(
-                                "text-[10px] font-mono px-1 rounded ml-auto",
-                                info.overallViability === 'High' ? "text-green-700 bg-green-100 dark:bg-green-950 dark:text-green-300" :
-                                info.overallViability === 'Medium' ? "text-yellow-700 bg-yellow-100 dark:bg-yellow-950 dark:text-yellow-300" :
-                                "text-red-700 bg-red-100 dark:bg-red-950 dark:text-red-300"
-                              )}>
-                                {info.overallViability}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
+                        {methodViabilities.map((info) => {
+                          const isNA = info.overallViability === 'N/A';
+                          return (
+                            <SelectItem key={info.method} value={info.method}>
+                              <div className="flex items-center justify-between gap-3 w-full">
+                                <span className={cn("flex items-center gap-1.5", isNA && "line-through text-muted-foreground")}>
+                                  <span>{info.icon}</span>
+                                  <span className="font-medium">{info.label}</span>
+                                  {info.isRecommended && (
+                                    <span className="text-[10px] text-primary font-bold">★ Recommended</span>
+                                  )}
+                                </span>
+                                <span className={cn(
+                                  "text-[10px] font-mono px-1 rounded ml-auto",
+                                  info.overallViability === 'High' ? "text-green-700 bg-green-100 dark:bg-green-950 dark:text-green-300" :
+                                  info.overallViability === 'Medium' ? "text-yellow-700 bg-yellow-100 dark:bg-yellow-950 dark:text-yellow-300" :
+                                  isNA ? "text-muted-foreground bg-muted border border-border/40" :
+                                  "text-red-700 bg-red-100 dark:bg-red-950 dark:text-red-300"
+                                )}>
+                                  {isNA ? 'No Use / N/A' : info.overallViability}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     {currentMethodInfo && currentMethodInfo.prepReasoning && (

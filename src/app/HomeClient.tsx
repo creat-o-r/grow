@@ -1508,7 +1508,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     }
 
     if (activeLocation?.conditions) {
-        const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
+        const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2, 'N/A': 3 };
         
         return filtered.slice().sort((a, b) => {
             const viabilityA = currentViabilityData[a.id] || a.viability || getOverallViabilityLevel(evaluatePlantingViability(a, activeLocation.conditions, { growingSystems: a.garden?.growingSystems, growingMethods: a.garden?.growingMethods, propagationMethod: a.propagationMethod }));
@@ -1547,7 +1547,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         return 'Season Not Specified';
     };
 
-    const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
+    const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2, 'N/A': 3 };
     const seasonOrder = ['Spring', 'Summer', 'Autumn', 'Winter', 'Season Not Specified'];
     const currentSeason = activeLocation.conditions.currentSeason;
     const currentSeasonIndex = currentSeason ? seasonOrder.indexOf(currentSeason) : 0;
@@ -1612,7 +1612,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
 const sortedWishlistByViability = useMemo(() => {
     if (!wishlistPlantings || !activeLocation?.conditions) return [];
-    const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
+    const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2, 'N/A': 3 };
     return [...wishlistPlantings].sort((a, b) => {
         const viabilityA = currentViabilityData[a.id] || a.viability || getOverallViabilityLevel(evaluatePlantingViability(a, activeLocation.conditions, { growingSystems: a.garden?.growingSystems, growingMethods: a.garden?.growingMethods, propagationMethod: a.propagationMethod }));
         const viabilityB = currentViabilityData[b.id] || b.viability || getOverallViabilityLevel(evaluatePlantingViability(b, activeLocation.conditions, { growingSystems: b.garden?.growingSystems, growingMethods: b.garden?.growingMethods, propagationMethod: b.propagationMethod }));
@@ -2849,9 +2849,10 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                         "text-xs px-2.5 py-0.5 font-semibold",
                         viabilityFilter === 'High' ? "bg-green-600 text-white" :
                         viabilityFilter === 'Medium' ? "bg-yellow-500 text-black" :
+                        viabilityFilter === 'N/A' ? "bg-muted text-muted-foreground border border-border" :
                         "bg-red-600 text-white"
                       )}>
-                        {viabilityFilter} Viability Only
+                        {viabilityFilter === 'N/A' ? 'No Use / N/A Only' : `${viabilityFilter} Viability Only`}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         ({sortedAndFilteredPlantings.length} matching)

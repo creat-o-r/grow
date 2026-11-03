@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { 
@@ -11,8 +11,14 @@ import type {
   HarvestViabilityData, 
   StageViability,
   SeasonName,
-  PropagationMethod 
+  PropagationMethod,
+  PropagationMethodInfo 
 } from '@/lib/viability';
+import { 
+  ALL_PROPAGATION_METHODS, 
+  getAllPropagationMethodViabilities 
+} from '@/lib/viability';
+import type { Plant, Conditions } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
   Sparkles, 
@@ -41,6 +47,13 @@ export type ViabilityIndicatorProps = {
   growAssessment?: GrowViabilityData;
   harvestAssessment?: HarvestViabilityData;
   propagationMethod?: PropagationMethod;
+  otherMethodsCount?: number;
+  relatedMethods?: PropagationMethodInfo[];
+  plant?: Plant;
+  conditions?: Conditions;
+  growingSystems?: string;
+  growingMethods?: string;
+  onSelectPropagationMethod?: (method: PropagationMethod) => void;
 };
 
 const viabilityConfig: Record<Viability, { text: string; className: string; borderClass: string; dotClass: string }> = {
@@ -61,6 +74,12 @@ const viabilityConfig: Record<Viability, { text: string; className: string; bord
     className: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800 hover:bg-red-200 dark:hover:bg-red-900/70',
     borderClass: 'border-red-500/30',
     dotClass: 'bg-red-600',
+  },
+  'N/A': { 
+    text: 'No Use / N/A', 
+    className: 'bg-muted text-muted-foreground border-muted-foreground/30 dark:bg-muted/50 dark:text-muted-foreground dark:border-border hover:bg-muted/80',
+    borderClass: 'border-border/60',
+    dotClass: 'bg-muted-foreground',
   },
 };
 
@@ -86,6 +105,13 @@ export function ViabilityIndicator({
   growAssessment: propGrowAssessment,
   harvestAssessment: propHarvestAssessment,
   propagationMethod: propPropagationMethod,
+  otherMethodsCount: propOtherMethodsCount,
+  relatedMethods: propRelatedMethods,
+  plant,
+  conditions,
+  growingSystems,
+  growingMethods,
+  onSelectPropagationMethod,
 }: ViabilityIndicatorProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -96,7 +122,175 @@ export function ViabilityIndicator({
   const resolvedPrep = stageViability?.stage === 'Planting' ? stageViability : propPrepForecast;
   const resolvedGrow = stageViability?.stage === 'Growing' ? stageViability : propGrowAssessment;
   const resolvedHarvest = stageViability?.stage === 'Harvest' ? stageViability : propHarvestAssessment;
-  const activePrepMethod = (resolvedPrep && 'propagationMethod' in resolvedPrep ? resolvedPrep.propagationMethod : undefined) || propPropagationMethod;
+  
+  const activeMethod: PropagationMethod = (resolvedPrep && 'propagationMethod' in resolvedPrep ? resolvedPrep.propagationMethod : undefined) 
+    || propPropagationMethod 
+    || 'seed';
+
+  // 2. Resolve all botanical propagation methods
+  const allMethods: PropagationMethodInfo[] = useMemo(() => {
+    if (propRelatedMethods && propRelatedMethods.length > 0) {
+      return propRelatedMethods;
+    }
+    if (!plant) {
+      return [];
+    }
+    const conds: Conditions = conditions || {
+      temperature: '20°C',
+      sunlight: 'Full Sun',
+      soil: 'Loam',
+      currentSeason: (currentSeason as any) || 'Spring',
+    };
+    return getAllPropagationMethodViabilities(plant, conds, {
+      growingSystems,
+      growingMethods,
+    });
+  }, [propRelatedMethods, plant, conditions, currentSeason, growingSystems, growingMethods]);
+
+  const activeMethodInfo = useMemo(() => {
+    const found = allMethods.find(m => m.method === activeMethod);
+    if (found) return found;
+    const fallback = ALL_PROPAGATION_METHODS.find(m => m.method === activeMethod);
+    return fallback ? {
+      ...fallback,
+      prepViability: 'High' as Viability,
+      growViability: 'High' as Viability,
+      harvestViability: 'High' as Viability,
+      overallViability: 'High' as Viability,
+      isIncompatible: false,
+      prepReasoning: '',
+      isRecommended: false,
+    } : undefined;
+  }, [allMethods, activeMethod]);
+
+  // Viable alternative methods: not active, compatible, and overall viability !== 'Low' and !== 'N/A'
+  const otherViableMethods = useMemo(() => {
+    return allMethods.filter(m => m.method !== activeMethod && !m.isIncompatible && m.overallViability !== 'Low' && m.overallViability !== 'N/A');
+  }, [allMethods, activeMethod]);
+
+  const otherViableCount = propOtherMethodsCount !== undefined
+    ? propOtherMethodsCount
+    : otherViableMethods.length;
+
+  // Render botanical method pill directly inside/beside the viability badge
+  const renderMethodPill = (inSameBadge: boolean = true) => {
+    if (!activeMethodInfo && !activeMethod) return null;
+    const icon = activeMethodInfo?.icon || (activeMethod === 'transplant' ? '🪴' : '🌱');
+    const label = activeMethodInfo?.shortLabel || activeMethod.replace('-', ' ');
+
+    if (inSameBadge) {
+      return (
+        <span className="inline-flex items-center gap-1 font-medium ml-0.5">
+          <span className="opacity-30">•</span>
+          <span>{icon}</span>
+          <span className="capitalize">{label}</span>
+          {otherViableCount > 0 && (
+            <span 
+              className="px-1 py-0 rounded text-[9px] font-bold bg-background/85 text-foreground border border-border/70 shadow-xs" 
+              title={`${otherViableCount} other viable propagation method${otherViableCount > 1 ? 's' : ''} available`}
+            >
+              +{otherViableCount}
+            </span>
+          )}
+        </span>
+      );
+    }
+
+    return (
+      <Badge
+        variant="outline"
+        className="text-[11px] font-medium cursor-pointer transition-colors flex items-center gap-1 select-none py-0.5 bg-background/80 border-border hover:bg-muted"
+        title={otherViableCount > 0 ? `Active: ${label}. ${otherViableCount} other viable methods available.` : `Active: ${label}`}
+      >
+        <span>{icon}</span>
+        <span className="capitalize">{label}</span>
+        {otherViableCount > 0 && (
+          <span className="px-1 py-0 rounded text-[9px] font-bold bg-primary/15 text-primary border border-primary/30">
+            +{otherViableCount}
+          </span>
+        )}
+      </Badge>
+    );
+  };
+
+  // Render related botanical methods breakdown inside popover with 1-click switching
+  const renderMethodsSection = () => {
+    if (allMethods.length === 0 && !activeMethodInfo) return null;
+    return (
+      <div className="space-y-2 border-t border-border/60 pt-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+            <span>Botanical Methods</span>
+            {otherViableCount > 0 && (
+              <Badge variant="secondary" className="text-[9px] px-1 py-0 font-normal">
+                +{otherViableCount} viable alternative{otherViableCount > 1 ? 's' : ''}
+              </Badge>
+            )}
+          </span>
+          {onSelectPropagationMethod && (
+            <span className="text-[10px] text-muted-foreground font-normal">Tap to switch</span>
+          )}
+        </div>
+
+        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+          {allMethods.map((m) => {
+            const isActive = m.method === activeMethod;
+            const vCfg = viabilityConfig[m.overallViability] || viabilityConfig.Low;
+            const isClickable = !!onSelectPropagationMethod && !isActive && !m.isIncompatible;
+            return (
+              <div
+                key={m.method}
+                onClick={(e) => {
+                  if (onSelectPropagationMethod && !m.isIncompatible && !isActive) {
+                    e.stopPropagation();
+                    onSelectPropagationMethod(m.method);
+                  }
+                }}
+                className={cn(
+                  "p-2 rounded-md border text-xs flex items-center justify-between transition-colors",
+                  isActive ? "border-primary bg-primary/10 shadow-xs" : 
+                  m.isIncompatible ? "border-border/30 bg-muted/20 opacity-60" :
+                  isClickable ? "border-border/50 bg-muted/30 hover:bg-muted/60 cursor-pointer" : "border-border/50 bg-muted/20"
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm shrink-0">{m.icon}</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className={cn("font-medium truncate", isActive && "font-semibold text-primary", m.isIncompatible && "line-through text-muted-foreground")}>
+                        {m.label}
+                      </span>
+                      {isActive && (
+                        <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/40 text-primary bg-primary/10">
+                          Active
+                        </Badge>
+                      )}
+                      {m.isRecommended && !isActive && (
+                        <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
+                          Recommended
+                        </Badge>
+                      )}
+                    </div>
+                    {m.prepReasoning && (
+                      <p className="text-[10px] text-muted-foreground truncate max-w-[220px]">
+                        {m.prepReasoning}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <Badge 
+                  variant="outline" 
+                  className={cn("text-[10px] px-1.5 py-0 shrink-0 font-mono", vCfg.className)}
+                >
+                  {m.overallViability === 'N/A' ? 'No Use / N/A' : m.overallViability}
+                </Badge>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   // 1. WISHLIST VIEW: List of viabilities per season (> Low)
   if (resolvedWish || (wishSeasons && wishSeasons.length > 0)) {
@@ -116,7 +310,7 @@ export function ViabilityIndicator({
             onMouseEnter={() => setIsOpen(true)}
             onMouseLeave={() => setIsOpen(false)}
             className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap"
-            title="Click or hover to view seasonal viability breakdown"
+            title="Click or hover to view seasonal viability breakdown and related propagation methods"
           >
             {seasons.map((sv) => {
               const cfg = viabilityConfig[sv.viability] || viabilityConfig.Medium;
@@ -137,6 +331,7 @@ export function ViabilityIndicator({
                 </Badge>
               );
             })}
+            {renderMethodPill(false)}
             <Info className="h-3 w-3 opacity-60 ml-0.5" />
           </button>
         </PopoverTrigger>
@@ -164,25 +359,6 @@ export function ViabilityIndicator({
             <p className="font-medium text-xs text-foreground/90">
               {plantName} {gardenName ? <span className="text-muted-foreground font-normal">({gardenName})</span> : ''}
             </p>
-          )}
-
-          {activePrepMethod && (
-            <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-md bg-muted/40 border border-border/50">
-              <span className="text-muted-foreground flex items-center gap-1 font-medium">
-                <span>Botanical Prep Method:</span>
-              </span>
-              <span className="font-semibold text-foreground flex items-center gap-1.5 capitalize">
-                <span>
-                  {activePrepMethod === 'transplant' ? '🪴' :
-                   activePrepMethod === 'cutting' ? '✂️' :
-                   activePrepMethod === 'air-layering' ? '🎈' :
-                   activePrepMethod === 'division' ? '🌿' :
-                   activePrepMethod === 'runner' ? '🌱' :
-                   activePrepMethod === 'bulb-clove' ? '🧄' : '🌱'}
-                </span>
-                <span>{activePrepMethod.replace('-', ' ')}</span>
-              </span>
-            </div>
           )}
 
           <div className="space-y-2">
@@ -233,6 +409,8 @@ export function ViabilityIndicator({
               </p>
             </div>
           )}
+
+          {renderMethodsSection()}
         </PopoverContent>
       </Popover>
     );
@@ -240,6 +418,7 @@ export function ViabilityIndicator({
 
   // 2. PREP VIEW: 3-Stage Lifecycle Pipeline (Prep -> Grow -> Harv)
   if (resolvedPrep) {
+    const isPrepNA = resolvedPrep.overallViability === 'N/A' || resolvedPrep.prepViability === 'N/A' || resolvedPrep.isIncompatible;
     const overallCfg = viabilityConfig[resolvedPrep.overallViability] || viabilityConfig.Medium;
     const prepCfg = viabilityConfig[resolvedPrep.prepViability] || viabilityConfig.Medium;
     const harvCfg = viabilityConfig[resolvedPrep.harvestViability] || viabilityConfig.Medium;
@@ -256,16 +435,23 @@ export function ViabilityIndicator({
             onMouseEnter={() => setIsOpen(true)}
             onMouseLeave={() => setIsOpen(false)}
             className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap"
-            title="Click or hover to view Prep lifecycle forecast"
+            title="Click or hover to view Prep lifecycle forecast and related propagation methods"
           >
             <Badge 
               variant="outline" 
               className={cn("font-normal cursor-pointer transition-colors flex items-center gap-1 select-none", overallCfg.className)}
             >
               <Sprout className="h-3 w-3" />
-              <span>Prep: {resolvedPrep.prepViability}</span>
-              <ArrowRight className="h-2.5 w-2.5 opacity-60" />
-              <span>Harv: {resolvedPrep.harvestViability}</span>
+              {isPrepNA ? (
+                <span className="font-medium">No Use / N/A</span>
+              ) : (
+                <>
+                  <span>Prep: {resolvedPrep.prepViability}</span>
+                  <ArrowRight className="h-2.5 w-2.5 opacity-60" />
+                  <span>Harv: {resolvedPrep.harvestViability}</span>
+                </>
+              )}
+              {renderMethodPill(true)}
               <Info className="h-3 w-3 opacity-60 ml-0.5" />
             </Badge>
           </button>
@@ -284,7 +470,7 @@ export function ViabilityIndicator({
               <span>Prep Lifecycle Forecast</span>
             </div>
             <Badge variant="outline" className={cn("text-xs font-semibold", overallCfg.className)}>
-              Overall: {resolvedPrep.overallViability}
+              {isPrepNA ? 'No Use / N/A' : `Overall: ${resolvedPrep.overallViability}`}
             </Badge>
           </div>
 
@@ -294,22 +480,18 @@ export function ViabilityIndicator({
             </p>
           )}
 
-          {activePrepMethod && (
-            <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-md bg-muted/40 border border-border/50">
-              <span className="text-muted-foreground flex items-center gap-1 font-medium">
-                <span>Botanical Prep Method:</span>
-              </span>
-              <span className="font-semibold text-foreground flex items-center gap-1.5 capitalize">
-                <span>
-                  {activePrepMethod === 'transplant' ? '🪴' :
-                   activePrepMethod === 'cutting' ? '✂️' :
-                   activePrepMethod === 'air-layering' ? '🎈' :
-                   activePrepMethod === 'division' ? '🌿' :
-                   activePrepMethod === 'runner' ? '🌱' :
-                   activePrepMethod === 'bulb-clove' ? '🧄' : '🌱'}
-                </span>
-                <span>{activePrepMethod.replace('-', ' ')}</span>
-              </span>
+          {isPrepNA && (
+            <div className="p-2.5 rounded-lg border border-destructive/40 bg-destructive/10 text-xs space-y-1">
+              <div className="flex items-center gap-1.5 text-destructive font-semibold">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span>Botanical Incompatibility Warning</span>
+              </div>
+              <p className="text-[11px] text-destructive/90 leading-snug">
+                This plant is incompatible with propagation by {activeMethod.replace('-', ' ')}.
+                {otherViableCount > 0 
+                  ? ` Switch to one of the ${otherViableCount} viable method${otherViableCount > 1 ? 's' : ''} listed below.`
+                  : ' Direct seeding or an alternative botanical method is required.'}
+              </p>
             </div>
           )}
 
@@ -368,6 +550,8 @@ export function ViabilityIndicator({
               💡 {resolvedPrep.summary}
             </div>
           )}
+
+          {renderMethodsSection()}
         </PopoverContent>
       </Popover>
     );
@@ -390,7 +574,7 @@ export function ViabilityIndicator({
             onMouseEnter={() => setIsOpen(true)}
             onMouseLeave={() => setIsOpen(false)}
             className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap"
-            title="Click or hover to view in-ground vigor and stress factor"
+            title="Click or hover to view in-ground vigor, stress factors, and related propagation methods"
           >
             <Badge 
               variant="outline" 
@@ -404,6 +588,7 @@ export function ViabilityIndicator({
                   {resolvedGrow.stressFactor}
                 </span>
               )}
+              {renderMethodPill(true)}
               <Info className="h-3 w-3 opacity-60 ml-0.5" />
             </Badge>
           </button>
@@ -461,6 +646,8 @@ export function ViabilityIndicator({
               {resolvedGrow.tendingAdvice}
             </p>
           </div>
+
+          {renderMethodsSection()}
         </PopoverContent>
       </Popover>
     );
@@ -482,7 +669,7 @@ export function ViabilityIndicator({
             onMouseEnter={() => setIsOpen(true)}
             onMouseLeave={() => setIsOpen(false)}
             className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap"
-            title="Click or hover to view harvest window and bed turnover succession"
+            title="Click or hover to view harvest window, bed succession, and related propagation methods"
           >
             <Badge 
               variant="outline" 
@@ -491,6 +678,7 @@ export function ViabilityIndicator({
               <CheckCircle2 className="h-3 w-3" />
               <span>Harv: {resolvedHarvest.ripenessViability}</span>
               <span className="text-[10px] font-mono opacity-85 ml-0.5">• {resolvedHarvest.harvestWindow}</span>
+              {renderMethodPill(true)}
               <Info className="h-3 w-3 opacity-60 ml-0.5" />
             </Badge>
           </button>
@@ -536,6 +724,8 @@ export function ViabilityIndicator({
               </p>
             </div>
           )}
+
+          {renderMethodsSection()}
         </PopoverContent>
       </Popover>
     );
@@ -550,7 +740,7 @@ export function ViabilityIndicator({
   }
 
   // Check if upcoming viability is higher than current
-  const viabilityRanks: Record<Viability, number> = { High: 2, Medium: 1, Low: 0 };
+  const viabilityRanks: Record<Viability, number> = { High: 2, Medium: 1, Low: 0, 'N/A': -1 };
   const hasUpcomingHigher = upcomingViability && viabilityRanks[upcomingViability] > viabilityRanks[effectiveViability];
 
   return (
@@ -565,13 +755,14 @@ export function ViabilityIndicator({
           onMouseEnter={() => setIsOpen(true)}
           onMouseLeave={() => setIsOpen(false)}
           className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap"
-          title="Click or hover to view AI reasoning and seasonal viability"
+          title="Click or hover to view AI reasoning, seasonal viability, and related propagation methods"
         >
           <Badge 
             variant="outline" 
             className={cn("font-normal cursor-pointer transition-colors flex items-center gap-1 select-none", config.className)}
           >
             <span>{config.text}</span>
+            {renderMethodPill(true)}
             <Info className="h-3 w-3 opacity-60 ml-0.5" />
           </Badge>
 
@@ -647,6 +838,8 @@ export function ViabilityIndicator({
             {reasoning ? reasoning : "No detailed reasoning saved for this plant yet. Click 'Viability Analysis' in the plant menu to generate a fresh assessment."}
           </div>
         </div>
+
+        {renderMethodsSection()}
       </PopoverContent>
     </Popover>
   );

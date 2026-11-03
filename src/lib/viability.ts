@@ -176,7 +176,7 @@ export const analyzePrepViability = (
     options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
 ): PrepViabilityData => {
     const currentSeason = (conditions?.currentSeason || 'Spring') as SeasonName;
-    const plantInfo = `${plant.optimalConditions} ${plant.germinationNeeds} ${plant.species}`.toLowerCase();
+    const plantInfo = `${plant.id || ''} ${plant.species || ''} ${plant.optimalConditions || ''} ${plant.germinationNeeds || ''}`.toLowerCase();
     const systems = (options?.growingSystems || '').toLowerCase();
     const isProtected = systems.includes('greenhouse') || systems.includes('hoop') || systems.includes('cold frame') || systems.includes('cloche');
     const method = options?.propagationMethod;
@@ -193,6 +193,7 @@ export const analyzePrepViability = (
     let prepReasoning = '';
     let growReasoning = '';
     let harvestReasoning = '';
+    let isIncompatible = false;
 
     switch (currentSeason) {
         case 'Spring': {
@@ -273,18 +274,19 @@ export const analyzePrepViability = (
     const isRunnerStoloniferous = plantInfo.includes('strawberry') || plantInfo.includes('fragaria') || plantInfo.includes('mint') || plantInfo.includes('mentha') || plantInfo.includes('runner') || plantInfo.includes('stolon');
     const isWoodyOrTree = plantInfo.includes('fig') || plantInfo.includes('citrus') || plantInfo.includes('lemon') || plantInfo.includes('orange') || plantInfo.includes('apple') || plantInfo.includes('pear') || plantInfo.includes('grape') || plantInfo.includes('woody') || plantInfo.includes('tree') || plantInfo.includes('shrub') || plantInfo.includes('olive') || plantInfo.includes('camellia') || plantInfo.includes('rose') || plantInfo.includes('ficus') || plantInfo.includes('currant') || plantInfo.includes('berry');
     const isClumpingPerennial = plantInfo.includes('rhubarb') || plantInfo.includes('asparagus') || plantInfo.includes('chive') || plantInfo.includes('artichoke') || plantInfo.includes('hosta') || plantInfo.includes('perennial') || plantInfo.includes('rhizome') || plantInfo.includes('crown') || plantInfo.includes('division') || plantInfo.includes('lemongrass');
-    const isCuttingCapable = plantInfo.includes('tomato') || plantInfo.includes('basil') || plantInfo.includes('rosemary') || plantInfo.includes('mint') || plantInfo.includes('thyme') || plantInfo.includes('sage') || plantInfo.includes('pepper') || plantInfo.includes('fig') || plantInfo.includes('grape') || plantInfo.includes('currant') || plantInfo.includes('willow') || plantInfo.includes('herb') || plantInfo.includes('cane') || plantInfo.includes('cutting') || plantInfo.includes('softwood') || plantInfo.includes('hardwood') || plantInfo.includes('succulent');
-    const isTaproot = plantInfo.includes('carrot') || plantInfo.includes('parsnip') || plantInfo.includes('radish') || plantInfo.includes('beet') || plantInfo.includes('turnip');
+    const isCuttingCapable = plantInfo.includes('tomato') || plantInfo.includes('solanum lycopersicum') || plantInfo.includes('basil') || plantInfo.includes('ocimum') || plantInfo.includes('rosemary') || plantInfo.includes('salvia rosmarinus') || plantInfo.includes('mint') || plantInfo.includes('mentha') || plantInfo.includes('thyme') || plantInfo.includes('thymus') || plantInfo.includes('sage') || plantInfo.includes('pepper') || plantInfo.includes('capsicum') || plantInfo.includes('fig') || plantInfo.includes('grape') || plantInfo.includes('currant') || plantInfo.includes('willow') || plantInfo.includes('herb') || plantInfo.includes('cane') || plantInfo.includes('cutting') || plantInfo.includes('softwood') || plantInfo.includes('hardwood') || plantInfo.includes('succulent');
+    const isTaproot = plantInfo.includes('carrot') || plantInfo.includes('daucus') || plantInfo.includes('parsnip') || plantInfo.includes('pastinaca') || plantInfo.includes('radish') || plantInfo.includes('raphanus') || plantInfo.includes('beet') || plantInfo.includes('beta vulgaris') || plantInfo.includes('turnip') || plantInfo.includes('taproot');
 
     // Propagation method specific modulations
     if (method) {
         switch (method) {
             case 'transplant': {
                 if (isTaproot) {
-                    prepViability = 'Low';
-                    growViability = 'Low';
-                    harvestViability = 'Low';
-                    prepReasoning = 'Not recommended: sensitive taproots fork or fail when transplanted; direct seeding is required.';
+                    isIncompatible = true;
+                    prepViability = 'N/A';
+                    growViability = 'N/A';
+                    harvestViability = 'N/A';
+                    prepReasoning = 'No use / N/A: sensitive taproots (carrots, radishes, parsnips) deform and fail when transplanted; direct seeding is required.';
                 } else if (isBrassica && currentSeason === 'Spring') {
                     prepViability = 'High';
                     growViability = 'High';
@@ -315,10 +317,11 @@ export const analyzePrepViability = (
             }
             case 'cutting': {
                 if (!isCuttingCapable && (isBrassica || isTaproot || plantInfo.includes('lettuce') || plantInfo.includes('spinach') || plantInfo.includes('corn') || plantInfo.includes('bean') || plantInfo.includes('pea'))) {
-                    prepViability = 'Low';
-                    growViability = 'Low';
-                    harvestViability = 'Low';
-                    prepReasoning = 'Not botanically viable: heading annuals require primary seedling root systems; stem cuttings do not form productive curds or taproots.';
+                    isIncompatible = true;
+                    prepViability = 'N/A';
+                    growViability = 'N/A';
+                    harvestViability = 'N/A';
+                    prepReasoning = 'No use / N/A: heading annuals require primary seedling root systems; stem cuttings do not form productive curds or taproots.';
                 } else if (currentSeason === 'Spring' || currentSeason === 'Summer') {
                     prepViability = 'High';
                     prepReasoning = 'Softwood stem cuttings and side suckers root vigorously in water or moist perlite in 5-10 days.';
@@ -335,10 +338,11 @@ export const analyzePrepViability = (
             }
             case 'air-layering': {
                 if (!isWoodyOrTree) {
-                    prepViability = 'Low';
-                    growViability = 'Low';
-                    harvestViability = 'Low';
-                    prepReasoning = 'Not botanically applicable: herbaceous vegetables lack the woody secondary stem cambium required for air-layering (marcottage).';
+                    isIncompatible = true;
+                    prepViability = 'N/A';
+                    growViability = 'N/A';
+                    harvestViability = 'N/A';
+                    prepReasoning = 'No use / N/A: herbaceous vegetables lack the woody secondary stem cambium required for air-layering (marcottage).';
                 } else if (currentSeason === 'Spring' || currentSeason === 'Summer') {
                     prepViability = 'High';
                     prepReasoning = 'Active spring sap flow powers rapid adventitious root ball formation directly on branch in moist sphagnum moss, bypassing cold ground soil and pathogens.';
@@ -350,10 +354,11 @@ export const analyzePrepViability = (
             }
             case 'division': {
                 if (!isClumpingPerennial && !isBulbGeophyte) {
-                    prepViability = 'Low';
-                    growViability = 'Low';
-                    harvestViability = 'Low';
-                    prepReasoning = 'Not botanically applicable: single-stem taprooted annuals lack dividable crowns, rhizomes, or offshoots.';
+                    isIncompatible = true;
+                    prepViability = 'N/A';
+                    growViability = 'N/A';
+                    harvestViability = 'N/A';
+                    prepReasoning = 'No use / N/A: single-stem taprooted annuals lack dividable crowns, rhizomes, or offshoots.';
                 } else if (currentSeason === 'Spring' || currentSeason === 'Autumn') {
                     prepViability = 'High';
                     prepReasoning = 'Root crown and rhizome divisions establish vigorously during moderate shoulder season temperatures.';
@@ -362,10 +367,11 @@ export const analyzePrepViability = (
             }
             case 'runner': {
                 if (!isRunnerStoloniferous) {
-                    prepViability = 'Low';
-                    growViability = 'Low';
-                    harvestViability = 'Low';
-                    prepReasoning = 'Not botanically applicable: this species does not produce horizontal creeping runners (stolons).';
+                    isIncompatible = true;
+                    prepViability = 'N/A';
+                    growViability = 'N/A';
+                    harvestViability = 'N/A';
+                    prepReasoning = 'No use / N/A: this species does not produce horizontal creeping runners (stolons).';
                 } else if (currentSeason === 'Summer' || currentSeason === 'Autumn' || currentSeason === 'Spring') {
                     prepViability = 'High';
                     prepReasoning = 'Daughter plantlet pegs directly into nursery pots while receiving water and nutrients from parent stolon.';
@@ -374,10 +380,11 @@ export const analyzePrepViability = (
             }
             case 'bulb-clove': {
                 if (!isBulbGeophyte) {
-                    prepViability = 'Low';
-                    growViability = 'Low';
-                    harvestViability = 'Low';
-                    prepReasoning = 'Not botanically applicable: this species does not form underground storage bulbs, cloves, or tubers.';
+                    isIncompatible = true;
+                    prepViability = 'N/A';
+                    growViability = 'N/A';
+                    harvestViability = 'N/A';
+                    prepReasoning = 'No use / N/A: this species does not form underground storage bulbs, cloves, or tubers.';
                 } else if (currentSeason === 'Autumn') {
                     prepViability = 'High';
                     prepReasoning = 'Optimal timing: cloves require cold autumn/winter soil vernalization (<10°C) to break dormancy and split into healthy multi-clove heads.';
@@ -392,7 +399,9 @@ export const analyzePrepViability = (
 
     // Composite overall full-cycle viability
     let overallViability: ViabilityLevel = 'Low';
-    if (prepViability === 'High' && growViability === 'High' && harvestViability === 'High') {
+    if (isIncompatible || prepViability === 'N/A') {
+        overallViability = 'N/A';
+    } else if (prepViability === 'High' && growViability === 'High' && harvestViability === 'High') {
         overallViability = 'High';
     } else if (prepViability === 'Low' || harvestViability === 'Low') {
         overallViability = 'Low';
@@ -400,7 +409,9 @@ export const analyzePrepViability = (
         overallViability = 'Medium';
     }
 
-    const summary = overallViability === 'High'
+    const summary = overallViability === 'N/A'
+        ? `No use / N/A: this species is botanically incompatible with ${method || 'this propagation method'}.`
+        : overallViability === 'High'
         ? `Full lifecycle is clear: seamless prep, strong grow phase, and prime harvest ahead.`
         : overallViability === 'Medium'
         ? `Moderate prep forecast: watch the transition from grow into harvest.`
@@ -413,6 +424,7 @@ export const analyzePrepViability = (
         growViability,
         harvestViability,
         overallViability,
+        isIncompatible,
         prepReasoning,
         growReasoning,
         harvestReasoning,
@@ -453,12 +465,13 @@ export const getAllPropagationMethodViabilities = (
             growViability: prepData.growViability,
             harvestViability: prepData.harvestViability,
             overallViability: prepData.overallViability,
+            isIncompatible: prepData.isIncompatible || prepData.overallViability === 'N/A',
             prepReasoning: prepData.prepReasoning || '',
             isRecommended: false,
         };
     });
 
-    const scoreMap: Record<ViabilityLevel, number> = { High: 3, Medium: 2, Low: 1 };
+    const scoreMap: Record<ViabilityLevel, number> = { High: 3, Medium: 2, Low: 1, 'N/A': 0 };
     let bestScore = -1;
     list.forEach(item => {
         const score = scoreMap[item.overallViability] * 10 + scoreMap[item.prepViability];
@@ -469,7 +482,7 @@ export const getAllPropagationMethodViabilities = (
 
     list.forEach(item => {
         const score = scoreMap[item.overallViability] * 10 + scoreMap[item.prepViability];
-        if (score === bestScore && item.overallViability !== 'Low') {
+        if (score === bestScore && item.overallViability !== 'Low' && item.overallViability !== 'N/A') {
             item.isRecommended = true;
         }
     });

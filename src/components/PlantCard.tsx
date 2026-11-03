@@ -156,97 +156,14 @@ export function PlantCard({
             upcomingReasoning={upcomingReasoning || planting.upcomingReasoning}
             currentSeason={activeSeason}
             propagationMethod={activePropagationMethod}
+            plant={plant}
+            conditions={gardenConditions}
+            relatedMethods={methodViabilities}
+            onSelectPropagationMethod={handleSwitchPropagationMethod}
         />
     );
 
-    const propagationMatrixElement = (
-        <Popover>
-            <PopoverTrigger asChild>
-                <button
-                    type="button"
-                    className="h-6 text-[11px] font-normal px-2 py-0 border border-muted-foreground/30 rounded-md bg-background/50 hover:bg-accent capitalize flex items-center gap-1.5 transition-colors cursor-pointer select-none"
-                    onClick={(e) => e.stopPropagation()}
-                    title="Click to view Botanical Propagation Viability Matrix and switch prep method"
-                >
-                    <span>
-                        {activePropagationMethod === 'transplant' ? '🪴' :
-                         activePropagationMethod === 'cutting' ? '✂️' :
-                         activePropagationMethod === 'air-layering' ? '🎈' :
-                         activePropagationMethod === 'division' ? '🌿' :
-                         activePropagationMethod === 'runner' ? '🌱' :
-                         activePropagationMethod === 'bulb-clove' ? '🧄' : '🌱'}
-                    </span>
-                    <span>{activePropagationMethod.replace('-', ' ')}</span>
-                    {activeMethodInfo && (
-                        <span className={cn(
-                            "px-1 py-0 rounded text-[9px] font-semibold uppercase tracking-wider",
-                            activeMethodInfo.overallViability === 'High' ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" :
-                            activeMethodInfo.overallViability === 'Medium' ? "bg-amber-500/20 text-amber-700 dark:text-amber-400" :
-                            "bg-rose-500/20 text-rose-700 dark:text-rose-400"
-                        )}>
-                            {activeMethodInfo.overallViability}
-                        </span>
-                    )}
-                </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-3 shadow-xl z-50 text-xs" align="start" onClick={(e) => e.stopPropagation()}>
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between border-b pb-1.5">
-                        <h4 className="font-semibold text-xs flex items-center gap-1.5 text-foreground">
-                            <span>🌿</span>
-                            <span>Botanical Propagation Matrix</span>
-                        </h4>
-                        <span className="text-[10px] text-muted-foreground">1-click switch</span>
-                    </div>
-                    <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
-                        {methodViabilities.map((info) => {
-                            const isSelected = info.method === activePropagationMethod;
-                            return (
-                                <div
-                                    key={info.method}
-                                    onClick={() => handleSwitchPropagationMethod(info.method)}
-                                    className={cn(
-                                        "p-2 rounded border text-xs cursor-pointer transition-all",
-                                        isSelected 
-                                            ? "border-primary bg-primary/10 shadow-sm" 
-                                            : "border-border/50 hover:bg-muted/50"
-                                    )}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-medium flex items-center gap-1.5 capitalize">
-                                            <span>{info.icon}</span>
-                                            <span>{info.label}</span>
-                                            {info.isRecommended && (
-                                                <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold">★ Recommended</span>
-                                            )}
-                                        </span>
-                                        <span className={cn(
-                                            "px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase",
-                                            info.overallViability === 'High' ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" :
-                                            info.overallViability === 'Medium' ? "bg-amber-500/20 text-amber-700 dark:text-amber-400" :
-                                            "bg-rose-500/20 text-rose-700 dark:text-rose-400"
-                                        )}>
-                                            {info.overallViability}
-                                        </span>
-                                    </div>
-                                    <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
-                                        {info.prepReasoning}
-                                    </p>
-                                    <div className="text-[9px] text-muted-foreground/80 mt-1 font-mono flex items-center gap-1">
-                                        <span>Prep {info.prepViability}</span>
-                                        <span>➔</span>
-                                        <span>Grow {info.growViability}</span>
-                                        <span>➔</span>
-                                        <span>Harv {info.harvestViability}</span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            </PopoverContent>
-        </Popover>
-    );
+
 
     const dropdownMenuContent = (
         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
@@ -323,7 +240,6 @@ export function PlantCard({
                                     {latestStatus.status}
                                 </Badge>
                             )}
-                            {propagationMatrixElement}
                             {showGardenLabel && planting.garden && (
                                 <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                                     <Fence className="h-2.5 w-2.5" />
@@ -407,7 +323,6 @@ export function PlantCard({
                             {latestStatus.status}
                         </Badge>
                     )}
-                    {propagationMatrixElement}
                     {latestStatus?.status === 'Planting' && planting.seedsOnHand && planting.seedsOnHand > 0 && (
                         <Badge variant="secondary" className="flex items-center gap-1.5">
                             <Package className="h-3 w-3" />

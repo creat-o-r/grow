@@ -82,6 +82,11 @@ export function PlantingDashboardCard({
 
     const activeMethodInfo = methodViabilities.find(m => m.method === activePropagationMethod);
 
+    const otherViableMethods = useMemo(() => {
+        return methodViabilities.filter(m => m.overallViability !== 'N/A' && m.overallViability !== 'Low' && m.method !== activePropagationMethod);
+    }, [methodViabilities, activePropagationMethod]);
+    const otherViableCount = otherViableMethods.length;
+
     const handlePropagationMethodChange = async (newMethod: PropagationMethod) => {
         try {
             await db.plantings.update(planting.id, { propagationMethod: newMethod });
@@ -224,7 +229,7 @@ export function PlantingDashboardCard({
                 </CardDescription>
                 <div className="flex flex-wrap gap-2 items-center pt-2">
                     <ViabilityIndicator 
-                        stageViability={evaluatePlantingViability(planting, undefined)}
+                        stageViability={evaluatePlantingViability(planting, undefined, { propagationMethod: activePropagationMethod })}
                         viability={effectiveViability} 
                         reasoning={viabilityReasoning || planting.viabilityReasoning} 
                         plantName={planting.name}
@@ -232,6 +237,12 @@ export function PlantingDashboardCard({
                         upcomingTiming={upcomingTiming || planting.upcomingTiming}
                         upcomingReasoning={upcomingReasoning || planting.upcomingReasoning}
                         currentSeason={currentSeason}
+                        plant={planting.plant}
+                        conditions={planting.garden?.conditions}
+                        propagationMethod={activePropagationMethod}
+                        otherMethodsCount={otherViableCount}
+                        relatedMethods={methodViabilities}
+                        onSelectPropagationMethod={handlePropagationMethodChange}
                     />
                     {latestStatus && (
                         <Badge variant="outline" className={cn("font-normal w-fit", statusConfig[latestStatus.status])}>
@@ -248,17 +259,28 @@ export function PlantingDashboardCard({
                             <span>Prep Method</span>
                         </span>
                         {activeMethodInfo && (
-                            <Badge 
-                                variant="outline" 
-                                className={cn(
-                                    "text-[10px] font-mono px-1.5 py-0",
-                                    activeMethodInfo.overallViability === 'High' ? "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300" :
-                                    activeMethodInfo.overallViability === 'Medium' ? "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300" :
-                                    "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/40 dark:text-red-300"
+                            <div className="flex items-center gap-1.5">
+                                <Badge 
+                                    variant="outline" 
+                                    className={cn(
+                                        "text-[10px] font-mono px-1.5 py-0",
+                                        activeMethodInfo.overallViability === 'High' ? "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300" :
+                                        activeMethodInfo.overallViability === 'Medium' ? "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300" :
+                                        activeMethodInfo.overallViability === 'N/A' ? "bg-muted text-muted-foreground border-border" :
+                                        "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/40 dark:text-red-300"
+                                    )}
+                                >
+                                    {activeMethodInfo.overallViability === 'N/A' ? 'No Use / N/A' : `${activeMethodInfo.overallViability} Viability`}
+                                </Badge>
+                                {otherViableCount > 0 && (
+                                    <span 
+                                        className="text-[10px] font-mono px-1 rounded-full bg-primary/20 text-primary font-bold"
+                                        title={`${otherViableCount} other viable prep method${otherViableCount > 1 ? 's' : ''} available`}
+                                    >
+                                        +{otherViableCount}
+                                    </span>
                                 )}
-                            >
-                                {activeMethodInfo.overallViability} Viability
-                            </Badge>
+                            </div>
                         )}
                     </div>
                     <Select onValueChange={(val) => handlePropagationMethodChange(val as PropagationMethod)} value={activePropagationMethod}>
@@ -266,27 +288,31 @@ export function PlantingDashboardCard({
                             <SelectValue placeholder="Select prep method" />
                         </SelectTrigger>
                         <SelectContent>
-                            {methodViabilities.map((info) => (
-                                <SelectItem key={info.method} value={info.method} className="text-xs">
-                                    <div className="flex items-center justify-between gap-2 w-full">
-                                        <span className="flex items-center gap-1.5">
-                                            <span>{info.icon}</span>
-                                            <span>{info.label}</span>
-                                            {info.isRecommended && (
-                                                <span className="text-[10px] text-primary font-bold">★ Rec</span>
-                                            )}
-                                        </span>
-                                        <span className={cn(
-                                            "text-[10px] font-mono px-1 rounded ml-2",
-                                            info.overallViability === 'High' ? "text-green-700 bg-green-100 dark:bg-green-950 dark:text-green-300" :
-                                            info.overallViability === 'Medium' ? "text-yellow-700 bg-yellow-100 dark:bg-yellow-950 dark:text-yellow-300" :
-                                            "text-red-700 bg-red-100 dark:bg-red-950 dark:text-red-300"
-                                        )}>
-                                            {info.overallViability}
-                                        </span>
-                                    </div>
-                                </SelectItem>
-                            ))}
+                            {methodViabilities.map((info) => {
+                                const isNA = info.overallViability === 'N/A';
+                                return (
+                                    <SelectItem key={info.method} value={info.method} className="text-xs">
+                                        <div className="flex items-center justify-between gap-2 w-full">
+                                            <span className={cn("flex items-center gap-1.5", isNA && "line-through text-muted-foreground")}>
+                                                <span>{info.icon}</span>
+                                                <span>{info.label}</span>
+                                                {info.isRecommended && (
+                                                    <span className="text-[10px] text-primary font-bold">★ Rec</span>
+                                                )}
+                                            </span>
+                                            <span className={cn(
+                                                "text-[10px] font-mono px-1 rounded ml-2",
+                                                info.overallViability === 'High' ? "text-green-700 bg-green-100 dark:bg-green-950 dark:text-green-300" :
+                                                info.overallViability === 'Medium' ? "text-yellow-700 bg-yellow-100 dark:bg-yellow-950 dark:text-yellow-300" :
+                                                isNA ? "text-muted-foreground bg-muted border border-border/40" :
+                                                "text-red-700 bg-red-100 dark:bg-red-950 dark:text-red-300"
+                                            )}>
+                                                {isNA ? 'No Use / N/A' : info.overallViability}
+                                            </span>
+                                        </div>
+                                    </SelectItem>
+                                );
+                            })}
                         </SelectContent>
                     </Select>
                     {activeMethodInfo?.prepReasoning && (

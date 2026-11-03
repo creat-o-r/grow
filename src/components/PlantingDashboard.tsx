@@ -30,6 +30,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
             High: [],
             Medium: [],
             Low: [],
+            'N/A': [],
             Unanalyzed: [],
         };
         
@@ -94,6 +95,9 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                 )}
                                 {viabilityGroups.Low.length > 0 && (
                                     <Badge className="bg-red-600 dark:bg-red-500 text-white px-1.5 py-0.5 text-xs font-mono">{viabilityGroups.Low.length} Low</Badge>
+                                )}
+                                {viabilityGroups['N/A'].length > 0 && (
+                                    <Badge variant="outline" className="text-muted-foreground bg-muted/60 px-1.5 py-0.5 text-xs font-mono">{viabilityGroups['N/A'].length} N/A</Badge>
                                 )}
                                 {viabilityGroups.Unanalyzed.length > 0 && (
                                     <Badge variant="outline" className="text-muted-foreground px-1.5 py-0.5 text-xs font-mono">{viabilityGroups.Unanalyzed.length} Pending</Badge>
@@ -185,6 +189,29 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                 <h3 className="text-lg font-semibold mb-4 text-red-500">Low Viability ({viabilityGroups.Low.length})</h3>
                                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                                     {viabilityGroups.Low.map(p => (
+                                        <PlantingDashboardCard 
+                                            key={p.id} 
+                                            planting={p} 
+                                            viability={viabilityData?.[p.id] || p.viability}
+                                            viabilityReasoning={reasoningData?.[p.id] || p.viabilityReasoning}
+                                            upcomingViability={upcomingData?.[p.id]?.upcomingViability || p.upcomingViability}
+                                            upcomingTiming={upcomingData?.[p.id]?.upcomingTiming || p.upcomingTiming}
+                                            upcomingReasoning={upcomingData?.[p.id]?.upcomingReasoning || p.upcomingReasoning}
+                                            currentSeason={gardenConditions?.currentSeason}
+                                            onQuickStatusChange={onQuickStatusChange} 
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+                        {viabilityGroups['N/A'].length > 0 && (
+                            <section>
+                                <h3 className="text-lg font-semibold mb-2 text-muted-foreground flex items-center gap-2">
+                                    <span>No Use / N/A ({viabilityGroups['N/A'].length})</span>
+                                    <span className="text-xs font-normal text-muted-foreground/80">Incompatible botanical prep method</span>
+                                </h3>
+                                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                                    {viabilityGroups['N/A'].map(p => (
                                         <PlantingDashboardCard 
                                             key={p.id} 
                                             planting={p} 

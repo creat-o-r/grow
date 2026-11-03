@@ -63,7 +63,7 @@ export type Plant = {
   verifiedGrowerCount?: number;
 };
 
-export type ViabilityLevel = 'High' | 'Medium' | 'Low';
+export type ViabilityLevel = 'High' | 'Medium' | 'Low' | 'N/A';
 export type SeasonName = 'Spring' | 'Summer' | 'Autumn' | 'Winter';
 
 export type PropagationMethod = 
@@ -97,6 +97,7 @@ export type PropagationMethodInfo = {
   overallViability: ViabilityLevel;
   prepReasoning: string;
   isRecommended: boolean;
+  isIncompatible?: boolean;
 };
 
 export type WishViabilityData = {
@@ -115,6 +116,7 @@ export type PrepViabilityData = {
   growViability: ViabilityLevel;
   harvestViability: ViabilityLevel;
   overallViability: ViabilityLevel;
+  isIncompatible?: boolean;
   prepReasoning?: string;
   growReasoning?: string;
   harvestReasoning?: string;
