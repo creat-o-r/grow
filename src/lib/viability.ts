@@ -530,7 +530,24 @@ export const getSeasonalViabilityForSeason = (
         soil: 'Loam',
         currentSeason: season,
     };
-    const fullCycleForecast = analyzePrepViability(plant, seasonConditions, options);
+
+    // If options.propagationMethod was passed, check if it's incompatible with this plant.
+    // Seasonal windows for the plant should represent whether the plant can grow in that season,
+    // not fail all 4 seasons with N/A because of an invalid propagation method choice.
+    let effectiveOptions = options;
+    if (options?.propagationMethod) {
+        const testCompat = analyzePrepViability(plant, seasonConditions, { ...options, nested: true });
+        if (testCompat.isIncompatible || testCompat.overallViability === 'N/A') {
+            const compatible = getAllPropagationMethodViabilities(plant, seasonConditions)
+                .find(m => !m.isIncompatible && m.overallViability !== 'N/A');
+            effectiveOptions = {
+                ...options,
+                propagationMethod: compatible?.method || 'seed',
+            };
+        }
+    }
+
+    const fullCycleForecast = analyzePrepViability(plant, seasonConditions, effectiveOptions);
 
     const fullCycleViab = fullCycleForecast.overallViability;
     const score = fullCycleViab === 'High' ? 5 : fullCycleViab === 'Medium' ? 3 : 1;
@@ -563,14 +580,20 @@ export const getWishSeasonalViabilities = (
     const allSeasons: SeasonName[] = ['Spring', 'Summer', 'Autumn', 'Winter'];
     const evaluated = allSeasons.map(season => getSeasonalViabilityForSeason(plant, season, conditions, options));
     
-    // User rule: list more than one season if viabilities are more than low
-    const higherThanLow = evaluated.filter(s => s.viability !== 'Low');
+    // User rule: list more than one season if viabilities are more than low (exclude N/A)
+    const higherThanLow = evaluated.filter(s => s.viability !== 'Low' && s.viability !== 'N/A');
     
     if (higherThanLow.length > 0) {
         return higherThanLow;
     }
     
-    // Fallback: If all are Low, return the highest scoring season so user knows best timing
+    // Fallback: If all are Low, return the highest scoring non-N/A season so user knows best timing
+    const nonNA = evaluated.filter(s => s.viability !== 'N/A');
+    if (nonNA.length > 0) {
+        nonNA.sort((a, b) => (b.score || 0) - (a.score || 0));
+        return [nonNA[0]];
+    }
+
     evaluated.sort((a, b) => (b.score || 0) - (a.score || 0));
     return [evaluated[0]];
 };

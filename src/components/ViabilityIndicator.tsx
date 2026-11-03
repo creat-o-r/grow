@@ -246,9 +246,39 @@ export function ViabilityIndicator({
     if (allMethods.length === 0 && !activeMethodInfo) return null;
     const compatibleList = allMethods.filter(m => !m.isIncompatible && m.overallViability !== 'N/A');
     const incompatibleList = allMethods.filter(m => m.isIncompatible || m.overallViability === 'N/A');
+    const activeIncompatible = incompatibleList.find(m => m.method === activeMethod);
+    const passiveIncompatible = incompatibleList.filter(m => m.method !== activeMethod);
 
     return (
-      <div className="space-y-3 pt-1">
+      <div className="space-y-2.5 pt-1">
+        {/* If active method is incompatible, show a dedicated alert card so user can switch */}
+        {activeIncompatible && (
+          <div className="p-2 rounded-md border border-destructive/40 bg-destructive/10 text-xs flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-base shrink-0">{activeIncompatible.icon}</span>
+                <span className="font-semibold text-destructive text-[11px] truncate">
+                  {activeIncompatible.label} (Active Method)
+                </span>
+              </div>
+              <Badge variant="destructive" className="text-[9px] px-1.5 py-0 h-4 shrink-0 font-mono">
+                No Use / N/A
+              </Badge>
+            </div>
+            {activeIncompatible.prepReasoning && (
+              <p className="text-[10px] text-destructive/90 leading-tight">
+                {activeIncompatible.prepReasoning}
+              </p>
+            )}
+            {compatibleList.length > 0 && (
+              <span className="text-[10px] text-primary font-medium mt-0.5">
+                ↳ Select an applicable method below:
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Viable / Applicable Methods */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -260,7 +290,7 @@ export function ViabilityIndicator({
             )}
           </div>
 
-          <div className="space-y-2 max-h-60 overflow-y-auto pr-0.5">
+          <div className="space-y-2 max-h-56 overflow-y-auto pr-0.5">
             {compatibleList.map((m) => {
               const isActive = m.method === activeMethod;
               const vCfg = viabilityConfig[m.overallViability] || viabilityConfig.Low;
@@ -329,46 +359,39 @@ export function ViabilityIndicator({
           </div>
         </div>
 
-        {incompatibleList.length > 0 && (
-          <div className="space-y-1.5 pt-2 border-t border-border/40">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-              <span>🚫</span>
-              <span>Incompatible with this Species ({incompatibleList.length})</span>
-            </span>
-            <div className="space-y-1.5 opacity-75">
-              {incompatibleList.map((m) => {
-                const isActive = m.method === activeMethod;
-                return (
-                  <div
-                    key={m.method}
-                    className="p-1.5 rounded-md border border-border/30 bg-muted/15 text-xs flex flex-col gap-0.5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-xs shrink-0">{m.icon}</span>
-                        <span className="font-medium line-through text-muted-foreground text-[11px] truncate">
-                          {m.label}
-                        </span>
-                        {isActive && (
-                          <Badge variant="destructive" className="text-[8px] px-1 py-0 h-3.5">
-                            Active (Incompatible)
-                          </Badge>
-                        )}
-                      </div>
-                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 font-mono text-muted-foreground border-border/40">
-                        No Use / N/A
-                      </Badge>
-                    </div>
-                    {m.prepReasoning && (
-                      <p className="text-[10px] text-muted-foreground/80 leading-tight">
-                        {m.prepReasoning}
-                      </p>
-                    )}
+        {/* Compact, Collapsible Incompatible Methods One-Liner (Takes ~18px when collapsed, zero clutter!) */}
+        {passiveIncompatible.length > 0 && (
+          <details className="group pt-1 border-t border-border/30 text-xs">
+            <summary className="cursor-pointer hover:text-foreground flex items-center justify-between select-none py-1 text-muted-foreground text-[10px]">
+              <span className="flex items-center gap-1 min-w-0">
+                <span className="opacity-70">🚫</span>
+                <span className="font-semibold uppercase tracking-wider">Incompatible ({passiveIncompatible.length})</span>
+                <span className="opacity-60 truncate max-w-[150px] sm:max-w-[200px]">
+                  • {passiveIncompatible.map(m => m.shortLabel).join(', ')}
+                </span>
+              </span>
+              <span className="text-[9px] text-primary/80 group-open:hidden shrink-0 ml-1">view</span>
+              <span className="text-[9px] text-muted-foreground hidden group-open:inline shrink-0 ml-1">hide</span>
+            </summary>
+            <div className="space-y-1 pt-1 pb-0.5 opacity-75">
+              {passiveIncompatible.map((m) => (
+                <div
+                  key={m.method}
+                  className="px-2 py-1 rounded border border-border/30 bg-muted/20 text-xs flex items-center justify-between gap-2"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-xs shrink-0">{m.icon}</span>
+                    <span className="line-through text-muted-foreground text-[11px] truncate">
+                      {m.label}
+                    </span>
                   </div>
-                );
-              })}
+                  <span className="text-[9px] font-mono text-muted-foreground/80 shrink-0 border border-border/40 px-1 py-0 rounded">
+                    No Use / N/A
+                  </span>
+                </div>
+              ))}
             </div>
-          </div>
+          </details>
         )}
       </div>
     );
@@ -446,45 +469,47 @@ export function ViabilityIndicator({
           {/* Methods screen expanded directly from clicking viability */}
           {renderMethodsSection()}
 
-          <div className="space-y-2 border-t border-border/60 pt-2.5">
-            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-              <span>Seasonal Feasibility</span>
-              <span className="text-[10px] lowercase text-primary font-normal">All viable windows listed</span>
-            </div>
-            <div className="space-y-1.5">
-              {seasons.map((s) => {
-                const sCfg = viabilityConfig[s.viability];
-                const isCurrent = currentSeason && s.season.toLowerCase() === currentSeason.toLowerCase();
-                return (
-                  <div 
-                    key={s.season} 
-                    className={cn(
-                      "p-2 rounded-md border text-xs flex flex-col gap-1",
-                      isCurrent ? "border-primary/50 bg-primary/5" : "border-border/50 bg-muted/20"
-                    )}
-                  >
-                    <div className="flex items-center justify-between font-medium">
-                      <span className="flex items-center gap-1.5">
-                        <span>{seasonIcons[s.season] || '🌿'}</span>
-                        <span className="font-semibold">{s.season}</span>
-                        {isCurrent && (
-                          <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-primary/20 text-primary">
-                            Active Season
-                          </Badge>
-                        )}
-                      </span>
-                      <Badge variant="outline" className={cn("text-[10px] py-0 h-4 font-mono", sCfg?.className)}>
-                        {s.viability}
-                      </Badge>
+          {seasons.filter(s => s.viability !== 'N/A').length > 0 && (
+            <div className="space-y-2 border-t border-border/60 pt-2.5">
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                <span>Seasonal Feasibility</span>
+                <span className="text-[10px] lowercase text-primary font-normal">All viable windows listed</span>
+              </div>
+              <div className="space-y-1.5">
+                {seasons.filter(s => s.viability !== 'N/A').map((s) => {
+                  const sCfg = viabilityConfig[s.viability];
+                  const isCurrent = currentSeason && s.season.toLowerCase() === currentSeason.toLowerCase();
+                  return (
+                    <div 
+                      key={s.season} 
+                      className={cn(
+                        "p-2 rounded-md border text-xs flex flex-col gap-1",
+                        isCurrent ? "border-primary/50 bg-primary/5" : "border-border/50 bg-muted/20"
+                      )}
+                    >
+                      <div className="flex items-center justify-between font-medium">
+                        <span className="flex items-center gap-1.5">
+                          <span>{seasonIcons[s.season] || '🌿'}</span>
+                          <span className="font-semibold">{s.season}</span>
+                          {isCurrent && (
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-primary/20 text-primary">
+                              Active Season
+                            </Badge>
+                          )}
+                        </span>
+                        <Badge variant="outline" className={cn("text-[10px] py-0 h-4 font-mono", sCfg?.className)}>
+                          {s.viability}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        {s.reasoning}
+                      </p>
                     </div>
-                    <p className="text-[11px] text-muted-foreground leading-snug">
-                      {s.reasoning}
-                    </p>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {resolvedWish?.bestSeason && (
             <div className="p-2 rounded-lg border border-primary/30 bg-primary/5 text-xs flex items-center gap-2">
@@ -563,73 +588,63 @@ export function ViabilityIndicator({
             </p>
           )}
 
-          {isPrepNA && (
-            <div className="p-2.5 rounded-lg border border-destructive/40 bg-destructive/10 text-xs space-y-1">
-              <div className="flex items-center gap-1.5 text-destructive font-semibold">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                <span>Botanical Incompatibility Warning</span>
-              </div>
-              <p className="text-[11px] text-destructive/90 leading-snug">
-                This plant is incompatible with propagation by {activeMethod.replace('-', ' ')}.
-                {otherApplicableCount > 0 
-                  ? ` Switch to one of the ${otherApplicableCount} applicable method${otherApplicableCount > 1 ? 's' : ''} listed below.`
-                  : ' Direct seeding or an alternative botanical method is required.'}
-              </p>
-            </div>
-          )}
-
           {/* Methods screen expanded directly on click */}
           {renderMethodsSection()}
 
-          <div className="space-y-2 border-t border-border/60 pt-2.5">
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-              Selected Method Lifecycle ({activeMethodInfo?.label || activeMethod})
-            </span>
-            <div className="grid grid-cols-3 gap-1.5 text-center">
-              <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
-                <span className="text-[10px] text-muted-foreground font-semibold">1. Prep</span>
-                <span className={cn("text-xs font-bold mt-0.5", prepCfg.className.split(' ')[1])}>
-                  {resolvedPrep.prepViability}
+          {/* 3-Stage Lifecycle Trajectory (Shown when active method is botanically compatible) */}
+          {!isPrepNA && (
+            <>
+              <div className="space-y-2 border-t border-border/60 pt-2.5">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Selected Method Lifecycle ({activeMethodInfo?.label || activeMethod})
                 </span>
-                <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Germination</span>
+                <div className="grid grid-cols-3 gap-1.5 text-center">
+                  <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
+                    <span className="text-[10px] text-muted-foreground font-semibold">1. Prep</span>
+                    <span className={cn("text-xs font-bold mt-0.5", prepCfg.className.split(' ')[1])}>
+                      {resolvedPrep.prepViability}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Germination</span>
+                  </div>
+                  <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
+                    <span className="text-[10px] text-muted-foreground font-semibold">2. Grow</span>
+                    <span className={cn("text-xs font-bold mt-0.5", viabilityConfig[resolvedPrep.growViability]?.className.split(' ')[1])}>
+                      {resolvedPrep.growViability}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Vegetative</span>
+                  </div>
+                  <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
+                    <span className="text-[10px] text-muted-foreground font-semibold">3. Harv</span>
+                    <span className={cn("text-xs font-bold mt-0.5", harvCfg.className.split(' ')[1])}>
+                      {resolvedPrep.harvestViability}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Maturity</span>
+                  </div>
+                </div>
               </div>
-              <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
-                <span className="text-[10px] text-muted-foreground font-semibold">2. Grow</span>
-                <span className={cn("text-xs font-bold mt-0.5", viabilityConfig[resolvedPrep.growViability]?.className.split(' ')[1])}>
-                  {resolvedPrep.growViability}
-                </span>
-                <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Vegetative</span>
-              </div>
-              <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
-                <span className="text-[10px] text-muted-foreground font-semibold">3. Harv</span>
-                <span className={cn("text-xs font-bold mt-0.5", harvCfg.className.split(' ')[1])}>
-                  {resolvedPrep.harvestViability}
-                </span>
-                <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Maturity</span>
-              </div>
-            </div>
-          </div>
 
-          <div className="space-y-1.5 text-xs text-muted-foreground">
-            {resolvedPrep.prepReasoning && (
-              <div>
-                <span className="font-semibold text-foreground/80">Prep Phase: </span>
-                <span>{resolvedPrep.prepReasoning}</span>
+              <div className="space-y-1.5 text-xs text-muted-foreground">
+                {resolvedPrep.prepReasoning && (
+                  <div>
+                    <span className="font-semibold text-foreground/80">Prep Phase: </span>
+                    <span>{resolvedPrep.prepReasoning}</span>
+                  </div>
+                )}
+                {resolvedPrep.growReasoning && (
+                  <div>
+                    <span className="font-semibold text-foreground/80">Grow Phase: </span>
+                    <span>{resolvedPrep.growReasoning}</span>
+                  </div>
+                )}
+                {resolvedPrep.harvestReasoning && (
+                  <div>
+                    <span className="font-semibold text-foreground/80">Harvest Phase: </span>
+                    <span>{resolvedPrep.harvestReasoning}</span>
+                  </div>
+                )}
               </div>
-            )}
-            {resolvedPrep.growReasoning && (
-              <div>
-                <span className="font-semibold text-foreground/80">Grow Phase: </span>
-                <span>{resolvedPrep.growReasoning}</span>
-              </div>
-            )}
-            {resolvedPrep.harvestReasoning && (
-              <div>
-                <span className="font-semibold text-foreground/80">Harvest Phase: </span>
-                <span>{resolvedPrep.harvestReasoning}</span>
-              </div>
-            )}
-          </div>
+            </>
+          )}
 
           {resolvedPrep.summary && (
             <div className="p-2 rounded border border-primary/20 bg-primary/5 text-xs text-foreground/90 font-medium">
