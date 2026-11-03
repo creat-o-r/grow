@@ -5,13 +5,13 @@
 import React, { useState, useEffect, useCallback, MouseEvent, useMemo, useRef, KeyboardEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, GardenViewMode, AiDataset, FreeLlmConfig, StageViability, PropagationMethodInfo } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, GardenLocation, Conditions, StatusHistory, AiLog, ViabilityAnalysisMode, GardenViewMode, AiDataset, FreeLlmConfig, StageViability, PropagationMethodInfo, SeasonalViability } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { usePrevious } from '@/hooks/use-previous';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
 import { loadDataset } from '@/lib/datasets';
-import { Viability, SeasonName, getSuitableSeasons, getUpcomingViability, evaluatePlantingViability, getOverallViabilityLevel, getWishSeasonalViabilities, analyzeGrowViability, analyzeHarvestViability, ALL_PROPAGATION_METHODS } from '@/lib/viability';
+import { Viability, SeasonName, getSuitableSeasons, getUpcomingViability, evaluatePlantingViability, getOverallViabilityLevel, getWishSeasonalViabilities, analyzeGrowViability, analyzeHarvestViability, ALL_PROPAGATION_METHODS, enrichSeasonalViabilities } from '@/lib/viability';
 import { decodeSeedPackFromInput, mergeSeedPackIntoDb } from '@/lib/seed-pack';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import {
@@ -942,6 +942,19 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           };
         }) : undefined;
 
+        const enrichedSeasonalViabilities = (result.seasonalViabilities && result.seasonalViabilities.length > 0)
+          ? enrichSeasonalViabilities(
+              result.seasonalViabilities as SeasonalViability[],
+              planting.plant,
+              activeLocation.conditions,
+              {
+                growingSystems: activeLocation.growingSystems,
+                growingMethods: activeLocation.growingMethods,
+                propagationMethod: planting.propagationMethod,
+              }
+            )
+          : undefined;
+
         for (const p of duplicatePlantings) {
           const pStage: PlantStatus = (p.history && p.history.length > 0)
             ? p.history[p.history.length - 1].status
@@ -949,8 +962,8 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
           let aiStageViability: StageViability | undefined = undefined;
           if (pStage === 'Wishlist') {
-            const seasons = (result.seasonalViabilities && result.seasonalViabilities.length > 0)
-              ? result.seasonalViabilities.filter(s => s.viability !== 'N/A')
+            const seasons = (enrichedSeasonalViabilities && enrichedSeasonalViabilities.length > 0)
+              ? enrichedSeasonalViabilities.filter(s => s.viability !== 'N/A')
               : undefined;
             const bestSeason = seasons && seasons.length > 0 ? seasons[0].season : 'Spring';
             aiStageViability = {
@@ -988,6 +1001,8 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
               stage: 'Harvest',
               ripenessViability: result.harvestAssessment.ripenessViability,
               harvestWindow: result.harvestAssessment.harvestWindow,
+              harvestType: result.harvestAssessment.harvestType,
+              seedSavingNotes: result.harvestAssessment.seedSavingNotes,
               successionAdvice: result.harvestAssessment.successionAdvice,
               reasoning: result.harvestAssessment.reasoning || result.reasoning,
             };
@@ -1001,7 +1016,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             upcomingTiming: result.upcomingTiming,
             upcomingReasoning: result.upcomingReasoning,
             ...(aiStageViability ? { stageViability: aiStageViability } : {}),
-            ...(result.seasonalViabilities ? { seasonalViabilities: result.seasonalViabilities } : {}),
+            ...(enrichedSeasonalViabilities ? { seasonalViabilities: enrichedSeasonalViabilities } : (result.seasonalViabilities ? { seasonalViabilities: result.seasonalViabilities } : {})),
             ...(result.prepForecast ? { prepForecast: result.prepForecast } : {}),
             ...(result.growAssessment ? { growAssessment: result.growAssessment } : {}),
             ...(result.harvestAssessment ? { harvestAssessment: result.harvestAssessment } : {}),
@@ -1441,6 +1456,19 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             };
           }) : undefined;
 
+          const enrichedSeasonalViabilities = (result.seasonalViabilities && result.seasonalViabilities.length > 0)
+            ? enrichSeasonalViabilities(
+                result.seasonalViabilities as SeasonalViability[],
+                samplePlanting.plant,
+                activeLocation.conditions,
+                {
+                  growingSystems: activeLocation.growingSystems,
+                  growingMethods: activeLocation.growingMethods,
+                  propagationMethod: samplePlanting.propagationMethod,
+                }
+              )
+            : undefined;
+
           // Apply the AI viability result to ALL duplicate plantings in this group
           for (const planting of group) {
             const pStage: PlantStatus = (planting.history && planting.history.length > 0)
@@ -1449,8 +1477,8 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
             let aiStageViability: StageViability | undefined = undefined;
             if (pStage === 'Wishlist') {
-              const seasons = (result.seasonalViabilities && result.seasonalViabilities.length > 0)
-                ? result.seasonalViabilities.filter(s => s.viability !== 'N/A')
+              const seasons = (enrichedSeasonalViabilities && enrichedSeasonalViabilities.length > 0)
+                ? enrichedSeasonalViabilities.filter(s => s.viability !== 'N/A')
                 : undefined;
               const bestSeason = seasons && seasons.length > 0 ? seasons[0].season : 'Spring';
               aiStageViability = {
@@ -1488,6 +1516,8 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
                 stage: 'Harvest',
                 ripenessViability: result.harvestAssessment.ripenessViability,
                 harvestWindow: result.harvestAssessment.harvestWindow,
+                harvestType: result.harvestAssessment.harvestType,
+                seedSavingNotes: result.harvestAssessment.seedSavingNotes,
                 successionAdvice: result.harvestAssessment.successionAdvice,
                 reasoning: result.harvestAssessment.reasoning || result.reasoning,
               };
@@ -1501,7 +1531,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
               upcomingTiming: result.upcomingTiming,
               upcomingReasoning: result.upcomingReasoning,
               ...(aiStageViability ? { stageViability: aiStageViability } : {}),
-              ...(result.seasonalViabilities ? { seasonalViabilities: result.seasonalViabilities } : {}),
+              ...(enrichedSeasonalViabilities ? { seasonalViabilities: enrichedSeasonalViabilities } : (result.seasonalViabilities ? { seasonalViabilities: result.seasonalViabilities } : {})),
               ...(result.prepForecast ? { prepForecast: result.prepForecast } : {}),
               ...(result.growAssessment ? { growAssessment: result.growAssessment } : {}),
               ...(result.harvestAssessment ? { harvestAssessment: result.harvestAssessment } : {}),

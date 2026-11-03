@@ -12,12 +12,17 @@ import type {
   StageViability,
   SeasonName,
   PropagationMethod,
-  PropagationMethodInfo 
+  PropagationMethodInfo,
+  HarvestType,
+  SeasonalHarvestInfo,
+  SeasonalGrowInfo
 } from '@/lib/viability';
 import { 
   ALL_PROPAGATION_METHODS, 
   getAllPropagationMethodViabilities,
-  getSeasonalViabilityForSeason
+  getSeasonalViabilityForSeason,
+  getSeasonalGrowInfo,
+  getSeasonalHarvestInfo
 } from '@/lib/viability';
 import type { Plant, Conditions } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -89,6 +94,29 @@ const seasonIcons: Record<string, string> = {
   Summer: '☀️',
   Autumn: '🍂',
   Winter: '❄️',
+};
+
+const harvestTypeConfig: Record<HarvestType, { icon: string; label: string; badgeClass: string }> = {
+  'Fruit / Crop': {
+    icon: '🍎',
+    label: 'Fruit / Crop',
+    badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+  },
+  'Seeds / Seed Saving': {
+    icon: '🌾',
+    label: 'Seeds / Seed Saving',
+    badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+  },
+  'Roots / Bulbs': {
+    icon: '🥕',
+    label: 'Roots / Bulbs',
+    badgeClass: 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30',
+  },
+  'Greens / Herbs': {
+    icon: '🥬',
+    label: 'Greens / Herbs',
+    badgeClass: 'bg-lime-500/15 text-lime-700 dark:text-lime-300 border-lime-500/30',
+  },
 };
 
 export function ViabilityIndicator({ 
@@ -312,8 +340,8 @@ export function ViabilityIndicator({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <span>🌿</span>
-              <span>{seasonContext ? `${seasonContext} Botanical Methods` : 'Botanical Methods'} ({compatibleList.length})</span>
+              <span>🌱</span>
+              <span>{seasonContext ? `1. ${seasonContext} Prep Methods` : 'Botanical Prep Methods'} ({compatibleList.length})</span>
             </span>
             {onSelectPropagationMethod && (
               <span className="text-[10px] text-primary font-medium">1-click switch</span>
@@ -443,6 +471,10 @@ export function ViabilityIndicator({
     const viewingMethods = getMethodsForSeason(activeViewingSeason);
     const seasonData = seasons.find(s => s.season.toLowerCase() === activeViewingSeason.toLowerCase()) 
       || (plant ? getSeasonalViabilityForSeason(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
+    const growInfo = seasonData?.growInfo 
+      || (plant ? getSeasonalGrowInfo(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
+    const harvestInfo = seasonData?.harvestInfo 
+      || (plant ? getSeasonalHarvestInfo(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
 
     return (
       <Popover 
@@ -535,14 +567,86 @@ export function ViabilityIndicator({
             </p>
           )}
 
-          {/* Methods evaluated for THIS season only */}
+          {/* 1. Prep Methods evaluated for THIS season only */}
           {renderMethodsSection(viewingMethods, activeViewingSeason)}
 
-          {/* THAT season's feasibility only */}
+          {/* 2. Vegetative Grow & Vigor for THIS season */}
+          {growInfo && (
+            <div className="space-y-1.5 border-t border-border/60 pt-2.5">
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-foreground font-semibold">
+                  <span>🌿</span>
+                  <span>2. {activeViewingSeason} Grow &amp; Vigor</span>
+                </span>
+                <div className="flex items-center gap-1">
+                  {growInfo.stressFactor && growInfo.stressFactor !== 'None' && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 font-semibold flex items-center gap-0.5">
+                      <AlertTriangle className="h-2.5 w-2.5" />
+                      <span>{growInfo.stressFactor}</span>
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className={cn("text-[10px] font-mono", viabilityConfig[growInfo.vigorViability]?.className)}>
+                    {growInfo.vigorViability}
+                  </Badge>
+                </div>
+              </div>
+              <div className="p-2.5 rounded-lg border border-primary/20 bg-muted/20 text-xs space-y-1.5">
+                <p className="text-[11px] text-foreground/90 leading-snug">
+                  {growInfo.reasoning}
+                </p>
+                {growInfo.tendingAdvice && (
+                  <div className="pt-1 border-t border-border/40 text-[11px] text-foreground/80 leading-snug">
+                    <span className="font-semibold text-primary">Tending: </span>
+                    <span>{growInfo.tendingAdvice}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 3. Harvest for THIS season (Fruit vs Seeds vs Roots vs Greens) */}
+          {harvestInfo && (
+            <div className="space-y-1.5 border-t border-border/60 pt-2.5">
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-foreground font-semibold">
+                  <span>{harvestTypeConfig[harvestInfo.harvestType]?.icon || '🍎'}</span>
+                  <span>3. {activeViewingSeason} Harvest</span>
+                </span>
+                <div className="flex items-center gap-1">
+                  <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 font-medium", harvestTypeConfig[harvestInfo.harvestType]?.badgeClass)}>
+                    {harvestInfo.harvestType}
+                  </Badge>
+                  <Badge variant="outline" className={cn("text-[10px] font-mono", viabilityConfig[harvestInfo.ripenessViability]?.className)}>
+                    {harvestInfo.ripenessViability}
+                  </Badge>
+                </div>
+              </div>
+              <div className="p-2.5 rounded-lg border border-primary/20 bg-muted/20 text-xs space-y-1.5">
+                <div className="text-[11px] font-medium text-foreground">
+                  <span>{harvestInfo.harvestWindow}</span>
+                </div>
+                <p className="text-[11px] text-foreground/90 leading-snug">
+                  {harvestInfo.description}
+                </p>
+                {harvestInfo.seedSavingNotes && (
+                  <div className="p-2 rounded border border-amber-500/30 bg-amber-500/10 text-xs space-y-0.5">
+                    <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                      <span>🌾</span> Seed Saving Guide:
+                    </span>
+                    <p className="text-[10px] text-amber-900/90 dark:text-amber-200/90 leading-snug">
+                      {harvestInfo.seedSavingNotes}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Full Cycle Feasibility Trajectory for THIS season */}
           {seasonData && (
             <div className="space-y-1.5 border-t border-border/60 pt-2.5">
               <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-                <span>{activeViewingSeason} Feasibility</span>
+                <span>{activeViewingSeason} Full Lifecycle Feasibility</span>
                 <Badge variant="outline" className={cn("text-[10px] font-mono", viabilityConfig[seasonData.viability]?.className)}>
                   {seasonData.viability} Viability
                 </Badge>
@@ -808,6 +912,10 @@ export function ViabilityIndicator({
   // 4. HARVEST VIEW: Peak Window & Bed Succession Advice
   if (resolvedHarvest) {
     const cfg = viabilityConfig[resolvedHarvest.ripenessViability] || viabilityConfig.High;
+    const effectiveHarvestType = resolvedHarvest.harvestType 
+      || (plant ? getSeasonalHarvestInfo(plant, (currentSeason || 'Spring') as SeasonName, conditions).harvestType : undefined);
+    const effectiveSeedSavingNotes = resolvedHarvest.seedSavingNotes 
+      || (plant ? getSeasonalHarvestInfo(plant, (currentSeason || 'Spring') as SeasonName, conditions).seedSavingNotes : undefined);
 
     return (
       <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -829,7 +937,11 @@ export function ViabilityIndicator({
             >
               <CheckCircle2 className="h-3 w-3" />
               <span>Harv: {resolvedHarvest.ripenessViability}</span>
-              <span className="text-[10px] font-mono opacity-85 ml-0.5">• {resolvedHarvest.harvestWindow}</span>
+              {effectiveHarvestType && (
+                <span className="text-[10px] opacity-90 ml-0.5">
+                  • {harvestTypeConfig[effectiveHarvestType]?.icon || ''} {effectiveHarvestType.split('/')[0].trim()}
+                </span>
+              )}
               {renderMethodInsideBadge()}
               <Info className="h-3 w-3 opacity-60 ml-0.5" />
             </Badge>
@@ -848,9 +960,16 @@ export function ViabilityIndicator({
               <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
               <span>Harvest Window &amp; Succession</span>
             </div>
-            <Badge variant="outline" className={cn("text-xs font-semibold", cfg.className)}>
-              {resolvedHarvest.harvestWindow}
-            </Badge>
+            <div className="flex items-center gap-1">
+              {effectiveHarvestType && (
+                <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 font-medium", harvestTypeConfig[effectiveHarvestType]?.badgeClass)}>
+                  {effectiveHarvestType}
+                </Badge>
+              )}
+              <Badge variant="outline" className={cn("text-xs font-semibold", cfg.className)}>
+                {resolvedHarvest.harvestWindow}
+              </Badge>
+            </div>
           </div>
 
           {plantName && (
@@ -865,6 +984,17 @@ export function ViabilityIndicator({
               {resolvedHarvest.reasoning}
             </p>
           </div>
+
+          {effectiveSeedSavingNotes && (
+            <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs space-y-1">
+              <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                <span>🌾</span> Seed Saving Guide:
+              </span>
+              <p className="text-[11px] text-amber-900/90 dark:text-amber-200/90 leading-snug">
+                {effectiveSeedSavingNotes}
+              </p>
+            </div>
+          )}
 
           {resolvedHarvest.successionAdvice && (
             <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 text-xs space-y-1">

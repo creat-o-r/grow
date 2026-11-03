@@ -75,14 +75,42 @@ export type PropagationMethod =
   | 'runner' 
   | 'bulb-clove';
 
+export type HarvestType = 
+  | 'Fruit / Crop'
+  | 'Seeds / Seed Saving'
+  | 'Roots / Bulbs'
+  | 'Greens / Herbs';
+
+export type SeasonalHarvestInfo = {
+  harvestType: HarvestType;
+  ripenessViability: ViabilityLevel;
+  harvestWindow: string;
+  description: string;
+  seedSavingNotes?: string;
+};
+
+export type SeasonalGrowInfo = {
+  vigorViability: ViabilityLevel;
+  stressFactor?: 'None' | 'Heat Stress' | 'Frost Risk' | 'Drought Risk' | 'Light Deficit' | 'Dormant';
+  tendingAdvice: string;
+  reasoning: string;
+};
+
 export type SeasonalViability = {
   season: SeasonName;
   viability: ViabilityLevel;
   score?: number;
   reasoning: string;
   prepViability?: ViabilityLevel;
+  prepMethods?: PropagationMethodInfo[];
+  prepSummary?: string;
   growViability?: ViabilityLevel;
+  growInfo?: SeasonalGrowInfo;
   harvestViability?: ViabilityLevel;
+  harvestInfo?: SeasonalHarvestInfo;
+  harvestType?: HarvestType;
+  harvestWindow?: string;
+  seedSavingNotes?: string;
   fullCycleSummary?: string;
 };
 
@@ -130,7 +158,7 @@ export type PrepViabilityData = {
 export type GrowViabilityData = {
   stage?: 'Growing';
   vigorViability: ViabilityLevel;
-  stressFactor?: 'None' | 'Heat Stress' | 'Frost Risk' | 'Drought Risk' | 'Light Deficit';
+  stressFactor?: 'None' | 'Heat Stress' | 'Frost Risk' | 'Drought Risk' | 'Light Deficit' | 'Dormant';
   tendingAdvice: string;
   reasoning: string;
 };
@@ -139,6 +167,8 @@ export type HarvestViabilityData = {
   stage?: 'Harvest';
   ripenessViability: ViabilityLevel;
   harvestWindow: 'Peak Window' | 'Approaching End' | 'Overdue / Bolt Risk';
+  harvestType?: HarvestType;
+  seedSavingNotes?: string;
   successionAdvice: string;
   reasoning: string;
 };

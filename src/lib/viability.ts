@@ -16,6 +16,9 @@ import type {
   HarvestAssessment,
   PropagationMethod,
   PropagationMethodInfo,
+  HarvestType,
+  SeasonalHarvestInfo,
+  SeasonalGrowInfo,
 } from '@/lib/types';
 
 export type Viability = ViabilityLevel;
@@ -34,6 +37,9 @@ export type {
   PrepForecast,
   GrowAssessment,
   HarvestAssessment,
+  HarvestType,
+  SeasonalHarvestInfo,
+  SeasonalGrowInfo,
 };
 
 const getSunlightScore = (plantNeeds: string, gardenSunlight: string): number => {
@@ -511,8 +517,252 @@ export const getAllPropagationMethodViabilities = (
 };
 
 /**
- * Evaluates seasonal viability for an individual season taking into account the FULL lifecycle
- * (prep strike/germination, vegetative vigor, and harvest before seasonal cutoffs).
+ * Evaluates vegetative vigor and environmental stress factors for a specific season.
+ */
+export const getSeasonalGrowInfo = (
+    plant: Plant,
+    season: SeasonName,
+    conditions?: Conditions,
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
+): SeasonalGrowInfo => {
+    const plantInfo = `${plant.optimalConditions} ${plant.germinationNeeds} ${plant.species}`.toLowerCase();
+    const isGreenhouse = (options?.growingSystems || '').toLowerCase().includes('greenhouse') || (options?.growingSystems || '').toLowerCase().includes('polytunnel');
+    const isProtected = isGreenhouse || (options?.growingSystems || '').toLowerCase().includes('cloche');
+    const needsCool = plantInfo.includes('cool') || plantInfo.includes('cold') || plantInfo.includes('frost hardy') || plantInfo.includes('brassica') || plantInfo.includes('lettuce') || plantInfo.includes('spinach') || plantInfo.includes('pea');
+    const needsWarm = plantInfo.includes('warm') || plantInfo.includes('heat') || plantInfo.includes('hot') || plantInfo.includes('frost sensitive') || plantInfo.includes('solanum') || plantInfo.includes('tomato') || plantInfo.includes('pepper') || plantInfo.includes('cucurbit');
+
+    let vigorViability: ViabilityLevel = 'High';
+    let stressFactor: SeasonalGrowInfo['stressFactor'] = 'None';
+    let tendingAdvice = 'Maintain consistent moisture and apply balanced organic fertilizer for active vegetative growth.';
+    let reasoning = `${season} environment supports steady, healthy foliage development.`;
+
+    if (season === 'Spring') {
+        if (needsWarm && !isProtected) {
+            vigorViability = 'Medium';
+            stressFactor = 'Frost Risk';
+            tendingAdvice = 'Protect tender starts with cloches, fleece, or cold frame until nighttime lows stay reliably above 10°C.';
+            reasoning = 'Cold spring nights and chilly soil slow vegetative development of warm-season plants.';
+        } else {
+            vigorViability = 'High';
+            stressFactor = 'None';
+            tendingAdvice = 'Capitalize on increasing daylight: side-dress with compost or balanced organic liquid feed.';
+            reasoning = 'Increasing spring daylength and warming soil power active vegetative growth burst.';
+        }
+    } else if (season === 'Summer') {
+        if (needsCool) {
+            vigorViability = 'Medium';
+            stressFactor = 'Heat Stress';
+            tendingAdvice = 'Erect 30-40% shade cloth, mulch heavily to keep roots cool, and irrigate deeply early in the morning.';
+            reasoning = 'High summer temperatures put cool-season foliage at risk of heat wilt, tipburn, or premature bolting.';
+        } else {
+            vigorViability = 'High';
+            stressFactor = 'None';
+            tendingAdvice = 'Provide consistent deep watering and tie up climbing vines or branches as fruit sets.';
+            reasoning = 'Peak summer heat and intense solar radiation drive vigorous biomass expansion.';
+        }
+    } else if (season === 'Autumn') {
+        if (needsWarm && !isGreenhouse) {
+            vigorViability = 'Low';
+            stressFactor = 'Frost Risk';
+            tendingAdvice = 'Cover with heavy frost blankets or move potted plants indoors before the first hard freeze.';
+            reasoning = 'Shortening daylight and dropping night temperatures halt warm-season growth.';
+        } else {
+            vigorViability = 'High';
+            stressFactor = 'None';
+            tendingAdvice = 'Mulch beds to conserve summer warmth and protect developing autumn root systems.';
+            reasoning = 'Mild autumn conditions stimulate second growth flush and sweeten hardy foliage.';
+        }
+    } else if (season === 'Winter') {
+        if (isGreenhouse) {
+            vigorViability = 'Medium';
+            stressFactor = 'Light Deficit';
+            tendingAdvice = 'Keep greenhouse glass clean to maximize low winter light; ventilate briefly on sunny afternoons.';
+            reasoning = 'Protected under cover from freezing winds, but vegetative growth is slow due to short daylight (<10 hours).';
+        } else if (needsCool) {
+            vigorViability = 'Medium';
+            stressFactor = 'Dormant';
+            tendingAdvice = 'Apply thick straw mulch over root zones; harvest outer leaves on sunny midday thaws.';
+            reasoning = 'Plants enter semi-dormant cold hardiness, holding flavor well in freezing conditions.';
+        } else {
+            vigorViability = 'Low';
+            stressFactor = 'Frost Risk';
+            tendingAdvice = 'Overwinter dormant roots or crowns under deep mulch, or store saved seeds indoors.';
+            reasoning = 'Freezing outdoor winter conditions halt all in-ground vegetative growth for this species.';
+        }
+    }
+
+    return {
+        vigorViability,
+        stressFactor,
+        tendingAdvice,
+        reasoning,
+    };
+};
+
+/**
+ * Evaluates seasonal harvest possibilities, distinguishing between fruit/crop,
+ * seeds/seed saving, roots/tubers, and greens/herbs.
+ */
+export const getSeasonalHarvestInfo = (
+    plant: Plant,
+    season: SeasonName,
+    conditions?: Conditions,
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
+): SeasonalHarvestInfo => {
+    const plantInfo = `${plant.optimalConditions} ${plant.germinationNeeds} ${plant.species}`.toLowerCase();
+
+    // Plant categories
+    const isFruiting = plantInfo.includes('tomato') || plantInfo.includes('pepper') || plantInfo.includes('capsicum') || plantInfo.includes('melon') || plantInfo.includes('corn') || plantInfo.includes('bean') || plantInfo.includes('pea') || plantInfo.includes('cucumber') || plantInfo.includes('squash') || plantInfo.includes('eggplant') || plantInfo.includes('solanum') || plantInfo.includes('cucurbit');
+    const isRoot = plantInfo.includes('carrot') || plantInfo.includes('radish') || plantInfo.includes('beet') || plantInfo.includes('parsnip') || plantInfo.includes('turnip') || plantInfo.includes('potato') || plantInfo.includes('garlic') || plantInfo.includes('onion') || plantInfo.includes('shallot') || plantInfo.includes('allium') || plantInfo.includes('tuber') || plantInfo.includes('taproot');
+    const isBrassica = plantInfo.includes('cauliflower') || plantInfo.includes('broccoli') || plantInfo.includes('cabbage') || plantInfo.includes('kale') || plantInfo.includes('kohlrabi') || plantInfo.includes('brussels') || plantInfo.includes('brassica');
+    const isHerbOrGreens = plantInfo.includes('lettuce') || plantInfo.includes('spinach') || plantInfo.includes('basil') || plantInfo.includes('herb') || plantInfo.includes('cilantro') || plantInfo.includes('coriander') || plantInfo.includes('dill') || plantInfo.includes('parsley') || plantInfo.includes('chard') || plantInfo.includes('arugula');
+
+    if (season === 'Spring') {
+        if (isHerbOrGreens || (isRoot && (plantInfo.includes('radish') || plantInfo.includes('spring')))) {
+            return {
+                harvestType: isRoot ? 'Roots / Bulbs' : 'Greens / Herbs',
+                ripenessViability: 'High',
+                harvestWindow: 'Late Spring Early Harvest',
+                description: 'Crisp, tender spring greens and fast radishes harvested before temperatures rise.',
+                seedSavingNotes: 'Allow 2-3 best specimen plants to flower and bolt as weather warms for seed saving.',
+            };
+        }
+        if (isBrassica) {
+            return {
+                harvestType: 'Fruit / Crop',
+                ripenessViability: 'High',
+                harvestWindow: 'Late Spring Head Cut',
+                description: 'Harvest firm, compact spring curds or heads before summer temperatures induce loose beads.',
+                seedSavingNotes: 'Biennial brassicas overwintered from previous autumn flower in spring to produce prime seed siliques.',
+            };
+        }
+        if (isFruiting) {
+            return {
+                harvestType: 'Greens / Herbs',
+                ripenessViability: 'Low',
+                harvestWindow: 'Pre-Bloom Phase',
+                description: 'Plants are focusing energy on vegetative structure and flowering; fruit harvest is not yet ready.',
+            };
+        }
+        return {
+            harvestType: 'Roots / Bulbs',
+            ripenessViability: 'Medium',
+            harvestWindow: 'Spring Dig',
+            description: 'Early spring baby root harvests or overwintered parsnips dug fresh after ground thaw.',
+        };
+    }
+
+    if (season === 'Summer') {
+        if (isFruiting) {
+            return {
+                harvestType: 'Fruit / Crop',
+                ripenessViability: 'High',
+                harvestWindow: 'Peak Summer Flush',
+                description: 'Abundant peak harvest of vine-ripened fruit, tender sweetcorn, and crisp bean/pea pods.',
+                seedSavingNotes: 'Select fully mature, vine-ripened fruit from your most productive plants. Ferment wet tomato seeds 2-3 days in water; dry on coffee filters.',
+            };
+        }
+        if (isHerbOrGreens) {
+            return {
+                harvestType: 'Seeds / Seed Saving',
+                ripenessViability: 'High',
+                harvestWindow: 'Mid-to-Late Summer Seed Heads',
+                description: 'Summer heat induces flowering and dry seed clusters (coriander seeds, dill umbels, basil seed bracts).',
+                seedSavingNotes: 'Harvest brown seed heads on a sunny morning into a paper sack; shake or rub to extract dry seeds for next season.',
+            };
+        }
+        if (isBrassica) {
+            return {
+                harvestType: 'Seeds / Seed Saving',
+                ripenessViability: 'High',
+                harvestWindow: 'Late Summer Pod (Silique) Harvest',
+                description: 'Bolted brassicas produce slender seed pods turning from green to parchment tan.',
+                seedSavingNotes: 'Cut dry brown seed stalks before pods pop and shatter in the wind; thresh seeds onto clean cloth and store airtight.',
+            };
+        }
+        if (isRoot) {
+            return {
+                harvestType: plantInfo.includes('garlic') || plantInfo.includes('onion') ? 'Roots / Bulbs' : 'Seeds / Seed Saving',
+                ripenessViability: 'High',
+                harvestWindow: 'Mid Summer Bulb Lifting / Seed Umbels',
+                description: plantInfo.includes('garlic') || plantInfo.includes('onion')
+                    ? 'Lift bulbs when lower leaves die down; cure in shaded airy porch for 2-3 weeks.'
+                    : 'Biennial taproot seed umbels mature into brown seed heads ready for gathering.',
+                seedSavingNotes: 'Save largest, healthiest garlic bulbs for autumn clove replanting. Thresh carrot/beet seed umbels into a bucket.',
+            };
+        }
+    }
+
+    if (season === 'Autumn') {
+        if (isFruiting) {
+            return {
+                harvestType: 'Seeds / Seed Saving',
+                ripenessViability: 'High',
+                harvestWindow: 'Autumn Dry Down & Seed Saving',
+                description: 'Final harvest of mature fruit and dry, brittle bean/pea seed pods before frost.',
+                seedSavingNotes: 'Shell dry bean, pea, and pepper seed pods when brittle; test dry with a thumbnail indent. Store in airtight jars with desiccant.',
+            };
+        }
+        if (isRoot) {
+            return {
+                harvestType: 'Roots / Bulbs',
+                ripenessViability: 'High',
+                harvestWindow: 'Autumn Main Crop Harvest',
+                description: 'Prime harvest of sweet, frost-kissed storage roots (carrots, beets, parsnips, turnips).',
+                seedSavingNotes: 'Select 5-10 best true-to-type roots without blemishes to overwinter for next season seed production.',
+            };
+        }
+        if (isBrassica) {
+            return {
+                harvestType: 'Fruit / Crop',
+                ripenessViability: 'High',
+                harvestWindow: 'Autumn Peak Head & Foliage Cut',
+                description: 'Cool autumn nights concentrate sugars, producing the highest quality sweet heads and leaves.',
+                seedSavingNotes: 'Leave cold-hardy brassicas in ground through winter to flower and seed in spring.',
+            };
+        }
+        return {
+            harvestType: 'Greens / Herbs',
+            ripenessViability: 'High',
+            harvestWindow: 'Autumn Foliage Harvest',
+            description: 'Crisp, sweet autumn greens thrive in moderate temperatures and declining pest pressure.',
+        };
+    }
+
+    // Winter
+    if (isRoot) {
+        return {
+            harvestType: 'Roots / Bulbs',
+            ripenessViability: 'Medium',
+            harvestWindow: 'Winter In-Ground Storage',
+            description: 'Dig sweet winter carrots, parsnips, and leeks under heavy straw mulch as needed.',
+            seedSavingNotes: 'Cold vernalization primes overwintering root crowns for rapid spring flowering and heavy seed yields.',
+        };
+    }
+    if (isBrassica) {
+        return {
+            harvestType: 'Greens / Herbs',
+            ripenessViability: 'Medium',
+            harvestWindow: 'Winter Frost Greens',
+            description: 'Harvest frost-sweetened kale, collards, and Brussels sprouts after hard frosts.',
+            seedSavingNotes: 'Vernalized winter plants burst into heavy bloom at the first spring thaw for seed saving.',
+        };
+    }
+
+    return {
+        harvestType: 'Seeds / Seed Saving',
+        ripenessViability: 'Low',
+        harvestWindow: 'Dormant Phase',
+        description: 'Outdoor harvest is dormant; focus on organizing and viability-testing saved seed collections.',
+        seedSavingNotes: 'Conduct germination ragdoll paper towel tests on saved seed batches before spring sowing.',
+    };
+};
+
+/**
+ * Evaluates seasonal viability for an individual season taking into account the FULL lifecycle:
+ * 1. Prep methods per season (strike/germination viability across all 7 propagation methods)
+ * 2. Vegetative Grow vigor and stress per season
+ * 3. Seasonal Harvest (fruit/crop, seeds/seed saving, roots/bulbs, greens/herbs)
  */
 export const getSeasonalViabilityForSeason = (
     plant: Plant,
@@ -531,15 +781,16 @@ export const getSeasonalViabilityForSeason = (
         currentSeason: season,
     };
 
+    // 1. PREP METHODS PER SEASON
+    const prepMethods = getAllPropagationMethodViabilities(plant, seasonConditions, options);
+    const compatiblePrep = prepMethods.filter(m => !m.isIncompatible && m.overallViability !== 'N/A');
+
     // If options.propagationMethod was passed, check if it's incompatible with this plant.
-    // Seasonal windows for the plant should represent whether the plant can grow in that season,
-    // not fail all 4 seasons with N/A because of an invalid propagation method choice.
     let effectiveOptions = options;
     if (options?.propagationMethod) {
         const testCompat = analyzePrepViability(plant, seasonConditions, { ...options, nested: true });
         if (testCompat.isIncompatible || testCompat.overallViability === 'N/A') {
-            const compatible = getAllPropagationMethodViabilities(plant, seasonConditions)
-                .find(m => !m.isIncompatible && m.overallViability !== 'N/A');
+            const compatible = compatiblePrep[0];
             effectiveOptions = {
                 ...options,
                 propagationMethod: compatible?.method || 'seed',
@@ -548,11 +799,20 @@ export const getSeasonalViabilityForSeason = (
     }
 
     const fullCycleForecast = analyzePrepViability(plant, seasonConditions, effectiveOptions);
-
     const fullCycleViab = fullCycleForecast.overallViability;
     const score = fullCycleViab === 'High' ? 5 : fullCycleViab === 'Medium' ? 3 : 1;
 
-    const reasoning = `${season}: ${fullCycleViab} Viability. Full cycle: Prep ${fullCycleForecast.prepViability} ➔ Grow ${fullCycleForecast.growViability} ➔ Harv ${fullCycleForecast.harvestViability}. ${fullCycleForecast.summary}`;
+    // 2. GROW PER SEASON
+    const growInfo = getSeasonalGrowInfo(plant, season, seasonConditions, effectiveOptions);
+
+    // 3. HARVEST PER SEASON (fruit, seeds, roots, greens)
+    const harvestInfo = getSeasonalHarvestInfo(plant, season, seasonConditions, effectiveOptions);
+
+    const prepSummary = compatiblePrep.length > 0
+        ? `Viable methods: ${compatiblePrep.map(m => `${m.shortLabel} (${m.overallViability})`).join(', ')}`
+        : 'Direct Seed only';
+
+    const reasoning = `${season}: ${fullCycleViab} Viability. Prep: ${prepSummary}. Grow: ${growInfo.vigorViability} (${growInfo.stressFactor || 'Active'}). Harvest: ${harvestInfo.harvestType} - ${harvestInfo.description}`;
 
     return {
         season,
@@ -560,10 +820,57 @@ export const getSeasonalViabilityForSeason = (
         score,
         reasoning,
         prepViability: fullCycleForecast.prepViability,
+        prepMethods,
+        prepSummary,
         growViability: fullCycleForecast.growViability,
+        growInfo,
         harvestViability: fullCycleForecast.harvestViability,
+        harvestInfo,
+        harvestType: harvestInfo.harvestType,
+        harvestWindow: harvestInfo.harvestWindow,
+        seedSavingNotes: harvestInfo.seedSavingNotes,
         fullCycleSummary: fullCycleForecast.summary,
     };
+};
+
+/**
+ * Enriches seasonal viabilities with the complete 3-stage full lifecycle map:
+ * 1. Prep methods per season
+ * 2. Grow vigor and stress per season
+ * 3. Harvest per season (fruit/crop vs seed saving)
+ */
+export const enrichSeasonalViabilities = (
+    seasonalViabilities: SeasonalViability[],
+    plant: Plant,
+    conditions?: Conditions,
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
+): SeasonalViability[] => {
+    return seasonalViabilities.map(sv => {
+        const fullSeasonal = getSeasonalViabilityForSeason(plant, sv.season, conditions, options);
+        return {
+            ...fullSeasonal,
+            ...sv,
+            prepViability: sv.prepViability || fullSeasonal.prepViability,
+            growViability: sv.growViability || fullSeasonal.growViability,
+            harvestViability: sv.harvestViability || fullSeasonal.harvestViability,
+            prepMethods: fullSeasonal.prepMethods,
+            prepSummary: sv.prepSummary || fullSeasonal.prepSummary,
+            growInfo: fullSeasonal.growInfo ? {
+                ...fullSeasonal.growInfo,
+                vigorViability: sv.growViability || fullSeasonal.growInfo.vigorViability,
+            } : undefined,
+            harvestInfo: fullSeasonal.harvestInfo ? {
+                ...fullSeasonal.harvestInfo,
+                harvestType: sv.harvestType || fullSeasonal.harvestInfo.harvestType,
+                ripenessViability: sv.harvestViability || fullSeasonal.harvestInfo.ripenessViability,
+                harvestWindow: sv.harvestWindow || fullSeasonal.harvestInfo.harvestWindow,
+                seedSavingNotes: sv.seedSavingNotes || fullSeasonal.harvestInfo.seedSavingNotes,
+            } : undefined,
+            harvestType: sv.harvestType || fullSeasonal.harvestInfo?.harvestType,
+            harvestWindow: sv.harvestWindow || fullSeasonal.harvestInfo?.harvestWindow,
+            seedSavingNotes: sv.seedSavingNotes || fullSeasonal.harvestInfo?.seedSavingNotes,
+        };
+    });
 };
 
 /**
@@ -710,6 +1017,7 @@ export const analyzeHarvestViability = (
 ): HarvestViabilityData => {
     const currentSeason = (conditions?.currentSeason || 'Spring') as SeasonName;
     const plantInfo = `${plant.optimalConditions} ${plant.germinationNeeds} ${plant.species}`.toLowerCase();
+    const seasonalHarvest = getSeasonalHarvestInfo(plant, currentSeason, conditions, options);
 
     let ripenessViability: ViabilityLevel = 'High';
     let harvestWindow: HarvestViabilityData['harvestWindow'] = 'Peak Window';
@@ -739,6 +1047,8 @@ export const analyzeHarvestViability = (
         stage: 'Harvest',
         ripenessViability,
         harvestWindow,
+        harvestType: seasonalHarvest.harvestType,
+        seedSavingNotes: seasonalHarvest.seedSavingNotes,
         successionAdvice,
         reasoning,
     };
