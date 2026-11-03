@@ -267,21 +267,59 @@ export const analyzePrepViability = (
         }
     }
 
+    // Botanical compatibility classifications
+    const isBrassica = plantInfo.includes('cauliflower') || plantInfo.includes('broccoli') || plantInfo.includes('cabbage') || plantInfo.includes('kale') || plantInfo.includes('kohlrabi') || plantInfo.includes('brussels') || plantInfo.includes('brassica');
+    const isBulbGeophyte = plantInfo.includes('garlic') || plantInfo.includes('onion') || plantInfo.includes('shallot') || plantInfo.includes('allium') || plantInfo.includes('potato') || plantInfo.includes('tuber') || plantInfo.includes('bulb') || plantInfo.includes('clove') || plantInfo.includes('tulip') || plantInfo.includes('daffodil') || plantInfo.includes('dahlia') || plantInfo.includes('ginger') || plantInfo.includes('sunchoke');
+    const isRunnerStoloniferous = plantInfo.includes('strawberry') || plantInfo.includes('fragaria') || plantInfo.includes('mint') || plantInfo.includes('mentha') || plantInfo.includes('runner') || plantInfo.includes('stolon');
+    const isWoodyOrTree = plantInfo.includes('fig') || plantInfo.includes('citrus') || plantInfo.includes('lemon') || plantInfo.includes('orange') || plantInfo.includes('apple') || plantInfo.includes('pear') || plantInfo.includes('grape') || plantInfo.includes('woody') || plantInfo.includes('tree') || plantInfo.includes('shrub') || plantInfo.includes('olive') || plantInfo.includes('camellia') || plantInfo.includes('rose') || plantInfo.includes('ficus') || plantInfo.includes('currant') || plantInfo.includes('berry');
+    const isClumpingPerennial = plantInfo.includes('rhubarb') || plantInfo.includes('asparagus') || plantInfo.includes('chive') || plantInfo.includes('artichoke') || plantInfo.includes('hosta') || plantInfo.includes('perennial') || plantInfo.includes('rhizome') || plantInfo.includes('crown') || plantInfo.includes('division') || plantInfo.includes('lemongrass');
+    const isCuttingCapable = plantInfo.includes('tomato') || plantInfo.includes('basil') || plantInfo.includes('rosemary') || plantInfo.includes('mint') || plantInfo.includes('thyme') || plantInfo.includes('sage') || plantInfo.includes('pepper') || plantInfo.includes('fig') || plantInfo.includes('grape') || plantInfo.includes('currant') || plantInfo.includes('willow') || plantInfo.includes('herb') || plantInfo.includes('cane') || plantInfo.includes('cutting') || plantInfo.includes('softwood') || plantInfo.includes('hardwood') || plantInfo.includes('succulent');
+    const isTaproot = plantInfo.includes('carrot') || plantInfo.includes('parsnip') || plantInfo.includes('radish') || plantInfo.includes('beet') || plantInfo.includes('turnip');
+
     // Propagation method specific modulations
     if (method) {
         switch (method) {
             case 'transplant': {
-                if (currentSeason === 'Spring') {
+                if (isTaproot) {
+                    prepViability = 'Low';
+                    growViability = 'Low';
+                    harvestViability = 'Low';
+                    prepReasoning = 'Not recommended: sensitive taproots fork or fail when transplanted; direct seeding is required.';
+                } else if (isBrassica && currentSeason === 'Spring') {
+                    prepViability = 'High';
+                    growViability = 'High';
+                    harvestViability = 'High';
+                    prepReasoning = 'Gold standard for spring: hardened 4-6 week old nursery transplants establish rapidly in cool spring soil (10-18°C), maturing tight heads before summer heat buttoning.';
+                } else if (currentSeason === 'Spring') {
                     prepViability = 'High';
                     prepReasoning = 'Hardened nursery transplant with established roots bypasses outdoor seed germination delays; plant out under cloche or mulch.';
                 } else if (currentSeason === 'Summer' && !needsCool) {
                     prepViability = 'High';
                     prepReasoning = 'Established transplant takes root rapidly in warm soil with initial light shading and consistent irrigation.';
+                } else if (currentSeason === 'Summer' && isBrassica) {
+                    prepViability = 'Medium';
+                    prepReasoning = 'Mid-summer transplants for autumn crop: requires shaded seedling protection and daily watering to overcome high soil temperatures.';
+                }
+                break;
+            }
+            case 'seed': {
+                if (isBrassica && currentSeason === 'Spring') {
+                    prepViability = 'Medium';
+                    prepReasoning = 'Direct outdoor sowing is slow in cold spring soil (<12°C). The 85-100 day seed cycle risks pushing head formation into summer heat buttoning; start indoors or under cloches.';
+                    if (!isProtected) {
+                        harvestViability = 'Medium';
+                        harvestReasoning = 'Late spring curd development risks early summer heat arrest unless sheltered.';
+                    }
                 }
                 break;
             }
             case 'cutting': {
-                if (currentSeason === 'Spring' || currentSeason === 'Summer') {
+                if (!isCuttingCapable && (isBrassica || isTaproot || plantInfo.includes('lettuce') || plantInfo.includes('spinach') || plantInfo.includes('corn') || plantInfo.includes('bean') || plantInfo.includes('pea'))) {
+                    prepViability = 'Low';
+                    growViability = 'Low';
+                    harvestViability = 'Low';
+                    prepReasoning = 'Not botanically viable: heading annuals require primary seedling root systems; stem cuttings do not form productive curds or taproots.';
+                } else if (currentSeason === 'Spring' || currentSeason === 'Summer') {
                     prepViability = 'High';
                     prepReasoning = 'Softwood stem cuttings and side suckers root vigorously in water or moist perlite in 5-10 days.';
                 } else if (currentSeason === 'Autumn') {
@@ -296,7 +334,12 @@ export const analyzePrepViability = (
                 break;
             }
             case 'air-layering': {
-                if (currentSeason === 'Spring' || currentSeason === 'Summer') {
+                if (!isWoodyOrTree) {
+                    prepViability = 'Low';
+                    growViability = 'Low';
+                    harvestViability = 'Low';
+                    prepReasoning = 'Not botanically applicable: herbaceous vegetables lack the woody secondary stem cambium required for air-layering (marcottage).';
+                } else if (currentSeason === 'Spring' || currentSeason === 'Summer') {
                     prepViability = 'High';
                     prepReasoning = 'Active spring sap flow powers rapid adventitious root ball formation directly on branch in moist sphagnum moss, bypassing cold ground soil and pathogens.';
                 } else {
@@ -305,32 +348,43 @@ export const analyzePrepViability = (
                 }
                 break;
             }
-            case 'bulb-clove': {
-                if (currentSeason === 'Autumn') {
-                    prepViability = 'High';
-                    prepReasoning = 'Optimal timing: cloves require cold autumn/winter soil vernalization (<10°C) to break dormancy and split into healthy multi-clove heads.';
-                } else if (currentSeason === 'Spring') {
-                    prepViability = 'Medium';
-                    prepReasoning = 'Spring-planted cloves yield smaller single-round bulbs due to missed winter vernalization chill.';
-                }
-                break;
-            }
             case 'division': {
-                if (currentSeason === 'Spring' || currentSeason === 'Autumn') {
+                if (!isClumpingPerennial && !isBulbGeophyte) {
+                    prepViability = 'Low';
+                    growViability = 'Low';
+                    harvestViability = 'Low';
+                    prepReasoning = 'Not botanically applicable: single-stem taprooted annuals lack dividable crowns, rhizomes, or offshoots.';
+                } else if (currentSeason === 'Spring' || currentSeason === 'Autumn') {
                     prepViability = 'High';
                     prepReasoning = 'Root crown and rhizome divisions establish vigorously during moderate shoulder season temperatures.';
                 }
                 break;
             }
             case 'runner': {
-                if (currentSeason === 'Summer' || currentSeason === 'Autumn' || currentSeason === 'Spring') {
+                if (!isRunnerStoloniferous) {
+                    prepViability = 'Low';
+                    growViability = 'Low';
+                    harvestViability = 'Low';
+                    prepReasoning = 'Not botanically applicable: this species does not produce horizontal creeping runners (stolons).';
+                } else if (currentSeason === 'Summer' || currentSeason === 'Autumn' || currentSeason === 'Spring') {
                     prepViability = 'High';
                     prepReasoning = 'Daughter plantlet pegs directly into nursery pots while receiving water and nutrients from parent stolon.';
                 }
                 break;
             }
-            case 'seed': {
-                // Uses standard seed germination evaluations above
+            case 'bulb-clove': {
+                if (!isBulbGeophyte) {
+                    prepViability = 'Low';
+                    growViability = 'Low';
+                    harvestViability = 'Low';
+                    prepReasoning = 'Not botanically applicable: this species does not form underground storage bulbs, cloves, or tubers.';
+                } else if (currentSeason === 'Autumn') {
+                    prepViability = 'High';
+                    prepReasoning = 'Optimal timing: cloves require cold autumn/winter soil vernalization (<10°C) to break dormancy and split into healthy multi-clove heads.';
+                } else if (currentSeason === 'Spring') {
+                    prepViability = 'Medium';
+                    prepReasoning = 'Spring-planted cloves yield smaller single-round bulbs due to missed winter vernalization chill.';
+                }
                 break;
             }
         }
