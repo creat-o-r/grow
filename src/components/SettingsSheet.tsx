@@ -34,12 +34,20 @@ import {
   LayoutGrid,
   Radio,
   Loader2,
+  Lock,
+  Unlock,
+  RotateCcw,
+  Smartphone,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   getOrCreateGrowerIdentity,
   updateGrowerIdentity,
+  claimGrowerHandle,
+  updateDeviceExtension,
+  resetGrowerIdentity,
+  type LocalGrowerIdentity,
   getSavedP2PRoomId,
   broadcastApiKeysToP2PRoom,
   fetchLatestFromP2PRoom,
@@ -135,6 +143,10 @@ export function SettingsSheet({
   const [upstreamCommit, setUpstreamCommit] = useState<{ sha: string; date: string } | null>(null);
   const [copiedMcp, setCopiedMcp] = useState(false);
   const [growerHandle, setGrowerHandle] = useState('');
+  const [growerIdentity, setGrowerIdentity] = useState<LocalGrowerIdentity | null>(null);
+  const [rootHandle, setRootHandle] = useState('');
+  const [deviceId, setDeviceId] = useState('');
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [growerRegion, setGrowerRegion] = useState('');
   const [shareApiKeysWithBroadcast, setShareApiKeysWithBroadcast] = useState(false);
   const [keySyncRoomId, setKeySyncRoomId] = useState('');
@@ -199,21 +211,78 @@ export function SettingsSheet({
   useEffect(() => {
     if (isOpen) {
       const identity = getOrCreateGrowerIdentity();
+      setGrowerIdentity(identity);
+      setRootHandle(identity.rootHandle);
+      setDeviceId(identity.deviceId);
       setGrowerHandle(identity.displayName);
       setGrowerRegion(identity.region);
     }
   }, [isOpen]);
 
-  const handleSaveGrowerIdentity = () => {
+  const handleClaimRootHandle = () => {
+    try {
+      const clean = rootHandle.trim();
+      if (!clean) return;
+      const updated = claimGrowerHandle(clean, deviceId);
+      setGrowerIdentity(updated);
+      setRootHandle(updated.rootHandle);
+      setDeviceId(updated.deviceId);
+      setGrowerHandle(updated.displayName);
+      toast({
+        title: 'Grower Handle Claimed',
+        description: `Permanently claimed "@${updated.rootHandle}" on this device. Full address: ${updated.displayName}.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Claim Failed',
+        description: err?.message || 'Could not claim handle.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSaveDeviceExtension = () => {
+    try {
+      const updated = updateDeviceExtension(deviceId);
+      setGrowerIdentity(updated);
+      setDeviceId(updated.deviceId);
+      setGrowerHandle(updated.displayName);
+      toast({
+        title: 'Device Extension Saved',
+        description: `Device identified as "${updated.deviceId}". Full address: ${updated.displayName}.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Update Failed',
+        description: err?.message || 'Could not update device extension.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleResetIdentity = () => {
+    const fresh = resetGrowerIdentity();
+    setGrowerIdentity(fresh);
+    setRootHandle(fresh.rootHandle);
+    setDeviceId(fresh.deviceId);
+    setGrowerHandle(fresh.displayName);
+    setGrowerRegion(fresh.region);
+    setIsResetConfirmOpen(false);
+    toast({
+      title: 'Identity Reset',
+      description: `Generated new provisional grower identity: ${fresh.displayName}.`,
+    });
+  };
+
+  const handleSaveGrowerRegion = () => {
     const updated = updateGrowerIdentity({
-      displayName: growerHandle.trim(),
       region: growerRegion.trim(),
     });
-    setGrowerHandle(updated.displayName);
+    setGrowerIdentity(updated);
     setGrowerRegion(updated.region);
     toast({
-      title: 'Grower Handle Saved',
-      description: `Broadcasting as "${updated.displayName}" in ${updated.region}.`,
+      title: 'Microclimate Region Saved',
+      description: `Region set to "${updated.region}".`,
     });
   };
 
@@ -573,28 +642,132 @@ export function SettingsSheet({
             {/* Grower Handle & Microclimate */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="font-headline text-lg flex items-center gap-2">
-                  <User className="h-4 w-4 text-primary" />
-                  <span>Grower Handle</span>
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="font-headline text-lg flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    <span>Grower Handle</span>
+                  </CardTitle>
+                  {growerIdentity?.isClaimed ? (
+                    <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20 gap-1 px-2 py-0.5">
+                      <Lock className="h-3 w-3" />
+                      <span>Claimed</span>
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs text-muted-foreground gap-1 px-2 py-0.5">
+                      <Unlock className="h-3 w-3" />
+                      <span>Unclaimed</span>
+                    </Badge>
+                  )}
+                </div>
                 <CardDescription className="text-xs">
-                  Your public handle and microclimate region used on live P2P garden rooms and community viability proofs.
+                  Your public cryptographic handle and device address used for live P2P garden syncing and community proofs.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="grower-handle-input" className="text-xs">Grower Handle</Label>
-                    <Input
-                      id="grower-handle-input"
-                      value={growerHandle}
-                      onChange={(e) => setGrowerHandle(e.target.value)}
-                      placeholder="e.g., Grower-4026, @colby, SunnyBalcony"
-                      className="text-xs h-8"
-                    />
+              <CardContent className="space-y-4">
+                {growerIdentity?.isClaimed ? (
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-lg border bg-muted/30">
+                      <div>
+                        <div className="text-[11px] font-medium text-muted-foreground">Claimed Root Handle</div>
+                        <div className="font-mono text-base font-bold text-foreground flex items-center gap-1.5">
+                          <span>@{growerIdentity.rootHandle}</span>
+                          <Lock className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                        </div>
+                      </div>
+                      <div className="text-right sm:text-right">
+                        <div className="text-[11px] font-medium text-muted-foreground">Full Network Address</div>
+                        <div className="font-mono text-xs text-primary font-semibold">
+                          @{growerIdentity.rootHandle}/{deviceId || 'device'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="grower-device-input" className="text-xs flex items-center gap-1">
+                        <Smartphone className="h-3 w-3 text-muted-foreground" />
+                        <span>Device ID Extension</span>
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="grower-device-input"
+                          value={deviceId}
+                          onChange={(e) => setDeviceId(e.target.value)}
+                          placeholder="laptop, phone, studio"
+                          className="text-xs h-8 font-mono"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs shrink-0"
+                          onClick={handleSaveDeviceExtension}
+                        >
+                          Save Device ID
+                        </Button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Customize this device&apos;s extension to distinguish your laptop, phone, or tablet in multi-device mirroring.
+                      </p>
+                    </div>
+
+                    <div className="pt-1 flex items-center justify-between text-xs border-t">
+                      <span className="text-[11px] text-muted-foreground">
+                        Root handle is permanently locked to this device keypair.
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-muted-foreground hover:text-destructive gap-1 px-2"
+                        onClick={() => setIsResetConfirmOpen(true)}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        <span>Reset Identity</span>
+                      </Button>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="grower-region-input" className="text-xs">Microclimate / Region</Label>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="grower-claim-root" className="text-xs">Claim Root Handle</Label>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs text-muted-foreground font-semibold">@</span>
+                        <Input
+                          id="grower-claim-root"
+                          value={rootHandle}
+                          onChange={(e) => setRootHandle(e.target.value)}
+                          placeholder="colby_gardens"
+                          className="text-xs h-8 font-mono"
+                        />
+                        <span className="font-mono text-xs text-muted-foreground font-semibold">/</span>
+                        <Input
+                          value={deviceId}
+                          onChange={(e) => setDeviceId(e.target.value)}
+                          placeholder="laptop"
+                          className="text-xs h-8 font-mono w-24 shrink-0"
+                          title="Device extension"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-8 text-xs shrink-0 gap-1"
+                          onClick={handleClaimRootHandle}
+                          disabled={!rootHandle.trim()}
+                        >
+                          <Lock className="h-3 w-3" />
+                          <span>Claim Handle</span>
+                        </Button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Claiming permanently locks your root handle to this browser so peers can verify your garden updates and proofs.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1.5 pt-2 border-t">
+                  <Label htmlFor="grower-region-input" className="text-xs">Microclimate / Region</Label>
+                  <div className="flex gap-2">
                     <Input
                       id="grower-region-input"
                       value={growerRegion}
@@ -602,17 +775,16 @@ export function SettingsSheet({
                       placeholder="e.g., Auckland Zone 10, Pacific NW"
                       className="text-xs h-8"
                     />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs shrink-0"
+                      onClick={handleSaveGrowerRegion}
+                    >
+                      Save Region
+                    </Button>
                   </div>
-                </div>
-                <div className="flex justify-end pt-1">
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={handleSaveGrowerIdentity}
-                  >
-                    Save Grower Handle
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1172,6 +1344,31 @@ export function SettingsSheet({
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirm}>
               Confirm Import
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isResetConfirmOpen} onOpenChange={setIsResetConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Grower Identity?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs space-y-2">
+              <div>
+                This will release your current claimed handle (<strong className="font-mono">@{growerIdentity?.rootHandle}</strong>) and generate a new random provisional keypair (<span className="font-mono">Grower-XXXX</span>) on this device.
+              </div>
+              <div className="text-destructive font-semibold pt-1">
+                Peers who have whitelisted your handle or device will need to re-verify your new identity.
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetIdentity}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs"
+            >
+              Reset & Release Claim
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
