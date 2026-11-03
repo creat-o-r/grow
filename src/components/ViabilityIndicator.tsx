@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { 
@@ -16,7 +16,8 @@ import type {
 } from '@/lib/viability';
 import { 
   ALL_PROPAGATION_METHODS, 
-  getAllPropagationMethodViabilities 
+  getAllPropagationMethodViabilities,
+  getSeasonalViabilityForSeason
 } from '@/lib/viability';
 import type { Plant, Conditions } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -114,6 +115,7 @@ export function ViabilityIndicator({
   onSelectPropagationMethod,
 }: ViabilityIndicatorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedSeason, setSelectedSeason] = useState<SeasonName | null>(null);
 
   // 1. Resolve active stage data
   const resolvedWish = stageViability?.stage === 'Wishlist' ? stageViability : undefined;
@@ -127,7 +129,7 @@ export function ViabilityIndicator({
     || propPropagationMethod 
     || 'seed';
 
-  // 2. Resolve all botanical propagation methods
+  // 2. Resolve all botanical propagation methods for the default/current season
   const allMethods: PropagationMethodInfo[] = useMemo(() => {
     if (propRelatedMethods && propRelatedMethods.length > 0) {
       return propRelatedMethods;
@@ -152,6 +154,27 @@ export function ViabilityIndicator({
       growingMethods,
     });
   }, [propRelatedMethods, resolvedPrep, resolvedWish, plant, conditions, currentSeason, growingSystems, growingMethods]);
+
+  // Query propagation methods specifically evaluated for any target season
+  const getMethodsForSeason = useCallback((season?: SeasonName): PropagationMethodInfo[] => {
+    if (!plant) return allMethods;
+    const targetSeason = season || (currentSeason as SeasonName) || 'Spring';
+    // If targetSeason matches currentSeason and propRelatedMethods exists, use it
+    if ((!season || season === currentSeason) && propRelatedMethods && propRelatedMethods.length > 0) {
+      return propRelatedMethods;
+    }
+    const conds: Conditions = {
+      temperature: '20°C',
+      sunlight: 'Full Sun',
+      soil: 'Loam',
+      ...(conditions || {}),
+      currentSeason: targetSeason,
+    };
+    return getAllPropagationMethodViabilities(plant, conds, {
+      growingSystems,
+      growingMethods,
+    });
+  }, [plant, currentSeason, propRelatedMethods, conditions, growingSystems, growingMethods, allMethods]);
 
   const activeMethodInfo = useMemo(() => {
     const found = allMethods.find(m => m.method === activeMethod);
@@ -185,16 +208,22 @@ export function ViabilityIndicator({
 
   const isPrepNA = activeMethodInfo?.overallViability === 'N/A' || activeMethodInfo?.isIncompatible;
 
-  // Render applicable botanical methods directly INSIDE the viability badge
-  const renderMethodInsideBadge = () => {
-    if (isPrepNA) {
+  // Render applicable botanical methods directly INSIDE the viability badge, optionally evaluated for a specific season
+  const renderMethodInsideBadge = (badgeSeason?: SeasonName) => {
+    const methodsForBadge = badgeSeason ? getMethodsForSeason(badgeSeason) : allMethods;
+    const applicableForBadge = methodsForBadge.filter(m => !m.isIncompatible && m.overallViability !== 'N/A');
+    const activeInfoForBadge = methodsForBadge.find(m => m.method === activeMethod) || applicableForBadge[0];
+    const otherApplicableForBadge = applicableForBadge.filter(m => m.method !== activeMethod);
+    const isNA = activeInfoForBadge?.overallViability === 'N/A' || activeInfoForBadge?.isIncompatible;
+
+    if (isNA) {
       return (
         <span className="inline-flex items-center gap-1 pl-1 ml-0.5 border-l border-current/30 font-normal text-[10px]">
-          <span className="line-through opacity-70">{activeMethodInfo?.icon || '🌱'}</span>
-          {applicableMethods.length > 0 && (
-            <span className="font-semibold text-primary ml-0.5 flex items-center gap-0.5" title={`Incompatible! Applicable methods: ${applicableMethods.map(m => m.label).join(', ')}`}>
+          <span className="line-through opacity-70">{activeInfoForBadge?.icon || '🌱'}</span>
+          {applicableForBadge.length > 0 && (
+            <span className="font-semibold text-primary ml-0.5 flex items-center gap-0.5" title={`${badgeSeason ? `${badgeSeason}: ` : ''}Incompatible! Applicable methods: ${applicableForBadge.map(m => m.label).join(', ')}`}>
               <span>(Use:</span>
-              <span className="tracking-tight">{applicableMethods.map(m => m.icon).join(' ')}</span>
+              <span className="tracking-tight">{applicableForBadge.map(m => m.icon).join(' ')}</span>
               <span>)</span>
             </span>
           )}
@@ -202,17 +231,17 @@ export function ViabilityIndicator({
       );
     }
 
-    if (!activeMethodInfo && applicableMethods.length === 0) return null;
-    const currentInfo = activeMethodInfo || applicableMethods[0];
+    if (!activeInfoForBadge && applicableForBadge.length === 0) return null;
+    const currentInfo = activeInfoForBadge || applicableForBadge[0];
     const icon = currentInfo.icon;
     const label = currentInfo.shortLabel;
 
     // Rule: If only 1 method is applicable (e.g. Carrot has only Seed), show icon + shortLabel
-    if (applicableMethods.length <= 1) {
+    if (applicableForBadge.length <= 1) {
       return (
         <span 
           className="inline-flex items-center gap-1 pl-1 ml-0.5 border-l border-current/30 font-normal text-[10px]"
-          title={`Only 1 applicable propagation method: ${label} (${currentInfo.overallViability})`}
+          title={`${badgeSeason ? `${badgeSeason}: ` : ''}Only 1 applicable propagation method: ${label} (${currentInfo.overallViability})`}
         >
           <span>{icon}</span>
           <span>{label}</span>
@@ -225,13 +254,13 @@ export function ViabilityIndicator({
     return (
       <span 
         className="inline-flex items-center gap-1 pl-1 ml-0.5 border-l border-current/30 font-normal text-[11px]"
-        title={`Applicable methods: ${applicableMethods.map(m => `${m.label} (${m.overallViability}${m.method === activeMethod ? ' - Active' : ''})`).join(', ')} - Click to view details and switch`}
+        title={`${badgeSeason ? `${badgeSeason} ` : ''}Applicable methods: ${applicableForBadge.map(m => `${m.label} (${m.overallViability}${m.method === activeMethod ? ' - Active' : ''})`).join(', ')} - Click to view ${badgeSeason || ''} details`}
       >
         <span className="font-bold underline decoration-current/40 decoration-1 underline-offset-2" title={`Active: ${label} (${currentInfo.overallViability})`}>
           {icon}
         </span>
         <span className="opacity-80 flex items-center gap-0.5 tracking-tight">
-          {otherApplicableMethods.map(m => (
+          {otherApplicableForBadge.map(m => (
             <span key={m.method} title={`${m.label} (${m.overallViability})`}>
               {m.icon}
             </span>
@@ -242,10 +271,11 @@ export function ViabilityIndicator({
   };
 
   // Render related botanical methods breakdown inside popover with 1-click switching
-  const renderMethodsSection = () => {
-    if (allMethods.length === 0 && !activeMethodInfo) return null;
-    const compatibleList = allMethods.filter(m => !m.isIncompatible && m.overallViability !== 'N/A');
-    const incompatibleList = allMethods.filter(m => m.isIncompatible || m.overallViability === 'N/A');
+  const renderMethodsSection = (methodsOverride?: PropagationMethodInfo[], seasonContext?: SeasonName) => {
+    const list = methodsOverride || allMethods;
+    if (list.length === 0 && !activeMethodInfo) return null;
+    const compatibleList = list.filter(m => !m.isIncompatible && m.overallViability !== 'N/A');
+    const incompatibleList = list.filter(m => m.isIncompatible || m.overallViability === 'N/A');
     const activeIncompatible = incompatibleList.find(m => m.method === activeMethod);
     const passiveIncompatible = incompatibleList.filter(m => m.method !== activeMethod);
 
@@ -283,7 +313,7 @@ export function ViabilityIndicator({
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
               <span>🌿</span>
-              <span>Botanical Methods ({compatibleList.length})</span>
+              <span>{seasonContext ? `${seasonContext} Botanical Methods` : 'Botanical Methods'} ({compatibleList.length})</span>
             </span>
             {onSelectPropagationMethod && (
               <span className="text-[10px] text-primary font-medium">1-click switch</span>
@@ -399,49 +429,66 @@ export function ViabilityIndicator({
 
   // 1. WISHLIST VIEW: List of viabilities per season (> Low)
   if (resolvedWish || (wishSeasons && wishSeasons.length > 0)) {
-    const seasons = wishSeasons || [];
+    const seasons = (wishSeasons || []).filter(s => s.viability !== 'N/A');
     const overallViab = resolvedWish?.overallViability || (seasons.some(s => s.viability === 'High') ? 'High' : seasons.some(s => s.viability === 'Medium') ? 'Medium' : 'Low');
     const primaryBorderClass = viabilityConfig[overallViab]?.borderClass || 'border-border';
 
+    // The season currently focused in the popup (clicking a season badge focuses on that season only)
+    const activeViewingSeason: SeasonName = selectedSeason 
+      || (currentSeason && seasons.some(s => s.season.toLowerCase() === currentSeason.toLowerCase()) ? (currentSeason as SeasonName) : null)
+      || (resolvedWish?.bestSeason && seasons.some(s => s.season.toLowerCase() === resolvedWish.bestSeason!.toLowerCase()) ? resolvedWish.bestSeason : null)
+      || seasons[0]?.season 
+      || 'Spring';
+
+    const viewingMethods = getMethodsForSeason(activeViewingSeason);
+    const seasonData = seasons.find(s => s.season.toLowerCase() === activeViewingSeason.toLowerCase()) 
+      || (plant ? getSeasonalViabilityForSeason(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
+
     return (
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <Popover 
+        open={isOpen} 
+        onOpenChange={(open) => {
+          setIsOpen(open);
+          if (!open) setSelectedSeason(null);
+        }}
+      >
         <PopoverTrigger asChild>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsOpen(prev => !prev);
-            }}
-            onMouseEnter={() => setIsOpen(true)}
-            onMouseLeave={() => setIsOpen(false)}
-            className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap"
-            title="Click or hover to view seasonal viability breakdown and related propagation methods"
+          <div
+            className="focus:outline-none rounded flex items-center gap-1.5 flex-wrap cursor-pointer"
+            title="Click a season badge to view that season's viability methods and feasibility"
           >
             {seasons.map((sv) => {
               const cfg = viabilityConfig[sv.viability] || viabilityConfig.Medium;
               const isCurrentSeason = currentSeason && sv.season.toLowerCase() === currentSeason.toLowerCase();
+              const isSelected = selectedSeason === sv.season;
               return (
                 <Badge
                   key={sv.season}
                   variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedSeason(sv.season);
+                    setIsOpen(true);
+                  }}
                   className={cn(
-                    "text-[11px] font-medium cursor-pointer transition-colors flex items-center gap-1 select-none py-0.5",
+                    "text-[11px] font-medium cursor-pointer transition-all flex items-center gap-1 select-none py-0.5 hover:shadow-xs",
                     cfg.className,
-                    isCurrentSeason && "ring-1 ring-primary/80 font-semibold"
+                    isCurrentSeason && "ring-1 ring-primary/80 font-semibold",
+                    isSelected && isOpen && "ring-2 ring-primary shadow-xs"
                   )}
                 >
                   <span>{seasonIcons[sv.season] || '🌿'}</span>
                   <span>{sv.season}: {sv.viability}</span>
                   {isCurrentSeason && <span className="text-[10px] opacity-90 font-mono">• Now</span>}
-                  {renderMethodInsideBadge()}
+                  {renderMethodInsideBadge(sv.season)}
                 </Badge>
               );
             })}
-            <Info className="h-3 w-3 opacity-60 ml-0.5" />
-          </button>
+            <Info className="h-3 w-3 opacity-60 ml-0.5" onClick={() => setIsOpen(prev => !prev)} />
+          </div>
         </PopoverTrigger>
         <PopoverContent 
-          className={cn("w-80 sm:w-96 p-4 text-sm z-50 shadow-xl space-y-3 bg-popover text-popover-foreground", primaryBorderClass)}
+          className={cn("w-80 sm:w-96 p-4 text-sm z-50 shadow-xl space-y-3 bg-popover text-popover-foreground max-h-[85vh] overflow-y-auto", primaryBorderClass)}
           side="top"
           align="start"
           onClick={(e) => e.stopPropagation()}
@@ -451,12 +498,34 @@ export function ViabilityIndicator({
           <div className="flex items-center justify-between border-b border-border/60 pb-2">
             <div className="flex items-center gap-1.5 font-semibold text-xs">
               <Calendar className="h-3.5 w-3.5 text-primary" />
-              <span>Wishlist Seasonal Planning</span>
+              <span>Wishlist • {activeViewingSeason}</span>
             </div>
-            {currentSeason && (
-              <Badge variant="outline" className="text-[10px] font-mono">
-                Current: {currentSeason}
-              </Badge>
+            {seasons.length > 1 && (
+              <div className="flex items-center gap-1">
+                {seasons.map((s) => {
+                  const isSelected = s.season.toLowerCase() === activeViewingSeason.toLowerCase();
+                  return (
+                    <button
+                      key={s.season}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedSeason(s.season);
+                      }}
+                      className={cn(
+                        "text-[10px] px-1.5 py-0.5 rounded font-medium transition-all flex items-center gap-0.5",
+                        isSelected 
+                          ? "bg-primary text-primary-foreground font-semibold shadow-xs" 
+                          : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                      title={`View ${s.season} (${s.viability})`}
+                    >
+                      <span>{seasonIcons[s.season]}</span>
+                      <span>{s.season}</span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
 
@@ -466,56 +535,40 @@ export function ViabilityIndicator({
             </p>
           )}
 
-          {/* Methods screen expanded directly from clicking viability */}
-          {renderMethodsSection()}
+          {/* Methods evaluated for THIS season only */}
+          {renderMethodsSection(viewingMethods, activeViewingSeason)}
 
-          {seasons.filter(s => s.viability !== 'N/A').length > 0 && (
-            <div className="space-y-2 border-t border-border/60 pt-2.5">
+          {/* THAT season's feasibility only */}
+          {seasonData && (
+            <div className="space-y-1.5 border-t border-border/60 pt-2.5">
               <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-                <span>Seasonal Feasibility</span>
-                <span className="text-[10px] lowercase text-primary font-normal">All viable windows listed</span>
+                <span>{activeViewingSeason} Feasibility</span>
+                <Badge variant="outline" className={cn("text-[10px] font-mono", viabilityConfig[seasonData.viability]?.className)}>
+                  {seasonData.viability} Viability
+                </Badge>
               </div>
-              <div className="space-y-1.5">
-                {seasons.filter(s => s.viability !== 'N/A').map((s) => {
-                  const sCfg = viabilityConfig[s.viability];
-                  const isCurrent = currentSeason && s.season.toLowerCase() === currentSeason.toLowerCase();
-                  return (
-                    <div 
-                      key={s.season} 
-                      className={cn(
-                        "p-2 rounded-md border text-xs flex flex-col gap-1",
-                        isCurrent ? "border-primary/50 bg-primary/5" : "border-border/50 bg-muted/20"
-                      )}
-                    >
-                      <div className="flex items-center justify-between font-medium">
-                        <span className="flex items-center gap-1.5">
-                          <span>{seasonIcons[s.season] || '🌿'}</span>
-                          <span className="font-semibold">{s.season}</span>
-                          {isCurrent && (
-                            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-primary/20 text-primary">
-                              Active Season
-                            </Badge>
-                          )}
-                        </span>
-                        <Badge variant="outline" className={cn("text-[10px] py-0 h-4 font-mono", sCfg?.className)}>
-                          {s.viability}
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground leading-snug">
-                        {s.reasoning}
-                      </p>
-                    </div>
-                  );
-                })}
+              <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 text-xs space-y-1">
+                <p className="text-[11px] text-foreground/90 leading-snug">
+                  {seasonData.reasoning}
+                </p>
+                {seasonData.prepViability && seasonData.growViability && seasonData.harvestViability && (
+                  <div className="text-[9px] text-muted-foreground font-mono flex items-center gap-1 pt-1 border-t border-border/40">
+                    <span>Prep {seasonData.prepViability}</span>
+                    <span>➔</span>
+                    <span>Grow {seasonData.growViability}</span>
+                    <span>➔</span>
+                    <span>Harv {seasonData.harvestViability}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {resolvedWish?.bestSeason && (
-            <div className="p-2 rounded-lg border border-primary/30 bg-primary/5 text-xs flex items-center gap-2">
+          {resolvedWish?.bestSeason && resolvedWish.bestSeason.toLowerCase() !== activeViewingSeason.toLowerCase() && (
+            <div className="p-2 rounded-lg border border-primary/20 bg-muted/20 text-xs flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary shrink-0" />
-              <p className="text-[11px] text-foreground/90">
-                Recommended target: <span className="font-semibold text-primary">{resolvedWish.bestSeason}</span> for optimal yield and vigor.
+              <p className="text-[11px] text-muted-foreground">
+                Optimal target across all seasons: <span className="font-semibold text-foreground">{resolvedWish.bestSeason}</span>
               </p>
             </div>
           )}
