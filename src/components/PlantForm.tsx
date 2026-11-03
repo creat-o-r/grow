@@ -665,14 +665,23 @@ export function PlantForm({
                         <Badge 
                           variant="outline" 
                           className={cn(
-                            "text-[10px] font-mono px-1.5 py-0",
+                            "text-[10px] font-mono px-1.5 py-0 flex items-center gap-1.5",
                             currentMethodInfo.overallViability === 'High' ? "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300" :
                             currentMethodInfo.overallViability === 'Medium' ? "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300" :
                             currentMethodInfo.overallViability === 'N/A' ? "bg-muted text-muted-foreground border-border" :
                             "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/40 dark:text-red-300"
                           )}
                         >
-                          {currentMethodInfo.overallViability === 'N/A' ? 'No Use / N/A' : `${currentMethodInfo.overallViability} Viability`}
+                          <span>{currentMethodInfo.overallViability === 'N/A' ? 'No Use / N/A' : `${currentMethodInfo.overallViability} Viability`}</span>
+                          {methodViabilities.filter(m => !m.isIncompatible && m.overallViability !== 'N/A' && m.method !== currentMethodInfo.method).length > 0 && (
+                            <span 
+                              className="inline-flex items-center gap-0.5 pl-1 border-l border-current/30 text-[9px] font-bold"
+                              title={`Applicable methods: ${methodViabilities.filter(m => !m.isIncompatible && m.overallViability !== 'N/A').map(m => `${m.label} (${m.overallViability})`).join(', ')}`}
+                            >
+                              <span>+{methodViabilities.filter(m => !m.isIncompatible && m.overallViability !== 'N/A' && m.method !== currentMethodInfo.method).length}</span>
+                              <span className="tracking-tighter opacity-80">{methodViabilities.filter(m => !m.isIncompatible && m.overallViability !== 'N/A' && m.method !== currentMethodInfo.method).slice(0, 3).map(m => m.icon).join('')}</span>
+                            </span>
+                          )}
                         </Badge>
                       )}
                     </div>

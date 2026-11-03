@@ -183,49 +183,44 @@ export function ViabilityIndicator({
     ? propOtherMethodsCount
     : otherApplicableMethods.length;
 
-  // Render botanical method pill directly inside/beside the viability badge
-  const renderMethodPill = (inSameBadge: boolean = true) => {
-    if (!activeMethodInfo && !activeMethod) return null;
-    const icon = activeMethodInfo?.icon || (activeMethod === 'transplant' ? '🪴' : '🌱');
-    const label = activeMethodInfo?.shortLabel || activeMethod.replace('-', ' ');
-    const isCurrentIncompatible = activeMethodInfo?.overallViability === 'N/A' || activeMethodInfo?.isIncompatible;
+  const isPrepNA = activeMethodInfo?.overallViability === 'N/A' || activeMethodInfo?.isIncompatible;
 
-    if (inSameBadge) {
+  // Render applicable botanical methods directly INSIDE the viability badge
+  const renderMethodInsideBadge = () => {
+    if (isPrepNA) {
       return (
-        <span className="inline-flex items-center gap-1 font-medium ml-0.5">
-          <span className="opacity-30">•</span>
-          <span>{icon}</span>
-          <span className={cn("capitalize", isCurrentIncompatible && "line-through opacity-75")}>{label}</span>
-          {otherApplicableCount > 0 && (
-            <span 
-              className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px] font-bold bg-background/85 text-foreground border border-border/70 shadow-xs" 
-              title={`Applicable methods: ${applicableMethods.map(m => `${m.label} (${m.overallViability})`).join(', ')}`}
-            >
-              <span>+{otherApplicableCount}</span>
-              <span className="opacity-80 tracking-tighter">
-                {otherApplicableMethods.slice(0, 3).map(m => m.icon).join('')}
-              </span>
+        <span className="inline-flex items-center gap-1 pl-1 ml-0.5 border-l border-current/30 font-normal text-[10px]">
+          <span className="line-through opacity-70">{activeMethodInfo?.icon || '🌱'} {activeMethodInfo?.shortLabel || activeMethod}</span>
+          {applicableMethods.length > 0 && (
+            <span className="font-semibold text-primary ml-0.5">
+              (Use: {applicableMethods.slice(0, 2).map(m => `${m.icon} ${m.shortLabel}`).join(', ')})
             </span>
           )}
         </span>
       );
     }
 
+    if (!activeMethodInfo && applicableMethods.length === 0) return null;
+    const currentInfo = activeMethodInfo || applicableMethods[0];
+    const icon = currentInfo.icon;
+    const label = currentInfo.shortLabel;
+
     return (
-      <Badge
-        variant="outline"
-        className="text-[11px] font-medium cursor-pointer transition-colors flex items-center gap-1.5 select-none py-0.5 bg-background/80 border-border hover:bg-muted"
-        title={`Applicable methods for ${plantName || 'this plant'}: ${applicableMethods.map(m => `${m.label} (${m.overallViability})`).join(', ')}`}
+      <span 
+        className="inline-flex items-center gap-1 pl-1 ml-0.5 border-l border-current/30 font-normal text-[10px]"
+        title={`Applicable methods: ${applicableMethods.map(m => `${m.label} (${m.overallViability})`).join(', ')}`}
       >
         <span>{icon}</span>
-        <span className={cn("capitalize", isCurrentIncompatible && "line-through opacity-75")}>{label}</span>
+        <span>{label}</span>
         {otherApplicableCount > 0 && (
-          <span className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px] font-bold bg-primary/15 text-primary border border-primary/30">
+          <span className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px] font-bold bg-background/85 text-foreground border border-current/30 shadow-xs">
             <span>+{otherApplicableCount}</span>
-            <span className="tracking-tighter">{otherApplicableMethods.slice(0, 3).map(m => m.icon).join('')}</span>
+            <span className="opacity-80 tracking-tighter">
+              {otherApplicableMethods.slice(0, 3).map(m => m.icon).join('')}
+            </span>
           </span>
         )}
-      </Badge>
+      </span>
     );
   };
 
@@ -379,10 +374,10 @@ export function ViabilityIndicator({
                   <span>{seasonIcons[sv.season] || '🌿'}</span>
                   <span>{sv.season}: {sv.viability}</span>
                   {isCurrentSeason && <span className="text-[10px] opacity-90 font-mono">• Now</span>}
+                  {renderMethodInsideBadge()}
                 </Badge>
               );
             })}
-            {renderMethodPill(false)}
             <Info className="h-3 w-3 opacity-60 ml-0.5" />
           </button>
         </PopoverTrigger>
@@ -502,7 +497,7 @@ export function ViabilityIndicator({
                   <span>Harv: {resolvedPrep.harvestViability}</span>
                 </>
               )}
-              {renderMethodPill(true)}
+              {renderMethodInsideBadge()}
               <Info className="h-3 w-3 opacity-60 ml-0.5" />
             </Badge>
           </button>
@@ -639,7 +634,7 @@ export function ViabilityIndicator({
                   {resolvedGrow.stressFactor}
                 </span>
               )}
-              {renderMethodPill(true)}
+              {renderMethodInsideBadge()}
               <Info className="h-3 w-3 opacity-60 ml-0.5" />
             </Badge>
           </button>
@@ -729,7 +724,7 @@ export function ViabilityIndicator({
               <CheckCircle2 className="h-3 w-3" />
               <span>Harv: {resolvedHarvest.ripenessViability}</span>
               <span className="text-[10px] font-mono opacity-85 ml-0.5">• {resolvedHarvest.harvestWindow}</span>
-              {renderMethodPill(true)}
+              {renderMethodInsideBadge()}
               <Info className="h-3 w-3 opacity-60 ml-0.5" />
             </Badge>
           </button>
@@ -813,7 +808,7 @@ export function ViabilityIndicator({
             className={cn("font-normal cursor-pointer transition-colors flex items-center gap-1 select-none", config.className)}
           >
             <span>{config.text}</span>
-            {renderMethodPill(true)}
+            {renderMethodInsideBadge()}
             <Info className="h-3 w-3 opacity-60 ml-0.5" />
           </Badge>
 
