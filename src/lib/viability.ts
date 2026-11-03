@@ -15,6 +15,7 @@ import type {
   GrowAssessment,
   HarvestAssessment,
   PropagationMethod,
+  PropagationMethodInfo,
 } from '@/lib/types';
 
 export type Viability = ViabilityLevel;
@@ -23,6 +24,7 @@ export type {
   SeasonName,
   ViabilityLevel,
   PropagationMethod,
+  PropagationMethodInfo,
   SeasonalViability, 
   WishViabilityData, 
   PrepViabilityData, 
@@ -161,168 +163,6 @@ export const getSuitableSeasons = (plant: Plant): SeasonName[] => {
     if (text.includes('autumn') || text.includes('fall')) seasons.push('Autumn');
     if (text.includes('winter')) seasons.push('Winter');
     return seasons;
-};
-
-/**
- * Evaluates seasonal viability for an individual season based on plant biology and climate.
- */
-export const getSeasonalViabilityForSeason = (
-    plant: Plant,
-    season: SeasonName,
-    conditions?: Conditions
-): SeasonalViability => {
-    const text = `${plant.optimalConditions} ${plant.germinationNeeds} ${plant.species}`.toLowerCase();
-    const suitable = getSuitableSeasons(plant);
-    const isDirectlySuitable = suitable.includes(season);
-
-    const isYearRound = text.includes('year-round') || text.includes('all seasons') || text.includes('any season') || text.includes('perennial');
-    const needsCool = text.includes('cool') || text.includes('cold') || text.includes('frost') || text.includes('cool-weather') || text.includes('bolt in heat');
-    const needsWarm = text.includes('warm') || text.includes('heat') || text.includes('hot') || text.includes('after frost') || text.includes('no frost') || text.includes('frost sensitive');
-    const isTolerant = text.includes('tolerant') || text.includes('adaptable') || text.includes('hardy');
-
-    let baseScore = 2; // Medium default
-    let reason = '';
-
-    switch (season) {
-        case 'Spring': {
-            if (isDirectlySuitable || text.includes('spring')) {
-                baseScore = 5;
-                reason = 'Optimal spring sowing window with warming soil and increasing day length.';
-            } else if (needsCool) {
-                baseScore = 5;
-                reason = 'Excellent spring conditions for cool-season vegetative growth before summer heat.';
-            } else if (needsWarm) {
-                baseScore = 4;
-                reason = 'Viable in mid-to-late spring once soil temperatures warm and frost risk subsides.';
-            } else if (isYearRound || isTolerant) {
-                baseScore = 5;
-                reason = 'Naturally thrives in spring awakening conditions.';
-            } else {
-                baseScore = 3;
-                reason = 'Moderate spring viability; monitor soil moisture and temperatures.';
-            }
-            break;
-        }
-        case 'Summer': {
-            if (needsCool || text.includes('bolts in heat') || text.includes('bolt')) {
-                baseScore = 2;
-                reason = 'Summer heat brings risk of bolting, bitter leaves, or heat stress; requires shade cloth or heavy mulching.';
-            } else if (needsWarm || text.includes('summer') || isDirectlySuitable) {
-                baseScore = 5;
-                reason = 'Prime summer growth and fruit ripening supported by maximum heat and long daylight hours.';
-            } else if (isYearRound) {
-                baseScore = 4;
-                reason = 'Productive in summer with adequate consistent irrigation.';
-            } else {
-                baseScore = 3;
-                reason = 'Moderate summer viability; maintain consistent soil moisture.';
-            }
-            break;
-        }
-        case 'Autumn': {
-            if (isDirectlySuitable || text.includes('autumn') || text.includes('fall')) {
-                baseScore = 5;
-                reason = 'Prime autumn season with cooling temperatures, steady rainfall, and reduced pest pressure.';
-            } else if (needsCool) {
-                baseScore = 5;
-                reason = 'Sweetens and thrives under cool autumn nights and moderate daytime temperatures.';
-            } else if (needsWarm) {
-                baseScore = 2;
-                reason = 'Declining daylight and approaching frost limit autumn production for tender warm crops.';
-            } else if (isYearRound || isTolerant) {
-                baseScore = 4;
-                reason = 'Strong autumn performer through late harvests.';
-            } else {
-                baseScore = 3;
-                reason = 'Moderate autumn viability; harvest before heavy freezing.';
-            }
-            break;
-        }
-        case 'Winter': {
-            if (text.includes('winter') || isDirectlySuitable) {
-                baseScore = 4;
-                reason = 'Cold-hardy selection suited for winter overwintering or harvesting.';
-            } else if (needsWarm) {
-                baseScore = 1;
-                reason = 'Sub-optimal for winter unless grown in a heated greenhouse or protected cold frame.';
-            } else if (needsCool && (isTolerant || text.includes('hardy'))) {
-                baseScore = 3;
-                reason = 'Hardy enough to overwinter in mild winter climates with row covers or mulch.';
-            } else {
-                baseScore = 1;
-                reason = 'Dormant or low viability during cold winter weather and minimal daylight hours.';
-            }
-            break;
-        }
-    }
-
-    const viability: ViabilityLevel = baseScore >= 4 ? 'High' : baseScore >= 3 ? 'Medium' : 'Low';
-    return {
-        season,
-        viability,
-        score: baseScore,
-        reasoning: reason,
-    };
-};
-
-/**
- * 1. WISH STAGE: Returns seasonal viabilities for Wishlist planning across the year.
- * User rule: list all seasons where viability is > Low (High or Medium).
- * If multiple seasons qualify, list all qualifying seasons.
- */
-export const getWishSeasonalViabilities = (
-    plant: Plant,
-    conditions?: Conditions
-): SeasonalViability[] => {
-    const allSeasons: SeasonName[] = ['Spring', 'Summer', 'Autumn', 'Winter'];
-    const evaluated = allSeasons.map(season => getSeasonalViabilityForSeason(plant, season, conditions));
-    
-    // User rule: list more than one season if viabilities are more than low
-    const higherThanLow = evaluated.filter(s => s.viability !== 'Low');
-    
-    if (higherThanLow.length > 0) {
-        return higherThanLow;
-    }
-    
-    // Fallback: If all are Low, return the highest scoring season so user knows best timing
-    evaluated.sort((a, b) => (b.score || 0) - (a.score || 0));
-    return [evaluated[0]];
-};
-
-/**
- * Analyzes complete Wishlist stage viability data.
- */
-export const analyzeWishViability = (
-    plant: Plant,
-    conditions?: Conditions
-): WishViabilityData => {
-    const seasons = getWishSeasonalViabilities(plant, conditions);
-    const currentSeason = conditions?.currentSeason;
-    const activeSeasonMatch = currentSeason ? seasons.some(s => s.season === currentSeason && s.viability !== 'Low') : false;
-    
-    let overallViability: ViabilityLevel = 'Low';
-    if (seasons.some(s => s.viability === 'High')) {
-        overallViability = 'High';
-    } else if (seasons.some(s => s.viability === 'Medium')) {
-        overallViability = 'Medium';
-    }
-
-    // Find best season
-    const bestSeason = seasons.slice().sort((a, b) => (b.score || 0) - (a.score || 0))[0]?.season || seasons[0]?.season;
-
-    const seasonNames = seasons.map(s => s.season).join(' & ');
-    const reasoning = seasons.length > 1
-        ? `Viable across multiple seasons: ${seasonNames}. Best targeted for ${bestSeason}.`
-        : `Primary seasonal window: ${bestSeason}. ${seasons[0]?.reasoning || ''}`;
-
-    return {
-        stage: 'Wishlist',
-        overallViability,
-        seasons,
-        activeSeasonMatch,
-        bestSeason,
-        reasoning,
-    };
 };
 
 /**
@@ -496,7 +336,7 @@ export const analyzePrepViability = (
         }
     }
 
-    // Composite overall viability
+    // Composite overall full-cycle viability
     let overallViability: ViabilityLevel = 'Low';
     if (prepViability === 'High' && growViability === 'High' && harvestViability === 'High') {
         overallViability = 'High';
@@ -514,6 +354,7 @@ export const analyzePrepViability = (
 
     return {
         stage: 'Planting',
+        propagationMethod: method || 'seed',
         prepViability,
         growViability,
         harvestViability,
@@ -522,6 +363,165 @@ export const analyzePrepViability = (
         growReasoning,
         harvestReasoning,
         summary,
+    };
+};
+
+export const ALL_PROPAGATION_METHODS: { method: PropagationMethod; label: string; shortLabel: string; icon: string }[] = [
+    { method: 'seed', label: 'Direct / Indoor Seed', shortLabel: 'Seed', icon: '🌱' },
+    { method: 'transplant', label: 'Nursery Transplant / Starts', shortLabel: 'Transplant', icon: '🪴' },
+    { method: 'cutting', label: 'Softwood / Hardwood Cutting', shortLabel: 'Cutting', icon: '✂️' },
+    { method: 'air-layering', label: 'Air Layering / Marcottage', shortLabel: 'Air Layer', icon: '🎈' },
+    { method: 'division', label: 'Crown / Rhizome Division', shortLabel: 'Division', icon: '🌿' },
+    { method: 'runner', label: 'Runner / Stolon', shortLabel: 'Runner', icon: '🍓' },
+    { method: 'bulb-clove', label: 'Bulb / Clove / Tuber', shortLabel: 'Bulb/Clove', icon: '🧄' },
+];
+
+/**
+ * Evaluates all botanical propagation methods for a plant under current garden conditions.
+ * Compares prep germination/strike, projected growth, and overall viability to identify recommended methods.
+ */
+export const getAllPropagationMethodViabilities = (
+    plant: Plant,
+    conditions?: Conditions,
+    options?: { growingSystems?: string; growingMethods?: string }
+): PropagationMethodInfo[] => {
+    const list: PropagationMethodInfo[] = ALL_PROPAGATION_METHODS.map(({ method, label, shortLabel, icon }) => {
+        const prepData = analyzePrepViability(plant, conditions, {
+            ...options,
+            propagationMethod: method,
+        });
+        return {
+            method,
+            label,
+            shortLabel,
+            icon,
+            prepViability: prepData.prepViability,
+            growViability: prepData.growViability,
+            harvestViability: prepData.harvestViability,
+            overallViability: prepData.overallViability,
+            prepReasoning: prepData.prepReasoning || '',
+            isRecommended: false,
+        };
+    });
+
+    const scoreMap: Record<ViabilityLevel, number> = { High: 3, Medium: 2, Low: 1 };
+    let bestScore = -1;
+    list.forEach(item => {
+        const score = scoreMap[item.overallViability] * 10 + scoreMap[item.prepViability];
+        if (score > bestScore) {
+            bestScore = score;
+        }
+    });
+
+    list.forEach(item => {
+        const score = scoreMap[item.overallViability] * 10 + scoreMap[item.prepViability];
+        if (score === bestScore && item.overallViability !== 'Low') {
+            item.isRecommended = true;
+        }
+    });
+
+    return list;
+};
+
+/**
+ * Evaluates seasonal viability for an individual season taking into account the FULL lifecycle
+ * (prep strike/germination, vegetative vigor, and harvest before seasonal cutoffs).
+ */
+export const getSeasonalViabilityForSeason = (
+    plant: Plant,
+    season: SeasonName,
+    conditions?: Conditions,
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
+): SeasonalViability => {
+    // 1. Evaluate full-cycle forecast for starting in this season
+    const seasonConditions: Conditions = conditions ? {
+        ...conditions,
+        currentSeason: season,
+    } : {
+        temperature: '20°C',
+        sunlight: 'Full Sun',
+        soil: 'Loam',
+        currentSeason: season,
+    };
+    const fullCycleForecast = analyzePrepViability(plant, seasonConditions, options);
+
+    const fullCycleViab = fullCycleForecast.overallViability;
+    const score = fullCycleViab === 'High' ? 5 : fullCycleViab === 'Medium' ? 3 : 1;
+
+    const reasoning = `${season}: ${fullCycleViab} Viability. Full cycle: Prep ${fullCycleForecast.prepViability} ➔ Grow ${fullCycleForecast.growViability} ➔ Harv ${fullCycleForecast.harvestViability}. ${fullCycleForecast.summary}`;
+
+    return {
+        season,
+        viability: fullCycleViab,
+        score,
+        reasoning,
+        prepViability: fullCycleForecast.prepViability,
+        growViability: fullCycleForecast.growViability,
+        harvestViability: fullCycleForecast.harvestViability,
+        fullCycleSummary: fullCycleForecast.summary,
+    };
+};
+
+/**
+ * 1. WISH STAGE: Returns seasonal viabilities for Wishlist planning across the year.
+ * User rule: list all seasons where viability is > Low (High or Medium).
+ * If multiple seasons qualify, list all qualifying seasons.
+ * Fully accounts for the complete lifecycle (Prep ➔ Grow ➔ Harvest).
+ */
+export const getWishSeasonalViabilities = (
+    plant: Plant,
+    conditions?: Conditions,
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
+): SeasonalViability[] => {
+    const allSeasons: SeasonName[] = ['Spring', 'Summer', 'Autumn', 'Winter'];
+    const evaluated = allSeasons.map(season => getSeasonalViabilityForSeason(plant, season, conditions, options));
+    
+    // User rule: list more than one season if viabilities are more than low
+    const higherThanLow = evaluated.filter(s => s.viability !== 'Low');
+    
+    if (higherThanLow.length > 0) {
+        return higherThanLow;
+    }
+    
+    // Fallback: If all are Low, return the highest scoring season so user knows best timing
+    evaluated.sort((a, b) => (b.score || 0) - (a.score || 0));
+    return [evaluated[0]];
+};
+
+/**
+ * Analyzes complete Wishlist stage viability data based on full-cycle seasonal forecasts.
+ */
+export const analyzeWishViability = (
+    plant: Plant,
+    conditions?: Conditions,
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
+): WishViabilityData => {
+    const seasons = getWishSeasonalViabilities(plant, conditions, options);
+    const currentSeason = conditions?.currentSeason;
+    const activeSeasonMatch = currentSeason ? seasons.some(s => s.season === currentSeason && s.viability !== 'Low') : false;
+    
+    let overallViability: ViabilityLevel = 'Low';
+    if (seasons.some(s => s.viability === 'High')) {
+        overallViability = 'High';
+    } else if (seasons.some(s => s.viability === 'Medium')) {
+        overallViability = 'Medium';
+    }
+
+    // Find best season
+    const bestSeason = seasons.slice().sort((a, b) => (b.score || 0) - (a.score || 0))[0]?.season || seasons[0]?.season;
+
+    const seasonNames = seasons.map(s => s.season).join(' & ');
+    const reasoning = seasons.length > 1
+        ? `Full-cycle viable across multiple seasons: ${seasonNames}. Best targeted for ${bestSeason}.`
+        : `Primary full-cycle seasonal window: ${bestSeason}. ${seasons[0]?.reasoning || ''}`;
+
+    return {
+        stage: 'Wishlist',
+        overallViability,
+        seasons,
+        activeSeasonMatch,
+        bestSeason,
+        reasoning,
     };
 };
 

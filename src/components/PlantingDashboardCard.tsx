@@ -1,9 +1,9 @@
 
 
 'use client';
-import { useState, useEffect } from 'react';
-import type { PlantingWithPlant, StatusHistory } from '@/lib/types';
-import { evaluatePlantingViability, Viability } from '@/lib/viability';
+import { useState, useEffect, useMemo } from 'react';
+import type { PlantingWithPlant, StatusHistory, PropagationMethod } from '@/lib/types';
+import { evaluatePlantingViability, Viability, getAllPropagationMethodViabilities, ALL_PROPAGATION_METHODS, type PropagationMethodInfo } from '@/lib/viability';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { db } from '@/lib/db';
 import { ExternalLink, CheckCircle } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ViabilityIndicator } from './ViabilityIndicator';
@@ -62,6 +63,51 @@ export function PlantingDashboardCard({
         Planting: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-800',
         Growing: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-800',
         Harvest: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-800',
+    };
+
+    const activePropagationMethod: PropagationMethod = planting.propagationMethod || 'seed';
+
+    const methodViabilities = useMemo(() => {
+        const conds = planting.garden?.conditions || {
+            temperature: '20°C',
+            sunlight: 'Full Sun',
+            soil: 'Loam',
+            currentSeason: (currentSeason as any) || 'Spring',
+        };
+        return getAllPropagationMethodViabilities(planting.plant, conds, {
+            growingSystems: planting.garden?.growingSystems,
+            growingMethods: planting.garden?.growingMethods,
+        });
+    }, [planting.plant, planting.garden, currentSeason]);
+
+    const activeMethodInfo = methodViabilities.find(m => m.method === activePropagationMethod);
+
+    const handlePropagationMethodChange = async (newMethod: PropagationMethod) => {
+        try {
+            await db.plantings.update(planting.id, { propagationMethod: newMethod });
+            toast({
+                title: 'Propagation Method Updated',
+                description: `${planting.name} switched to ${newMethod.replace('-', ' ')}. Viability updated.`,
+            });
+        } catch (error) {
+            toast({
+                title: 'Update Failed',
+                description: 'Could not update propagation method.',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const getInventoryLabel = (method: PropagationMethod) => {
+        switch (method) {
+            case 'transplant': return 'Starts / Transplants on Hand';
+            case 'cutting': return 'Cuttings on Hand';
+            case 'air-layering': return 'Air Layers Prepped';
+            case 'division': return 'Divisions on Hand';
+            case 'runner': return 'Runners on Hand';
+            case 'bulb-clove': return 'Bulbs / Cloves on Hand';
+            default: return 'Seeds on Hand';
+        }
     };
 
     const handleUndo = async () => {
@@ -193,12 +239,68 @@ export function PlantingDashboardCard({
                         </Badge>
                     )}
                 </div>
+
+                {/* Botanical Propagation Method Selector with Real-Time Viabilities */}
+                <div className="space-y-1.5 pt-2 border-t border-border/40">
+                    <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-foreground/80 flex items-center gap-1">
+                            <span>🌿</span>
+                            <span>Prep Method</span>
+                        </span>
+                        {activeMethodInfo && (
+                            <Badge 
+                                variant="outline" 
+                                className={cn(
+                                    "text-[10px] font-mono px-1.5 py-0",
+                                    activeMethodInfo.overallViability === 'High' ? "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300" :
+                                    activeMethodInfo.overallViability === 'Medium' ? "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300" :
+                                    "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/40 dark:text-red-300"
+                                )}
+                            >
+                                {activeMethodInfo.overallViability} Viability
+                            </Badge>
+                        )}
+                    </div>
+                    <Select onValueChange={(val) => handlePropagationMethodChange(val as PropagationMethod)} value={activePropagationMethod}>
+                        <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Select prep method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {methodViabilities.map((info) => (
+                                <SelectItem key={info.method} value={info.method} className="text-xs">
+                                    <div className="flex items-center justify-between gap-2 w-full">
+                                        <span className="flex items-center gap-1.5">
+                                            <span>{info.icon}</span>
+                                            <span>{info.label}</span>
+                                            {info.isRecommended && (
+                                                <span className="text-[10px] text-primary font-bold">★ Rec</span>
+                                            )}
+                                        </span>
+                                        <span className={cn(
+                                            "text-[10px] font-mono px-1 rounded ml-2",
+                                            info.overallViability === 'High' ? "text-green-700 bg-green-100 dark:bg-green-950 dark:text-green-300" :
+                                            info.overallViability === 'Medium' ? "text-yellow-700 bg-yellow-100 dark:bg-yellow-950 dark:text-yellow-300" :
+                                            "text-red-700 bg-red-100 dark:bg-red-950 dark:text-red-300"
+                                        )}>
+                                            {info.overallViability}
+                                        </span>
+                                    </div>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {activeMethodInfo?.prepReasoning && (
+                        <p className="text-[10px] text-muted-foreground leading-tight bg-background/60 p-1.5 rounded border border-border/40">
+                            {activeMethodInfo.prepReasoning}
+                        </p>
+                    )}
+                </div>
             </CardHeader>
             <CardContent className="flex flex-col flex-grow">
                 <div className="space-y-4 flex-grow">
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor={`seeds-on-hand-${planting.id}`}>Seeds on Hand</Label>
+                            <Label htmlFor={`seeds-on-hand-${planting.id}`}>{getInventoryLabel(activePropagationMethod)}</Label>
                             <div className="flex gap-2">
                                 <Input
                                     id={`seeds-on-hand-${planting.id}`}

@@ -10,7 +10,8 @@ import type {
   GrowViabilityData, 
   HarvestViabilityData, 
   StageViability,
-  SeasonName 
+  SeasonName,
+  PropagationMethod 
 } from '@/lib/viability';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
@@ -39,6 +40,7 @@ export type ViabilityIndicatorProps = {
   prepForecast?: PrepViabilityData;
   growAssessment?: GrowViabilityData;
   harvestAssessment?: HarvestViabilityData;
+  propagationMethod?: PropagationMethod;
 };
 
 const viabilityConfig: Record<Viability, { text: string; className: string; borderClass: string; dotClass: string }> = {
@@ -83,6 +85,7 @@ export function ViabilityIndicator({
   prepForecast: propPrepForecast,
   growAssessment: propGrowAssessment,
   harvestAssessment: propHarvestAssessment,
+  propagationMethod: propPropagationMethod,
 }: ViabilityIndicatorProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -93,6 +96,7 @@ export function ViabilityIndicator({
   const resolvedPrep = stageViability?.stage === 'Planting' ? stageViability : propPrepForecast;
   const resolvedGrow = stageViability?.stage === 'Growing' ? stageViability : propGrowAssessment;
   const resolvedHarvest = stageViability?.stage === 'Harvest' ? stageViability : propHarvestAssessment;
+  const activePrepMethod = (resolvedPrep && 'propagationMethod' in resolvedPrep ? resolvedPrep.propagationMethod : undefined) || propPropagationMethod;
 
   // 1. WISHLIST VIEW: List of viabilities per season (> Low)
   if (resolvedWish || (wishSeasons && wishSeasons.length > 0)) {
@@ -160,6 +164,25 @@ export function ViabilityIndicator({
             <p className="font-medium text-xs text-foreground/90">
               {plantName} {gardenName ? <span className="text-muted-foreground font-normal">({gardenName})</span> : ''}
             </p>
+          )}
+
+          {activePrepMethod && (
+            <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-md bg-muted/40 border border-border/50">
+              <span className="text-muted-foreground flex items-center gap-1 font-medium">
+                <span>Botanical Prep Method:</span>
+              </span>
+              <span className="font-semibold text-foreground flex items-center gap-1.5 capitalize">
+                <span>
+                  {activePrepMethod === 'transplant' ? '🪴' :
+                   activePrepMethod === 'cutting' ? '✂️' :
+                   activePrepMethod === 'air-layering' ? '🎈' :
+                   activePrepMethod === 'division' ? '🌿' :
+                   activePrepMethod === 'runner' ? '🌱' :
+                   activePrepMethod === 'bulb-clove' ? '🧄' : '🌱'}
+                </span>
+                <span>{activePrepMethod.replace('-', ' ')}</span>
+              </span>
+            </div>
           )}
 
           <div className="space-y-2">
@@ -269,6 +292,25 @@ export function ViabilityIndicator({
             <p className="font-medium text-xs text-foreground/90">
               {plantName} {gardenName ? <span className="text-muted-foreground font-normal">({gardenName})</span> : ''}
             </p>
+          )}
+
+          {activePrepMethod && (
+            <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-md bg-muted/40 border border-border/50">
+              <span className="text-muted-foreground flex items-center gap-1 font-medium">
+                <span>Botanical Prep Method:</span>
+              </span>
+              <span className="font-semibold text-foreground flex items-center gap-1.5 capitalize">
+                <span>
+                  {activePrepMethod === 'transplant' ? '🪴' :
+                   activePrepMethod === 'cutting' ? '✂️' :
+                   activePrepMethod === 'air-layering' ? '🎈' :
+                   activePrepMethod === 'division' ? '🌿' :
+                   activePrepMethod === 'runner' ? '🌱' :
+                   activePrepMethod === 'bulb-clove' ? '🧄' : '🌱'}
+                </span>
+                <span>{activePrepMethod.replace('-', ' ')}</span>
+              </span>
+            </div>
           )}
 
           <div className="space-y-2">

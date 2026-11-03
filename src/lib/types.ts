@@ -80,6 +80,23 @@ export type SeasonalViability = {
   viability: ViabilityLevel;
   score?: number;
   reasoning: string;
+  prepViability?: ViabilityLevel;
+  growViability?: ViabilityLevel;
+  harvestViability?: ViabilityLevel;
+  fullCycleSummary?: string;
+};
+
+export type PropagationMethodInfo = {
+  method: PropagationMethod;
+  label: string;
+  shortLabel: string;
+  icon: string;
+  prepViability: ViabilityLevel;
+  growViability: ViabilityLevel;
+  harvestViability: ViabilityLevel;
+  overallViability: ViabilityLevel;
+  prepReasoning: string;
+  isRecommended: boolean;
 };
 
 export type WishViabilityData = {
@@ -93,6 +110,7 @@ export type WishViabilityData = {
 
 export type PrepViabilityData = {
   stage?: 'Planting';
+  propagationMethod?: PropagationMethod;
   prepViability: ViabilityLevel;
   growViability: ViabilityLevel;
   harvestViability: ViabilityLevel;

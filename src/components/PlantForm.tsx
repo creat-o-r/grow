@@ -1,11 +1,12 @@
 
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { Plant, Planting, PlantingWithPlant, StatusHistory, FreeLlmConfig, PropagationMethod } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, StatusHistory, FreeLlmConfig, PropagationMethod, Conditions } from '@/lib/types';
+import { getAllPropagationMethodViabilities, ALL_PROPAGATION_METHODS, type PropagationMethodInfo } from '@/lib/viability';
 import { format, parseISO } from 'date-fns';
 import Image from 'next/image';
 
@@ -18,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink, Wand2, Camera, CircleDotDashed, X, Square, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,6 +57,7 @@ type PlantFormValues = z.infer<typeof formSchema>;
 type PlantFormProps = {
   plantingToEdit?: PlantingWithPlant | null;
   defaultStatus?: PlantStatus;
+  conditions?: Conditions;
   onSubmit: (plantingData: any, plantData: any) => void;
   onConfigureApiKey: () => void;
   onSwitchToAiGenerateTab?: () => void;
@@ -67,6 +70,7 @@ type PlantFormProps = {
 export function PlantForm({
   plantingToEdit,
   defaultStatus = 'Wishlist',
+  conditions,
   onSubmit,
   onConfigureApiKey,
   onSwitchToAiGenerateTab,
@@ -113,6 +117,20 @@ export function PlantForm({
   
   const historyValue = form.watch('history');
   const lastStatus = historyValue?.slice(-1)[0]?.status;
+
+  const watchedSpecies = form.watch('species');
+  const watchedGermination = form.watch('germinationNeeds');
+  const watchedConditions = form.watch('optimalConditions');
+
+  const methodViabilities = useMemo(() => {
+    const tempPlant: Plant = {
+      id: plantingToEdit?.plantId || 'preview-plant',
+      species: watchedSpecies || plantingToEdit?.plant?.species || 'Garden Plant',
+      germinationNeeds: watchedGermination || plantingToEdit?.plant?.germinationNeeds || '',
+      optimalConditions: watchedConditions || plantingToEdit?.plant?.optimalConditions || '',
+    };
+    return getAllPropagationMethodViabilities(tempPlant, conditions || plantingToEdit?.garden?.conditions);
+  }, [watchedSpecies, watchedGermination, watchedConditions, conditions, plantingToEdit]);
 
 
   useEffect(() => {
@@ -637,28 +655,66 @@ export function PlantForm({
             <FormField
               control={form.control}
               name="propagationMethod"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Propagation Method</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || 'seed'}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select propagation method" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="seed">🌱 Seed (Direct Sow / Indoors)</SelectItem>
-                      <SelectItem value="transplant">🪴 Nursery Transplant (Starts)</SelectItem>
-                      <SelectItem value="cutting">✂️ Cutting (Softwood / Hardwood)</SelectItem>
-                      <SelectItem value="air-layering">🎈 Air Layering (Marcottage)</SelectItem>
-                      <SelectItem value="division">🌿 Crown / Rhizome Division</SelectItem>
-                      <SelectItem value="runner">🌱 Runner / Stolon</SelectItem>
-                      <SelectItem value="bulb-clove">🧄 Bulb / Clove</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const currentMethodInfo = methodViabilities.find(m => m.method === (field.value || 'seed'));
+                return (
+                  <FormItem className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Botanical Propagation Method</FormLabel>
+                      {currentMethodInfo && (
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            "text-[10px] font-mono px-1.5 py-0",
+                            currentMethodInfo.overallViability === 'High' ? "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300" :
+                            currentMethodInfo.overallViability === 'Medium' ? "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300" :
+                            "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/40 dark:text-red-300"
+                          )}
+                        >
+                          {currentMethodInfo.overallViability} Viability
+                        </Badge>
+                      )}
+                    </div>
+                    <Select onValueChange={field.onChange} value={field.value || 'seed'}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select propagation method" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {methodViabilities.map((info) => (
+                          <SelectItem key={info.method} value={info.method}>
+                            <div className="flex items-center justify-between gap-3 w-full">
+                              <span className="flex items-center gap-1.5">
+                                <span>{info.icon}</span>
+                                <span className="font-medium">{info.label}</span>
+                                {info.isRecommended && (
+                                  <span className="text-[10px] text-primary font-bold">★ Recommended</span>
+                                )}
+                              </span>
+                              <span className={cn(
+                                "text-[10px] font-mono px-1 rounded ml-auto",
+                                info.overallViability === 'High' ? "text-green-700 bg-green-100 dark:bg-green-950 dark:text-green-300" :
+                                info.overallViability === 'Medium' ? "text-yellow-700 bg-yellow-100 dark:bg-yellow-950 dark:text-yellow-300" :
+                                "text-red-700 bg-red-100 dark:bg-red-950 dark:text-red-300"
+                              )}>
+                                {info.overallViability}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {currentMethodInfo && currentMethodInfo.prepReasoning && (
+                      <p className="text-[11px] text-muted-foreground bg-muted/40 border border-border/60 rounded p-2 leading-relaxed">
+                        <span className="font-semibold text-foreground/80">{currentMethodInfo.icon} {currentMethodInfo.label}: </span>
+                        {currentMethodInfo.prepReasoning}
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
           <FormField
             control={form.control}

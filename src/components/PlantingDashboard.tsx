@@ -4,10 +4,10 @@
 
 import { useMemo } from 'react';
 import type { PlantingWithPlant, Conditions, StatusHistory } from '@/lib/types';
-import { evaluatePlantingViability, getOverallViabilityLevel, type Viability } from '@/lib/viability';
+import { evaluatePlantingViability, getOverallViabilityLevel, type Viability, ALL_PROPAGATION_METHODS } from '@/lib/viability';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Upload } from 'lucide-react';
+import { PlusCircle, Upload, Sprout, Sparkles } from 'lucide-react';
 import { PlantingDashboardCard } from './PlantingDashboardCard';
 import { Badge } from '@/components/ui/badge';
 
@@ -47,6 +47,32 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
         return groups;
     }, [plantings, viabilityData]);
     
+    const prepMethodCounts = useMemo(() => {
+        const counts: Record<string, number> = {};
+        ALL_PROPAGATION_METHODS.forEach(m => { counts[m.method] = 0; });
+        plantings.forEach(p => {
+            const m = p.propagationMethod || 'seed';
+            counts[m] = (counts[m] || 0) + 1;
+        });
+        return counts;
+    }, [plantings]);
+
+    const currentSeason = gardenConditions?.currentSeason || 'Spring';
+    const seasonalPrepTip = useMemo(() => {
+        switch (currentSeason) {
+            case 'Spring':
+                return 'Spring advantage: Starting tender crops from Transplants or Softwood Cuttings bypasses cold outdoor soil delays and jumps the growth cycle ahead by 4–6 weeks.';
+            case 'Summer':
+                return 'Summer strategy: Rapid vegetative suckers root vigorously as Stem Cuttings in 5–10 days; keep direct-seeded beds under shade cloth until germination.';
+            case 'Autumn':
+                return 'Autumn focus: Prime season for Garlic/Bulb vernalization in cooling soil, plus dormant hardwood cuttings and root crown divisions.';
+            case 'Winter':
+                return 'Winter preparation: Indoor heat-mat seed trays and cold stratification ready root systems for explosive spring planting.';
+            default:
+                return 'Selecting the optimal propagation method can turn a Low viability season into a thriving harvest.';
+        }
+    }, [currentSeason]);
+
     const hasAnyPlants = plantings.length > 0;
 
     return (
@@ -79,6 +105,38 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                         Wishlist and harvested plants grouped by AI viability analysis.
                     </CardDescription>
                 </CardHeader>
+                
+                {hasAnyPlants && (
+                    <div className="mb-6 p-3.5 rounded-lg border border-border/60 bg-muted/30 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                                <Sprout className="h-4 w-4 text-primary" />
+                                <span>Botanical Prep Methods in Plan</span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                {ALL_PROPAGATION_METHODS.map((m) => {
+                                    const count = prepMethodCounts[m.method] || 0;
+                                    if (count === 0) return null;
+                                    return (
+                                        <Badge
+                                            key={m.method}
+                                            variant="secondary"
+                                            className="text-[11px] font-normal px-2 py-0.5 flex items-center gap-1"
+                                        >
+                                            <span>{m.icon}</span>
+                                            <span>{m.shortLabel}:</span>
+                                            <span className="font-semibold font-mono">{count}</span>
+                                        </Badge>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground flex items-start gap-1.5 leading-relaxed">
+                            <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                            <span>{seasonalPrepTip}</span>
+                        </div>
+                    </div>
+                )}
                 
                 {hasAnyPlants ? (
                     <div className="space-y-6">

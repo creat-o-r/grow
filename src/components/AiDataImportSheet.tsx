@@ -15,6 +15,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 
 import {
@@ -50,6 +51,9 @@ import {
   Users,
   CheckCircle2,
   ArrowRight,
+  Lock,
+  Unlock,
+  RotateCcw,
 } from 'lucide-react';
 import { createDataset } from '@/ai/flows/create-dataset-flow';
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
@@ -94,6 +98,12 @@ import {
   fingerprintDataset,
   getOrCreateGrowerIdentity,
   updateGrowerIdentity,
+  claimGrowerHandle,
+  updateDeviceExtension,
+  resetGrowerIdentity,
+  formatGrowerAddress,
+  parseGrowerAddress,
+  type LocalGrowerIdentity,
 } from '@/lib/p2p-signals';
 import { notifyP2PRoomChanged, notifyTrustedGrowersChanged } from '@/hooks/useP2PRoomLiveSync';
 import {
@@ -169,7 +179,14 @@ export function AiDataImportSheet({
   const [shareScope, setShareScope] = useState<'active' | 'all'>('all');
   const [isP2pSyncing, setIsP2pSyncing] = useState(false);
   const [growerHandle, setGrowerHandle] = useState('');
+  const [growerIdentity, setGrowerIdentity] = useState<LocalGrowerIdentity | null>(null);
+  const [rootHandle, setRootHandle] = useState('');
+  const [deviceId, setDeviceId] = useState('');
+  const [tempRootHandle, setTempRootHandle] = useState('');
+  const [tempDeviceId, setTempDeviceId] = useState('');
   const [isEditingHandle, setIsEditingHandle] = useState(false);
+  const [isEditingDeviceId, setIsEditingDeviceId] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [tempHandle, setTempHandle] = useState('');
   const [lastStreamFingerprint, setLastStreamFingerprint] = useState<string | null>(null);
   const [lastPullFingerprint, setLastPullFingerprint] = useState<string | null>(null);
@@ -382,9 +399,15 @@ export function AiDataImportSheet({
       }
       setActivityLog(getSyncActivityLog());
       const identity = getOrCreateGrowerIdentity();
+      setGrowerIdentity(identity);
+      setRootHandle(identity.rootHandle);
+      setDeviceId(identity.deviceId);
+      setTempRootHandle(identity.rootHandle);
+      setTempDeviceId(identity.deviceId);
       setGrowerHandle(identity.displayName);
       setTempHandle(identity.displayName);
       setIsEditingHandle(false);
+      setIsEditingDeviceId(false);
       if (plantingToEdit) {
         setActiveTab('single');
       } else if (initialDataset?.data) {
@@ -543,10 +566,74 @@ export function AiDataImportSheet({
     }
   };
 
+  const handleClaimRootHandle = () => {
+    try {
+      const clean = tempRootHandle.trim();
+      if (!clean) return;
+      const updated = claimGrowerHandle(clean, tempDeviceId || deviceId);
+      setGrowerIdentity(updated);
+      setRootHandle(updated.rootHandle);
+      setDeviceId(updated.deviceId);
+      setGrowerHandle(updated.displayName);
+      setIsEditingHandle(false);
+      toast({
+        title: 'Grower Handle Claimed',
+        description: `Permanently claimed "@${updated.rootHandle}" on this device. Full address: ${updated.displayName}.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Claim Failed',
+        description: err?.message || 'Could not claim handle.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSaveDeviceExtension = () => {
+    try {
+      const cleanDev = tempDeviceId.trim();
+      const updated = updateDeviceExtension(cleanDev);
+      setGrowerIdentity(updated);
+      setDeviceId(updated.deviceId);
+      setGrowerHandle(updated.displayName);
+      setIsEditingDeviceId(false);
+      toast({
+        title: 'Device Extension Updated',
+        description: `Device identified as "${updated.deviceId}". Full address: ${updated.displayName}.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Update Failed',
+        description: err?.message || 'Could not update device extension.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleResetIdentity = () => {
+    const fresh = resetGrowerIdentity();
+    setGrowerIdentity(fresh);
+    setRootHandle(fresh.rootHandle);
+    setDeviceId(fresh.deviceId);
+    setTempRootHandle(fresh.rootHandle);
+    setTempDeviceId(fresh.deviceId);
+    setGrowerHandle(fresh.displayName);
+    setIsEditingHandle(false);
+    setIsEditingDeviceId(false);
+    setIsResetConfirmOpen(false);
+    toast({
+      title: 'Identity Reset',
+      description: `Generated new provisional grower identity: ${fresh.displayName}.`,
+    });
+  };
+
   const handleSaveGrowerHandle = () => {
     const clean = tempHandle.trim();
     if (!clean) return;
     const updated = updateGrowerIdentity({ displayName: clean });
+    setGrowerIdentity(updated);
+    setRootHandle(updated.rootHandle);
+    setDeviceId(updated.deviceId);
     setGrowerHandle(updated.displayName);
     setIsEditingHandle(false);
     toast({
@@ -1413,6 +1500,7 @@ export function AiDataImportSheet({
                 <PlantForm
                   plantingToEdit={plantingToEdit}
                   defaultStatus={defaultStatus}
+                  conditions={activeLocation?.conditions}
                   onSubmit={(plantingData, plantData) => {
                     onPlantSubmit(plantingData, plantData);
                     handleClose();

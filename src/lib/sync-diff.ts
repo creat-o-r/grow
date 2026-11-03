@@ -9,7 +9,7 @@ import type {
   Planting,
 } from '@/lib/types';
 import { toSpeciesUid } from '@/lib/seed-pack';
-import { fingerprintDataset } from '@/lib/p2p-signals';
+import { fingerprintDataset, getOrCreateGrowerIdentity, parseGrowerAddress } from '@/lib/p2p-signals';
 import { db } from '@/lib/db';
 
 export interface DiscrepancyItemNew {
@@ -208,9 +208,19 @@ export function computeGardenDiscrepancy(
     summaryText = `~${updatedItems.length} stage update${updatedItems.length === 1 ? '' : 's'}`;
   }
 
+  const parsedPeer = parseGrowerAddress(peerHandle);
+  const myIdentity = getOrCreateGrowerIdentity();
+  const isFromMyOtherDevice =
+    myIdentity.isClaimed &&
+    parsedPeer.rootHandle.toLowerCase() === myIdentity.rootHandle.toLowerCase();
+
+  const formattedPeer = peerHandle.startsWith('@') ? peerHandle : `@${peerHandle}`;
+  const prefix = isFromMyOtherDevice ? `Device Mirror (${formattedPeer}): ` : `${formattedPeer}: `;
+  const fullSummary = hasDiscrepancies ? `${prefix}${summaryText}` : `${prefix}Garden is up to date`;
+
   return {
     incomingGardenName,
-    peerHandle: peerHandle.startsWith('@') ? peerHandle : `@${peerHandle}`,
+    peerHandle: formattedPeer,
     timestamp: new Date().toISOString(),
     fingerprint,
     newItems,
@@ -218,7 +228,7 @@ export function computeGardenDiscrepancy(
     identicalItems,
     totalIncoming: incomingPlantings.length,
     hasDiscrepancies,
-    summaryText,
+    summaryText: fullSummary,
   };
 }
 

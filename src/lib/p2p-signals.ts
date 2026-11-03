@@ -18,18 +18,77 @@ const PUBLIC_RELAYS = ['https://ntfy.sh', 'wss://nos.lol', 'wss://relay.damus.io
 
 export interface LocalGrowerIdentity {
   pubkey: string;
-  displayName: string;
+  displayName: string;     // Full address string, e.g. "@colby/laptop"
+  rootHandle: string;      // Root grower handle without prefix or device, e.g. "colby"
+  deviceId: string;        // Local device identifier extension, e.g. "laptop" or "mobile"
+  isClaimed: boolean;      // True if rootHandle has been claimed and locked
+  claimedAt?: string;      // ISO timestamp when claimed
   region: string;
+}
+
+export function detectDefaultDeviceId(): string {
+  if (typeof window === 'undefined') return 'device';
+  const ua = (navigator.userAgent || '').toLowerCase();
+  if (/mobile|android|iphone|ipod/.test(ua)) return 'phone';
+  if (/ipad|tablet/.test(ua)) return 'tablet';
+  if (/macintosh|mac os x/.test(ua)) return 'mac';
+  if (/windows/.test(ua)) return 'pc';
+  if (/linux/.test(ua)) return 'linux';
+  return 'device';
+}
+
+export function formatGrowerAddress(rootHandle: string, deviceId?: string): string {
+  const cleanRoot = rootHandle.replace(/^@+/, '').trim() || 'Grower';
+  const cleanDev = (deviceId || '').replace(/^[/#:]+/, '').trim();
+  return cleanDev ? `@${cleanRoot}/${cleanDev}` : `@${cleanRoot}`;
+}
+
+export function parseGrowerAddress(address: string): { rootHandle: string; deviceId?: string } {
+  const clean = address.replace(/^@+/, '').trim();
+  const slashIdx = clean.indexOf('/');
+  if (slashIdx !== -1) {
+    return {
+      rootHandle: clean.slice(0, slashIdx),
+      deviceId: clean.slice(slashIdx + 1),
+    };
+  }
+  return { rootHandle: clean };
 }
 
 export function getOrCreateGrowerIdentity(): LocalGrowerIdentity {
   if (typeof window === 'undefined') {
-    return { pubkey: 'local-anon', displayName: 'Grower-Local', region: 'Global' };
+    return {
+      pubkey: 'local-anon',
+      displayName: '@Grower-Local/device',
+      rootHandle: 'Grower-Local',
+      deviceId: 'device',
+      isClaimed: false,
+      region: 'Global',
+    };
   }
   const existing = localStorage.getItem(IDENTITY_STORAGE_KEY);
   if (existing) {
     try {
-      return JSON.parse(existing);
+      const parsed = JSON.parse(existing);
+      const dev = parsed.deviceId || detectDefaultDeviceId();
+      let root = parsed.rootHandle;
+      if (!root && parsed.displayName) {
+        root = parseGrowerAddress(parsed.displayName).rootHandle;
+      }
+      if (!root) {
+        root = `Grower-${(parsed.pubkey || 'anon').slice(-4)}`;
+      }
+      const isClaimed = parsed.isClaimed ?? !root.startsWith('Grower-');
+      const identity: LocalGrowerIdentity = {
+        pubkey: parsed.pubkey || 'npub1local',
+        rootHandle: root,
+        deviceId: dev,
+        displayName: formatGrowerAddress(root, dev),
+        isClaimed,
+        claimedAt: parsed.claimedAt,
+        region: parsed.region || 'Local Microclimate',
+      };
+      return identity;
     } catch {
       // recreate below
     }
@@ -39,31 +98,89 @@ export function getOrCreateGrowerIdentity(): LocalGrowerIdentity {
   const hex = Array.from(randomBytes)
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
+  const root = `Grower-${hex.slice(0, 4)}`;
+  const dev = detectDefaultDeviceId();
   const identity: LocalGrowerIdentity = {
     pubkey: `npub1grow${hex}`,
-    displayName: `Grower-${hex.slice(0, 4)}`,
+    rootHandle: root,
+    deviceId: dev,
+    displayName: formatGrowerAddress(root, dev),
+    isClaimed: false,
     region: 'Local Microclimate',
   };
   localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(identity));
   return identity;
 }
 
-export function updateGrowerIdentity(updates: Partial<LocalGrowerIdentity>): LocalGrowerIdentity {
+export function claimGrowerHandle(newHandle: string, customDeviceId?: string): LocalGrowerIdentity {
+  const cleanHandle = newHandle.replace(/^@+/, '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  if (!cleanHandle) {
+    throw new Error('Grower handle must contain at least one valid character (letters, numbers, dash, underscore).');
+  }
   const current = getOrCreateGrowerIdentity();
+  const dev = (customDeviceId || current.deviceId || detectDefaultDeviceId()).toLowerCase().replace(/[^a-z0-9_-]/g, '');
   const updated: LocalGrowerIdentity = {
     ...current,
-    displayName:
-      updates.displayName !== undefined && updates.displayName.trim()
-        ? updates.displayName.trim()
-        : current.displayName,
-    region:
-      updates.region !== undefined && updates.region.trim()
-        ? updates.region.trim()
-        : current.region,
-    pubkey:
-      updates.pubkey !== undefined && updates.pubkey.trim()
-        ? updates.pubkey.trim()
-        : current.pubkey,
+    rootHandle: cleanHandle,
+    deviceId: dev,
+    displayName: formatGrowerAddress(cleanHandle, dev),
+    isClaimed: true,
+    claimedAt: current.claimedAt || new Date().toISOString(),
+  };
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(updated));
+  }
+  return updated;
+}
+
+export function updateDeviceExtension(newDeviceId: string): LocalGrowerIdentity {
+  const cleanDev = newDeviceId.replace(/^[/#:]+/, '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  const current = getOrCreateGrowerIdentity();
+  const dev = cleanDev || detectDefaultDeviceId();
+  const updated: LocalGrowerIdentity = {
+    ...current,
+    deviceId: dev,
+    displayName: formatGrowerAddress(current.rootHandle, dev),
+  };
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(updated));
+  }
+  return updated;
+}
+
+export function resetGrowerIdentity(): LocalGrowerIdentity {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(IDENTITY_STORAGE_KEY);
+  }
+  return getOrCreateGrowerIdentity();
+}
+
+export function updateGrowerIdentity(updates: Partial<LocalGrowerIdentity>): LocalGrowerIdentity {
+  const current = getOrCreateGrowerIdentity();
+  let root = current.rootHandle;
+  let dev = current.deviceId;
+  let isClaimed = current.isClaimed;
+
+  if (updates.rootHandle && !current.isClaimed) {
+    root = updates.rootHandle.replace(/^@+/, '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  } else if (updates.displayName && !current.isClaimed) {
+    root = parseGrowerAddress(updates.displayName).rootHandle.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  }
+  if (updates.deviceId !== undefined) {
+    dev = updates.deviceId.replace(/^[/#:]+/, '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  }
+  if (updates.isClaimed !== undefined) {
+    isClaimed = updates.isClaimed;
+  }
+
+  const updated: LocalGrowerIdentity = {
+    ...current,
+    rootHandle: root,
+    deviceId: dev || detectDefaultDeviceId(),
+    displayName: formatGrowerAddress(root, dev),
+    isClaimed,
+    region: updates.region !== undefined && updates.region.trim() ? updates.region.trim() : current.region,
+    pubkey: updates.pubkey !== undefined && updates.pubkey.trim() ? updates.pubkey.trim() : current.pubkey,
   };
   if (typeof window !== 'undefined') {
     localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(updated));
@@ -234,14 +351,16 @@ export function removeTrustedGrower(grower: string): string[] {
   return updated;
 }
 
-export function isGrowerTrusted(handleOrPubkey?: string | null): boolean {
-  if (!handleOrPubkey) return false;
-  const candidate = handleOrPubkey.trim().toLowerCase().replace(/^@/, '');
+export function isGrowerTrusted(handleOrAddress?: string | null): boolean {
+  if (!handleOrAddress) return false;
+  const candidate = handleOrAddress.trim().toLowerCase().replace(/^@/, '');
   if (!candidate) return false;
+  const candidateRoot = candidate.split('/')[0];
   const trusted = getTrustedGrowers();
   return trusted.some((entry) => {
     const cleanEntry = entry.trim().toLowerCase().replace(/^@/, '');
-    return cleanEntry === candidate;
+    const entryRoot = cleanEntry.split('/')[0];
+    return cleanEntry === candidate || cleanEntry === candidateRoot || entryRoot === candidateRoot;
   });
 }
 
@@ -301,6 +420,8 @@ export interface P2PRoomPacket {
   type: 'GARDEN_SYNC_PACK';
   peerPubkey: string;
   peerName: string;
+  rootHandle?: string;
+  deviceId?: string;
   packParam?: string;
   compressedDataset?: string;
   gardenName: string;
@@ -558,8 +679,11 @@ export function subscribeToP2PGardenRoom(
     if (!packet || packet.type !== 'GARDEN_SYNC_PACK') return;
     if (seenPacketIds.has(packet.packetId)) return;
     seenPacketIds.add(packet.packetId);
-    // Ignore our own broadcasts from echoing back via SSE
-    if (packet.peerPubkey && packet.peerPubkey === identity.pubkey) return;
+    // Ignore our own broadcasts from echoing back from the exact same device
+    const isExactSameDevice =
+      packet.peerPubkey === identity.pubkey &&
+      (packet.deviceId ? packet.deviceId === identity.deviceId : true);
+    if (isExactSameDevice) return;
     try {
       let dataset: AiDataset | null = null;
       if (packet.compressedDataset) {
@@ -675,6 +799,8 @@ export async function broadcastGardenToP2PRoom(
     type: 'GARDEN_SYNC_PACK',
     peerPubkey: identity.pubkey,
     peerName: identity.displayName,
+    rootHandle: identity.rootHandle,
+    deviceId: identity.deviceId,
     packParam,
     gardenName: dataset.locations?.[0]?.name || (cleanKeys ? 'API Key Broadcast' : 'Shared Garden'),
     gardenCount: dataset.locations?.length || (cleanKeys ? 1 : 0),
