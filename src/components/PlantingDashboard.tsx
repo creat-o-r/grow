@@ -4,7 +4,7 @@
 
 import { useMemo } from 'react';
 import type { PlantingWithPlant, Conditions, StatusHistory } from '@/lib/types';
-import type { Viability } from '@/lib/viability';
+import { evaluatePlantingViability, getOverallViabilityLevel, type Viability } from '@/lib/viability';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Upload } from 'lucide-react';
@@ -36,7 +36,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
         if (!plantings) return groups;
 
         plantings.forEach(p => {
-            const viability = viabilityData?.[p.id];
+            const viability = viabilityData?.[p.id] || p.viability || getOverallViabilityLevel(evaluatePlantingViability(p, gardenConditions));
             if (viability && groups[viability]) {
                 groups[viability].push(p);
             } else {

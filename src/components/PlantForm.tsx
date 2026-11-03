@@ -5,7 +5,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { Plant, Planting, PlantingWithPlant, StatusHistory, FreeLlmConfig } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, StatusHistory, FreeLlmConfig, PropagationMethod } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import Image from 'next/image';
 
@@ -46,6 +46,7 @@ const formSchema = z.object({
   history: z.array(statusHistorySchema),
   seedsOnHand: z.coerce.number().optional(),
   plannedQty: z.coerce.number().optional(),
+  propagationMethod: z.enum(['seed', 'transplant', 'cutting', 'air-layering', 'division', 'runner', 'bulb-clove']).optional(),
   imageUrl: z.string().optional(),
 });
 
@@ -100,6 +101,7 @@ export function PlantForm({
       history: [],
       seedsOnHand: 0,
       plannedQty: 0,
+      propagationMethod: 'seed',
       imageUrl: '',
     },
   });
@@ -123,6 +125,7 @@ export function PlantForm({
         history: plantingToEdit.history,
         seedsOnHand: plantingToEdit.seedsOnHand || 0,
         plannedQty: plantingToEdit.plannedQty || 0,
+        propagationMethod: plantingToEdit.propagationMethod || 'seed',
         imageUrl: plantingToEdit.plant.imageUrl || getCuratedPlantImage(plantingToEdit.plant, plantingToEdit.name) || '',
       });
     } else {
@@ -134,6 +137,7 @@ export function PlantForm({
         history: [{ id: 'new-1', status: defaultStatus, date: new Date().toISOString(), notes: '' }],
         seedsOnHand: 0,
         plannedQty: 0,
+        propagationMethod: 'seed',
         imageUrl: '',
       });
     }
@@ -373,6 +377,7 @@ export function PlantForm({
         history: sortedHistory,
         seedsOnHand: data.seedsOnHand ?? 0,
         plannedQty: data.plannedQty ?? 0,
+        propagationMethod: data.propagationMethod,
     };
 
     if (plantingToEdit) {
@@ -629,6 +634,32 @@ export function PlantForm({
                 />
               </div>
             )}
+            <FormField
+              control={form.control}
+              name="propagationMethod"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Propagation Method</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || 'seed'}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select propagation method" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="seed">🌱 Seed (Direct Sow / Indoors)</SelectItem>
+                      <SelectItem value="transplant">🪴 Nursery Transplant (Starts)</SelectItem>
+                      <SelectItem value="cutting">✂️ Cutting (Softwood / Hardwood)</SelectItem>
+                      <SelectItem value="air-layering">🎈 Air Layering (Marcottage)</SelectItem>
+                      <SelectItem value="division">🌿 Crown / Rhizome Division</SelectItem>
+                      <SelectItem value="runner">🌱 Runner / Stolon</SelectItem>
+                      <SelectItem value="bulb-clove">🧄 Bulb / Clove</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           <FormField
             control={form.control}
             name="germinationNeeds"

@@ -89,9 +89,17 @@ import {
   updateGrowerIdentity,
 } from '@/lib/p2p-signals';
 import { notifyP2PRoomChanged, notifyTrustedGrowersChanged } from '@/hooks/useP2PRoomLiveSync';
+import {
+  computeGardenDiscrepancy,
+  applyGardenDiscrepancies,
+  getSyncActivityLog,
+  type GardenDiscrepancy,
+  type SyncActivityEvent,
+} from '@/lib/sync-diff';
+import type { GardenSyncTopology } from '@/lib/types';
 
 type ImportMode = 'replace' | 'add' | 'new';
-export type UnifiedImportTab = 'single' | 'ai-generate' | 'import-pack';
+export type UnifiedImportTab = 'single' | 'ai-generate' | 'packs' | 'live-sync' | 'import-pack';
 export type DataShareSubTab = 'p2p-room' | 'share-link' | 'starter-packs';
 
 export type DuplicateResolution = {
@@ -182,10 +190,36 @@ export function AiDataImportSheet({
   const [trustedGrowers, setTrustedGrowers] = useState<string[]>([]);
   const [newGrowerInput, setNewGrowerInput] = useState('');
   const [autoStreamEnabled, setAutoStreamEnabled] = useState(false);
+  const [syncTopology, setSyncTopology] = useState<GardenSyncTopology>('coop');
+  const [activityLog, setActivityLog] = useState<SyncActivityEvent[]>([]);
+
+  const handleSelectTopology = async (topology: GardenSyncTopology) => {
+    setSyncTopology(topology);
+    if (activeLocation?.id) {
+      await db.locations.update(activeLocation.id, {
+        syncTopology: topology,
+        p2pRoomId: topology === 'none' ? undefined : p2pRoomId,
+        autoSyncInward: topology === 'mirror' ? true : inwardMode === 'selected',
+        autoSyncOutward: topology === 'mirror' ? true : autoStreamEnabled,
+      });
+    }
+    if (topology === 'mirror') {
+      handleToggleAutoStream(true);
+      handleSelectInwardMode('all');
+    } else if (topology === 'none') {
+      handleToggleAutoStream(false);
+      handleSelectInwardMode('off');
+    }
+  };
 
   const handleSelectInwardMode = (mode: InwardStreamMode) => {
     setInwardMode(mode);
     saveInwardStreamMode(mode);
+    if (activeLocation?.id) {
+      void db.locations.update(activeLocation.id, {
+        autoSyncInward: mode === 'selected' || mode === 'all',
+      });
+    }
   };
 
   const handleAddTrustedGrower = (growerName?: string) => {
@@ -194,6 +228,11 @@ export function AiDataImportSheet({
     const updated = addTrustedGrower(target);
     setTrustedGrowers(updated);
     notifyTrustedGrowersChanged(updated);
+    if (activeLocation?.id) {
+      void db.locations.update(activeLocation.id, {
+        trustedGrowers: updated,
+      });
+    }
     setNewGrowerInput('');
   };
 
@@ -201,11 +240,46 @@ export function AiDataImportSheet({
     const updated = removeTrustedGrower(target);
     setTrustedGrowers(updated);
     notifyTrustedGrowersChanged(updated);
+    if (activeLocation?.id) {
+      void db.locations.update(activeLocation.id, {
+        trustedGrowers: updated,
+      });
+    }
   };
 
   const handleToggleAutoStream = (checked: boolean) => {
     setAutoStreamEnabled(checked);
     saveAutoStreamPreference(checked);
+    if (activeLocation?.id) {
+      void db.locations.update(activeLocation.id, {
+        autoSyncOutward: checked,
+      });
+    }
+  };
+
+  const currentDiscrepancy = useMemo(() => {
+    if (!generatedData || !existingPlantings) return null;
+    const peer = roomStatus?.packet?.peerName || 'Garden Peer';
+    return computeGardenDiscrepancy(existingPlantings, generatedData, peer);
+  }, [generatedData, existingPlantings, roomStatus]);
+
+  const handleMergeDiscrepancies = async () => {
+    if (!currentDiscrepancy || !generatedData || !activeLocation?.id) return;
+    try {
+      const res = await applyGardenDiscrepancies(currentDiscrepancy, generatedData, activeLocation.id);
+      toast({
+        title: 'Garden Discrepancies Merged',
+        description: `Added ${res.added} plant(s) and updated ${res.updated} stage transition(s).`,
+      });
+      setActivityLog(getSyncActivityLog());
+      onComplete?.();
+    } catch (err: any) {
+      toast({
+        title: 'Merge Failed',
+        description: err?.message || 'Could not apply garden discrepancies.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const activeKeyProviders = useMemo(() => {

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import type { PlantingWithPlant, Conditions, StatusHistory } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight, Fence, Share2, ChevronDown, ChevronUp, Sprout } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight, Fence, Share2, ChevronDown, ChevronUp, Sprout, RotateCcw } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { ViabilityIndicator } from './ViabilityIndicator';
 import { Badge } from '@/components/ui/badge';
@@ -125,7 +125,17 @@ export function PlantCard({
             {latestStatus?.status === 'Wishlist' && <DropdownMenuItem onClick={() => onQuickStatusChange('Planting')}><ArrowRight className="mr-2 h-4 w-4" />Mark as Planting</DropdownMenuItem>}
             {latestStatus?.status === 'Planting' && <DropdownMenuItem onClick={() => onQuickStatusChange('Growing')}><ArrowRight className="mr-2 h-4 w-4" />Mark as Growing</DropdownMenuItem>}
             {latestStatus?.status === 'Growing' && <DropdownMenuItem onClick={() => onQuickStatusChange('Harvest')}><ArrowRight className="mr-2 h-4 w-4" />Mark for Harvest</DropdownMenuItem>}
-            {(latestStatus?.status && latestStatus.status !== 'Harvest') && <DropdownMenuSeparator />}
+            {latestStatus?.status === 'Harvest' && (
+                <>
+                    <DropdownMenuItem onClick={() => onQuickStatusChange('Wishlist')}>
+                        <RotateCcw className="mr-2 h-4 w-4" />Cycle to Wishlist (Next Season)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onQuickStatusChange('Planting')}>
+                        <Sprout className="mr-2 h-4 w-4" />Restart Succession (Planting)
+                    </DropdownMenuItem>
+                </>
+            )}
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
             <DropdownMenuItem onClick={onGetViability}>
                 <Sparkles className="mr-2 h-4 w-4" />
@@ -184,6 +194,11 @@ export function PlantCard({
                                 <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-normal", statusConfig[latestStatus.status])}>
                                     {latestStatus.status}
                                 </Badge>
+                            )}
+                            {planting.propagationMethod && (
+                                <span className="text-[10px] text-muted-foreground font-mono">
+                                    • {planting.propagationMethod}
+                                </span>
                             )}
                             {showGardenLabel && planting.garden && (
                                 <span className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -268,6 +283,19 @@ export function PlantCard({
                             {latestStatus.status}
                         </Badge>
                     )}
+                     {planting.propagationMethod && (
+                        <Badge variant="outline" className="text-[11px] font-normal flex items-center gap-1 border-muted-foreground/30 capitalize">
+                            <span>
+                                {planting.propagationMethod === 'transplant' ? '🪴' :
+                                 planting.propagationMethod === 'cutting' ? '✂️' :
+                                 planting.propagationMethod === 'air-layering' ? '🎈' :
+                                 planting.propagationMethod === 'division' ? '🌿' :
+                                 planting.propagationMethod === 'runner' ? '🌱' :
+                                 planting.propagationMethod === 'bulb-clove' ? '🧄' : '🌱'}
+                            </span>
+                            <span>{planting.propagationMethod.replace('-', ' ')}</span>
+                        </Badge>
+                     )}
                      {latestStatus?.status === 'Planting' && planting.seedsOnHand && planting.seedsOnHand > 0 && (
                         <Badge variant="secondary" className="flex items-center gap-1.5">
                             <Package className="h-3 w-3" />

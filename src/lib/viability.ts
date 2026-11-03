@@ -14,6 +14,7 @@ import type {
   PrepForecast,
   GrowAssessment,
   HarvestAssessment,
+  PropagationMethod,
 } from '@/lib/types';
 
 export type Viability = ViabilityLevel;
@@ -21,6 +22,7 @@ export type Season = SeasonName;
 export type { 
   SeasonName,
   ViabilityLevel,
+  PropagationMethod,
   SeasonalViability, 
   WishViabilityData, 
   PrepViabilityData, 
@@ -331,12 +333,13 @@ export const analyzeWishViability = (
 export const analyzePrepViability = (
     plant: Plant,
     conditions?: Conditions,
-    options?: { growingSystems?: string; growingMethods?: string }
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
 ): PrepViabilityData => {
     const currentSeason = (conditions?.currentSeason || 'Spring') as SeasonName;
     const plantInfo = `${plant.optimalConditions} ${plant.germinationNeeds} ${plant.species}`.toLowerCase();
     const systems = (options?.growingSystems || '').toLowerCase();
     const isProtected = systems.includes('greenhouse') || systems.includes('hoop') || systems.includes('cold frame') || systems.includes('cloche');
+    const method = options?.propagationMethod;
 
     const needsWarm = plantInfo.includes('warm') || plantInfo.includes('heat') || plantInfo.includes('hot') || plantInfo.includes('after frost') || plantInfo.includes('no frost');
     const needsCool = plantInfo.includes('cool') || plantInfo.includes('frost') || plantInfo.includes('cold') || plantInfo.includes('bolt in heat');
@@ -421,6 +424,75 @@ export const analyzePrepViability = (
                 harvestReasoning = 'Frost and winter freezes prevent outdoor crops from yielding.';
             }
             break;
+        }
+    }
+
+    // Propagation method specific modulations
+    if (method) {
+        switch (method) {
+            case 'transplant': {
+                if (currentSeason === 'Spring') {
+                    prepViability = 'High';
+                    prepReasoning = 'Hardened nursery transplant with established roots bypasses outdoor seed germination delays; plant out under cloche or mulch.';
+                } else if (currentSeason === 'Summer' && !needsCool) {
+                    prepViability = 'High';
+                    prepReasoning = 'Established transplant takes root rapidly in warm soil with initial light shading and consistent irrigation.';
+                }
+                break;
+            }
+            case 'cutting': {
+                if (currentSeason === 'Spring' || currentSeason === 'Summer') {
+                    prepViability = 'High';
+                    prepReasoning = 'Softwood stem cuttings and side suckers root vigorously in water or moist perlite in 5-10 days.';
+                } else if (currentSeason === 'Autumn') {
+                    if (plantInfo.includes('fig') || plantInfo.includes('grape') || plantInfo.includes('currant') || plantInfo.includes('hardwood')) {
+                        prepViability = 'High';
+                        prepReasoning = 'Prime dormant hardwood cutting season: pencil-thick canes callous in damp sand over cold months for early spring root burst.';
+                    } else {
+                        prepViability = 'Medium';
+                        prepReasoning = 'Autumn cuttings require warm indoor windowsill or propagation heat mat protection.';
+                    }
+                }
+                break;
+            }
+            case 'air-layering': {
+                if (currentSeason === 'Spring' || currentSeason === 'Summer') {
+                    prepViability = 'High';
+                    prepReasoning = 'Active spring sap flow powers rapid adventitious root ball formation directly on branch in moist sphagnum moss, bypassing cold ground soil and pathogens.';
+                } else {
+                    prepViability = 'Low';
+                    prepReasoning = 'Approaching winter dormancy halts branch cambium callus; defer air layering to active spring sap flow.';
+                }
+                break;
+            }
+            case 'bulb-clove': {
+                if (currentSeason === 'Autumn') {
+                    prepViability = 'High';
+                    prepReasoning = 'Optimal timing: cloves require cold autumn/winter soil vernalization (<10°C) to break dormancy and split into healthy multi-clove heads.';
+                } else if (currentSeason === 'Spring') {
+                    prepViability = 'Medium';
+                    prepReasoning = 'Spring-planted cloves yield smaller single-round bulbs due to missed winter vernalization chill.';
+                }
+                break;
+            }
+            case 'division': {
+                if (currentSeason === 'Spring' || currentSeason === 'Autumn') {
+                    prepViability = 'High';
+                    prepReasoning = 'Root crown and rhizome divisions establish vigorously during moderate shoulder season temperatures.';
+                }
+                break;
+            }
+            case 'runner': {
+                if (currentSeason === 'Summer' || currentSeason === 'Autumn' || currentSeason === 'Spring') {
+                    prepViability = 'High';
+                    prepReasoning = 'Daughter plantlet pegs directly into nursery pots while receiving water and nutrients from parent stolon.';
+                }
+                break;
+            }
+            case 'seed': {
+                // Uses standard seed germination evaluations above
+                break;
+            }
         }
     }
 
@@ -561,7 +633,7 @@ export const evaluateStageViability = (
     stage: PlantStatus,
     plant: Plant,
     conditions?: Conditions,
-    options?: { growingSystems?: string; growingMethods?: string }
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
 ): StageViability => {
     switch (stage) {
         case 'Wishlist':
@@ -583,13 +655,17 @@ export const evaluateStageViability = (
 export const evaluatePlantingViability = (
     planting: PlantingWithPlant,
     conditions?: Conditions,
-    options?: { growingSystems?: string; growingMethods?: string }
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
 ): StageViability => {
     const activeConditions = conditions || planting.garden?.conditions;
     const activeOptions = options || {
         growingSystems: planting.garden?.growingSystems,
         growingMethods: planting.garden?.growingMethods,
+        propagationMethod: planting.propagationMethod,
     };
+    if (!activeOptions.propagationMethod && planting.propagationMethod) {
+        activeOptions.propagationMethod = planting.propagationMethod;
+    }
 
     const latestStatus: PlantStatus = (planting.history && planting.history.length > 0)
         ? planting.history[planting.history.length - 1].status

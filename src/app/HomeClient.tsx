@@ -11,7 +11,7 @@ import { usePrevious } from '@/hooks/use-previous';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
 import { loadDataset } from '@/lib/datasets';
-import { Viability, SeasonName, getSuitableSeasons, getUpcomingViability, evaluatePlantingViability, getOverallViabilityLevel } from '@/lib/viability';
+import { Viability, SeasonName, getSuitableSeasons, getUpcomingViability, evaluatePlantingViability, getOverallViabilityLevel, getWishSeasonalViabilities } from '@/lib/viability';
 import { decodeSeedPackFromInput, mergeSeedPackIntoDb } from '@/lib/seed-pack';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import {
@@ -1548,11 +1548,19 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     const groupedBySeason: { [season: string]: PlantingWithPlant[] } = {};
     wishlistPlantings.forEach(p => {
-        const bestSeason = getBestPlantSeason(p.plant);
-        if (!groupedBySeason[bestSeason]) {
-            groupedBySeason[bestSeason] = [];
-        }
-        groupedBySeason[bestSeason].push(p);
+        const wishSeasons = getWishSeasonalViabilities(p.plant, activeLocation.conditions);
+        const qualifyingSeasons = wishSeasons.length > 0 
+            ? wishSeasons.map(s => s.season) 
+            : [getBestPlantSeason(p.plant)];
+
+        qualifyingSeasons.forEach(seasonName => {
+            if (!groupedBySeason[seasonName]) {
+                groupedBySeason[seasonName] = [];
+            }
+            if (!groupedBySeason[seasonName].some(existing => existing.id === p.id)) {
+                groupedBySeason[seasonName].push(p);
+            }
+        });
     });
 
     const orderedGroupNames = Object.keys(groupedBySeason).sort((a, b) => {

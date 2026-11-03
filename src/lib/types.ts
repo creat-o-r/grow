@@ -66,6 +66,15 @@ export type Plant = {
 export type ViabilityLevel = 'High' | 'Medium' | 'Low';
 export type SeasonName = 'Spring' | 'Summer' | 'Autumn' | 'Winter';
 
+export type PropagationMethod = 
+  | 'seed' 
+  | 'transplant' 
+  | 'cutting' 
+  | 'air-layering' 
+  | 'division' 
+  | 'runner' 
+  | 'bulb-clove';
+
 export type SeasonalViability = {
   season: SeasonName;
   viability: ViabilityLevel;
@@ -131,6 +140,7 @@ export type Planting = {
   history: StatusHistory[];
   seedsOnHand?: number;
   plannedQty?: number;
+  propagationMethod?: PropagationMethod;
   swapAvailable?: boolean;
   viability?: ViabilityLevel;
   viabilityReasoning?: string;
