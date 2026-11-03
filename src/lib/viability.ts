@@ -173,7 +173,7 @@ export const getSuitableSeasons = (plant: Plant): SeasonName[] => {
 export const analyzePrepViability = (
     plant: Plant,
     conditions?: Conditions,
-    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod; nested?: boolean }
 ): PrepViabilityData => {
     const currentSeason = (conditions?.currentSeason || 'Spring') as SeasonName;
     const plantInfo = `${plant.id || ''} ${plant.species || ''} ${plant.optimalConditions || ''} ${plant.germinationNeeds || ''}`.toLowerCase();
@@ -409,13 +409,30 @@ export const analyzePrepViability = (
         overallViability = 'Medium';
     }
 
+    // Resolve applicable methods if not in a nested evaluation
+    let applicableMethods: PropagationMethodInfo[] | undefined;
+    let otherMethodsCount: number | undefined;
+    if (!options?.nested) {
+        const allMethods = getAllPropagationMethodViabilities(plant, conditions, {
+            growingSystems: options?.growingSystems,
+            growingMethods: options?.growingMethods,
+        });
+        applicableMethods = allMethods.filter(m => !m.isIncompatible && m.overallViability !== 'N/A');
+        const activeM = method || 'seed';
+        otherMethodsCount = applicableMethods.filter(m => m.method !== activeM).length;
+    }
+
+    const applicableSummary = applicableMethods && applicableMethods.length > 0
+        ? ` Applicable methods: ${applicableMethods.map(m => `${m.label} (${m.overallViability})`).join(', ')}.`
+        : '';
+
     const summary = overallViability === 'N/A'
-        ? `No use / N/A: this species is botanically incompatible with ${method || 'this propagation method'}.`
+        ? `No use / N/A: this species is botanically incompatible with ${method || 'this propagation method'}.${applicableSummary}`
         : overallViability === 'High'
-        ? `Full lifecycle is clear: seamless prep, strong grow phase, and prime harvest ahead.`
+        ? `Full lifecycle is clear: seamless prep, strong grow phase, and prime harvest ahead.${applicableSummary}`
         : overallViability === 'Medium'
-        ? `Moderate prep forecast: watch the transition from grow into harvest.`
-        : `Lifecycle bottleneck detected: risk of seasonal cutoff or germination failure.`;
+        ? `Moderate prep forecast: watch the transition from grow into harvest.${applicableSummary}`
+        : `Lifecycle bottleneck detected: risk of seasonal cutoff or germination failure.${applicableSummary}`;
 
     return {
         stage: 'Planting',
@@ -429,6 +446,8 @@ export const analyzePrepViability = (
         growReasoning,
         harvestReasoning,
         summary,
+        applicableMethods,
+        otherMethodsCount,
     };
 };
 
@@ -455,6 +474,7 @@ export const getAllPropagationMethodViabilities = (
         const prepData = analyzePrepViability(plant, conditions, {
             ...options,
             propagationMethod: method,
+            nested: true,
         });
         return {
             method,
@@ -577,10 +597,16 @@ export const analyzeWishViability = (
     // Find best season
     const bestSeason = seasons.slice().sort((a, b) => (b.score || 0) - (a.score || 0))[0]?.season || seasons[0]?.season;
 
+    const allMethods = getAllPropagationMethodViabilities(plant, conditions, {
+        growingSystems: options?.growingSystems,
+        growingMethods: options?.growingMethods,
+    });
+    const applicableMethods = allMethods.filter(m => !m.isIncompatible && m.overallViability !== 'N/A');
+
     const seasonNames = seasons.map(s => s.season).join(' & ');
     const reasoning = seasons.length > 1
-        ? `Full-cycle viable across multiple seasons: ${seasonNames}. Best targeted for ${bestSeason}.`
-        : `Primary full-cycle seasonal window: ${bestSeason}. ${seasons[0]?.reasoning || ''}`;
+        ? `Full-cycle viable across multiple seasons: ${seasonNames}. Best targeted for ${bestSeason}. Applicable methods: ${applicableMethods.map(m => m.label).join(', ')}.`
+        : `Primary full-cycle seasonal window: ${bestSeason}. ${seasons[0]?.reasoning || ''} Applicable methods: ${applicableMethods.map(m => m.label).join(', ')}.`;
 
     return {
         stage: 'Wishlist',
@@ -589,6 +615,8 @@ export const analyzeWishViability = (
         activeSeasonMatch,
         bestSeason,
         reasoning,
+        applicableMethods,
+        otherMethodsCount: applicableMethods.length,
     };
 };
 

@@ -82,10 +82,10 @@ export function PlantingDashboardCard({
 
     const activeMethodInfo = methodViabilities.find(m => m.method === activePropagationMethod);
 
-    const otherViableMethods = useMemo(() => {
-        return methodViabilities.filter(m => m.overallViability !== 'N/A' && m.overallViability !== 'Low' && m.method !== activePropagationMethod);
+    const otherApplicableMethods = useMemo(() => {
+        return methodViabilities.filter(m => m.overallViability !== 'N/A' && !m.isIncompatible && m.method !== activePropagationMethod);
     }, [methodViabilities, activePropagationMethod]);
-    const otherViableCount = otherViableMethods.length;
+    const otherApplicableCount = otherApplicableMethods.length;
 
     const handlePropagationMethodChange = async (newMethod: PropagationMethod) => {
         try {
@@ -240,7 +240,7 @@ export function PlantingDashboardCard({
                         plant={planting.plant}
                         conditions={planting.garden?.conditions}
                         propagationMethod={activePropagationMethod}
-                        otherMethodsCount={otherViableCount}
+                        otherMethodsCount={otherApplicableCount}
                         relatedMethods={methodViabilities}
                         onSelectPropagationMethod={handlePropagationMethodChange}
                     />
@@ -272,12 +272,13 @@ export function PlantingDashboardCard({
                                 >
                                     {activeMethodInfo.overallViability === 'N/A' ? 'No Use / N/A' : `${activeMethodInfo.overallViability} Viability`}
                                 </Badge>
-                                {otherViableCount > 0 && (
+                                {otherApplicableCount > 0 && (
                                     <span 
-                                        className="text-[10px] font-mono px-1 rounded-full bg-primary/20 text-primary font-bold"
-                                        title={`${otherViableCount} other viable prep method${otherViableCount > 1 ? 's' : ''} available`}
+                                        className="inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-bold"
+                                        title={`Applicable methods: ${methodViabilities.filter(m => !m.isIncompatible && m.overallViability !== 'N/A').map(m => `${m.label} (${m.overallViability})`).join(', ')}`}
                                     >
-                                        +{otherViableCount}
+                                        <span>+{otherApplicableCount}</span>
+                                        <span className="tracking-tighter opacity-80">{otherApplicableMethods.slice(0, 3).map(m => m.icon).join('')}</span>
                                     </span>
                                 )}
                             </div>

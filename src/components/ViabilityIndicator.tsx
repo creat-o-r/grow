@@ -132,6 +132,12 @@ export function ViabilityIndicator({
     if (propRelatedMethods && propRelatedMethods.length > 0) {
       return propRelatedMethods;
     }
+    if (resolvedPrep && 'applicableMethods' in resolvedPrep && resolvedPrep.applicableMethods && resolvedPrep.applicableMethods.length > 0) {
+      return resolvedPrep.applicableMethods;
+    }
+    if (resolvedWish && 'applicableMethods' in resolvedWish && resolvedWish.applicableMethods && resolvedWish.applicableMethods.length > 0) {
+      return resolvedWish.applicableMethods;
+    }
     if (!plant) {
       return [];
     }
@@ -145,7 +151,7 @@ export function ViabilityIndicator({
       growingSystems,
       growingMethods,
     });
-  }, [propRelatedMethods, plant, conditions, currentSeason, growingSystems, growingMethods]);
+  }, [propRelatedMethods, resolvedPrep, resolvedWish, plant, conditions, currentSeason, growingSystems, growingMethods]);
 
   const activeMethodInfo = useMemo(() => {
     const found = allMethods.find(m => m.method === activeMethod);
@@ -163,33 +169,42 @@ export function ViabilityIndicator({
     } : undefined;
   }, [allMethods, activeMethod]);
 
-  // Viable alternative methods: not active, compatible, and overall viability !== 'Low' and !== 'N/A'
-  const otherViableMethods = useMemo(() => {
-    return allMethods.filter(m => m.method !== activeMethod && !m.isIncompatible && m.overallViability !== 'Low' && m.overallViability !== 'N/A');
-  }, [allMethods, activeMethod]);
+  // Applicable methods: botanically compatible with this plant species (!isIncompatible && overallViability !== 'N/A')
+  const applicableMethods = useMemo(() => {
+    return allMethods.filter(m => !m.isIncompatible && m.overallViability !== 'N/A');
+  }, [allMethods]);
 
-  const otherViableCount = propOtherMethodsCount !== undefined
+  // Other applicable methods besides the currently active method
+  const otherApplicableMethods = useMemo(() => {
+    return applicableMethods.filter(m => m.method !== activeMethod);
+  }, [applicableMethods, activeMethod]);
+
+  const otherApplicableCount = propOtherMethodsCount !== undefined
     ? propOtherMethodsCount
-    : otherViableMethods.length;
+    : otherApplicableMethods.length;
 
   // Render botanical method pill directly inside/beside the viability badge
   const renderMethodPill = (inSameBadge: boolean = true) => {
     if (!activeMethodInfo && !activeMethod) return null;
     const icon = activeMethodInfo?.icon || (activeMethod === 'transplant' ? '🪴' : '🌱');
     const label = activeMethodInfo?.shortLabel || activeMethod.replace('-', ' ');
+    const isCurrentIncompatible = activeMethodInfo?.overallViability === 'N/A' || activeMethodInfo?.isIncompatible;
 
     if (inSameBadge) {
       return (
         <span className="inline-flex items-center gap-1 font-medium ml-0.5">
           <span className="opacity-30">•</span>
           <span>{icon}</span>
-          <span className="capitalize">{label}</span>
-          {otherViableCount > 0 && (
+          <span className={cn("capitalize", isCurrentIncompatible && "line-through opacity-75")}>{label}</span>
+          {otherApplicableCount > 0 && (
             <span 
-              className="px-1 py-0 rounded text-[9px] font-bold bg-background/85 text-foreground border border-border/70 shadow-xs" 
-              title={`${otherViableCount} other viable propagation method${otherViableCount > 1 ? 's' : ''} available`}
+              className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px] font-bold bg-background/85 text-foreground border border-border/70 shadow-xs" 
+              title={`Applicable methods: ${applicableMethods.map(m => `${m.label} (${m.overallViability})`).join(', ')}`}
             >
-              +{otherViableCount}
+              <span>+{otherApplicableCount}</span>
+              <span className="opacity-80 tracking-tighter">
+                {otherApplicableMethods.slice(0, 3).map(m => m.icon).join('')}
+              </span>
             </span>
           )}
         </span>
@@ -199,14 +214,15 @@ export function ViabilityIndicator({
     return (
       <Badge
         variant="outline"
-        className="text-[11px] font-medium cursor-pointer transition-colors flex items-center gap-1 select-none py-0.5 bg-background/80 border-border hover:bg-muted"
-        title={otherViableCount > 0 ? `Active: ${label}. ${otherViableCount} other viable methods available.` : `Active: ${label}`}
+        className="text-[11px] font-medium cursor-pointer transition-colors flex items-center gap-1.5 select-none py-0.5 bg-background/80 border-border hover:bg-muted"
+        title={`Applicable methods for ${plantName || 'this plant'}: ${applicableMethods.map(m => `${m.label} (${m.overallViability})`).join(', ')}`}
       >
         <span>{icon}</span>
-        <span className="capitalize">{label}</span>
-        {otherViableCount > 0 && (
-          <span className="px-1 py-0 rounded text-[9px] font-bold bg-primary/15 text-primary border border-primary/30">
-            +{otherViableCount}
+        <span className={cn("capitalize", isCurrentIncompatible && "line-through opacity-75")}>{label}</span>
+        {otherApplicableCount > 0 && (
+          <span className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px] font-bold bg-primary/15 text-primary border border-primary/30">
+            <span>+{otherApplicableCount}</span>
+            <span className="tracking-tighter">{otherApplicableMethods.slice(0, 3).map(m => m.icon).join('')}</span>
           </span>
         )}
       </Badge>
@@ -216,78 +232,113 @@ export function ViabilityIndicator({
   // Render related botanical methods breakdown inside popover with 1-click switching
   const renderMethodsSection = () => {
     if (allMethods.length === 0 && !activeMethodInfo) return null;
+    const compatibleList = allMethods.filter(m => !m.isIncompatible && m.overallViability !== 'N/A');
+    const incompatibleList = allMethods.filter(m => m.isIncompatible || m.overallViability === 'N/A');
+
     return (
-      <div className="space-y-2 border-t border-border/60 pt-2.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-            <span>Botanical Methods</span>
-            {otherViableCount > 0 && (
-              <Badge variant="secondary" className="text-[9px] px-1 py-0 font-normal">
-                +{otherViableCount} viable alternative{otherViableCount > 1 ? 's' : ''}
-              </Badge>
+      <div className="space-y-3 border-t border-border/60 pt-2.5">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <span>🌿</span>
+              <span>Applicable Methods ({compatibleList.length})</span>
+            </span>
+            {onSelectPropagationMethod && (
+              <span className="text-[10px] text-muted-foreground font-normal">Tap to switch</span>
             )}
-          </span>
-          {onSelectPropagationMethod && (
-            <span className="text-[10px] text-muted-foreground font-normal">Tap to switch</span>
-          )}
+          </div>
+
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+            {compatibleList.map((m) => {
+              const isActive = m.method === activeMethod;
+              const vCfg = viabilityConfig[m.overallViability] || viabilityConfig.Low;
+              const isClickable = !!onSelectPropagationMethod && !isActive;
+              return (
+                <div
+                  key={m.method}
+                  onClick={(e) => {
+                    if (onSelectPropagationMethod && !isActive) {
+                      e.stopPropagation();
+                      onSelectPropagationMethod(m.method);
+                    }
+                  }}
+                  className={cn(
+                    "p-2 rounded-md border text-xs flex items-center justify-between transition-colors",
+                    isActive ? "border-primary bg-primary/10 shadow-xs" : 
+                    isClickable ? "border-border/50 bg-muted/30 hover:bg-muted/60 cursor-pointer" : "border-border/50 bg-muted/20"
+                  )}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-sm shrink-0">{m.icon}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn("font-medium truncate", isActive && "font-semibold text-primary")}>
+                          {m.label}
+                        </span>
+                        {isActive && (
+                          <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/40 text-primary bg-primary/10">
+                            Active
+                          </Badge>
+                        )}
+                        {m.isRecommended && !isActive && (
+                          <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
+                            Recommended
+                          </Badge>
+                        )}
+                      </div>
+                      {m.prepReasoning && (
+                        <p className="text-[10px] text-muted-foreground truncate max-w-[220px]">
+                          {m.prepReasoning}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Badge 
+                    variant="outline" 
+                    className={cn("text-[10px] px-1.5 py-0 shrink-0 font-mono", vCfg.className)}
+                  >
+                    {m.overallViability} Viability
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
-          {allMethods.map((m) => {
-            const isActive = m.method === activeMethod;
-            const vCfg = viabilityConfig[m.overallViability] || viabilityConfig.Low;
-            const isClickable = !!onSelectPropagationMethod && !isActive && !m.isIncompatible;
-            return (
-              <div
-                key={m.method}
-                onClick={(e) => {
-                  if (onSelectPropagationMethod && !m.isIncompatible && !isActive) {
-                    e.stopPropagation();
-                    onSelectPropagationMethod(m.method);
-                  }
-                }}
-                className={cn(
-                  "p-2 rounded-md border text-xs flex items-center justify-between transition-colors",
-                  isActive ? "border-primary bg-primary/10 shadow-xs" : 
-                  m.isIncompatible ? "border-border/30 bg-muted/20 opacity-60" :
-                  isClickable ? "border-border/50 bg-muted/30 hover:bg-muted/60 cursor-pointer" : "border-border/50 bg-muted/20"
-                )}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-sm shrink-0">{m.icon}</span>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className={cn("font-medium truncate", isActive && "font-semibold text-primary", m.isIncompatible && "line-through text-muted-foreground")}>
+        {incompatibleList.length > 0 && (
+          <div className="space-y-1.5 pt-1 border-t border-border/30">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+              <span>🚫</span>
+              <span>Incompatible with this Species ({incompatibleList.length})</span>
+            </span>
+            <div className="space-y-1 opacity-70">
+              {incompatibleList.map((m) => {
+                const isActive = m.method === activeMethod;
+                return (
+                  <div
+                    key={m.method}
+                    className="p-1.5 rounded border border-border/30 bg-muted/10 text-xs flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs shrink-0">{m.icon}</span>
+                      <span className="font-medium line-through text-muted-foreground text-[11px] truncate">
                         {m.label}
                       </span>
                       {isActive && (
-                        <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/40 text-primary bg-primary/10">
-                          Active
-                        </Badge>
-                      )}
-                      {m.isRecommended && !isActive && (
-                        <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
-                          Recommended
+                        <Badge variant="destructive" className="text-[8px] px-1 py-0 h-3.5">
+                          Active (Incompatible)
                         </Badge>
                       )}
                     </div>
-                    {m.prepReasoning && (
-                      <p className="text-[10px] text-muted-foreground truncate max-w-[220px]">
-                        {m.prepReasoning}
-                      </p>
-                    )}
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 font-mono text-muted-foreground border-border/40">
+                      No Use / N/A
+                    </Badge>
                   </div>
-                </div>
-                <Badge 
-                  variant="outline" 
-                  className={cn("text-[10px] px-1.5 py-0 shrink-0 font-mono", vCfg.className)}
-                >
-                  {m.overallViability === 'N/A' ? 'No Use / N/A' : m.overallViability}
-                </Badge>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -488,8 +539,8 @@ export function ViabilityIndicator({
               </div>
               <p className="text-[11px] text-destructive/90 leading-snug">
                 This plant is incompatible with propagation by {activeMethod.replace('-', ' ')}.
-                {otherViableCount > 0 
-                  ? ` Switch to one of the ${otherViableCount} viable method${otherViableCount > 1 ? 's' : ''} listed below.`
+                {otherApplicableCount > 0 
+                  ? ` Switch to one of the ${otherApplicableCount} applicable method${otherApplicableCount > 1 ? 's' : ''} listed below.`
                   : ' Direct seeding or an alternative botanical method is required.'}
               </p>
             </div>

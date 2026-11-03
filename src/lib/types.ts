@@ -107,6 +107,8 @@ export type WishViabilityData = {
   activeSeasonMatch?: boolean;
   bestSeason?: SeasonName;
   reasoning?: string;
+  applicableMethods?: PropagationMethodInfo[];
+  otherMethodsCount?: number;
 };
 
 export type PrepViabilityData = {
@@ -121,6 +123,8 @@ export type PrepViabilityData = {
   growReasoning?: string;
   harvestReasoning?: string;
   summary?: string;
+  applicableMethods?: PropagationMethodInfo[];
+  otherMethodsCount?: number;
 };
 
 export type GrowViabilityData = {
