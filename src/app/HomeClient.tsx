@@ -989,9 +989,25 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             )
           : undefined;
 
-        const resolvedSeasonalViabilities = (enrichedSeasonalViabilities && enrichedSeasonalViabilities.length > 0)
+        const currentSeasonName = activeLocation.conditions?.currentSeason;
+
+        const baseSeasonalViabilities = (enrichedSeasonalViabilities && enrichedSeasonalViabilities.length > 0)
           ? enrichedSeasonalViabilities
           : fallbackSeasonalViabilities;
+
+        // Strictly synchronize the active season's entry with the AI's actual microclimate assessment
+        const resolvedSeasonalViabilities = baseSeasonalViabilities.map(sv => {
+          if (currentSeasonName && sv.season.toLowerCase() === currentSeasonName.toLowerCase()) {
+            return {
+              ...sv,
+              viability: finalViability,
+              reasoning: result.reasoning || sv.reasoning,
+              prepViability: result.prepForecast?.prepViability || finalViability,
+              score: finalViability === 'High' ? 5 : finalViability === 'Medium' ? 3 : 1,
+            };
+          }
+          return sv;
+        });
 
         for (const p of duplicatePlantings) {
           const pStage: PlantStatus = (p.history && p.history.length > 0)
@@ -1005,7 +1021,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             aiStageViability = {
               stage: 'Wishlist',
               overallViability: finalViability,
-              seasons: seasons.length > 0 ? seasons : fallbackSeasonalViabilities,
+              seasons: seasons.length > 0 ? seasons : resolvedSeasonalViabilities,
               activeSeasonMatch: activeLocation.conditions?.currentSeason ? (seasons || []).some(s => s.season === activeLocation.conditions.currentSeason) : false,
               bestSeason,
               reasoning: result.reasoning,
@@ -1531,9 +1547,25 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
               )
             : undefined;
 
-          const resolvedSeasonalViabilities = (enrichedSeasonalViabilities && enrichedSeasonalViabilities.length > 0)
+          const currentSeasonName = activeLocation.conditions?.currentSeason;
+
+          const baseSeasonalViabilities = (enrichedSeasonalViabilities && enrichedSeasonalViabilities.length > 0)
             ? enrichedSeasonalViabilities
             : fallbackSeasonalViabilities;
+
+          // Strictly synchronize the active season's entry with the AI's actual microclimate assessment
+          const resolvedSeasonalViabilities = baseSeasonalViabilities.map(sv => {
+            if (currentSeasonName && sv.season.toLowerCase() === currentSeasonName.toLowerCase()) {
+              return {
+                ...sv,
+                viability: result.viability,
+                reasoning: result.reasoning || sv.reasoning,
+                prepViability: result.prepForecast?.prepViability || result.viability,
+                score: result.viability === 'High' ? 5 : result.viability === 'Medium' ? 3 : 1,
+              };
+            }
+            return sv;
+          });
 
           // Apply the AI viability result to ALL duplicate plantings in this group
           for (const planting of group) {
@@ -1548,7 +1580,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
               aiStageViability = {
                 stage: 'Wishlist',
                 overallViability: result.viability,
-                seasons: seasons.length > 0 ? seasons : fallbackSeasonalViabilities,
+                seasons: seasons.length > 0 ? seasons : resolvedSeasonalViabilities,
                 activeSeasonMatch: activeLocation.conditions?.currentSeason ? (seasons || []).some(s => s.season === activeLocation.conditions.currentSeason) : false,
                 bestSeason,
                 reasoning: result.reasoning,

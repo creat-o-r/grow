@@ -234,7 +234,7 @@ export function PlantingDashboardCard({
                 </CardDescription>
                 <div className="flex flex-wrap gap-2 items-center pt-2">
                     <ViabilityIndicator 
-                        stageViability={viabilityMechanism === 'ai' && !planting.viability && !effectiveViability ? undefined : (planting.stageViability || evaluatePlantingViability(planting, planting.garden?.conditions, { propagationMethod: activePropagationMethod }))}
+                        stageViability={viabilityMechanism === 'ai' && !planting.viability && !effectiveViability ? undefined : (viabilityMechanism === 'local' ? evaluatePlantingViability(planting, planting.garden?.conditions, { propagationMethod: activePropagationMethod }) : (planting.stageViability || evaluatePlantingViability(planting, planting.garden?.conditions, { propagationMethod: activePropagationMethod })))}
                         viability={effectiveViability} 
                         reasoning={viabilityReasoning || planting.viabilityReasoning} 
                         plantName={planting.name}

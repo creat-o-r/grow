@@ -148,11 +148,17 @@ export function PlantCard({
     // Unified 4-stage viability analysis
     const stageViability = isPendingAi 
         ? undefined 
-        : (planting.stageViability || evaluatePlantingViability(planting, gardenConditions, {
-            growingSystems: planting.garden?.growingSystems,
-            growingMethods: planting.garden?.growingMethods,
-            propagationMethod: activePropagationMethod,
-        }));
+        : (viabilityMechanism === 'local'
+            ? evaluatePlantingViability(planting, gardenConditions, {
+                growingSystems: planting.garden?.growingSystems,
+                growingMethods: planting.garden?.growingMethods,
+                propagationMethod: activePropagationMethod,
+              })
+            : (planting.stageViability || evaluatePlantingViability(planting, gardenConditions, {
+                growingSystems: planting.garden?.growingSystems,
+                growingMethods: planting.garden?.growingMethods,
+                propagationMethod: activePropagationMethod,
+              })));
 
     const viabilityIndicatorElement = isPendingAi ? (
         <Button

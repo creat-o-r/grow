@@ -49,7 +49,7 @@ const GetAiViabilityOutputSchema = z.object({
   seasonalViabilities: z.array(z.object({
     season: z.enum(['Spring', 'Summer', 'Autumn', 'Winter']),
     viability: z.enum(['High', 'Medium', 'Low', 'N/A']),
-    reasoning: z.string(),
+    reasoning: z.string().optional(),
     prepViability: z.enum(['High', 'Medium', 'Low', 'N/A']).optional(),
     prepSummary: z.string().optional(),
     growViability: z.enum(['High', 'Medium', 'Low', 'N/A']).optional(),
@@ -152,6 +152,7 @@ Analyze the following information:
     - You MUST ALWAYS provide an entry for each of the 4 seasons (Spring, Summer, Autumn, Winter):
       - "season": 'Spring' | 'Summer' | 'Autumn' | 'Winter'
       - "viability": Overall feasibility in that season ('High', 'Medium', 'Low', or 'N/A').
+        * NOTE FOR CURRENT SEASON ({{{garden.conditions.currentSeason}}}): Its viability MUST match your overall calculated viability score (Step 1).
       - "prepViability": Viability of starting/germinating in that season.
       - "prepSummary": Brief summary of viable propagation methods for that season (e.g. 'Transplant High, Direct Seed Medium').
       - "growViability": Vegetative vigor in that season ('High', 'Medium', 'Low').
@@ -193,7 +194,7 @@ Return your final analysis in the specified output format.
           hasGeminiKey: Boolean(apiKey),
           systemPrompt:
             'You are an expert horticulturalist. Return valid JSON. MANDATORY: You must always provide: 1) "viability" ("High" | "Medium" | "Low" | "N/A"), 2) "reasoning" (string), 3) "seasonalViabilities" with entries for all 4 seasons: Spring, Summer, Autumn, Winter ({season, viability, reasoning, prepViability, prepSummary, growViability, harvestViability, harvestType, harvestWindow, seedSavingNotes}), 4) "methodViabilities" with entries for all 7 methods: seed, transplant, cutting, air-layering, division, runner, bulb-clove ({method, viability, reasoning, isIncompatible}), 5) "prepForecast" ({prepViability, growViability, harvestViability, overallViability, prepReasoning, growReasoning, harvestReasoning, summary}), 6) "growAssessment" ({vigorViability, stressFactor, tendingAdvice, reasoning}), 7) "harvestAssessment" ({ripenessViability, harvestWindow, harvestType, seedSavingNotes, successionAdvice, reasoning}), and 8) optional upcomingViability ("High" | "Medium"), upcomingTiming, upcomingReasoning when viability will improve later in this same season.',
-          userPrompt: `Analyze viability for Plant: ${flowInput.plant.species} (Germination: ${flowInput.plant.germinationNeeds}, Optimal: ${flowInput.plant.optimalConditions}) in Stage=${flowInput.stage || 'Wishlist'}, PropagationMethod=${flowInput.propagationMethod || 'seed'}, Garden Conditions: Season=${flowInput.garden.conditions.currentSeason || 'N/A'}, Temp=${flowInput.garden.conditions.temperature}, Sunlight=${flowInput.garden.conditions.sunlight}, Soil=${flowInput.garden.conditions.soil}, Systems=${flowInput.garden.growingSystems || 'N/A'}, Methods=${flowInput.garden.growingMethods || 'N/A'}.`,
+          userPrompt: `Analyze viability for Plant: ${flowInput.plant.species} (Germination: ${flowInput.plant.germinationNeeds}, Optimal: ${flowInput.plant.optimalConditions}) in Stage=${flowInput.stage || 'Wishlist'}, PropagationMethod=${flowInput.propagationMethod || 'seed'}, Garden Conditions: Season=${flowInput.garden.conditions.currentSeason || 'N/A'}, Temp=${flowInput.garden.conditions.temperature}, Sunlight=${flowInput.garden.conditions.sunlight}, Soil=${flowInput.garden.conditions.soil}, Systems=${flowInput.garden.growingSystems || 'N/A'}, Methods=${flowInput.garden.growingMethods || 'N/A'}. IMPORTANT: Provide "seasonalViabilities" with evaluations for all 4 seasons (Spring, Summer, Autumn, Winter) where current season (${flowInput.garden.conditions.currentSeason || 'N/A'}) matches overall viability score, and "methodViabilities" with evaluations for all 7 methods.`,
           groqApiKey: flowInput.apiKeys?.groq,
           openrouterApiKey: flowInput.apiKeys?.openrouter,
           ollamaUrl: flowInput.apiKeys?.ollamaUrl,

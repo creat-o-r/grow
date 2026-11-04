@@ -474,8 +474,26 @@ export function ViabilityIndicator({
 
   const seasons = (rawWishSeasons || []).filter(s => s.viability !== 'N/A');
 
-  if ((resolvedWish || (wishSeasons && wishSeasons.length > 0) || stageViability?.stage === 'Wishlist') && seasons.length > 0) {
-    const overallViab = resolvedWish?.overallViability || viability || (seasons.some(s => s.viability === 'High') ? 'High' : seasons.some(s => s.viability === 'Medium') ? 'Medium' : 'Low');
+  const explicitViability = viability || resolvedWish?.overallViability;
+
+  // Guarantee the active current season strictly reflects the explicit/AI assessed viability score
+  // and cannot show a contradictory fallback (e.g. Spring: High when AI scored Medium).
+  const effectiveSeasons = useMemo(() => {
+    if (!currentSeason || !explicitViability) return seasons;
+    return seasons.map(s => {
+      if (s.season.toLowerCase() === currentSeason.toLowerCase()) {
+        return {
+          ...s,
+          viability: explicitViability,
+          score: explicitViability === 'High' ? 5 : explicitViability === 'Medium' ? 3 : 1,
+        };
+      }
+      return s;
+    });
+  }, [seasons, currentSeason, explicitViability]);
+
+  if ((resolvedWish || (wishSeasons && wishSeasons.length > 0) || stageViability?.stage === 'Wishlist') && effectiveSeasons.length > 0) {
+    const overallViab = resolvedWish?.overallViability || viability || (effectiveSeasons.some(s => s.viability === 'High') ? 'High' : effectiveSeasons.some(s => s.viability === 'Medium') ? 'Medium' : 'Low');
     const primaryBorderClass = viabilityConfig[overallViab]?.borderClass || 'border-border';
 
     const viabilityRanks: Record<Viability, number> = { High: 2, Medium: 1, Low: 0, 'N/A': -1 };
@@ -483,13 +501,13 @@ export function ViabilityIndicator({
 
     // The season currently focused in the popup (clicking a season badge focuses on that season only)
     const activeViewingSeason: SeasonName = selectedSeason 
-      || (currentSeason && seasons.some(s => s.season.toLowerCase() === currentSeason.toLowerCase()) ? (currentSeason as SeasonName) : null)
-      || (resolvedWish?.bestSeason && seasons.some(s => s.season.toLowerCase() === resolvedWish.bestSeason!.toLowerCase()) ? resolvedWish.bestSeason : null)
-      || seasons[0]?.season 
+      || (currentSeason && effectiveSeasons.some(s => s.season.toLowerCase() === currentSeason.toLowerCase()) ? (currentSeason as SeasonName) : null)
+      || (resolvedWish?.bestSeason && effectiveSeasons.some(s => s.season.toLowerCase() === resolvedWish.bestSeason!.toLowerCase()) ? resolvedWish.bestSeason : null)
+      || effectiveSeasons[0]?.season 
       || 'Spring';
 
     const viewingMethods = getMethodsForSeason(activeViewingSeason);
-    const seasonData = seasons.find(s => s.season.toLowerCase() === activeViewingSeason.toLowerCase()) 
+    const seasonData = effectiveSeasons.find(s => s.season.toLowerCase() === activeViewingSeason.toLowerCase()) 
       || (plant ? getSeasonalViabilityForSeason(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
     const growInfo = seasonData?.growInfo 
       || (plant ? getSeasonalGrowInfo(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
@@ -509,7 +527,7 @@ export function ViabilityIndicator({
             className="focus:outline-none rounded flex items-center gap-1.5 flex-wrap cursor-pointer"
             title="Click a season badge to view that season's viability methods and feasibility"
           >
-            {seasons.map((sv) => {
+            {effectiveSeasons.map((sv) => {
               const cfg = viabilityConfig[sv.viability] || viabilityConfig.Medium;
               const isCurrentSeason = currentSeason && sv.season.toLowerCase() === currentSeason.toLowerCase();
               const isSelected = selectedSeason === sv.season;
@@ -572,9 +590,9 @@ export function ViabilityIndicator({
               <Calendar className="h-3.5 w-3.5 text-primary" />
               <span>Wishlist • {activeViewingSeason}</span>
             </div>
-            {seasons.length > 1 && (
+            {effectiveSeasons.length > 1 && (
               <div className="flex items-center gap-1">
-                {seasons.map((s) => {
+                {effectiveSeasons.map((s) => {
                   const isSelected = s.season.toLowerCase() === activeViewingSeason.toLowerCase();
                   return (
                     <button
