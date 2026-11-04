@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { 
@@ -40,6 +40,31 @@ import {
   CheckCircle2,
   X 
 } from 'lucide-react';
+
+const VIABILITY_SEASON_STORAGE_KEY = 'grow_viability_active_season';
+
+function getPersistedViabilitySeason(): SeasonName | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const val = localStorage.getItem(VIABILITY_SEASON_STORAGE_KEY);
+    if (val && ['Spring', 'Summer', 'Autumn', 'Winter'].includes(val)) {
+      return val as SeasonName;
+    }
+  } catch {}
+  return null;
+}
+
+function setPersistedViabilitySeason(season: SeasonName | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (season) {
+      localStorage.setItem(VIABILITY_SEASON_STORAGE_KEY, season);
+    } else {
+      localStorage.removeItem(VIABILITY_SEASON_STORAGE_KEY);
+    }
+    window.dispatchEvent(new CustomEvent('grow:viability-season-change', { detail: season }));
+  } catch {}
+}
 
 export type ViabilityIndicatorProps = {
   stageViability?: StageViability;
@@ -146,7 +171,23 @@ export function ViabilityIndicator({
   onSelectPropagationMethod,
 }: ViabilityIndicatorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedSeason, setSelectedSeason] = useState<SeasonName | null>(null);
+  const [selectedSeason, setSelectedSeasonState] = useState<SeasonName | null>(() => getPersistedViabilitySeason());
+
+  const setSelectedSeason = useCallback((season: SeasonName | null) => {
+    setSelectedSeasonState(season);
+    setPersistedViabilitySeason(season);
+  }, []);
+
+  useEffect(() => {
+    const handleSeasonChange = (e: Event) => {
+      const custom = e as CustomEvent<SeasonName | null>;
+      if (custom.detail !== undefined) {
+        setSelectedSeasonState(custom.detail);
+      }
+    };
+    window.addEventListener('grow:viability-season-change', handleSeasonChange);
+    return () => window.removeEventListener('grow:viability-season-change', handleSeasonChange);
+  }, []);
 
   // 1. Resolve active stage data
   const resolvedWish = stageViability?.stage === 'Wishlist' ? stageViability : undefined;
@@ -358,7 +399,7 @@ export function ViabilityIndicator({
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className={cn("grid gap-2", compatibleList.length > 1 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
             {compatibleList.map((m) => {
               const isActive = m.method === activeMethod;
               const vCfg = viabilityConfig[m.overallViability] || viabilityConfig.Low;
@@ -501,6 +542,65 @@ export function ViabilityIndicator({
     });
   }, [seasons, currentSeason, explicitViability]);
 
+  // The season currently focused in the popup (clicking a season badge or season tab focuses on that season)
+  const activeViewingSeason: SeasonName = (selectedSeason && effectiveSeasons.some(s => s.season.toLowerCase() === selectedSeason.toLowerCase())) 
+    ? selectedSeason
+    : (currentSeason && effectiveSeasons.some(s => s.season.toLowerCase() === currentSeason.toLowerCase()) ? (currentSeason as SeasonName) : null)
+    || (resolvedWish?.bestSeason && effectiveSeasons.some(s => s.season.toLowerCase() === resolvedWish.bestSeason!.toLowerCase()) ? resolvedWish.bestSeason : null)
+    || effectiveSeasons[0]?.season 
+    || 'Spring';
+
+  const viewingMethods = getMethodsForSeason(activeViewingSeason);
+  const seasonData = effectiveSeasons.find(s => s.season.toLowerCase() === activeViewingSeason.toLowerCase()) 
+    || (plant ? getSeasonalViabilityForSeason(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
+  const growInfo = seasonData?.growInfo 
+    || (plant ? getSeasonalGrowInfo(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
+  const harvestInfo = seasonData?.harvestInfo 
+    || (plant ? getSeasonalHarvestInfo(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
+
+  const renderSeasonTabs = (activeSeason: SeasonName) => {
+    if (effectiveSeasons.length <= 1) return null;
+    return (
+      <div className="p-2 border-b border-border/40 bg-muted/15 shrink-0">
+        <div className="grid grid-cols-4 gap-1.5 p-1 bg-muted/60 rounded-lg text-xs font-medium">
+          {effectiveSeasons.map((s) => {
+            const isSelected = s.season.toLowerCase() === activeSeason.toLowerCase();
+            const isCurrent = currentSeason && s.season.toLowerCase() === currentSeason.toLowerCase();
+            const vCfg = viabilityConfig[s.viability] || viabilityConfig.Medium;
+            return (
+              <button
+                key={s.season}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedSeason(s.season);
+                }}
+                className={cn(
+                  "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-md transition-all text-center select-none active:scale-95 cursor-pointer",
+                  isSelected 
+                    ? "bg-background text-foreground shadow-xs font-semibold ring-1 ring-border" 
+                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                )}
+                title={`Switch to ${s.season} (${s.viability})`}
+              >
+                <div className="flex items-center gap-1">
+                  <span className="text-base sm:text-sm">{seasonIcons[s.season] || '🌿'}</span>
+                  <span className="text-[11px] sm:text-xs leading-tight font-medium">{s.season}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className={cn("text-[9px] px-1 py-0 font-mono rounded leading-tight", vCfg.className.split(' ')[0], vCfg.className.split(' ')[1])}>
+                    {s.viability}
+                  </span>
+                  {isCurrent && <span className="text-[9px] text-primary font-bold leading-none hidden sm:inline">• Now</span>}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   if ((targetStage === 'Wishlist' || (!resolvedGrow && !resolvedHarvest && !resolvedPrep)) && effectiveSeasons.length > 0) {
     const overallViab = resolvedWish?.overallViability || viability || (effectiveSeasons.some(s => s.viability === 'High') ? 'High' : effectiveSeasons.some(s => s.viability === 'Medium') ? 'Medium' : 'Low');
     const primaryBorderClass = viabilityConfig[overallViab]?.borderClass || 'border-border';
@@ -508,30 +608,12 @@ export function ViabilityIndicator({
     const viabilityRanks: Record<Viability, number> = { High: 2, Medium: 1, Low: 0, 'N/A': -1 };
     const hasUpcomingHigher = upcomingViability && viabilityRanks[upcomingViability] > viabilityRanks[overallViab];
 
-    // The season currently focused in the popup (clicking a season badge focuses on that season only)
-    const activeViewingSeason: SeasonName = selectedSeason 
-      || (currentSeason && effectiveSeasons.some(s => s.season.toLowerCase() === currentSeason.toLowerCase()) ? (currentSeason as SeasonName) : null)
-      || (resolvedWish?.bestSeason && effectiveSeasons.some(s => s.season.toLowerCase() === resolvedWish.bestSeason!.toLowerCase()) ? resolvedWish.bestSeason : null)
-      || effectiveSeasons[0]?.season 
-      || 'Spring';
-
-    const viewingMethods = getMethodsForSeason(activeViewingSeason);
-    const seasonData = effectiveSeasons.find(s => s.season.toLowerCase() === activeViewingSeason.toLowerCase()) 
-      || (plant ? getSeasonalViabilityForSeason(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
-    const growInfo = seasonData?.growInfo 
-      || (plant ? getSeasonalGrowInfo(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
-    const harvestInfo = seasonData?.harvestInfo 
-      || (plant ? getSeasonalHarvestInfo(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
-
     const activeSeasonCfg = viabilityConfig[seasonData?.viability || overallViab] || viabilityConfig.Medium;
 
     return (
       <Popover 
         open={isOpen} 
-        onOpenChange={(open) => {
-          setIsOpen(open);
-          if (!open) setSelectedSeason(null);
-        }}
+        onOpenChange={setIsOpen}
       >
         <PopoverTrigger asChild>
           <div
@@ -617,13 +699,17 @@ export function ViabilityIndicator({
         </PopoverTrigger>
         <PopoverContent 
           className={cn(
-            "w-[calc(100vw-1.5rem)] sm:w-96 max-w-[420px] p-0 text-sm z-50 shadow-2xl rounded-xl border bg-popover text-popover-foreground max-h-[82vh] flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95",
+            "w-[calc(100vw-1.5rem)] sm:w-[520px] md:w-[620px] lg:w-[680px] max-w-[95vw] p-0 text-sm z-50 shadow-2xl rounded-xl border bg-popover text-popover-foreground flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95",
             primaryBorderClass
           )}
+          style={{
+            maxHeight: 'var(--radix-popover-content-available-height, min(80vh, 700px))',
+          }}
           side="bottom"
-          align="center"
+          align="start"
           sideOffset={8}
-          collisionPadding={12}
+          collisionPadding={16}
+          avoidCollisions={true}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Sticky Header with Title and Close Button */}
@@ -661,42 +747,8 @@ export function ViabilityIndicator({
             </div>
           </div>
 
-          {/* Touch-Friendly 4-Season Segmented Switcher */}
-          {effectiveSeasons.length > 1 && (
-            <div className="p-2 border-b border-border/40 bg-muted/15 shrink-0">
-              <div className="grid grid-cols-4 gap-1 p-0.5 bg-muted/60 rounded-lg text-xs font-medium">
-                {effectiveSeasons.map((s) => {
-                  const isSelected = s.season.toLowerCase() === activeViewingSeason.toLowerCase();
-                  const isCurrent = currentSeason && s.season.toLowerCase() === currentSeason.toLowerCase();
-                  const vCfg = viabilityConfig[s.viability] || viabilityConfig.Medium;
-                  return (
-                    <button
-                      key={s.season}
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedSeason(s.season);
-                      }}
-                      className={cn(
-                        "flex flex-col items-center justify-center py-1.5 px-1 rounded-md transition-all text-center select-none active:scale-95",
-                        isSelected 
-                          ? "bg-background text-foreground shadow-xs font-semibold ring-1 ring-border" 
-                          : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
-                      )}
-                      title={`View ${s.season} (${s.viability})`}
-                    >
-                      <span className="text-sm">{seasonIcons[s.season] || '🌿'}</span>
-                      <span className="text-[10px] leading-tight font-medium mt-0.5">{s.season}</span>
-                      <span className={cn("text-[9px] px-1 py-0 font-mono mt-0.5 rounded leading-tight", vCfg.className.split(' ')[0], vCfg.className.split(' ')[1])}>
-                        {s.viability}
-                      </span>
-                      {isCurrent && <span className="text-[8px] text-primary font-bold mt-0.5 leading-none">• Now</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {/* Persistent Touch-Friendly 4-Season Segmented Switcher */}
+          {renderSeasonTabs(activeViewingSeason)}
 
           {/* Scrollable Body with overscroll-contain */}
           <div className="p-3.5 space-y-3 overflow-y-auto overscroll-contain flex-1">
@@ -848,6 +900,7 @@ export function ViabilityIndicator({
     const overallCfg = viabilityConfig[resolvedPrep.overallViability] || viabilityConfig.Medium;
     const prepCfg = viabilityConfig[resolvedPrep.prepViability] || viabilityConfig.Medium;
     const harvCfg = viabilityConfig[resolvedPrep.harvestViability] || viabilityConfig.Medium;
+    const isSeasonDifferent = currentSeason && activeViewingSeason.toLowerCase() !== currentSeason.toLowerCase();
 
     return (
       <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -857,7 +910,7 @@ export function ViabilityIndicator({
             onClick={(e) => {
               e.stopPropagation();
             }}
-            className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap active:scale-95 transition-transform"
+            className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap active:scale-95 transition-transform cursor-pointer"
             title="Click to view Prep lifecycle forecast and related propagation methods"
           >
             <Badge 
@@ -881,13 +934,17 @@ export function ViabilityIndicator({
         </PopoverTrigger>
         <PopoverContent 
           className={cn(
-            "w-[calc(100vw-1.5rem)] sm:w-96 max-w-[420px] p-0 text-sm z-50 shadow-2xl rounded-xl border bg-popover text-popover-foreground max-h-[82vh] flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95",
+            "w-[calc(100vw-1.5rem)] sm:w-[520px] md:w-[620px] lg:w-[680px] max-w-[95vw] p-0 text-sm z-50 shadow-2xl rounded-xl border bg-popover text-popover-foreground flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95",
             overallCfg.borderClass
           )}
+          style={{
+            maxHeight: 'var(--radix-popover-content-available-height, min(80vh, 700px))',
+          }}
           side="bottom"
-          align="center"
+          align="start"
           sideOffset={8}
-          collisionPadding={12}
+          collisionPadding={16}
+          avoidCollisions={true}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Sticky Header with Title and Close Button */}
@@ -897,6 +954,9 @@ export function ViabilityIndicator({
               <div className="min-w-0">
                 <div className="font-semibold text-xs truncate flex items-center gap-1">
                   <span>Prep Lifecycle &amp; Methods</span>
+                  {isSeasonDifferent && (
+                    <span className="text-muted-foreground font-normal">• {activeViewingSeason}</span>
+                  )}
                 </div>
                 {plantName && (
                   <p className="text-[11px] text-muted-foreground truncate">
@@ -924,69 +984,92 @@ export function ViabilityIndicator({
             </div>
           </div>
 
+          {/* Persistent Touch-Friendly 4-Season Switcher */}
+          {renderSeasonTabs(activeViewingSeason)}
+
           {/* Scrollable Body with overscroll-contain */}
           <div className="p-3.5 space-y-3 overflow-y-auto overscroll-contain flex-1">
-            {/* 3-Stage Lifecycle Trajectory (Shown when active method is botanically compatible) */}
-            {!isPrepNA && (
-              <div className="space-y-2">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Selected Method ({activeMethodInfo?.label || activeMethod}) Trajectory
-                </span>
-                <div className="grid grid-cols-3 gap-1.5 text-center">
-                  <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
-                    <span className="text-[10px] text-muted-foreground font-semibold">1. Prep</span>
-                    <span className={cn("text-xs font-bold mt-0.5", prepCfg.className.split(' ')[1])}>
-                      {resolvedPrep.prepViability}
-                    </span>
-                    <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Germination</span>
+            {isSeasonDifferent ? (
+              <div className="space-y-3">
+                <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 text-xs flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{seasonIcons[activeViewingSeason] || '🌿'}</span>
+                    <div>
+                      <span className="font-semibold text-foreground">Forecast for {activeViewingSeason}: </span>
+                      <span className="text-muted-foreground">Current garden season is {currentSeason || 'Spring'}.</span>
+                    </div>
                   </div>
-                  <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
-                    <span className="text-[10px] text-muted-foreground font-semibold">2. Grow</span>
-                    <span className={cn("text-xs font-bold mt-0.5", viabilityConfig[resolvedPrep.growViability]?.className.split(' ')[1])}>
-                      {resolvedPrep.growViability}
-                    </span>
-                    <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Vegetative</span>
-                  </div>
-                  <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
-                    <span className="text-[10px] text-muted-foreground font-semibold">3. Harv</span>
-                    <span className={cn("text-xs font-bold mt-0.5", harvCfg.className.split(' ')[1])}>
-                      {resolvedPrep.harvestViability}
-                    </span>
-                    <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Maturity</span>
-                  </div>
+                  <Badge variant="outline" className={cn("text-xs font-semibold font-mono", viabilityConfig[seasonData?.viability || 'Medium']?.className)}>
+                    {seasonData?.viability || 'Medium'}
+                  </Badge>
                 </div>
 
-                <div className="space-y-1.5 text-xs text-muted-foreground pt-1">
-                  {resolvedPrep.prepReasoning && (
-                    <div>
-                      <span className="font-semibold text-foreground/80">Prep Phase: </span>
-                      <span>{resolvedPrep.prepReasoning}</span>
-                    </div>
-                  )}
-                  {resolvedPrep.growReasoning && (
-                    <div>
-                      <span className="font-semibold text-foreground/80">Grow Phase: </span>
-                      <span>{resolvedPrep.growReasoning}</span>
-                    </div>
-                  )}
-                  {resolvedPrep.harvestReasoning && (
-                    <div>
-                      <span className="font-semibold text-foreground/80">Harvest Phase: </span>
-                      <span>{resolvedPrep.harvestReasoning}</span>
-                    </div>
-                  )}
-                </div>
+                {renderMethodsSection(viewingMethods, activeViewingSeason)}
               </div>
-            )}
+            ) : (
+              <>
+                {/* 3-Stage Lifecycle Trajectory (Shown when active method is botanically compatible) */}
+                {!isPrepNA && (
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      Selected Method ({activeMethodInfo?.label || activeMethod}) Trajectory
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5 text-center">
+                      <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
+                        <span className="text-[10px] text-muted-foreground font-semibold">1. Prep</span>
+                        <span className={cn("text-xs font-bold mt-0.5", prepCfg.className.split(' ')[1])}>
+                          {resolvedPrep.prepViability}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Germination</span>
+                      </div>
+                      <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
+                        <span className="text-[10px] text-muted-foreground font-semibold">2. Grow</span>
+                        <span className={cn("text-xs font-bold mt-0.5", viabilityConfig[resolvedPrep.growViability]?.className.split(' ')[1])}>
+                          {resolvedPrep.growViability}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Vegetative</span>
+                      </div>
+                      <div className="p-2 rounded border border-border/60 bg-muted/20 flex flex-col items-center">
+                        <span className="text-[10px] text-muted-foreground font-semibold">3. Harv</span>
+                        <span className={cn("text-xs font-bold mt-0.5", harvCfg.className.split(' ')[1])}>
+                          {resolvedPrep.harvestViability}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground mt-0.5 leading-tight">Maturity</span>
+                      </div>
+                    </div>
 
-            {resolvedPrep.summary && (
-              <div className="p-2.5 rounded border border-primary/20 bg-primary/5 text-xs text-foreground/90 font-medium">
-                💡 {resolvedPrep.summary}
-              </div>
-            )}
+                    <div className="space-y-1.5 text-xs text-muted-foreground pt-1">
+                      {resolvedPrep.prepReasoning && (
+                        <div>
+                          <span className="font-semibold text-foreground/80">Prep Phase: </span>
+                          <span>{resolvedPrep.prepReasoning}</span>
+                        </div>
+                      )}
+                      {resolvedPrep.growReasoning && (
+                        <div>
+                          <span className="font-semibold text-foreground/80">Grow Phase: </span>
+                          <span>{resolvedPrep.growReasoning}</span>
+                        </div>
+                      )}
+                      {resolvedPrep.harvestReasoning && (
+                        <div>
+                          <span className="font-semibold text-foreground/80">Harvest Phase: </span>
+                          <span>{resolvedPrep.harvestReasoning}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-            {/* Methods screen */}
-            {renderMethodsSection()}
+                {resolvedPrep.summary && (
+                  <div className="p-2.5 rounded border border-primary/20 bg-primary/5 text-xs text-foreground/90 font-medium">
+                    💡 {resolvedPrep.summary}
+                  </div>
+                )}
+
+                {renderMethodsSection(viewingMethods, activeViewingSeason)}
+              </>
+            )}
           </div>
         </PopoverContent>
       </Popover>
@@ -997,6 +1080,7 @@ export function ViabilityIndicator({
   if (resolvedGrow && (targetStage === 'Growing' || (targetStage !== 'Harvest' && targetStage !== 'Planting' && targetStage !== 'Wishlist'))) {
     const cfg = viabilityConfig[resolvedGrow.vigorViability] || viabilityConfig.High;
     const hasStress = resolvedGrow.stressFactor && resolvedGrow.stressFactor !== 'None';
+    const isSeasonDifferent = currentSeason && activeViewingSeason.toLowerCase() !== currentSeason.toLowerCase();
 
     return (
       <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -1006,7 +1090,7 @@ export function ViabilityIndicator({
             onClick={(e) => {
               e.stopPropagation();
             }}
-            className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap active:scale-95 transition-transform"
+            className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap active:scale-95 transition-transform cursor-pointer"
             title="Click to view in-ground vigor, stress factors, and related propagation methods"
           >
             <Badge 
@@ -1028,13 +1112,17 @@ export function ViabilityIndicator({
         </PopoverTrigger>
         <PopoverContent 
           className={cn(
-            "w-[calc(100vw-1.5rem)] sm:w-96 max-w-[420px] p-0 text-sm z-50 shadow-2xl rounded-xl border bg-popover text-popover-foreground max-h-[82vh] flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95",
+            "w-[calc(100vw-1.5rem)] sm:w-[520px] md:w-[620px] lg:w-[680px] max-w-[95vw] p-0 text-sm z-50 shadow-2xl rounded-xl border bg-popover text-popover-foreground flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95",
             cfg.borderClass
           )}
+          style={{
+            maxHeight: 'var(--radix-popover-content-available-height, min(80vh, 700px))',
+          }}
           side="bottom"
-          align="center"
+          align="start"
           sideOffset={8}
-          collisionPadding={12}
+          collisionPadding={16}
+          avoidCollisions={true}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Sticky Header with Title and Close Button */}
@@ -1044,6 +1132,9 @@ export function ViabilityIndicator({
               <div className="min-w-0">
                 <div className="font-semibold text-xs truncate flex items-center gap-1">
                   <span>In-Ground Growth Watch</span>
+                  {isSeasonDifferent && (
+                    <span className="text-muted-foreground font-normal">• {activeViewingSeason}</span>
+                  )}
                 </div>
                 {plantName && (
                   <p className="text-[11px] text-muted-foreground truncate">
@@ -1071,36 +1162,72 @@ export function ViabilityIndicator({
             </div>
           </div>
 
+          {/* Persistent Touch-Friendly 4-Season Switcher */}
+          {renderSeasonTabs(activeViewingSeason)}
+
           <div className="p-3.5 space-y-3 overflow-y-auto overscroll-contain flex-1">
-            {hasStress ? (
-              <div className="p-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-xs space-y-1">
-                <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-semibold">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  <span>Stress Alert: {resolvedGrow.stressFactor}</span>
+            {isSeasonDifferent ? (
+              <div className="space-y-3">
+                <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 text-xs flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{seasonIcons[activeViewingSeason] || '🌿'}</span>
+                    <div>
+                      <span className="font-semibold text-foreground">Forecast for {activeViewingSeason}: </span>
+                      <span className="text-muted-foreground">Current garden season is {currentSeason || 'Spring'}.</span>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className={cn("text-xs font-semibold font-mono", viabilityConfig[seasonData?.viability || 'Medium']?.className)}>
+                    {seasonData?.viability || 'Medium'}
+                  </Badge>
                 </div>
-                <p className="text-[11px] text-amber-900/90 dark:text-amber-200/90 leading-snug">
-                  {resolvedGrow.reasoning}
-                </p>
+
+                {growInfo && (
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-muted/20 text-xs space-y-1">
+                    <span className="font-semibold text-foreground">Expected Vigor in {activeViewingSeason}:</span>
+                    <p className="text-[11px] text-muted-foreground leading-snug">{growInfo.reasoning}</p>
+                    {growInfo.tendingAdvice && (
+                      <p className="text-[11px] text-primary pt-1 border-t border-border/40 font-medium">{growInfo.tendingAdvice}</p>
+                    )}
+                  </div>
+                )}
+
+                {renderMethodsSection(viewingMethods, activeViewingSeason)}
               </div>
             ) : (
-              <div className="space-y-1 text-xs">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Growth Status</span>
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  {resolvedGrow.reasoning}
-                </p>
-              </div>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {hasStress ? (
+                    <div className="p-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-xs space-y-1">
+                      <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-semibold">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        <span>Stress Alert: {resolvedGrow.stressFactor}</span>
+                      </div>
+                      <p className="text-[11px] text-amber-900/90 dark:text-amber-200/90 leading-snug">
+                        {resolvedGrow.reasoning}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 rounded-lg border border-border/60 bg-muted/20 space-y-1 text-xs">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Growth Status</span>
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        {resolvedGrow.reasoning}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 text-xs space-y-1">
+                    <span className="text-[11px] font-semibold text-primary flex items-center gap-1">
+                      <span>🌿</span> Tending Action Plan:
+                    </span>
+                    <p className="text-[11px] text-foreground/90 leading-snug font-medium">
+                      {resolvedGrow.tendingAdvice}
+                    </p>
+                  </div>
+                </div>
+
+                {renderMethodsSection(viewingMethods, activeViewingSeason)}
+              </>
             )}
-
-            <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 text-xs space-y-1">
-              <span className="text-[11px] font-semibold text-primary flex items-center gap-1">
-                <span>🌿</span> Tending Action Plan:
-              </span>
-              <p className="text-[11px] text-foreground/90 leading-snug font-medium">
-                {resolvedGrow.tendingAdvice}
-              </p>
-            </div>
-
-            {renderMethodsSection()}
           </div>
         </PopoverContent>
       </Popover>
@@ -1114,6 +1241,7 @@ export function ViabilityIndicator({
       || (plant ? getSeasonalHarvestInfo(plant, (currentSeason || 'Spring') as SeasonName, conditions).harvestType : undefined);
     const effectiveSeedSavingNotes = resolvedHarvest.seedSavingNotes 
       || (plant ? getSeasonalHarvestInfo(plant, (currentSeason || 'Spring') as SeasonName, conditions).seedSavingNotes : undefined);
+    const isSeasonDifferent = currentSeason && activeViewingSeason.toLowerCase() !== currentSeason.toLowerCase();
 
     return (
       <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -1123,7 +1251,7 @@ export function ViabilityIndicator({
             onClick={(e) => {
               e.stopPropagation();
             }}
-            className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap active:scale-95 transition-transform"
+            className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap active:scale-95 transition-transform cursor-pointer"
             title="Click to view harvest window, bed succession, and related propagation methods"
           >
             <Badge 
@@ -1144,13 +1272,17 @@ export function ViabilityIndicator({
         </PopoverTrigger>
         <PopoverContent 
           className={cn(
-            "w-[calc(100vw-1.5rem)] sm:w-96 max-w-[420px] p-0 text-sm z-50 shadow-2xl rounded-xl border bg-popover text-popover-foreground max-h-[82vh] flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95",
+            "w-[calc(100vw-1.5rem)] sm:w-[520px] md:w-[620px] lg:w-[680px] max-w-[95vw] p-0 text-sm z-50 shadow-2xl rounded-xl border bg-popover text-popover-foreground flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95",
             cfg.borderClass
           )}
+          style={{
+            maxHeight: 'var(--radix-popover-content-available-height, min(80vh, 700px))',
+          }}
           side="bottom"
-          align="center"
+          align="start"
           sideOffset={8}
-          collisionPadding={12}
+          collisionPadding={16}
+          avoidCollisions={true}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Sticky Header with Title and Close Button */}
@@ -1160,6 +1292,9 @@ export function ViabilityIndicator({
               <div className="min-w-0">
                 <div className="font-semibold text-xs truncate flex items-center gap-1">
                   <span>Harvest Window &amp; Succession</span>
+                  {isSeasonDifferent && (
+                    <span className="text-muted-foreground font-normal">• {activeViewingSeason}</span>
+                  )}
                 </div>
                 {plantName && (
                   <p className="text-[11px] text-muted-foreground truncate">
@@ -1192,46 +1327,79 @@ export function ViabilityIndicator({
             </div>
           </div>
 
+          {/* Persistent Touch-Friendly 4-Season Switcher */}
+          {renderSeasonTabs(activeViewingSeason)}
+
           <div className="p-3.5 space-y-3 overflow-y-auto overscroll-contain flex-1">
-            {effectiveHarvestType && (
-              <div className="sm:hidden flex items-center justify-between pb-1 border-b border-border/40">
-                <span className="text-[11px] text-muted-foreground">Harvest Style:</span>
-                <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-medium", harvestTypeConfig[effectiveHarvestType]?.badgeClass)}>
-                  {harvestTypeConfig[effectiveHarvestType]?.icon || ''} {effectiveHarvestType}
-                </Badge>
+            {isSeasonDifferent ? (
+              <div className="space-y-3">
+                <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 text-xs flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{seasonIcons[activeViewingSeason] || '🌿'}</span>
+                    <div>
+                      <span className="font-semibold text-foreground">Forecast for {activeViewingSeason}: </span>
+                      <span className="text-muted-foreground">Current garden season is {currentSeason || 'Spring'}.</span>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className={cn("text-xs font-semibold font-mono", viabilityConfig[seasonData?.viability || 'Medium']?.className)}>
+                    {seasonData?.viability || 'Medium'}
+                  </Badge>
+                </div>
+
+                {harvestInfo && (
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-muted/20 text-xs space-y-1">
+                    <span className="font-semibold text-foreground">Expected Harvest in {activeViewingSeason}:</span>
+                    <p className="text-[11px] text-muted-foreground leading-snug">{harvestInfo.description || harvestInfo.harvestWindow}</p>
+                  </div>
+                )}
+
+                {renderMethodsSection(viewingMethods, activeViewingSeason)}
               </div>
+            ) : (
+              <>
+                {effectiveHarvestType && (
+                  <div className="sm:hidden flex items-center justify-between pb-1 border-b border-border/40">
+                    <span className="text-[11px] text-muted-foreground">Harvest Style:</span>
+                    <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-medium", harvestTypeConfig[effectiveHarvestType]?.badgeClass)}>
+                      {harvestTypeConfig[effectiveHarvestType]?.icon || ''} {effectiveHarvestType}
+                    </Badge>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-muted/20 space-y-1 text-xs">
+                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Ripeness Status</span>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      {resolvedHarvest.reasoning}
+                    </p>
+                  </div>
+
+                  {effectiveSeedSavingNotes && (
+                    <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs space-y-1">
+                      <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                        <span>🌾</span> Seed Saving Guide:
+                      </span>
+                      <p className="text-[11px] text-amber-900/90 dark:text-amber-200/90 leading-snug">
+                        {effectiveSeedSavingNotes}
+                      </p>
+                    </div>
+                  )}
+
+                  {resolvedHarvest.successionAdvice && (
+                    <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 text-xs space-y-1 md:col-span-2">
+                      <span className="text-[11px] font-semibold text-primary flex items-center gap-1">
+                        <span>🔄</span> Succession Crop for this Bed:
+                      </span>
+                      <p className="text-[11px] text-foreground/90 leading-snug">
+                        {resolvedHarvest.successionAdvice}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {renderMethodsSection(viewingMethods, activeViewingSeason)}
+              </>
             )}
-
-            <div className="space-y-1 text-xs">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Ripeness Status</span>
-              <p className="text-[11px] text-muted-foreground leading-snug">
-                {resolvedHarvest.reasoning}
-              </p>
-            </div>
-
-            {effectiveSeedSavingNotes && (
-              <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs space-y-1">
-                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                  <span>🌾</span> Seed Saving Guide:
-                </span>
-                <p className="text-[11px] text-amber-900/90 dark:text-amber-200/90 leading-snug">
-                  {effectiveSeedSavingNotes}
-                </p>
-              </div>
-            )}
-
-            {resolvedHarvest.successionAdvice && (
-              <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 text-xs space-y-1">
-                <span className="text-[11px] font-semibold text-primary flex items-center gap-1">
-                  <span>🔄</span> Succession Crop for this Bed:
-                </span>
-                <p className="text-[11px] text-foreground/90 leading-snug">
-                  {resolvedHarvest.successionAdvice}
-                </p>
-              </div>
-            )}
-
-            {renderMethodsSection()}
           </div>
         </PopoverContent>
       </Popover>
@@ -1258,7 +1426,7 @@ export function ViabilityIndicator({
           onClick={(e) => {
             e.stopPropagation();
           }}
-          className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap active:scale-95 transition-transform"
+          className="focus:outline-none focus:ring-1 focus:ring-primary rounded flex items-center gap-1.5 flex-wrap active:scale-95 transition-transform cursor-pointer"
           title="Click to view AI reasoning, seasonal viability, and related propagation methods"
         >
           <Badge 
@@ -1288,13 +1456,17 @@ export function ViabilityIndicator({
       </PopoverTrigger>
       <PopoverContent 
         className={cn(
-          "w-[calc(100vw-1.5rem)] sm:w-96 max-w-[420px] p-0 text-sm z-50 shadow-2xl rounded-xl border bg-popover text-popover-foreground max-h-[82vh] flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95",
+          "w-[calc(100vw-1.5rem)] sm:w-[520px] md:w-[620px] lg:w-[680px] max-w-[95vw] p-0 text-sm z-50 shadow-2xl rounded-xl border bg-popover text-popover-foreground flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95",
           config.borderClass
         )}
+        style={{
+          maxHeight: 'var(--radix-popover-content-available-height, min(80vh, 700px))',
+        }}
         side="bottom"
-        align="center"
+        align="start"
         sideOffset={8}
-        collisionPadding={12}
+        collisionPadding={16}
+        avoidCollisions={true}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky Header with Title and Close Button */}
@@ -1331,6 +1503,9 @@ export function ViabilityIndicator({
           </div>
         </div>
 
+        {/* Persistent Touch-Friendly 4-Season Switcher */}
+        {renderSeasonTabs(activeViewingSeason)}
+
         <div className="p-3.5 space-y-3 overflow-y-auto overscroll-contain flex-1">
           {hasUpcomingHigher && (
             <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 space-y-1">
@@ -1363,7 +1538,7 @@ export function ViabilityIndicator({
             </div>
           </div>
 
-          {renderMethodsSection()}
+          {renderMethodsSection(viewingMethods, activeViewingSeason)}
         </div>
       </PopoverContent>
     </Popover>

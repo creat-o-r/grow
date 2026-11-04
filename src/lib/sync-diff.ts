@@ -39,9 +39,14 @@ export interface DiscrepancyItemUpdated {
   localSeedsOnHand?: number;
   incomingSeedsOnHand?: number;
   seedsChanged: boolean;
+  localPropagationMethod?: string;
+  incomingPropagationMethod?: string;
+  methodChanged?: boolean;
   incomingNotes?: string;
   targetGardenId?: string;
   targetGardenName?: string;
+  peerHandle?: string;
+  changeSummary?: string;
 }
 
 export interface DiscrepancyItemIdentical {
@@ -146,6 +151,7 @@ export function computeGardenDiscrepancy(
   const incomingGardenName =
     incomingDataset.locations?.[0]?.name || 'Shared Garden';
   const fingerprint = fingerprintDataset(incomingDataset);
+  const peerDisplayName = peerHandle || 'another gardener';
 
   // Index incoming plants by ID
   const incomingPlantMap = new Map<string, Plant>();
@@ -282,8 +288,17 @@ export function computeGardenDiscrepancy(
         const localSeeds = otherGardenPlanting.seedsOnHand ?? 0;
         const incSeeds = incPlanting.seedsOnHand ?? 0;
         const seedsChanged = localSeeds !== incSeeds && incPlanting.seedsOnHand !== undefined;
+        const localMethod = otherGardenPlanting.propagationMethod || 'seed';
+        const incMethod = incPlanting.propagationMethod || 'seed';
+        const methodChanged = localMethod !== incMethod && incPlanting.propagationMethod !== undefined;
 
-        if (stageChanged || seedsChanged) {
+        if (stageChanged || seedsChanged || methodChanged) {
+          const parts: string[] = [];
+          if (stageChanged) parts.push(`Stage: ${localStage} ➔ ${incStage}`);
+          if (seedsChanged) parts.push(`Seeds: ${localSeeds} ➔ ${incSeeds}`);
+          if (methodChanged) parts.push(`Method: ${localMethod} ➔ ${incMethod}`);
+          const changeSummary = parts.join(' • ');
+
           updatedItems.push({
             type: 'updated',
             localPlantingId: otherGardenPlanting.id,
@@ -296,6 +311,11 @@ export function computeGardenDiscrepancy(
             localSeedsOnHand: localSeeds,
             incomingSeedsOnHand: incSeeds,
             seedsChanged,
+            localPropagationMethod: localMethod,
+            incomingPropagationMethod: incMethod,
+            methodChanged,
+            changeSummary,
+            peerHandle: peerDisplayName,
             incomingNotes: incPlanting.history?.slice(-1)[0]?.notes,
             targetGardenId: matchedLocalLocation.id,
             targetGardenName: matchedLocalLocation.name,
@@ -330,9 +350,18 @@ export function computeGardenDiscrepancy(
       const localSeeds = localMatch.seedsOnHand ?? 0;
       const incSeeds = incPlanting.seedsOnHand ?? 0;
       const seedsChanged = localSeeds !== incSeeds && incPlanting.seedsOnHand !== undefined;
+      const localMethod = localMatch.propagationMethod || 'seed';
+      const incMethod = incPlanting.propagationMethod || 'seed';
+      const methodChanged = localMethod !== incMethod && incPlanting.propagationMethod !== undefined;
       const incomingNotes = incPlanting.history?.slice(-1)[0]?.notes;
 
-      if (stageChanged || seedsChanged) {
+      if (stageChanged || seedsChanged || methodChanged) {
+        const parts: string[] = [];
+        if (stageChanged) parts.push(`Stage: ${localStage} ➔ ${incStage}`);
+        if (seedsChanged) parts.push(`Seeds: ${localSeeds} ➔ ${incSeeds}`);
+        if (methodChanged) parts.push(`Method: ${localMethod} ➔ ${incMethod}`);
+        const changeSummary = parts.join(' • ');
+
         updatedItems.push({
           type: 'updated',
           localPlantingId: localMatch.id,
@@ -345,6 +374,11 @@ export function computeGardenDiscrepancy(
           localSeedsOnHand: localSeeds,
           incomingSeedsOnHand: incSeeds,
           seedsChanged,
+          localPropagationMethod: localMethod,
+          incomingPropagationMethod: incMethod,
+          methodChanged,
+          changeSummary,
+          peerHandle: peerDisplayName,
           incomingNotes,
           targetGardenId: targetGardenId || localMatch.gardenId,
           targetGardenName: targetLocation?.name,
@@ -577,6 +611,10 @@ export async function applyGardenDiscrepancies(
       updates.seedsOnHand = item.incomingSeedsOnHand;
     }
 
+    if (item.methodChanged && item.incomingPropagationMethod) {
+      updates.propagationMethod = item.incomingPropagationMethod as any;
+    }
+
     if (Object.keys(updates).length > 0) {
       await db.plantings.update(item.localPlantingId, updates);
       updated++;
@@ -604,4 +642,55 @@ export async function applyGardenDiscrepancies(
   });
 
   return { added, updated };
+}
+
+/**
+ * Idempotently applies a single remote planting update to local Dexie storage.
+ * Used when a user approves a specific remote change or resolves a pre-operation conflict.
+ */
+export async function applySinglePlantingDiscrepancy(
+  update: DiscrepancyItemUpdated,
+  incomingDataset: AiDataset
+): Promise<void> {
+  const incPlanting = incomingDataset.plantings?.find((p) => p.id === update.incomingPlantingId);
+  const incPlant = incomingDataset.plants?.find((p) => p.id === incPlanting?.plantId);
+
+  await db.transaction('rw', [db.plantings, db.plants], async () => {
+    const existing = await db.plantings.get(update.localPlantingId);
+    if (!existing) return;
+
+    const updates: Partial<Planting> = {};
+    if (update.stageChanged && update.incomingStage) {
+      const history = existing.history ? [...existing.history] : [];
+      history.push({
+        id: crypto.randomUUID(),
+        status: update.incomingStage as any,
+        date: new Date().toISOString(),
+        notes: update.incomingNotes || `Synced from @${update.peerHandle || 'another device'}`,
+      });
+      updates.history = history;
+    }
+
+    if (update.seedsChanged && update.incomingSeedsOnHand !== undefined) {
+      updates.seedsOnHand = update.incomingSeedsOnHand;
+    }
+
+    if (update.methodChanged && update.incomingPropagationMethod) {
+      updates.propagationMethod = update.incomingPropagationMethod as any;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await db.plantings.update(existing.id, updates);
+    }
+  });
+
+  recordSyncActivity({
+    direction: 'inward',
+    peerHandle: update.peerHandle || 'remote-device',
+    gardenName: update.targetGardenName || 'Garden',
+    summary: update.changeSummary || `Updated ${update.plantName}`,
+    addedCount: 0,
+    updatedCount: 1,
+    status: 'merged',
+  });
 }

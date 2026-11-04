@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { AiDataset, FreeLlmConfig } from '@/lib/types';
+import type { AiDataset, FreeLlmConfig, PlantingWithPlant } from '@/lib/types';
 import {
   getSavedP2PRoomId,
   saveP2PRoomId,
@@ -19,6 +19,14 @@ import {
   broadcastGardenToP2PRoom,
 } from '@/lib/p2p-signals';
 import { mergeSeedPackIntoDb } from '@/lib/seed-pack';
+import {
+  computeGardenDiscrepancy,
+  applyGardenDiscrepancies,
+  applySinglePlantingDiscrepancy,
+  type GardenDiscrepancy,
+  type DiscrepancyItemUpdated,
+} from '@/lib/sync-diff';
+import { db } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
 
 export const P2P_ROOM_CHANGE_EVENT = 'grow:p2p-room-changed';
@@ -53,6 +61,11 @@ export function useP2PRoomLiveSync(options?: UseP2PRoomLiveSyncOptions) {
   const [autoStream, setAutoStreamState] = useState<boolean>(false);
   const [lastPeer, setLastPeer] = useState<string | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+
+  // Pre-operation multi-device state awareness
+  const [pendingRemoteDiscrepancy, setPendingRemoteDiscrepancy] = useState<GardenDiscrepancy | null>(null);
+  const [remotePlantingUpdates, setRemotePlantingUpdates] = useState<Map<string, DiscrepancyItemUpdated>>(new Map());
+  const [latestRemoteDataset, setLatestRemoteDataset] = useState<{ dataset: AiDataset; peerName: string; timestamp: string } | null>(null);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isStreamingRef = useRef<boolean>(false);
@@ -108,6 +121,72 @@ export function useP2PRoomLiveSync(options?: UseP2PRoomLiveSyncOptions) {
     setAutoStreamState(enabled);
   }, []);
 
+  // Lookup helper for individual plantings
+  const checkRemoteUpdateForPlanting = useCallback((plantingId: string): DiscrepancyItemUpdated | undefined => {
+    return remotePlantingUpdates.get(plantingId);
+  }, [remotePlantingUpdates]);
+
+  const dismissRemoteUpdateForPlanting = useCallback((plantingId: string) => {
+    setRemotePlantingUpdates(prev => {
+      const next = new Map(prev);
+      next.delete(plantingId);
+      return next;
+    });
+  }, []);
+
+  const clearPendingRemoteUpdates = useCallback(() => {
+    setPendingRemoteDiscrepancy(null);
+    setRemotePlantingUpdates(new Map());
+    setLatestRemoteDataset(null);
+  }, []);
+
+  // Apply a single remote update (e.g. from pre-operation conflict dialog or plant card)
+  const applyRemoteUpdateForPlanting = useCallback(async (plantingId: string): Promise<boolean> => {
+    const update = remotePlantingUpdates.get(plantingId);
+    if (!update || !latestRemoteDataset) return false;
+    try {
+      await applySinglePlantingDiscrepancy(update, latestRemoteDataset.dataset);
+      dismissRemoteUpdateForPlanting(plantingId);
+      toast({
+        title: 'Remote Update Applied',
+        description: `Synced changes for ${update.plantName} from @${update.peerHandle || 'remote device'}.`,
+      });
+      return true;
+    } catch (err: any) {
+      console.error('[P2P LiveSync] Failed to apply single remote update:', err);
+      toast({
+        title: 'Sync Failed',
+        description: err?.message || 'Could not apply remote update.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  }, [remotePlantingUpdates, latestRemoteDataset, dismissRemoteUpdateForPlanting, toast]);
+
+  // Apply all pending remote discrepancies
+  const applyAllPendingRemoteDiscrepancies = useCallback(async (): Promise<void> => {
+    if (!pendingRemoteDiscrepancy || !latestRemoteDataset) return;
+    try {
+      await applyGardenDiscrepancies(
+        pendingRemoteDiscrepancy,
+        latestRemoteDataset.dataset,
+        options?.activeLocationId || pendingRemoteDiscrepancy.updatedItems[0]?.targetGardenId || ''
+      );
+      clearPendingRemoteUpdates();
+      toast({
+        title: 'All Remote Changes Synced',
+        description: `Synced ${pendingRemoteDiscrepancy.updatedItems.length + pendingRemoteDiscrepancy.newItems.length} changes from @${pendingRemoteDiscrepancy.peerHandle}.`,
+      });
+    } catch (err: any) {
+      console.error('[P2P LiveSync] Failed to apply all pending remote discrepancies:', err);
+      toast({
+        title: 'Sync Failed',
+        description: err?.message || 'Could not apply remote discrepancies.',
+        variant: 'destructive',
+      });
+    }
+  }, [pendingRemoteDiscrepancy, latestRemoteDataset, options?.activeLocationId, clearPendingRemoteUpdates, toast]);
+
   // Subscribe to live room updates (EventSource SSE + BroadcastChannel)
   useEffect(() => {
     const trimmed = roomId.trim();
@@ -132,6 +211,37 @@ export function useP2PRoomLiveSync(options?: UseP2PRoomLiveSyncOptions) {
         const plantCount = incomingDataset.plantings?.length || 0;
         const gardenName = incomingDataset.locations?.[0]?.name || 'Garden';
 
+        // Fetch local database state to compute discrepancy accurately across devices
+        let disc: GardenDiscrepancy | null = null;
+        try {
+          const allLocations = await db.locations.toArray();
+          const allPlants = await db.plants.toArray();
+          const allPlantings = await db.plantings.toArray();
+          const plantMap = new Map(allPlants.map(p => [p.id, p]));
+          const locationMap = new Map(allLocations.map(l => [l.id, l]));
+          const plantingsWithPlants: PlantingWithPlant[] = allPlantings.map(p => ({
+            ...p,
+            plant: plantMap.get(p.plantId) || { id: p.plantId, species: p.name, name: p.name, germinationNeeds: '', optimalConditions: '' },
+            garden: locationMap.get(p.gardenId),
+          }));
+
+          disc = computeGardenDiscrepancy(
+            plantingsWithPlants.filter(p => !options?.activeLocationId || p.gardenId === options.activeLocationId),
+            incomingDataset,
+            peerName,
+            {
+              targetGardenId: options?.activeLocationId || null,
+              allLocalPlantings: plantingsWithPlants,
+              allLocalLocations: allLocations,
+              peerPubkey,
+            }
+          );
+        } catch (discErr) {
+          console.warn('[P2P LiveSync] Could not compute incoming discrepancy:', discErr);
+        }
+
+        setLatestRemoteDataset({ dataset: incomingDataset, peerName, timestamp });
+
         const currentMode = getInwardStreamMode();
         const isTrusted = isGrowerTrusted(peerName) || isGrowerTrusted(peerPubkey);
         const shouldAutoMerge = currentMode === 'all' || (currentMode === 'selected' && isTrusted);
@@ -144,6 +254,10 @@ export function useP2PRoomLiveSync(options?: UseP2PRoomLiveSyncOptions) {
               targetGardenId: options?.activeLocationId || null,
               author: peerName,
             });
+
+            // Clear pending since auto-merged
+            setPendingRemoteDiscrepancy(null);
+            setRemotePlantingUpdates(new Map());
 
             const modeLabel = currentMode === 'selected' ? ' [Trusted Grower]' : '';
             let syncDesc = `All plants in ${result.targetGardenName || gardenName} are already in sync.`;
@@ -170,15 +284,31 @@ export function useP2PRoomLiveSync(options?: UseP2PRoomLiveSyncOptions) {
           return;
         }
 
+        // Pre-operation multi-device awareness: store updates so user is informed before operations
+        if (disc && disc.hasDiscrepancies) {
+          setPendingRemoteDiscrepancy(disc);
+          const map = new Map<string, DiscrepancyItemUpdated>();
+          for (const item of disc.updatedItems) {
+            if (item.localPlantingId) {
+              map.set(item.localPlantingId, item);
+            }
+          }
+          setRemotePlantingUpdates(map);
+        }
+
         // Safe Notification path: either mode is 'off', or mode is 'selected' but this grower is unselected
         const isUnselected = currentMode === 'selected' && !isTrusted;
+        const modifiedCount = disc ? disc.updatedItems.length : 0;
+        const newCount = disc ? disc.newItems.length : 0;
+        const changeDetails = modifiedCount > 0 ? ` (${modifiedCount} updated)` : '';
+
         toast({
           title: isUnselected
             ? `🌱 Stream from @${peerName} (Unselected Grower)`
-            : `🌱 @${peerName} updated "${trimmed}"`,
+            : `🌱 @${peerName} updated "${trimmed}"${changeDetails}`,
           description: isUnselected
             ? `${plantCount} plants in "${gardenName}". Not on your selected inward stream list.`
-            : `${plantCount} plants streamed in "${gardenName}". Click to review & merge.`,
+            : `${plantCount} plants streamed in "${gardenName}". Changes available before next operation.`,
         });
 
         if (options?.onReviewRequested) {
@@ -237,5 +367,14 @@ export function useP2PRoomLiveSync(options?: UseP2PRoomLiveSyncOptions) {
     lastPeer,
     lastSyncTime,
     triggerDebouncedStream,
+    // Multi-device pre-operation awareness
+    pendingRemoteDiscrepancy,
+    remotePlantingUpdates,
+    latestRemoteDataset,
+    checkRemoteUpdateForPlanting,
+    dismissRemoteUpdateForPlanting,
+    clearPendingRemoteUpdates,
+    applyRemoteUpdateForPlanting,
+    applyAllPendingRemoteDiscrepancies,
   };
 }
