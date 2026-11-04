@@ -1045,17 +1045,17 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
               stage: 'Growing',
               vigorViability: result.growAssessment.vigorViability,
               stressFactor: result.growAssessment.stressFactor || 'None',
-              tendingAdvice: result.growAssessment.tendingAdvice,
+              tendingAdvice: result.growAssessment.tendingAdvice || 'Monitor soil moisture and ambient sunlight.',
               reasoning: result.growAssessment.reasoning || result.reasoning,
             };
           } else if (pStage === 'Harvest' && result.harvestAssessment) {
             aiStageViability = {
               stage: 'Harvest',
               ripenessViability: result.harvestAssessment.ripenessViability,
-              harvestWindow: result.harvestAssessment.harvestWindow,
+              harvestWindow: result.harvestAssessment.harvestWindow || 'Peak Window',
               harvestType: result.harvestAssessment.harvestType,
               seedSavingNotes: result.harvestAssessment.seedSavingNotes,
-              successionAdvice: result.harvestAssessment.successionAdvice,
+              successionAdvice: result.harvestAssessment.successionAdvice || 'Rotate bed to legumes or leafy greens.',
               reasoning: result.harvestAssessment.reasoning || result.reasoning,
             };
           }
@@ -1069,9 +1069,27 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             upcomingReasoning: result.upcomingReasoning,
             ...(aiStageViability ? { stageViability: aiStageViability } : {}),
             seasonalViabilities: resolvedSeasonalViabilities,
-            ...(result.prepForecast ? { prepForecast: result.prepForecast } : {}),
-            ...(result.growAssessment ? { growAssessment: result.growAssessment } : {}),
-            ...(result.harvestAssessment ? { harvestAssessment: result.harvestAssessment } : {}),
+            ...(result.prepForecast ? {
+              prepForecast: {
+                ...result.prepForecast,
+                overallViability: result.prepForecast.overallViability || finalViability,
+              }
+            } : {}),
+            ...(result.growAssessment ? {
+              growAssessment: {
+                ...result.growAssessment,
+                tendingAdvice: result.growAssessment.tendingAdvice || 'Monitor soil moisture and ambient sunlight.',
+                reasoning: result.growAssessment.reasoning || result.reasoning,
+              }
+            } : {}),
+            ...(result.harvestAssessment ? {
+              harvestAssessment: {
+                ...result.harvestAssessment,
+                harvestWindow: result.harvestAssessment.harvestWindow || 'Peak Window',
+                successionAdvice: result.harvestAssessment.successionAdvice || 'Rotate bed after harvest.',
+                reasoning: result.harvestAssessment.reasoning || result.reasoning,
+              }
+            } : {}),
             ...(mappedMethodViabilities ? { methodViabilities: mappedMethodViabilities } : {}),
           });
         }
@@ -1604,17 +1622,17 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
                 stage: 'Growing',
                 vigorViability: result.growAssessment.vigorViability,
                 stressFactor: result.growAssessment.stressFactor || 'None',
-                tendingAdvice: result.growAssessment.tendingAdvice,
+                tendingAdvice: result.growAssessment.tendingAdvice || 'Monitor soil moisture and ambient sunlight.',
                 reasoning: result.growAssessment.reasoning || result.reasoning,
               };
             } else if (pStage === 'Harvest' && result.harvestAssessment) {
               aiStageViability = {
                 stage: 'Harvest',
                 ripenessViability: result.harvestAssessment.ripenessViability,
-                harvestWindow: result.harvestAssessment.harvestWindow,
+                harvestWindow: result.harvestAssessment.harvestWindow || 'Peak Window',
                 harvestType: result.harvestAssessment.harvestType,
                 seedSavingNotes: result.harvestAssessment.seedSavingNotes,
-                successionAdvice: result.harvestAssessment.successionAdvice,
+                successionAdvice: result.harvestAssessment.successionAdvice || 'Rotate bed to legumes or leafy greens.',
                 reasoning: result.harvestAssessment.reasoning || result.reasoning,
               };
             }
@@ -1628,9 +1646,27 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
               upcomingReasoning: result.upcomingReasoning,
               ...(aiStageViability ? { stageViability: aiStageViability } : {}),
               seasonalViabilities: resolvedSeasonalViabilities,
-              ...(result.prepForecast ? { prepForecast: result.prepForecast } : {}),
-              ...(result.growAssessment ? { growAssessment: result.growAssessment } : {}),
-              ...(result.harvestAssessment ? { harvestAssessment: result.harvestAssessment } : {}),
+              ...(result.prepForecast ? {
+                prepForecast: {
+                  ...result.prepForecast,
+                  overallViability: result.prepForecast.overallViability || result.viability,
+                }
+              } : {}),
+              ...(result.growAssessment ? {
+                growAssessment: {
+                  ...result.growAssessment,
+                  tendingAdvice: result.growAssessment.tendingAdvice || 'Monitor soil moisture and ambient sunlight.',
+                  reasoning: result.growAssessment.reasoning || result.reasoning,
+                }
+              } : {}),
+              ...(result.harvestAssessment ? {
+                harvestAssessment: {
+                  ...result.harvestAssessment,
+                  harvestWindow: result.harvestAssessment.harvestWindow || 'Peak Window',
+                  successionAdvice: result.harvestAssessment.successionAdvice || 'Rotate bed after harvest.',
+                  reasoning: result.harvestAssessment.reasoning || result.reasoning,
+                }
+              } : {}),
               ...(mappedMethodViabilities ? { methodViabilities: mappedMethodViabilities } : {}),
             });
             newViabilityData[planting.id] = result.viability;

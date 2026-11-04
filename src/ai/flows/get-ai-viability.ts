@@ -57,18 +57,18 @@ const GetAiViabilityOutputSchema = z.object({
     harvestType: z.enum(['Fruit / Crop', 'Seeds / Seed Saving', 'Roots / Bulbs', 'Greens / Herbs']).optional(),
     harvestWindow: z.string().optional(),
     seedSavingNotes: z.string().optional(),
-  })).optional().describe("List of viabilities per season for Wishlist planning across the year. Evaluates full 3-stage lifecycle: Prep methods per season, Grow vigor per season, and Harvest per season (fruit/crop vs seed saving)."),
+  })).describe("List of viabilities per season for Wishlist planning across the year. Evaluates full 3-stage lifecycle: Prep methods per season, Grow vigor per season, and Harvest per season (fruit/crop vs seed saving)."),
   methodViabilities: z.array(z.object({
     method: z.enum(['seed', 'transplant', 'cutting', 'air-layering', 'division', 'runner', 'bulb-clove']),
     viability: z.enum(['High', 'Medium', 'Low', 'N/A']),
     reasoning: z.string().optional(),
     isIncompatible: z.boolean().optional(),
-  })).optional().describe("Botanical viability assessment for each propagation method under current conditions. Incompatible methods must be rated 'N/A' with isIncompatible=true."),
+  })).describe("Botanical viability assessment for each propagation method under current conditions. Incompatible methods must be rated 'N/A' with isIncompatible=true."),
   prepForecast: z.object({
     prepViability: z.enum(['High', 'Medium', 'Low', 'N/A']),
     growViability: z.enum(['High', 'Medium', 'Low', 'N/A']),
     harvestViability: z.enum(['High', 'Medium', 'Low', 'N/A']),
-    overallViability: z.enum(['High', 'Medium', 'Low', 'N/A']),
+    overallViability: z.enum(['High', 'Medium', 'Low', 'N/A']).optional(),
     prepReasoning: z.string().optional(),
     growReasoning: z.string().optional(),
     harvestReasoning: z.string().optional(),
@@ -77,16 +77,16 @@ const GetAiViabilityOutputSchema = z.object({
   growAssessment: z.object({
     vigorViability: z.enum(['High', 'Medium', 'Low', 'N/A']),
     stressFactor: z.enum(['None', 'Heat Stress', 'Frost Risk', 'Drought Risk', 'Light Deficit', 'Dormant']).optional(),
-    tendingAdvice: z.string(),
-    reasoning: z.string(),
+    tendingAdvice: z.string().optional(),
+    reasoning: z.string().optional(),
   }).optional().describe("Active in-ground vigor rating, environmental stress watch, and actionable horticultural tending advice."),
   harvestAssessment: z.object({
     ripenessViability: z.enum(['High', 'Medium', 'Low', 'N/A']),
-    harvestWindow: z.enum(['Peak Window', 'Approaching End', 'Overdue / Bolt Risk']),
+    harvestWindow: z.enum(['Peak Window', 'Approaching End', 'Overdue / Bolt Risk']).optional(),
     harvestType: z.enum(['Fruit / Crop', 'Seeds / Seed Saving', 'Roots / Bulbs', 'Greens / Herbs']).optional(),
     seedSavingNotes: z.string().optional(),
-    successionAdvice: z.string(),
-    reasoning: z.string(),
+    successionAdvice: z.string().optional(),
+    reasoning: z.string().optional(),
   }).optional().describe("Harvest ripeness assessment, harvest type (Fruit/Crop, Seeds/Seed Saving, Roots/Bulbs, Greens/Herbs), seed saving tips, and bed turnover succession advice."),
 });
 type GetAiViabilityOutput = z.infer<typeof GetAiViabilityOutputSchema>;
@@ -187,7 +187,7 @@ Return your final analysis in the specified output format.
       outputSchema: GetAiViabilityOutputSchema,
     },
     async (flowInput) => {
-      return executeWithModelFallback<GetAiViabilityOutput>(
+      const raw = await executeWithModelFallback<GetAiViabilityOutput>(
         `getAiViability(${flowInput.plant.species})`,
         (model) => prompt(flowInput, { model }),
         {
@@ -200,6 +200,30 @@ Return your final analysis in the specified output format.
           ollamaUrl: flowInput.apiKeys?.ollamaUrl,
         }
       );
+
+      // Ensure seasonalViabilities has entries for all 4 seasons if a third-party fallback omitted them
+      if (!Array.isArray(raw.seasonalViabilities) || raw.seasonalViabilities.length === 0) {
+        const allSeasons: ('Spring' | 'Summer' | 'Autumn' | 'Winter')[] = ['Spring', 'Summer', 'Autumn', 'Winter'];
+        raw.seasonalViabilities = allSeasons.map(season => ({
+          season,
+          viability: season.toLowerCase() === (flowInput.garden.conditions.currentSeason || '').toLowerCase() ? raw.viability : 'Medium',
+          reasoning: `${season} viability for ${flowInput.plant.species}.`,
+        }));
+      }
+
+      // Ensure methodViabilities has entries for all 7 methods if a third-party fallback omitted them
+      if (!Array.isArray(raw.methodViabilities) || raw.methodViabilities.length === 0) {
+        const allMethods: ('seed' | 'transplant' | 'cutting' | 'air-layering' | 'division' | 'runner' | 'bulb-clove')[] = [
+          'seed', 'transplant', 'cutting', 'air-layering', 'division', 'runner', 'bulb-clove'
+        ];
+        raw.methodViabilities = allMethods.map(method => ({
+          method,
+          viability: method === (flowInput.propagationMethod || 'seed') ? raw.viability : 'Medium',
+          isIncompatible: false,
+        }));
+      }
+
+      return raw;
     }
   );
 
