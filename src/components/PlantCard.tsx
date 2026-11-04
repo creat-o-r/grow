@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { PlantingWithPlant, Conditions, StatusHistory, PropagationMethod } from '@/lib/types';
+import type { PlantingWithPlant, Conditions, StatusHistory, PropagationMethod, ViabilityAnalysisMode } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight, Fence, Share2, ChevronDown, ChevronUp, Sprout, RotateCcw } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight, Fence, Share2, ChevronDown, ChevronUp, Sprout, RotateCcw, BrainCircuit } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ViabilityIndicator } from './ViabilityIndicator';
@@ -39,6 +39,7 @@ type PlantCardProps = {
   otherPlantings?: PlantingWithPlant[];
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  viabilityMechanism?: ViabilityAnalysisMode;
 };
 
 export function PlantCard({
@@ -62,6 +63,7 @@ export function PlantCard({
     otherPlantings,
     isCollapsed = false,
     onToggleCollapse,
+    viabilityMechanism,
 }: PlantCardProps) {
     const { plant } = planting;
     const syncImageUrl = getCuratedPlantImage(plant, planting.name);
@@ -140,14 +142,33 @@ export function PlantCard({
         }
     };
 
-    // Unified 4-stage viability analysis
-    const stageViability = evaluatePlantingViability(planting, gardenConditions, {
-        growingSystems: planting.garden?.growingSystems,
-        growingMethods: planting.garden?.growingMethods,
-        propagationMethod: activePropagationMethod,
-    });
+    const hasAiAssessment = Boolean(planting.viability || viability);
+    const isPendingAi = viabilityMechanism === 'ai' && !hasAiAssessment;
 
-    const viabilityIndicatorElement = (
+    // Unified 4-stage viability analysis
+    const stageViability = isPendingAi 
+        ? undefined 
+        : (planting.stageViability || evaluatePlantingViability(planting, gardenConditions, {
+            growingSystems: planting.garden?.growingSystems,
+            growingMethods: planting.garden?.growingMethods,
+            propagationMethod: activePropagationMethod,
+        }));
+
+    const viabilityIndicatorElement = isPendingAi ? (
+        <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+                e.stopPropagation();
+                onGetViability();
+            }}
+            className="h-6 text-[10px] px-2 py-0 border-dashed border-primary/50 text-primary hover:bg-primary/10 flex items-center gap-1 font-mono"
+            title="Local viability is OFF. Click to run AI viability analysis."
+        >
+            <BrainCircuit className="h-3 w-3 text-blue-500" />
+            <span>Run AI Viability</span>
+        </Button>
+    ) : (
         <ViabilityIndicator 
             stageViability={stageViability}
             viability={viability || planting.viability} 

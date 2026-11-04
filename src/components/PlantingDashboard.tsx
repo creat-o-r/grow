@@ -3,7 +3,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { PlantingWithPlant, Conditions, StatusHistory } from '@/lib/types';
+import type { PlantingWithPlant, Conditions, StatusHistory, ViabilityAnalysisMode } from '@/lib/types';
 import { evaluatePlantingViability, getOverallViabilityLevel, type Viability, ALL_PROPAGATION_METHODS } from '@/lib/viability';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,9 +21,10 @@ type PlantingDashboardProps = {
     onOpenAddSheet: () => void;
     onOpenSettings: () => void;
     onQuickStatusChange: (planting: PlantingWithPlant, newStatus: StatusHistory['status']) => void;
+    viabilityMechanism?: ViabilityAnalysisMode;
 };
 
-export function PlantingDashboard({ plantings, viabilityData, reasoningData, upcomingData, gardenConditions, onOpenAddSheet, onOpenSettings, onQuickStatusChange }: PlantingDashboardProps) {
+export function PlantingDashboard({ plantings, viabilityData, reasoningData, upcomingData, gardenConditions, onOpenAddSheet, onOpenSettings, onQuickStatusChange, viabilityMechanism = 'local' }: PlantingDashboardProps) {
 
     const viabilityGroups = useMemo(() => {
         const groups: Record<Viability | 'Unanalyzed', PlantingWithPlant[]> = {
@@ -37,7 +38,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
         if (!plantings) return groups;
 
         plantings.forEach(p => {
-            const viability = viabilityData?.[p.id] || p.viability || getOverallViabilityLevel(evaluatePlantingViability(p, gardenConditions));
+            const viability = viabilityData?.[p.id] || p.viability || (viabilityMechanism === 'local' ? getOverallViabilityLevel(evaluatePlantingViability(p, gardenConditions)) : undefined);
             if (viability && groups[viability]) {
                 groups[viability].push(p);
             } else {
@@ -46,7 +47,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
         });
 
         return groups;
-    }, [plantings, viabilityData]);
+    }, [plantings, viabilityData, viabilityMechanism, gardenConditions]);
     
     const prepMethodCounts = useMemo(() => {
         const counts: Record<string, number> = {};
@@ -159,6 +160,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             upcomingReasoning={upcomingData?.[p.id]?.upcomingReasoning || p.upcomingReasoning}
                                             currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
+                                            viabilityMechanism={viabilityMechanism}
                                         />
                                     ))}
                                 </div>
@@ -179,6 +181,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             upcomingReasoning={upcomingData?.[p.id]?.upcomingReasoning || p.upcomingReasoning}
                                             currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
+                                            viabilityMechanism={viabilityMechanism}
                                         />
                                     ))}
                                 </div>
@@ -199,6 +202,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             upcomingReasoning={upcomingData?.[p.id]?.upcomingReasoning || p.upcomingReasoning}
                                             currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
+                                            viabilityMechanism={viabilityMechanism}
                                         />
                                     ))}
                                 </div>
@@ -222,6 +226,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             upcomingReasoning={upcomingData?.[p.id]?.upcomingReasoning || p.upcomingReasoning}
                                             currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
+                                            viabilityMechanism={viabilityMechanism}
                                         />
                                     ))}
                                 </div>
@@ -243,6 +248,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             upcomingReasoning={upcomingData?.[p.id]?.upcomingReasoning || p.upcomingReasoning}
                                             currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
+                                            viabilityMechanism={viabilityMechanism}
                                         />
                                     ))}
                                 </div>

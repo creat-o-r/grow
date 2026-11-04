@@ -130,6 +130,8 @@ export function SettingsSheet({
   onPublish,
   onApiKeysChange,
   apiKeys,
+  viabilityMechanism,
+  onViabilityMechanismChange,
   onDuplicateReviewOpen,
 }: SettingsSheetProps) {
   const [confirmationState, setConfirmationState] = useState<ConfirmationState>(null);
@@ -1099,6 +1101,49 @@ export function SettingsSheet({
                       </p>
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Viability Engine Mode: Local vs AI Only */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="font-headline text-lg flex items-center gap-2">
+                    {viabilityMechanism === 'local' ? (
+                      <Cpu className="h-4 w-4 text-emerald-500" />
+                    ) : (
+                      <BrainCircuit className="h-4 w-4 text-blue-500" />
+                    )}
+                    <span>Viability Calculation Engine</span>
+                  </CardTitle>
+                  <Badge variant={viabilityMechanism === 'local' ? 'secondary' : 'default'} className="font-mono text-xs">
+                    {viabilityMechanism === 'local' ? '🌱 Local: ON' : '🤖 AI Only'}
+                  </Badge>
+                </div>
+                <CardDescription className="text-xs">
+                  Choose whether Grow calculates viability instantaneously on-device using local botanical heuristics, or strictly via cloud AI models.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-1 pr-4">
+                    <Label htmlFor="local-viability-switch" className="text-sm font-semibold flex items-center gap-2">
+                      <span>Local Deterministic Viability</span>
+                    </Label>
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      When <strong>ON</strong>: Instantly evaluates plants using local microclimate variables (photoperiod hours, soil texture &amp; substrate, temperature, systems, and methods) without needing an AI API call.
+                      <br />
+                      When <strong>OFF</strong>: Disables local calculations so plants only show verified AI-powered assessments. Unassessed plants display a "Run AI Viability" button.
+                    </p>
+                  </div>
+                  <Switch
+                    id="local-viability-switch"
+                    checked={viabilityMechanism === 'local'}
+                    onCheckedChange={(checked) => {
+                      onViabilityMechanismChange(checked ? 'local' : 'ai');
+                    }}
+                  />
                 </div>
               </CardContent>
             </Card>

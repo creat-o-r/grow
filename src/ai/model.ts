@@ -2,15 +2,15 @@ import { callOpenAiCompatibleFreeEndpoint } from './free-llm-router';
 
 /**
  * List of Gemini models to try in order of capability and availability.
- * Primary model is Gemini 3.8 Flash ('googleai/gemini-3.8-flash').
+ * Primary model is Gemini 2.5 Flash ('googleai/gemini-2.5-flash').
  * If the primary model experiences high demand (503) or rate limiting (429),
  * it retries with backoff before cascading to fallback models and additional
  * free LLM tiers (Groq Free Tier, OpenRouter :free pool, and Local Ollama).
  */
 export const CANDIDATE_MODELS = [
-  'googleai/gemini-3.8-flash',
-  'googleai/gemini-3.5-flash-lite',
   'googleai/gemini-2.5-flash',
+  'googleai/gemini-2.0-flash',
+  'googleai/gemini-2.5-flash-lite',
   'googleai/gemini-1.5-flash',
 ];
 
@@ -57,8 +57,8 @@ export async function executeWithModelFallback<T>(
 
   if (shouldTryGemini) {
     for (const model of CANDIDATE_MODELS) {
-    // For the primary model (gemini-3.8-flash), attempt up to 3 times on temporary 503/429 demand spikes
-    const maxAttempts = model === 'googleai/gemini-3.8-flash' ? 3 : 1;
+    // For the primary model (gemini-2.5-flash), attempt up to 3 times on temporary 503/429 demand spikes
+    const maxAttempts = model === 'googleai/gemini-2.5-flash' ? 3 : 1;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {

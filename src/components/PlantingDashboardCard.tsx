@@ -2,7 +2,7 @@
 
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import type { PlantingWithPlant, StatusHistory, PropagationMethod } from '@/lib/types';
+import type { PlantingWithPlant, StatusHistory, PropagationMethod, ViabilityAnalysisMode } from '@/lib/types';
 import { evaluatePlantingViability, Viability, getAllPropagationMethodViabilities, ALL_PROPAGATION_METHODS, type PropagationMethodInfo } from '@/lib/viability';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ type PlantingDashboardCardProps = {
     upcomingReasoning?: string;
     currentSeason?: string;
     onQuickStatusChange: (planting: PlantingWithPlant, newStatus: StatusHistory['status']) => void;
+    viabilityMechanism?: ViabilityAnalysisMode;
 };
 
 export function PlantingDashboardCard({ 
@@ -38,7 +39,8 @@ export function PlantingDashboardCard({
     upcomingTiming,
     upcomingReasoning,
     currentSeason,
-    onQuickStatusChange 
+    onQuickStatusChange,
+    viabilityMechanism = 'local'
 }: PlantingDashboardCardProps) {
     const [seedsOnHand, setSeedsOnHand] = useState<number | string>('');
     const [plannedQty, setPlannedQty] = useState<number | string>(planting.plannedQty || '');
@@ -232,7 +234,7 @@ export function PlantingDashboardCard({
                 </CardDescription>
                 <div className="flex flex-wrap gap-2 items-center pt-2">
                     <ViabilityIndicator 
-                        stageViability={evaluatePlantingViability(planting, undefined, { propagationMethod: activePropagationMethod })}
+                        stageViability={viabilityMechanism === 'ai' && !planting.viability && !effectiveViability ? undefined : evaluatePlantingViability(planting, undefined, { propagationMethod: activePropagationMethod })}
                         viability={effectiveViability} 
                         reasoning={viabilityReasoning || planting.viabilityReasoning} 
                         plantName={planting.name}

@@ -46,13 +46,20 @@ const getSunlightScore = (plantNeeds: string, gardenSunlight: string): number =>
     plantNeeds = plantNeeds.toLowerCase();
     gardenSunlight = gardenSunlight.toLowerCase();
 
-    const plantFullSun = plantNeeds.includes('full sun');
-    const plantPartialShade = plantNeeds.includes('partial shade') || plantNeeds.includes('part sun');
+    const plantFullSun = plantNeeds.includes('full sun') || plantNeeds.includes('full sunlight');
+    const plantPartialShade = plantNeeds.includes('partial shade') || plantNeeds.includes('part sun') || plantNeeds.includes('partial sun');
     const plantShade = plantNeeds.includes('shade') || plantNeeds.includes('indirect light');
 
-    const gardenFullSun = gardenSunlight.includes('full sun') || gardenSunlight.includes('8+') || gardenSunlight.includes('6-8');
-    const gardenPartialShade = gardenSunlight.includes('partial') || gardenSunlight.includes('4-6');
-    const gardenShade = gardenSunlight.includes('shade') || gardenSunlight.includes('indirect');
+    // Parse hour formats like "13 hours", "12 hrs", "8h", "6-8", "8+"
+    const hoursMatch = gardenSunlight.match(/(\d+)\s*(?:hours|hrs|hr|h)?/i);
+    const parsedHours = hoursMatch ? parseInt(hoursMatch[1], 10) : NaN;
+    const isOver6Hours = !isNaN(parsedHours) && parsedHours >= 6;
+    const is4To6Hours = !isNaN(parsedHours) && parsedHours >= 4 && parsedHours < 6;
+    const isUnder4Hours = !isNaN(parsedHours) && parsedHours < 4;
+
+    const gardenFullSun = gardenSunlight.includes('full sun') || gardenSunlight.includes('full sunlight') || isOver6Hours || gardenSunlight.includes('8+') || gardenSunlight.includes('6-8');
+    const gardenPartialShade = gardenSunlight.includes('partial') || is4To6Hours || gardenSunlight.includes('4-6');
+    const gardenShade = gardenSunlight.includes('shade') || isUnder4Hours || gardenSunlight.includes('indirect');
 
     if (plantFullSun && gardenFullSun) return 2;
     if (plantFullSun && gardenPartialShade) return 1; // Tolerable but not ideal
@@ -60,7 +67,8 @@ const getSunlightScore = (plantNeeds: string, gardenSunlight: string): number =>
     if (plantShade && (gardenPartialShade || gardenShade)) return 2;
     if (plantShade && gardenFullSun) return 0; // Bad match
 
-    return 0;
+    if (gardenFullSun) return 2;
+    return 1;
 };
 
 const getTemperatureScore = (plantNeeds: string, gardenTemp: string): number => {
@@ -73,21 +81,22 @@ const getTemperatureScore = (plantNeeds: string, gardenTemp: string): number => 
     const isFahrenheit = gardenTemp.includes('f');
     const tempInC = isFahrenheit ? (tempValue - 32) * 5 / 9 : tempValue;
 
-    const needsWarm = plantNeeds.includes('warm') || plantNeeds.includes('hot');
-    const needsCool = plantNeeds.includes('cool') || plantNeeds.includes('frost');
+    const isCoolCrop = plantNeeds.includes('cool') || plantNeeds.includes('cold') || plantNeeds.includes('frost') || plantNeeds.includes('daucus') || plantNeeds.includes('carrot') || plantNeeds.includes('brassica') || plantNeeds.includes('spinach') || plantNeeds.includes('pea');
+    const needsWarm = (plantNeeds.includes('warm') || plantNeeds.includes('hot')) && !isCoolCrop;
     const isTolerant = plantNeeds.includes('tolerant') || plantNeeds.includes('adaptable');
 
-    if (needsWarm && tempInC > 18) return 2; // > 65F
-    if (needsWarm && tempInC > 13) return 1; // > 55F
-    if (needsCool && tempInC < 21) return 2; // < 70F
-    if (needsCool && tempInC < 27) return 1; // < 80F
-    
-    if (plantNeeds.includes('frost') && tempInC < 10) return 2;
-    if (plantNeeds.includes('no frost') && tempInC < 5) return 0;
+    // Cool-season crops (carrots, spinach, peas, brassicas) thrive between 10°C and 20°C
+    if (isCoolCrop && tempInC >= 10 && tempInC <= 20) return 2;
+    if (isCoolCrop && tempInC > 20 && tempInC <= 26) return 1;
+    if (isCoolCrop && tempInC > 26) return 0; // heat bolt risk
+    if (isCoolCrop && tempInC < 5) return 0; // winter freeze
 
-    if(isTolerant) return 2;
+    if (needsWarm && tempInC >= 18) return 2;
+    if (needsWarm && tempInC >= 12 && tempInC < 18) return 1; // chilly but viable
+    if (needsWarm && tempInC < 12) return 0; // too cold for warm crops
 
-    return 1; // Default to medium if no strong signals
+    if (isTolerant) return 2;
+    return 1;
 };
 
 const getSoilScore = (plantNeeds: string, gardenSoil: string): number => {
@@ -95,12 +104,15 @@ const getSoilScore = (plantNeeds: string, gardenSoil: string): number => {
     gardenSoil = gardenSoil.toLowerCase();
     let score = 0;
 
-    const goodKeywords = ['well-drained', 'loam', 'fertile', 'rich', 'compost', 'organic'];
-    const typeKeywords = ['sandy', 'clay', 'alkaline', 'acidic'];
+    const goodKeywords = ['well-drained', 'loam', 'fertile', 'rich', 'compost', 'organic', 'mushroom', 'allophanic', 'substrate', 'friable', 'deep', 'loose', 'fine', 'stone-free'];
+    const typeKeywords = ['sandy', 'clay', 'alkaline', 'acidic', 'loamy'];
 
     goodKeywords.forEach(keyword => {
-        if (plantNeeds.includes(keyword) && gardenSoil.includes(keyword)) {
+        if (gardenSoil.includes(keyword)) {
             score++;
+        }
+        if (plantNeeds.includes(keyword) && gardenSoil.includes(keyword)) {
+            score += 2;
         }
     });
     
@@ -110,7 +122,9 @@ const getSoilScore = (plantNeeds: string, gardenSoil: string): number => {
         }
     });
 
-    if (plantNeeds.includes('well-drained') && gardenSoil.includes('well-drained')) score = 2; // very important
+    if (gardenSoil.includes('well-drained') || gardenSoil.includes('loam') || gardenSoil.includes('allophanic') || gardenSoil.includes('substrate')) {
+        score = Math.max(score, 2);
+    }
 
     return Math.min(score, 2); // Cap score at 2
 };
@@ -272,6 +286,50 @@ export const analyzePrepViability = (
             }
             break;
         }
+    }
+
+    // Specific Garden Environment Modulations (Sunlight, Soil, Temperature, Methods)
+    const gardenTempStr = (conditions?.temperature || '').trim();
+    const gardenSunlightStr = (conditions?.sunlight || '').trim();
+    const gardenSoilStr = (conditions?.soil || '').trim();
+    const methodsStr = (options?.growingMethods || '').toLowerCase();
+    const isDirectSow = methodsStr.includes('direct sow') || methodsStr.includes('direct seed');
+    const isTaprootCrop = plantInfo.includes('carrot') || plantInfo.includes('daucus') || plantInfo.includes('parsnip') || plantInfo.includes('pastinaca') || plantInfo.includes('radish') || plantInfo.includes('raphanus') || plantInfo.includes('beet') || plantInfo.includes('beta vulgaris') || plantInfo.includes('turnip') || plantInfo.includes('taproot');
+
+    const tempScore = gardenTempStr ? getTemperatureScore(plantInfo, gardenTempStr) : 1;
+    const sunScore = gardenSunlightStr ? getSunlightScore(plantInfo, gardenSunlightStr) : 1;
+    const soilScore = gardenSoilStr ? getSoilScore(plantInfo, gardenSoilStr) : 1;
+
+    const envNotes: string[] = [];
+    if (gardenTempStr) {
+        if (tempScore === 2) {
+            envNotes.push(`soil/air temp (${gardenTempStr}) aligns with prime germination`);
+        } else if (tempScore === 0) {
+            prepViability = 'Low';
+            envNotes.push(`ambient temp (${gardenTempStr}) is adverse for immediate start`);
+        }
+    }
+    if (gardenSunlightStr) {
+        if (sunScore === 2) {
+            envNotes.push(`sunlight (${gardenSunlightStr}) delivers abundant solar energy`);
+        } else if (sunScore === 0) {
+            growViability = 'Low';
+            envNotes.push(`sunlight (${gardenSunlightStr}) poses light deficit`);
+        }
+    }
+    if (gardenSoilStr) {
+        if (soilScore === 2) {
+            envNotes.push(`soil structure (${gardenSoilStr}) is friable and well-drained`);
+        } else if (soilScore === 0 && isTaprootCrop) {
+            envNotes.push(`heavy soil (${gardenSoilStr}) risks root forking unless amended`);
+        }
+    }
+    if (isTaprootCrop && isDirectSow) {
+        envNotes.push(`direct sowing protects primary taproot`);
+    }
+
+    if (envNotes.length > 0) {
+        prepReasoning = `${prepReasoning} Garden conditions: ${envNotes.join('; ')}.`;
     }
 
     // Botanical compatibility classifications
@@ -591,6 +649,28 @@ export const getSeasonalGrowInfo = (
         }
     }
 
+    if (conditions) {
+        if (conditions.sunlight) {
+            const sunScore = getSunlightScore(plantInfo, conditions.sunlight);
+            if (sunScore === 2) {
+                reasoning += ` Photoperiod of ${conditions.sunlight} delivers optimal photosynthetic energy.`;
+            } else if (sunScore === 0) {
+                vigorViability = 'Medium';
+                stressFactor = 'Light Deficit';
+                reasoning += ` Low sunlight exposure (${conditions.sunlight}) slows vegetative biomass production.`;
+            }
+        }
+        if (conditions.temperature) {
+            const tempScore = getTemperatureScore(plantInfo, conditions.temperature);
+            if (tempScore === 2) {
+                reasoning += ` Ambient temperature (${conditions.temperature}) supports active leaf and root metabolism.`;
+            }
+        }
+        if (conditions.soil) {
+            tendingAdvice += ` Soil profile: ${conditions.soil}.`;
+        }
+    }
+
     return {
         vigorViability,
         stressFactor,
@@ -682,13 +762,17 @@ export const getSeasonalHarvestInfo = (
         }
         if (isRoot) {
             return {
-                harvestType: plantInfo.includes('garlic') || plantInfo.includes('onion') ? 'Roots / Bulbs' : 'Seeds / Seed Saving',
+                harvestType: 'Roots / Bulbs',
                 ripenessViability: 'High',
-                harvestWindow: 'Mid Summer Bulb Lifting / Seed Umbels',
+                harvestWindow: plantInfo.includes('garlic') || plantInfo.includes('onion') 
+                    ? 'Mid Summer Bulb Lifting' 
+                    : 'Summer Fresh Root Harvest',
                 description: plantInfo.includes('garlic') || plantInfo.includes('onion')
                     ? 'Lift bulbs when lower leaves die down; cure in shaded airy porch for 2-3 weeks.'
-                    : 'Biennial taproot seed umbels mature into brown seed heads ready for gathering.',
-                seedSavingNotes: 'Save largest, healthiest garlic bulbs for autumn clove replanting. Thresh carrot/beet seed umbels into a bucket.',
+                    : 'Pull sweet, crisp mature roots fresh from loose soil.',
+                seedSavingNotes: plantInfo.includes('garlic') || plantInfo.includes('onion')
+                    ? 'Save largest, healthiest garlic bulbs for autumn clove replanting.'
+                    : 'Biennial roots flower in second summer; thresh dry brown seed umbels into a bucket.',
             };
         }
     }

@@ -923,13 +923,16 @@ export function AiDataImportSheet({
       setRefinement('');
       initSelectedPlantings(enrichedResult);
       
+      const sanitizedPrompt = { ...promptData };
+      delete (sanitizedPrompt as any).apiKeys;
+
       const newLog: AiLog = {
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
         flow: 'createDataset',
-        prompt: promptData,
+        prompt: sanitizedPrompt,
         results: enrichedResult,
-        model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
+        model: (result as any)?._modelUsed || 'googleai/gemini-2.5-flash',
       };
       await db.aiLogs.add(newLog);
 
@@ -940,14 +943,18 @@ export function AiDataImportSheet({
       console.error('AI dataset creation failed:', err);
       const errorMessage = err.message || 'Could not create the dataset. Please try again.';
       setError(errorMessage);
+
+      const sanitizedPrompt = { ...promptData };
+      delete (sanitizedPrompt as any).apiKeys;
+
       const errorLog: AiLog = {
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
         flow: 'createDataset',
-        prompt: promptData,
+        prompt: sanitizedPrompt,
         status: 'error',
         error: errorMessage,
-        model: 'googleai/gemini-3.8-flash',
+        model: 'googleai/gemini-2.5-flash',
       };
       await db.aiLogs.add(errorLog);
 

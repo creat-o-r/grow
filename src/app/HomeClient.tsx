@@ -38,7 +38,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Plus, Upload, Locate, Loader2, X, Sparkles, NotebookText, Settings, Info, Rocket, AlertCircle, AlertTriangle, RefreshCw, Fence, Square, Layers, Split, CopyCheck, Radio, Search } from 'lucide-react';
+import { Plus, Upload, Locate, Loader2, X, Sparkles, NotebookText, Settings, Info, Rocket, AlertCircle, AlertTriangle, RefreshCw, Fence, Square, Layers, Split, CopyCheck, Radio, Search, Cpu, BrainCircuit } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -265,11 +265,11 @@ export default function Home() {
     }
 
     const storedMechanism = localStorage.getItem('grow_viabilityMechanism') as ViabilityAnalysisMode | null;
-    if (storedMechanism && storedMechanism === 'ai') {
-      setViabilityMechanism('ai');
+    if (storedMechanism === 'ai' || storedMechanism === 'local') {
+      setViabilityMechanism(storedMechanism);
     } else {
-      setViabilityMechanism('ai');
-      localStorage.setItem('grow_viabilityMechanism', 'ai');
+      setViabilityMechanism('local');
+      localStorage.setItem('grow_viabilityMechanism', 'local');
     }
 
   }, []);
@@ -296,9 +296,15 @@ export default function Home() {
     }
   };
 
-  const handleViabilityMechanismChange = (_mechanism: ViabilityAnalysisMode) => {
-    setViabilityMechanism('ai');
-    localStorage.setItem('grow_viabilityMechanism', 'ai');
+  const handleViabilityMechanismChange = (mechanism: ViabilityAnalysisMode) => {
+    setViabilityMechanism(mechanism);
+    localStorage.setItem('grow_viabilityMechanism', mechanism);
+    toast({
+      title: mechanism === 'local' ? 'Local Viability Enabled' : 'Local Viability Turned Off (AI Only)',
+      description: mechanism === 'local'
+        ? 'Plants now calculate instant offline botanical viability from garden conditions.'
+        : 'Plants now strictly display verified AI viability analyses.',
+    });
   };
 
   useEffect(() => {
@@ -579,13 +585,16 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         }
       });
       
+      const sanitizedPrompt = { ...promptData };
+      delete (sanitizedPrompt as any).apiKeys;
+
       const newLog: AiLog = {
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
         flow: 'getEnvironmentalData',
-        prompt: promptData,
+        prompt: sanitizedPrompt,
         results: result,
-        model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
+        model: (result as any)?._modelUsed || 'googleai/gemini-2.5-flash',
       };
       
       await db.aiLogs.add(newLog);
@@ -603,14 +612,17 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           return;
         }
 
+        const sanitizedPrompt = { ...promptData };
+        delete (sanitizedPrompt as any).apiKeys;
+
         const errorLog: AiLog = {
           id: Date.now().toString(),
           timestamp: new Date().toISOString(),
           flow: 'getEnvironmentalData',
-          prompt: promptData,
+          prompt: sanitizedPrompt,
           status: 'error',
           error: error.message || String(error),
-          model: 'googleai/gemini-3.8-flash',
+          model: 'googleai/gemini-2.5-flash',
         };
         await db.aiLogs.add(errorLog);
 
@@ -859,7 +871,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
       const promptData = {
           stage,
-          propagationMethod: planting.propagationMethod,
+          propagationMethod: planting.propagationMethod || 'seed',
           plant: {
               species: planting.plant.species,
               germinationNeeds: planting.plant.germinationNeeds,
@@ -892,12 +904,15 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         abortPromise
       ]);
 
+      const sanitizedPrompt = { ...promptData };
+      delete (sanitizedPrompt as any).apiKeys;
+
       const logData = { 
         flow: 'getAiViability', 
-        prompt: promptData, 
+        prompt: sanitizedPrompt, 
         results: result, 
         viabilityType: 'ai' as const,
-        model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
+        model: (result as any)?._modelUsed || 'googleai/gemini-2.5-flash',
       };
       const finalViability = result.viability;
       
@@ -1057,7 +1072,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         prompt: { plant: planting.plant.species, garden: activeLocation.name },
         status: 'error',
         error: error.message || String(error),
-        model: 'googleai/gemini-3.8-flash',
+        model: 'googleai/gemini-2.5-flash',
       };
       await db.aiLogs.add(errorLog);
 
@@ -1266,17 +1281,30 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       return map;
   }, [plantingsWithPlants, currentViabilityData, activeLocation?.conditions]);
   
+  const resolvePlantViability = useCallback((p: PlantingWithPlant): Viability | undefined => {
+    if (p.viability) return p.viability;
+    if (currentViabilityData[p.id]) return currentViabilityData[p.id];
+    if (viabilityMechanism === 'local') {
+      return getOverallViabilityLevel(evaluatePlantingViability(p, activeLocation?.conditions, {
+        growingSystems: p.garden?.growingSystems,
+        growingMethods: p.garden?.growingMethods,
+        propagationMethod: p.propagationMethod,
+      }));
+    }
+    return undefined;
+  }, [currentViabilityData, viabilityMechanism, activeLocation?.conditions]);
+
   const wishlistPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
     let list = plantingsWithPlants.filter(p => p.history?.slice(-1)[0]?.status === 'Wishlist');
     if (viabilityFilter) {
       list = list.filter(p => {
-        const v = currentViabilityData[p.id] || p.viability || getOverallViabilityLevel(evaluatePlantingViability(p, activeLocation?.conditions, { growingSystems: p.garden?.growingSystems, growingMethods: p.garden?.growingMethods, propagationMethod: p.propagationMethod }));
+        const v = resolvePlantViability(p);
         return v === viabilityFilter;
       });
     }
     return list;
-  }, [plantingsWithPlants, viabilityFilter, currentViabilityData, activeLocation?.conditions]);
+  }, [plantingsWithPlants, viabilityFilter, resolvePlantViability]);
 
   const handleBatchAiViabilityAnalysis = useCallback(async (plantingsToAnalyze: PlantingWithPlant[]) => {
     if (!activeLocation?.conditions || plantingsToAnalyze.length === 0 || !areApiKeysSet) {
@@ -1540,14 +1568,17 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             newViabilityData[planting.id] = result.viability;
           }
 
+          const sanitizedBatchPrompt = { ...promptData };
+          delete (sanitizedBatchPrompt as any).apiKeys;
+
           const batchLog: AiLog = {
             id: `batch-${Date.now()}-${samplePlanting.id}`,
             timestamp: assessedAt,
             flow: 'getAiViability',
-            prompt: promptData,
+            prompt: sanitizedBatchPrompt,
             results: result,
             viabilityType: 'ai' as const,
-            model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
+            model: (result as any)?._modelUsed || 'googleai/gemini-2.5-flash',
           };
           await db.aiLogs.add(batchLog);
 
@@ -1682,7 +1713,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     if (viabilityFilter) {
       filtered = filtered.filter(p => {
-        const v = currentViabilityData[p.id] || p.viability || getOverallViabilityLevel(evaluatePlantingViability(p, activeLocation?.conditions, { growingSystems: p.garden?.growingSystems, growingMethods: p.garden?.growingMethods, propagationMethod: p.propagationMethod }));
+        const v = resolvePlantViability(p);
         return v === viabilityFilter;
       });
     }
@@ -1691,14 +1722,14 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2, 'N/A': 3 };
         
         return filtered.slice().sort((a, b) => {
-            const viabilityA = currentViabilityData[a.id] || a.viability || getOverallViabilityLevel(evaluatePlantingViability(a, activeLocation.conditions, { growingSystems: a.garden?.growingSystems, growingMethods: a.garden?.growingMethods, propagationMethod: a.propagationMethod }));
-            const viabilityB = currentViabilityData[b.id] || b.viability || getOverallViabilityLevel(evaluatePlantingViability(b, activeLocation.conditions, { growingSystems: b.garden?.growingSystems, growingMethods: b.garden?.growingMethods, propagationMethod: b.propagationMethod }));
+            const viabilityA = resolvePlantViability(a) || 'N/A';
+            const viabilityB = resolvePlantViability(b) || 'N/A';
             return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
         });
     }
     
     return filtered;
-  }, [plantingsWithPlants, statusFilter, viabilityFilter, activeLocation?.conditions, currentViabilityData]);
+  }, [plantingsWithPlants, statusFilter, viabilityFilter, activeLocation?.conditions, resolvePlantViability]);
   
 
   const organizedWishlist = useMemo(() => {
@@ -1794,11 +1825,11 @@ const sortedWishlistByViability = useMemo(() => {
     if (!wishlistPlantings || !activeLocation?.conditions) return [];
     const viabilityOrder: Record<Viability, number> = { 'High': 0, 'Medium': 1, 'Low': 2, 'N/A': 3 };
     return [...wishlistPlantings].sort((a, b) => {
-        const viabilityA = currentViabilityData[a.id] || a.viability || getOverallViabilityLevel(evaluatePlantingViability(a, activeLocation.conditions, { growingSystems: a.garden?.growingSystems, growingMethods: a.garden?.growingMethods, propagationMethod: a.propagationMethod }));
-        const viabilityB = currentViabilityData[b.id] || b.viability || getOverallViabilityLevel(evaluatePlantingViability(b, activeLocation.conditions, { growingSystems: b.garden?.growingSystems, growingMethods: b.garden?.growingMethods, propagationMethod: b.propagationMethod }));
+        const viabilityA = resolvePlantViability(a) || 'N/A';
+        const viabilityB = resolvePlantViability(b) || 'N/A';
         return viabilityOrder[viabilityA] - viabilityOrder[viabilityB];
     });
-}, [wishlistPlantings, activeLocation?.conditions, currentViabilityData]);
+}, [wishlistPlantings, activeLocation?.conditions, resolvePlantViability]);
 
 const unspecifiedSeasonCount = useMemo(() => {
     if (wishlistSortOrder !== 'season' || !organizedWishlist) return 0;
@@ -1811,12 +1842,12 @@ const unspecifiedSeasonCount = useMemo(() => {
       let list = plantingsWithPlants.filter(p => p.history && p.history.length > 0 && p.history[p.history.length-1].status === 'Planting');
       if (viabilityFilter) {
         list = list.filter(p => {
-          const v = currentViabilityData[p.id] || p.viability || getOverallViabilityLevel(evaluatePlantingViability(p, activeLocation?.conditions, { growingSystems: p.garden?.growingSystems, growingMethods: p.garden?.growingMethods, propagationMethod: p.propagationMethod }));
+          const v = resolvePlantViability(p);
           return v === viabilityFilter;
         });
       }
       return list;
-  }, [plantingsWithPlants, viabilityFilter, currentViabilityData, activeLocation?.conditions]);
+  }, [plantingsWithPlants, viabilityFilter, resolvePlantViability]);
   
   const plantingDashboardPlantings = useMemo(() => {
     if (!plantingsWithPlants) return [];
@@ -1945,12 +1976,7 @@ const unspecifiedSeasonCount = useMemo(() => {
     const targetPlantings = searchQuery.trim().length > 0 ? searchMatches.all : plantingsWithPlants;
 
     targetPlantings?.forEach(p => {
-      const stageViability = evaluatePlantingViability(p, activeLocation?.conditions, {
-        growingSystems: p.garden?.growingSystems,
-        growingMethods: p.garden?.growingMethods,
-        propagationMethod: p.propagationMethod,
-      });
-      const level = currentViabilityData[p.id] || p.viability || getOverallViabilityLevel(stageViability);
+      const level = resolvePlantViability(p);
       const lastStatus = (p.history && p.history.length > 0 ? p.history[p.history.length - 1].status : null) as PlantStatus | null;
 
       if (level && (level === 'High' || level === 'Medium' || level === 'Low')) {
@@ -2296,6 +2322,24 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                     <span>Sync</span>
                   </Button>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleViabilityMechanismChange(viabilityMechanism === 'local' ? 'ai' : 'local')}
+                  className={cn(
+                    "h-10 px-2.5 text-xs font-medium transition-colors shrink-0",
+                    viabilityMechanism === 'local'
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"
+                      : "border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-300"
+                  )}
+                  title={viabilityMechanism === 'local' ? "Local Viability: ON (Click to turn OFF)" : "Local Viability: OFF (AI Only)"}
+                >
+                  {viabilityMechanism === 'local' ? (
+                    <span className="flex items-center gap-1 font-mono text-[11px]">🌱 Local: ON</span>
+                  ) : (
+                    <span className="flex items-center gap-1 font-mono text-[11px]">🤖 AI Only</span>
+                  )}
+                </Button>
                 <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
                   <Settings className="h-4 w-4" />
                   <span className="sr-only">Settings</span>
@@ -2454,6 +2498,33 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                   <span>Sync</span>
                                 </Button>
                               )}
+                              <Button
+                                variant="outline"
+                                onClick={() => handleViabilityMechanismChange(viabilityMechanism === 'local' ? 'ai' : 'local')}
+                                className={cn(
+                                  "gap-1.5 h-10 px-3 transition-colors text-xs font-medium shrink-0",
+                                  viabilityMechanism === 'local'
+                                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20"
+                                    : "border-blue-500/40 bg-blue-500/10 text-blue-800 dark:text-blue-300 hover:bg-blue-500/20"
+                                )}
+                                title={
+                                  viabilityMechanism === 'local'
+                                    ? "Local Viability: ON (Instant offline calculation). Click to turn OFF and use AI Viability only."
+                                    : "Local Viability: OFF (AI Only). Click to turn ON local viability calculation."
+                                }
+                              >
+                                {viabilityMechanism === 'local' ? (
+                                  <>
+                                    <Cpu className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                    <span>Local Viability: ON</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <BrainCircuit className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                    <span>Local Viability: OFF (AI Only)</span>
+                                  </>
+                                )}
+                              </Button>
                               <Button variant="outline" size="icon" onClick={() => setIsSettingsSheetOpen(true)} className="h-10 w-10 flex-shrink-0">
                                 <Settings className="h-4 w-4" />
                                 <span className="sr-only">Settings</span>
@@ -3158,6 +3229,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                           showGardenLabel={!effectivelySingleGardenView}
                                           isPriority={idx === 0}
                                           otherPlantings={plantingsWithPlants}
+                                          viabilityMechanism={viabilityMechanism}
                                         />
                                       </div>
                                     ))}
@@ -3261,6 +3333,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                   onGetViability={() => handleGetViability(p)}
                                                   showGardenLabel={!effectivelySingleGardenView}
                                                   otherPlantings={plantingsWithPlants}
+                                                  viabilityMechanism={viabilityMechanism}
                                                 />
                                               </div>
                                             ))}
@@ -3348,6 +3421,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                 showGardenLabel={!effectivelySingleGardenView}
                                                 isPriority={idx === 0}
                                                 otherPlantings={plantingsWithPlants}
+                                                viabilityMechanism={viabilityMechanism}
                                               />
                                             </div>
                                           ))}
@@ -3520,6 +3594,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                               onGetViability={() => handleGetViability(p)}
                                               showGardenLabel={!effectivelySingleGardenView}
                                               otherPlantings={plantingsWithPlants}
+                                              viabilityMechanism={viabilityMechanism}
                                           />
                                         </div>
                                       ))}
@@ -3557,6 +3632,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                         onGetViability={() => handleGetViability(p)}
                                                         showGardenLabel={!effectivelySingleGardenView}
                                                         otherPlantings={plantingsWithPlants}
+                                                        viabilityMechanism={viabilityMechanism}
                                                     />
                                                   </div>
                                                 ))}
@@ -3602,6 +3678,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                   onGetViability={() => handleGetViability(p)}
                                                   showGardenLabel={!effectivelySingleGardenView}
                                                   otherPlantings={plantingsWithPlants}
+                                                viabilityMechanism={viabilityMechanism}
                                               />
                                             </div>
                                         ))}
@@ -3617,6 +3694,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                   onOpenAddSheet={() => handleOpenAddSheet('Planting', 'single')}
                                   onOpenSettings={() => handleOpenAddSheet('Planting', 'import-pack')}
                                   onQuickStatusChange={handleQuickStatusChange}
+                                  viabilityMechanism={viabilityMechanism}
                               />
                           </div>
                       ) : statusFilter === 'Growing' ? (
@@ -3706,6 +3784,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                               showGardenLabel={!effectivelySingleGardenView}
                                               isPriority={idx === 0}
                                               otherPlantings={plantingsWithPlants}
+                                              viabilityMechanism={viabilityMechanism}
                                           />
                                         </div>
                                     ))}
@@ -3811,6 +3890,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                               showGardenLabel={!effectivelySingleGardenView}
                                               isPriority={idx === 0}
                                               otherPlantings={plantingsWithPlants}
+                                              viabilityMechanism={viabilityMechanism}
                                           />
                                         </div>
                                     ))}
@@ -3850,6 +3930,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                             showGardenLabel={!effectivelySingleGardenView}
                                             isPriority={idx === 0}
                                             otherPlantings={plantingsWithPlants}
+                                          viabilityMechanism={viabilityMechanism}
                                         />
                                       </div>
                                   ))}
