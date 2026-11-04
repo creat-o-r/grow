@@ -98,5 +98,19 @@ Keep all output concise and adhere strictly to the schema.
     }
   );
 
-  return getEnvironmentalDataFlow(input);
+  try {
+    return await getEnvironmentalDataFlow(input);
+  } catch (err: any) {
+    console.error(`[getEnvironmentalData] Error analyzing ${input.location}:`, err);
+    const cleanMessage = err?.message || String(err);
+    return {
+      soilTemperature: 'N/A',
+      sunlightHours: 'N/A',
+      soilDescription: 'N/A',
+      currentSeason: 'Spring',
+      reasoning: `Analysis could not complete: ${cleanMessage}`,
+      references: 'Error',
+      _error: cleanMessage,
+    } as any;
+  }
 }

@@ -576,6 +576,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         abortPromise
       ]);
       
+      if ((result as any)?._error) {
+        throw new Error((result as any)._error);
+      }
+
       await db.locations.update(locationId, {
         conditions: {
             temperature: result.soilTemperature,
@@ -594,7 +598,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         flow: 'getEnvironmentalData',
         prompt: sanitizedPrompt,
         results: result,
-        model: (result as any)?._modelUsed || 'googleai/gemini-2.5-flash',
+        model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
       };
       
       await db.aiLogs.add(newLog);
@@ -622,7 +626,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           prompt: sanitizedPrompt,
           status: 'error',
           error: error.message || String(error),
-          model: 'googleai/gemini-2.5-flash',
+          model: 'googleai/gemini-3.8-flash',
         };
         await db.aiLogs.add(errorLog);
 
@@ -864,29 +868,30 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       duration: 90000,
     });
 
-    try {
-      const stage: PlantStatus = (planting.history && planting.history.length > 0)
-        ? planting.history[planting.history.length - 1].status
-        : 'Wishlist';
+    const stage: PlantStatus = (planting.history && planting.history.length > 0)
+      ? planting.history[planting.history.length - 1].status
+      : 'Wishlist';
 
-      const promptData = {
-          stage,
-          propagationMethod: planting.propagationMethod || 'seed',
-          plant: {
-              species: planting.plant.species,
-              germinationNeeds: planting.plant.germinationNeeds,
-              optimalConditions: planting.plant.optimalConditions,
-          },
-          garden: {
-              conditions: {
-                  ...activeLocation.conditions,
-                  currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
-              },
-              growingSystems: activeLocation.growingSystems,
-              growingMethods: activeLocation.growingMethods,
-          },
-          apiKeys,
-      };
+    const promptData = {
+        stage,
+        propagationMethod: planting.propagationMethod || 'seed',
+        plant: {
+            species: planting.plant.species,
+            germinationNeeds: planting.plant.germinationNeeds,
+            optimalConditions: planting.plant.optimalConditions,
+        },
+        garden: {
+            conditions: {
+                ...activeLocation.conditions,
+                currentSeason: activeLocation.conditions.currentSeason || 'Not specified'
+            },
+            growingSystems: activeLocation.growingSystems,
+            growingMethods: activeLocation.growingMethods,
+        },
+        apiKeys,
+    };
+
+    try {
 
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error(`Timeout analyzing ${planting.name} after 90 seconds`)), 90000)
@@ -904,6 +909,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         abortPromise
       ]);
 
+      if ((result as any)?._error) {
+        throw new Error((result as any)._error);
+      }
+
       const sanitizedPrompt = { ...promptData };
       delete (sanitizedPrompt as any).apiKeys;
 
@@ -912,7 +921,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         prompt: sanitizedPrompt, 
         results: result, 
         viabilityType: 'ai' as const,
-        model: (result as any)?._modelUsed || 'googleai/gemini-2.5-flash',
+        model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
       };
       const finalViability = result.viability;
       
@@ -1065,14 +1074,17 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
         return;
       }
 
+      const sanitizedPrompt = { ...promptData };
+      delete (sanitizedPrompt as any).apiKeys;
+
       const errorLog: AiLog = {
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
         flow: 'getAiViability',
-        prompt: { plant: planting.plant.species, garden: activeLocation.name },
+        prompt: sanitizedPrompt,
         status: 'error',
         error: error.message || String(error),
-        model: 'googleai/gemini-2.5-flash',
+        model: 'googleai/gemini-3.8-flash',
       };
       await db.aiLogs.add(errorLog);
 
@@ -1458,7 +1470,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           abortPromise
         ]);
 
-        if (result?.viability) {
+        if (result?.viability && !(result as any)?._error) {
           const assessedAt = new Date().toISOString();
 
           // Map AI methodViabilities to PropagationMethodInfo if returned
@@ -1578,7 +1590,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             prompt: sanitizedBatchPrompt,
             results: result,
             viabilityType: 'ai' as const,
-            model: (result as any)?._modelUsed || 'googleai/gemini-2.5-flash',
+            model: (result as any)?._modelUsed || 'googleai/gemini-3.8-flash',
           };
           await db.aiLogs.add(batchLog);
 

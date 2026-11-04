@@ -8,10 +8,9 @@ import { callOpenAiCompatibleFreeEndpoint } from './free-llm-router';
  * free LLM tiers (Groq Free Tier, OpenRouter :free pool, and Local Ollama).
  */
 export const CANDIDATE_MODELS = [
-  'googleai/gemini-2.5-flash',
-  'googleai/gemini-2.0-flash',
-  'googleai/gemini-2.5-flash-lite',
-  'googleai/gemini-1.5-flash',
+  'googleai/gemini-3.8-flash',
+  'googleai/gemini-3.5-flash-lite',
+  'googleai/gemini-3.5-flash',
 ];
 
 export const FREE_EXTERNAL_MODELS = [
@@ -57,8 +56,8 @@ export async function executeWithModelFallback<T>(
 
   if (shouldTryGemini) {
     for (const model of CANDIDATE_MODELS) {
-    // For the primary model (gemini-2.5-flash), attempt up to 3 times on temporary 503/429 demand spikes
-    const maxAttempts = model === 'googleai/gemini-2.5-flash' ? 3 : 1;
+    // For the primary model (gemini-3.8-flash), attempt up to 2 times on temporary 503 high-demand spikes
+    const maxAttempts = model === 'googleai/gemini-3.8-flash' ? 2 : 1;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -91,24 +90,21 @@ export async function executeWithModelFallback<T>(
       } catch (err: any) {
         const errorMsg = err?.message || String(err);
         const isTimeout = errorMsg.includes('timed out') || errorMsg.includes('TIMEOUT') || errorMsg.includes('HeadersTimeoutError');
-        const isTemporarySpike = 
-          !isTimeout && (
-            errorMsg.includes('503') || 
-            errorMsg.includes('429') || 
-            errorMsg.includes('high demand') || 
-            errorMsg.includes('RESOURCE_EXHAUSTED') || 
-            errorMsg.includes('quota') ||
-            errorMsg.includes('rate limit')
-          );
+        const isQuotaExceeded = errorMsg.includes('Quota exceeded') || errorMsg.includes('quota') || errorMsg.includes('rate-limit') || errorMsg.includes('limit exceeded');
+        const isTemporarySpike = !isTimeout && !isQuotaExceeded && (
+          errorMsg.includes('503') || 
+          errorMsg.includes('high demand') || 
+          errorMsg.includes('RESOURCE_EXHAUSTED')
+        );
         console.warn(`[${actionName}] Model ${model} (attempt ${attempt}) failed: ${errorMsg}`);
         lastError = err;
 
         if (isTemporarySpike && attempt < maxAttempts) {
-          console.log(`[${actionName}] Temporary demand spike or rate limit on ${model}. Retrying in 2s (attempt ${attempt + 1}/${maxAttempts})...`);
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          console.log(`[${actionName}] Temporary demand spike on ${model}. Retrying in 1s (attempt ${attempt + 1}/${maxAttempts})...`);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
           continue;
         }
-        // On timeout or non-retryable error, immediately fall back to the next candidate model
+        // On quota exceeded, timeout, 404, or non-retryable error, immediately fall back to the next candidate model
         break;
       }
     }

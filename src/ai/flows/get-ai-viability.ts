@@ -201,5 +201,15 @@ Return your final analysis in the specified output format.
     }
   );
 
-  return getAiViabilityFlow(input);
+  try {
+    return await getAiViabilityFlow(input);
+  } catch (err: any) {
+    console.error(`[getAiViability] Error analyzing ${input.plant.species}:`, err);
+    const cleanMessage = err?.message || String(err);
+    return {
+      viability: 'N/A',
+      reasoning: `Analysis could not complete: ${cleanMessage}`,
+      _error: cleanMessage,
+    } as any;
+  }
 }
