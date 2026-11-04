@@ -2,7 +2,7 @@
 
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import type { PlantingWithPlant, StatusHistory, PropagationMethod, ViabilityAnalysisMode } from '@/lib/types';
+import type { PlantingWithPlant, StatusHistory, PropagationMethod, ViabilityAnalysisMode, GardenLocation, Planting } from '@/lib/types';
 import { evaluatePlantingViability, Viability, getAllPropagationMethodViabilities, ALL_PROPAGATION_METHODS, type PropagationMethodInfo } from '@/lib/viability';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,14 +10,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/db';
-import { ExternalLink, CheckCircle } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { ExternalLink, CheckCircle, MoreHorizontal, ArrowRightLeft, CopyPlus, Fence } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ViabilityIndicator } from './ViabilityIndicator';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
+import { MoveOrDuplicatePlantDialog } from './MoveOrDuplicatePlantDialog';
 
 type PlantingDashboardCardProps = {
     planting: PlantingWithPlant;
@@ -29,6 +32,7 @@ type PlantingDashboardCardProps = {
     currentSeason?: string;
     onQuickStatusChange: (planting: PlantingWithPlant, newStatus: StatusHistory['status']) => void;
     viabilityMechanism?: ViabilityAnalysisMode;
+    onSwitchGarden?: (gardenId: string) => void;
 };
 
 export function PlantingDashboardCard({ 
@@ -40,11 +44,93 @@ export function PlantingDashboardCard({
     upcomingReasoning,
     currentSeason,
     onQuickStatusChange,
-    viabilityMechanism = 'local'
+    viabilityMechanism = 'local',
+    onSwitchGarden,
 }: PlantingDashboardCardProps) {
     const [seedsOnHand, setSeedsOnHand] = useState<number | string>('');
     const [plannedQty, setPlannedQty] = useState<number | string>(planting.plannedQty || '');
     const [isSavingPlannedQty, setIsSavingPlannedQty] = useState(false);
+    const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+    const [transferDialogMode, setTransferDialogMode] = useState<'move' | 'duplicate'>('move');
+
+    const locations = useLiveQuery(() => db.locations.toArray(), []) || [];
+    const otherGardens = useMemo(() => {
+        return locations.filter(loc => loc.id !== planting.gardenId);
+    }, [locations, planting.gardenId]);
+
+    const handleQuickMove = async (targetGarden: GardenLocation) => {
+        try {
+            await db.plantings.update(planting.id, {
+                gardenId: targetGarden.id,
+                viability: undefined,
+                viabilityReasoning: undefined,
+                stageViability: undefined,
+                prepForecast: undefined,
+                growAssessment: undefined,
+                harvestAssessment: undefined,
+                methodViabilities: undefined,
+                seasonalViabilities: undefined,
+            });
+            toast({
+                title: 'Plant Moved',
+                description: `"${planting.name}" moved to "${targetGarden.name}".`,
+                action: onSwitchGarden ? (
+                    <ToastAction altText={`Switch to ${targetGarden.name}`} onClick={() => onSwitchGarden(targetGarden.id)}>
+                        Switch Garden
+                    </ToastAction>
+                ) : undefined,
+            });
+        } catch (error) {
+            toast({
+                title: 'Move Failed',
+                description: 'Could not move plant to target garden.',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleQuickDuplicate = async (targetGarden: GardenLocation) => {
+        try {
+            const isSameGarden = targetGarden.id === planting.gardenId;
+            const newName = isSameGarden ? `${planting.name} (Copy)` : planting.name;
+            const nowIso = new Date().toISOString();
+            const newPlanting: Planting = {
+                id: `planting-${Date.now()}`,
+                plantId: planting.plantId,
+                gardenId: targetGarden.id,
+                name: newName,
+                createdAt: nowIso,
+                history: [
+                    {
+                        id: `status-${Date.now()}`,
+                        status: (planting.history?.[planting.history.length - 1]?.status) || 'Wishlist',
+                        date: nowIso,
+                        notes: `Duplicated from ${planting.name} (${planting.garden?.name || 'Garden'})`,
+                    },
+                ],
+                seedsOnHand: planting.seedsOnHand,
+                plannedQty: planting.plannedQty,
+                propagationMethod: planting.propagationMethod || 'seed',
+                swapAvailable: planting.swapAvailable,
+            };
+            await db.plantings.add(newPlanting);
+            toast({
+                title: 'Plant Duplicated',
+                description: `Created "${newPlanting.name}" in "${targetGarden.name}".`,
+                action: !isSameGarden && onSwitchGarden ? (
+                    <ToastAction altText={`View in ${targetGarden.name}`} onClick={() => onSwitchGarden(targetGarden.id)}>
+                        View Garden
+                    </ToastAction>
+                ) : undefined,
+            });
+        } catch (error) {
+            toast({
+                title: 'Duplicate Failed',
+                description: 'Could not duplicate plant.',
+                variant: 'destructive',
+            });
+        }
+    };
 
     const { toast } = useToast();
     
@@ -224,17 +310,120 @@ export function PlantingDashboardCard({
                 </div>
             )}
             <CardHeader className="pb-4">
-                <CardTitle className="font-headline text-lg leading-tight mb-1 pr-2">{planting.name}</CardTitle>
-                <CardDescription className="flex items-center gap-2">
-                    <span>{planting.plant.species}</span>
-                    <a href={`https://www.google.com/search?q=${encodeURIComponent(planting.plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
-                        <ExternalLink className="h-3 w-3" />
-                        <span className="sr-only">Search for {planting.plant.species}</span>
-                    </a>
-                </CardDescription>
+                <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                        <CardTitle className="font-headline text-lg leading-tight mb-1 pr-2 truncate">{planting.name}</CardTitle>
+                        <CardDescription className="flex items-center gap-2">
+                            <span>{planting.plant.species}</span>
+                            <a href={`https://www.google.com/search?q=${encodeURIComponent(planting.plant.species)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
+                                <ExternalLink className="h-3 w-3" />
+                                <span className="sr-only">Search for {planting.plant.species}</span>
+                            </a>
+                        </CardDescription>
+                    </div>
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0 -mr-2 -mt-1 text-muted-foreground hover:text-foreground">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            {/* Move to Garden */}
+                            {otherGardens.length > 0 ? (
+                                <DropdownMenuSub>
+                                    <DropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>
+                                        <ArrowRightLeft className="mr-2 h-4 w-4" />
+                                        <span>Move to Garden</span>
+                                    </DropdownMenuSubTrigger>
+                                    <DropdownMenuSubContent onClick={(e) => e.stopPropagation()}>
+                                        {otherGardens.map(loc => (
+                                            <DropdownMenuItem
+                                                key={loc.id}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleQuickMove(loc);
+                                                }}
+                                            >
+                                                <Fence className="mr-2 h-4 w-4" />
+                                                <span>{loc.name}</span>
+                                            </DropdownMenuItem>
+                                        ))}
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setTransferDialogMode('move');
+                                                setIsTransferDialogOpen(true);
+                                            }}
+                                        >
+                                            <span>More options / New garden...</span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuSubContent>
+                                </DropdownMenuSub>
+                            ) : (
+                                <DropdownMenuItem
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setTransferDialogMode('move');
+                                        setIsTransferDialogOpen(true);
+                                    }}
+                                >
+                                    <ArrowRightLeft className="mr-2 h-4 w-4" />
+                                    <span>Move to Garden...</span>
+                                </DropdownMenuItem>
+                            )}
+
+                            {/* Duplicate to Garden */}
+                            {locations.length > 0 ? (
+                                <DropdownMenuSub>
+                                    <DropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>
+                                        <CopyPlus className="mr-2 h-4 w-4" />
+                                        <span>Duplicate to Garden</span>
+                                    </DropdownMenuSubTrigger>
+                                    <DropdownMenuSubContent onClick={(e) => e.stopPropagation()}>
+                                        {locations.map(loc => (
+                                            <DropdownMenuItem
+                                                key={loc.id}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleQuickDuplicate(loc);
+                                                }}
+                                            >
+                                                <Fence className="mr-2 h-4 w-4" />
+                                                <span>{loc.name} {loc.id === planting.gardenId ? '(Current)' : ''}</span>
+                                            </DropdownMenuItem>
+                                        ))}
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setTransferDialogMode('duplicate');
+                                                setIsTransferDialogOpen(true);
+                                            }}
+                                        >
+                                            <span>Custom copy / New garden...</span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuSubContent>
+                                </DropdownMenuSub>
+                            ) : (
+                                <DropdownMenuItem
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setTransferDialogMode('duplicate');
+                                        setIsTransferDialogOpen(true);
+                                    }}
+                                >
+                                    <CopyPlus className="mr-2 h-4 w-4" />
+                                    <span>Duplicate to Garden...</span>
+                                </DropdownMenuItem>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
                 <div className="flex flex-wrap gap-2 items-center pt-2">
                     <ViabilityIndicator 
-                        stageViability={viabilityMechanism === 'ai' && !planting.viability && !effectiveViability ? undefined : (viabilityMechanism === 'local' ? evaluatePlantingViability(planting, planting.garden?.conditions, { propagationMethod: activePropagationMethod }) : (planting.stageViability || evaluatePlantingViability(planting, planting.garden?.conditions, { propagationMethod: activePropagationMethod })))}
+                        stageViability={viabilityMechanism === 'ai' && !planting.viability && !effectiveViability ? undefined : evaluatePlantingViability(planting, planting.garden?.conditions, { propagationMethod: activePropagationMethod, ignoreAi: viabilityMechanism === 'local' })}
                         viability={effectiveViability} 
                         reasoning={viabilityReasoning || planting.viabilityReasoning} 
                         plantName={planting.name}
@@ -400,6 +589,13 @@ export function PlantingDashboardCard({
                     </div>
                 </div>
             </CardContent>
+            <MoveOrDuplicatePlantDialog
+                isOpen={isTransferDialogOpen}
+                onOpenChange={setIsTransferDialogOpen}
+                planting={planting}
+                initialMode={transferDialogMode}
+                onSwitchGarden={onSwitchGarden}
+            />
         </Card>
     );
 }

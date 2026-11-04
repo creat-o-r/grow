@@ -22,9 +22,10 @@ type PlantingDashboardProps = {
     onOpenSettings: () => void;
     onQuickStatusChange: (planting: PlantingWithPlant, newStatus: StatusHistory['status']) => void;
     viabilityMechanism?: ViabilityAnalysisMode;
+    onSwitchGarden?: (gardenId: string) => void;
 };
 
-export function PlantingDashboard({ plantings, viabilityData, reasoningData, upcomingData, gardenConditions, onOpenAddSheet, onOpenSettings, onQuickStatusChange, viabilityMechanism = 'local' }: PlantingDashboardProps) {
+export function PlantingDashboard({ plantings, viabilityData, reasoningData, upcomingData, gardenConditions, onOpenAddSheet, onOpenSettings, onQuickStatusChange, viabilityMechanism = 'local', onSwitchGarden }: PlantingDashboardProps) {
 
     const viabilityGroups = useMemo(() => {
         const groups: Record<Viability | 'Unanalyzed', PlantingWithPlant[]> = {
@@ -161,6 +162,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
                                             viabilityMechanism={viabilityMechanism}
+                                            onSwitchGarden={onSwitchGarden}
                                         />
                                     ))}
                                 </div>
@@ -182,6 +184,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
                                             viabilityMechanism={viabilityMechanism}
+                                            onSwitchGarden={onSwitchGarden}
                                         />
                                     ))}
                                 </div>
@@ -203,6 +206,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
                                             viabilityMechanism={viabilityMechanism}
+                                            onSwitchGarden={onSwitchGarden}
                                         />
                                     ))}
                                 </div>
@@ -227,6 +231,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
                                             viabilityMechanism={viabilityMechanism}
+                                            onSwitchGarden={onSwitchGarden}
                                         />
                                     ))}
                                 </div>
@@ -249,6 +254,7 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             currentSeason={gardenConditions?.currentSeason}
                                             onQuickStatusChange={onQuickStatusChange} 
                                             viabilityMechanism={viabilityMechanism}
+                                            onSwitchGarden={onSwitchGarden}
                                         />
                                     ))}
                                 </div>

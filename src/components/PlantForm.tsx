@@ -5,10 +5,12 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { Plant, Planting, PlantingWithPlant, StatusHistory, FreeLlmConfig, PropagationMethod, Conditions } from '@/lib/types';
+import type { Plant, Planting, PlantingWithPlant, StatusHistory, FreeLlmConfig, PropagationMethod, Conditions, GardenLocation } from '@/lib/types';
 import { getAllPropagationMethodViabilities, ALL_PROPAGATION_METHODS, type PropagationMethodInfo } from '@/lib/viability';
 import { format, parseISO } from 'date-fns';
 import Image from 'next/image';
+import { db } from '@/lib/db';
+import { useLiveQuery } from 'dexie-react-hooks';
 
 import { aiSearchPlantData } from '@/ai/flows/ai-search-plant-data';
 import { diagnosePlant } from '@/ai/flows/diagnose-plant-flow';
@@ -21,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink, Wand2, Camera, CircleDotDashed, X, Square, Sparkles } from 'lucide-react';
+import { Search, Loader2, Plus, Trash2, CalendarIcon, AlertTriangle, Upload, ExternalLink, Wand2, Camera, CircleDotDashed, X, Square, Sparkles, Fence } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -50,6 +52,7 @@ const formSchema = z.object({
   plannedQty: z.coerce.number().optional(),
   propagationMethod: z.enum(['seed', 'transplant', 'cutting', 'air-layering', 'division', 'runner', 'bulb-clove']).optional(),
   imageUrl: z.string().optional(),
+  gardenId: z.string().optional(),
 });
 
 type PlantFormValues = z.infer<typeof formSchema>;
@@ -65,6 +68,8 @@ type PlantFormProps = {
   areApiKeysSet: boolean;
   apiKeys: FreeLlmConfig;
   plants: Plant[];
+  locations?: GardenLocation[];
+  defaultGardenId?: string;
 };
 
 export function PlantForm({
@@ -78,6 +83,8 @@ export function PlantForm({
   areApiKeysSet,
   apiKeys,
   plants,
+  locations,
+  defaultGardenId,
 }: PlantFormProps) {
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [aiSearchTerm, setAiSearchTerm] = useState('');
@@ -95,6 +102,9 @@ export function PlantForm({
   
   const { toast } = useToast();
 
+  const dbLocations = useLiveQuery(() => db.locations.toArray(), []) || [];
+  const allLocations = locations && locations.length > 0 ? locations : dbLocations;
+
   const form = useForm<PlantFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -107,6 +117,7 @@ export function PlantForm({
       plannedQty: 0,
       propagationMethod: 'seed',
       imageUrl: '',
+      gardenId: '',
     },
   });
   
@@ -145,6 +156,7 @@ export function PlantForm({
         plannedQty: plantingToEdit.plannedQty || 0,
         propagationMethod: plantingToEdit.propagationMethod || 'seed',
         imageUrl: plantingToEdit.plant.imageUrl || getCuratedPlantImage(plantingToEdit.plant, plantingToEdit.name) || '',
+        gardenId: plantingToEdit.gardenId || defaultGardenId || '',
       });
     } else {
       form.reset({
@@ -157,9 +169,10 @@ export function PlantForm({
         plannedQty: 0,
         propagationMethod: 'seed',
         imageUrl: '',
+        gardenId: defaultGardenId || (allLocations[0]?.id || ''),
       });
     }
-  }, [plantingToEdit, defaultStatus, form]);
+  }, [plantingToEdit, defaultStatus, form, defaultGardenId, allLocations]);
   
   useEffect(() => {
     if (!isScanning) return;
@@ -389,7 +402,7 @@ export function PlantForm({
 
     const plantingData: Omit<Planting, 'id'> = {
         plantId: plantingToEdit?.plantId || '', // This will be set properly in the parent
-        gardenId: plantingToEdit?.gardenId || '', // This will be set properly in the parent
+        gardenId: data.gardenId || plantingToEdit?.gardenId || defaultGardenId || '',
         name: data.name,
         createdAt: plantingToEdit?.createdAt || new Date().toISOString(),
         history: sortedHistory,
@@ -530,6 +543,37 @@ export function PlantForm({
               </FormItem>
             )}
           />
+
+          {allLocations.length > 0 && (
+            <FormField
+              control={form.control}
+              name="gardenId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1.5">
+                    <Fence className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span>Garden Location</span>
+                  </FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select garden location..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {allLocations.map((loc) => (
+                        <SelectItem key={loc.id} value={loc.id}>
+                          <span className="font-medium">{loc.name}</span>
+                          {loc.location ? ` (${loc.location})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <FormField
             control={form.control}

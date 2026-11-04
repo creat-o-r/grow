@@ -360,7 +360,7 @@ export default function Home() {
         ...plantingData,
         id: `planting-${Date.now()}`,
         plantId: plantId.toString(),
-        gardenId: activeLocationId || '',
+        gardenId: plantingData.gardenId || activeLocationId || '',
     };
     await db.plantings.add(newPlanting);
     triggerDebouncedStream(getCurrentGardenDataset);
@@ -374,6 +374,18 @@ export default function Home() {
 };
 
 const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant) => {
+    const existing = await db.plantings.get(updatedPlanting.id);
+    if (existing && existing.gardenId !== updatedPlanting.gardenId) {
+      // Plant was moved to another garden location - clear stale garden assessments
+      updatedPlanting.viability = undefined;
+      updatedPlanting.viabilityReasoning = undefined;
+      updatedPlanting.stageViability = undefined;
+      updatedPlanting.prepForecast = undefined;
+      updatedPlanting.growAssessment = undefined;
+      updatedPlanting.harvestAssessment = undefined;
+      updatedPlanting.methodViabilities = undefined;
+      updatedPlanting.seasonalViabilities = undefined;
+    }
     await db.plantings.put(updatedPlanting);
     await db.plants.put(updatedPlant);
     triggerDebouncedStream(getCurrentGardenDataset);
@@ -422,6 +434,11 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       setPlantingToEdit(null);
     }
   };
+
+  const handleSwitchGarden = useCallback((targetGardenId: string) => {
+    setActiveLocationId(targetGardenId);
+    setSelectedGardenIds([targetGardenId]);
+  }, []);
 
   const handleImport = async (datasetKey: string) => {
     try {
@@ -1203,6 +1220,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
   const handleQuickStatusChange = async (planting: PlantingWithPlant, newStatus: PlantStatus) => {
     const originalHistory = planting.history;
+    const originalStageViability = planting.stageViability;
 
     const newHistoryEntry: StatusHistory = {
       id: `hist-${Date.now()}`,
@@ -1213,8 +1231,46 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     const newHistory = [...originalHistory, newHistoryEntry];
 
+    // Dynamically update stageViability to match the new stage using existing assessments
+    let updatedStageViability: StageViability | undefined = undefined;
+    if (newStatus === 'Growing' && planting.growAssessment) {
+      updatedStageViability = {
+        stage: 'Growing',
+        ...planting.growAssessment,
+        stressFactor: planting.growAssessment.stressFactor || 'None',
+        tendingAdvice: planting.growAssessment.tendingAdvice || 'Monitor soil moisture and ambient sunlight.',
+        reasoning: planting.growAssessment.reasoning || planting.viabilityReasoning || 'In-ground vigor assessment',
+      };
+    } else if (newStatus === 'Harvest' && planting.harvestAssessment) {
+      updatedStageViability = {
+        stage: 'Harvest',
+        ...planting.harvestAssessment,
+        harvestWindow: planting.harvestAssessment.harvestWindow || 'Peak Window',
+        successionAdvice: planting.harvestAssessment.successionAdvice || 'Rotate bed after harvest.',
+        reasoning: planting.harvestAssessment.reasoning || planting.viabilityReasoning || 'Harvest ripeness assessment',
+      };
+    } else if (newStatus === 'Planting' && planting.prepForecast) {
+      updatedStageViability = {
+        stage: 'Planting',
+        ...planting.prepForecast,
+        overallViability: planting.prepForecast.overallViability || planting.viability || 'Medium',
+      };
+    } else if (newStatus === 'Wishlist' && planting.seasonalViabilities) {
+      const seasons = planting.seasonalViabilities.filter(s => s.viability !== 'N/A');
+      updatedStageViability = {
+        stage: 'Wishlist',
+        overallViability: planting.viability || (seasons.some(s => s.viability === 'High') ? 'High' : seasons.some(s => s.viability === 'Medium') ? 'Medium' : 'Low'),
+        seasons: seasons.length > 0 ? seasons : planting.seasonalViabilities,
+        bestSeason: seasons[0]?.season || 'Spring',
+        reasoning: planting.viabilityReasoning || 'AI Seasonal Viability Assessment',
+      };
+    }
+
     try {
-      await db.plantings.update(planting.id, { history: newHistory });
+      await db.plantings.update(planting.id, { 
+        history: newHistory,
+        ...(updatedStageViability ? { stageViability: updatedStageViability } : {})
+      });
       triggerDebouncedStream(getCurrentGardenDataset);
 
       if (newStatus === 'Harvest') {
@@ -1231,7 +1287,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
       const handleUndo = async () => {
         try {
-          await db.plantings.update(planting.id, { history: originalHistory });
+          await db.plantings.update(planting.id, { 
+            history: originalHistory,
+            ...(originalStageViability !== undefined ? { stageViability: originalStageViability } : {})
+          });
           toast({
             title: 'Undo Successful',
             description: `${planting.name}'s status has been reverted.`,
@@ -1340,15 +1399,40 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   }, [plantingsWithPlants, currentViabilityData, activeLocation?.conditions]);
   
   const resolvePlantViability = useCallback((p: PlantingWithPlant): Viability | undefined => {
-    if (p.viability) return p.viability;
-    if (currentViabilityData[p.id]) return currentViabilityData[p.id];
+    const currentStatus = (p.history && p.history.length > 0
+      ? p.history[p.history.length - 1].status
+      : 'Wishlist') as PlantStatus;
+
     if (viabilityMechanism === 'local') {
       return getOverallViabilityLevel(evaluatePlantingViability(p, activeLocation?.conditions, {
         growingSystems: p.garden?.growingSystems,
         growingMethods: p.garden?.growingMethods,
         propagationMethod: p.propagationMethod,
+        ignoreAi: true,
       }));
     }
+
+    // AI Mechanism:
+    // 1. Stage-specific verified AI assessments
+    if (currentStatus === 'Growing' && p.growAssessment?.vigorViability) {
+      return p.growAssessment.vigorViability;
+    }
+    if (currentStatus === 'Harvest' && p.harvestAssessment?.ripenessViability) {
+      return p.harvestAssessment.ripenessViability;
+    }
+    if (currentStatus === 'Planting' && p.prepForecast) {
+      return p.prepForecast.overallViability || p.prepForecast.prepViability;
+    }
+
+    // 2. Active stageViability match
+    if (p.stageViability && p.stageViability.stage === currentStatus) {
+      return getOverallViabilityLevel(p.stageViability);
+    }
+
+    // 3. Overall / Wishlist AI assessment
+    if (p.viability) return p.viability;
+    if (currentViabilityData[p.id]) return currentViabilityData[p.id];
+
     return undefined;
   }, [currentViabilityData, viabilityMechanism, activeLocation?.conditions]);
 
@@ -3337,6 +3421,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                           showGardenLabel={!effectivelySingleGardenView}
                                           isPriority={idx === 0}
                                           otherPlantings={plantingsWithPlants}
+                                           onSwitchGarden={handleSwitchGarden}
                                           viabilityMechanism={viabilityMechanism}
                                         />
                                       </div>
@@ -3441,6 +3526,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                   onGetViability={() => handleGetViability(p)}
                                                   showGardenLabel={!effectivelySingleGardenView}
                                                   otherPlantings={plantingsWithPlants}
+                                           onSwitchGarden={handleSwitchGarden}
                                                   viabilityMechanism={viabilityMechanism}
                                                 />
                                               </div>
@@ -3529,6 +3615,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                 showGardenLabel={!effectivelySingleGardenView}
                                                 isPriority={idx === 0}
                                                 otherPlantings={plantingsWithPlants}
+                                           onSwitchGarden={handleSwitchGarden}
                                                 viabilityMechanism={viabilityMechanism}
                                               />
                                             </div>
@@ -3702,6 +3789,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                               onGetViability={() => handleGetViability(p)}
                                               showGardenLabel={!effectivelySingleGardenView}
                                               otherPlantings={plantingsWithPlants}
+                                           onSwitchGarden={handleSwitchGarden}
                                               viabilityMechanism={viabilityMechanism}
                                           />
                                         </div>
@@ -3740,6 +3828,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                         onGetViability={() => handleGetViability(p)}
                                                         showGardenLabel={!effectivelySingleGardenView}
                                                         otherPlantings={plantingsWithPlants}
+                                           onSwitchGarden={handleSwitchGarden}
                                                         viabilityMechanism={viabilityMechanism}
                                                     />
                                                   </div>
@@ -3786,6 +3875,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                   onGetViability={() => handleGetViability(p)}
                                                   showGardenLabel={!effectivelySingleGardenView}
                                                   otherPlantings={plantingsWithPlants}
+                                           onSwitchGarden={handleSwitchGarden}
                                                 viabilityMechanism={viabilityMechanism}
                                               />
                                             </div>
@@ -3803,6 +3893,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                   onOpenSettings={() => handleOpenAddSheet('Planting', 'import-pack')}
                                   onQuickStatusChange={handleQuickStatusChange}
                                   viabilityMechanism={viabilityMechanism}
+                                  onSwitchGarden={handleSwitchGarden}
                               />
                           </div>
                       ) : statusFilter === 'Growing' ? (
@@ -3892,6 +3983,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                               showGardenLabel={!effectivelySingleGardenView}
                                               isPriority={idx === 0}
                                               otherPlantings={plantingsWithPlants}
+                                           onSwitchGarden={handleSwitchGarden}
                                               viabilityMechanism={viabilityMechanism}
                                           />
                                         </div>
@@ -3998,6 +4090,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                               showGardenLabel={!effectivelySingleGardenView}
                                               isPriority={idx === 0}
                                               otherPlantings={plantingsWithPlants}
+                                           onSwitchGarden={handleSwitchGarden}
                                               viabilityMechanism={viabilityMechanism}
                                           />
                                         </div>
@@ -4038,6 +4131,7 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                             showGardenLabel={!effectivelySingleGardenView}
                                             isPriority={idx === 0}
                                             otherPlantings={plantingsWithPlants}
+                                           onSwitchGarden={handleSwitchGarden}
                                           viabilityMechanism={viabilityMechanism}
                                         />
                                       </div>
@@ -4238,6 +4332,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
             areApiKeysSet={areApiKeysSet}
             apiKeys={apiKeys}
             plants={plants || []}
+            locations={locations || []}
+            defaultGardenId={activeLocationId || undefined}
           />
         </SheetContent>
       </Sheet>

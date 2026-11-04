@@ -25,7 +25,7 @@ import {
   getSeasonalHarvestInfo,
   getWishSeasonalViabilities
 } from '@/lib/viability';
-import type { Plant, Conditions } from '@/lib/types';
+import type { Plant, Conditions, PlantStatus } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
   Sparkles, 
@@ -153,6 +153,13 @@ export function ViabilityIndicator({
   const resolvedPrep = stageViability?.stage === 'Planting' ? stageViability : propPrepForecast;
   const resolvedGrow = stageViability?.stage === 'Growing' ? stageViability : propGrowAssessment;
   const resolvedHarvest = stageViability?.stage === 'Harvest' ? stageViability : propHarvestAssessment;
+
+  const targetStage: PlantStatus = stageViability?.stage 
+    || (propHarvestAssessment ? 'Harvest' : undefined)
+    || (propGrowAssessment ? 'Growing' : undefined)
+    || (propPrepForecast ? 'Planting' : undefined)
+    || (resolvedWish || (wishSeasons && wishSeasons.length > 0) ? 'Wishlist' : undefined)
+    || 'Wishlist';
   
   const activeMethod: PropagationMethod = (resolvedPrep && 'propagationMethod' in resolvedPrep ? resolvedPrep.propagationMethod : undefined) 
     || propPropagationMethod 
@@ -492,7 +499,7 @@ export function ViabilityIndicator({
     });
   }, [seasons, currentSeason, explicitViability]);
 
-  if ((resolvedWish || (wishSeasons && wishSeasons.length > 0) || stageViability?.stage === 'Wishlist') && effectiveSeasons.length > 0) {
+  if ((targetStage === 'Wishlist' || (!resolvedGrow && !resolvedHarvest && !resolvedPrep)) && effectiveSeasons.length > 0) {
     const overallViab = resolvedWish?.overallViability || viability || (effectiveSeasons.some(s => s.viability === 'High') ? 'High' : effectiveSeasons.some(s => s.viability === 'Medium') ? 'Medium' : 'Low');
     const primaryBorderClass = viabilityConfig[overallViab]?.borderClass || 'border-border';
 
@@ -767,7 +774,7 @@ export function ViabilityIndicator({
   }
 
   // 2. PREP VIEW: 3-Stage Lifecycle Pipeline (Prep -> Grow -> Harv)
-  if (resolvedPrep) {
+  if (resolvedPrep && (targetStage === 'Planting' || (targetStage !== 'Growing' && targetStage !== 'Harvest' && targetStage !== 'Wishlist'))) {
     const isPrepNA = resolvedPrep.overallViability === 'N/A' || resolvedPrep.prepViability === 'N/A' || resolvedPrep.isIncompatible;
     const overallCfg = viabilityConfig[resolvedPrep.overallViability] || viabilityConfig.Medium;
     const prepCfg = viabilityConfig[resolvedPrep.prepViability] || viabilityConfig.Medium;
@@ -899,7 +906,7 @@ export function ViabilityIndicator({
   }
 
   // 3. GROW VIEW: In-Ground Vigor & Acute Stress Monitoring
-  if (resolvedGrow) {
+  if (resolvedGrow && (targetStage === 'Growing' || (targetStage !== 'Harvest' && targetStage !== 'Planting' && targetStage !== 'Wishlist'))) {
     const cfg = viabilityConfig[resolvedGrow.vigorViability] || viabilityConfig.High;
     const hasStress = resolvedGrow.stressFactor && resolvedGrow.stressFactor !== 'None';
 
@@ -995,7 +1002,7 @@ export function ViabilityIndicator({
   }
 
   // 4. HARVEST VIEW: Peak Window & Bed Succession Advice
-  if (resolvedHarvest) {
+  if (resolvedHarvest && (targetStage === 'Harvest' || (targetStage !== 'Growing' && targetStage !== 'Planting' && targetStage !== 'Wishlist'))) {
     const cfg = viabilityConfig[resolvedHarvest.ripenessViability] || viabilityConfig.High;
     const effectiveHarvestType = resolvedHarvest.harvestType 
       || (plant ? getSeasonalHarvestInfo(plant, (currentSeason || 'Spring') as SeasonName, conditions).harvestType : undefined);

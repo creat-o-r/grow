@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { PlantingWithPlant, Conditions, StatusHistory, PropagationMethod, ViabilityAnalysisMode } from '@/lib/types';
+import type { PlantingWithPlant, Conditions, StatusHistory, PropagationMethod, ViabilityAnalysisMode, GardenLocation, Planting } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight, Fence, Share2, ChevronDown, ChevronUp, Sprout, RotateCcw, BrainCircuit } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, ExternalLink, Copy, Package, Sparkles, ArrowRight, Fence, Share2, ChevronDown, ChevronUp, Sprout, RotateCcw, BrainCircuit, ArrowRightLeft, CopyPlus } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ViabilityIndicator } from './ViabilityIndicator';
 import { Badge } from '@/components/ui/badge';
@@ -13,10 +13,13 @@ import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { getSuitableSeasons, evaluatePlantingViability, Viability, getAllPropagationMethodViabilities, ALL_PROPAGATION_METHODS, type PropagationMethodInfo } from '@/lib/viability';
 import { db } from '@/lib/db';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { useExtensions } from '@/extensions/use-extensions';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import { SharePlantDialog } from './SharePlantDialog';
+import { MoveOrDuplicatePlantDialog } from './MoveOrDuplicatePlantDialog';
 
 type PlantCardProps = {
   planting: PlantingWithPlant;
@@ -40,6 +43,7 @@ type PlantCardProps = {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   viabilityMechanism?: ViabilityAnalysisMode;
+  onSwitchGarden?: (gardenId: string) => void;
 };
 
 export function PlantCard({
@@ -64,11 +68,94 @@ export function PlantCard({
     isCollapsed = false,
     onToggleCollapse,
     viabilityMechanism,
+    onSwitchGarden,
 }: PlantCardProps) {
     const { plant } = planting;
     const syncImageUrl = getCuratedPlantImage(plant, planting.name);
     const [resolvedImageUrl, setResolvedImageUrl] = useState<string | undefined>(syncImageUrl);
     const [imgFailed, setImgFailed] = useState(false);
+
+    const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+    const [transferDialogMode, setTransferDialogMode] = useState<'move' | 'duplicate'>('move');
+
+    const locations = useLiveQuery(() => db.locations.toArray(), []) || [];
+    const otherGardens = useMemo(() => {
+        return locations.filter(loc => loc.id !== planting.gardenId);
+    }, [locations, planting.gardenId]);
+
+    const handleQuickMove = async (targetGarden: GardenLocation) => {
+        try {
+            await db.plantings.update(planting.id, {
+                gardenId: targetGarden.id,
+                viability: undefined,
+                viabilityReasoning: undefined,
+                stageViability: undefined,
+                prepForecast: undefined,
+                growAssessment: undefined,
+                harvestAssessment: undefined,
+                methodViabilities: undefined,
+                seasonalViabilities: undefined,
+            });
+            toast({
+                title: 'Plant Moved',
+                description: `"${planting.name}" moved to "${targetGarden.name}".`,
+                action: onSwitchGarden ? (
+                    <ToastAction altText={`Switch to ${targetGarden.name}`} onClick={() => onSwitchGarden(targetGarden.id)}>
+                        Switch Garden
+                    </ToastAction>
+                ) : undefined,
+            });
+        } catch (error) {
+            toast({
+                title: 'Move Failed',
+                description: 'Could not move plant to target garden.',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleQuickDuplicate = async (targetGarden: GardenLocation) => {
+        try {
+            const isSameGarden = targetGarden.id === planting.gardenId;
+            const newName = isSameGarden ? `${planting.name} (Copy)` : planting.name;
+            const nowIso = new Date().toISOString();
+            const newPlanting: Planting = {
+                id: `planting-${Date.now()}`,
+                plantId: planting.plantId,
+                gardenId: targetGarden.id,
+                name: newName,
+                createdAt: nowIso,
+                history: [
+                    {
+                        id: `status-${Date.now()}`,
+                        status: latestStatus?.status || 'Wishlist',
+                        date: nowIso,
+                        notes: `Duplicated from ${planting.name} (${planting.garden?.name || 'Garden'})`,
+                    },
+                ],
+                seedsOnHand: planting.seedsOnHand,
+                plannedQty: planting.plannedQty,
+                propagationMethod: planting.propagationMethod || 'seed',
+                swapAvailable: planting.swapAvailable,
+            };
+            await db.plantings.add(newPlanting);
+            toast({
+                title: 'Plant Duplicated',
+                description: `Created "${newPlanting.name}" in "${targetGarden.name}".`,
+                action: !isSameGarden && onSwitchGarden ? (
+                    <ToastAction altText={`View in ${targetGarden.name}`} onClick={() => onSwitchGarden(targetGarden.id)}>
+                        View Garden
+                    </ToastAction>
+                ) : undefined,
+            });
+        } catch (error) {
+            toast({
+                title: 'Duplicate Failed',
+                description: 'Could not duplicate plant.',
+                variant: 'destructive',
+            });
+        }
+    };
 
     useEffect(() => {
         setImgFailed(false);
@@ -148,17 +235,12 @@ export function PlantCard({
     // Unified 4-stage viability analysis
     const stageViability = isPendingAi 
         ? undefined 
-        : (viabilityMechanism === 'local'
-            ? evaluatePlantingViability(planting, gardenConditions, {
-                growingSystems: planting.garden?.growingSystems,
-                growingMethods: planting.garden?.growingMethods,
-                propagationMethod: activePropagationMethod,
-              })
-            : (planting.stageViability || evaluatePlantingViability(planting, gardenConditions, {
-                growingSystems: planting.garden?.growingSystems,
-                growingMethods: planting.garden?.growingMethods,
-                propagationMethod: activePropagationMethod,
-              })));
+        : evaluatePlantingViability(planting, gardenConditions, {
+            growingSystems: planting.garden?.growingSystems,
+            growingMethods: planting.garden?.growingMethods,
+            propagationMethod: activePropagationMethod,
+            ignoreAi: viabilityMechanism === 'local',
+          });
 
     const viabilityIndicatorElement = isPendingAi ? (
         <Button
@@ -227,9 +309,100 @@ export function PlantCard({
                 <Share2 className="mr-2 h-4 w-4" />
                 Share My Plant
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {/* Move to Garden */}
+            {otherGardens.length > 0 ? (
+                <DropdownMenuSub>
+                    <DropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>
+                        <ArrowRightLeft className="mr-2 h-4 w-4" />
+                        <span>Move to Garden</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent onClick={(e) => e.stopPropagation()}>
+                        {otherGardens.map(loc => (
+                            <DropdownMenuItem
+                                key={loc.id}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleQuickMove(loc);
+                                }}
+                            >
+                                <Fence className="mr-2 h-4 w-4" />
+                                <span>{loc.name}</span>
+                            </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setTransferDialogMode('move');
+                                setIsTransferDialogOpen(true);
+                            }}
+                        >
+                            <span>More options / New garden...</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                </DropdownMenuSub>
+            ) : (
+                <DropdownMenuItem
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setTransferDialogMode('move');
+                        setIsTransferDialogOpen(true);
+                    }}
+                >
+                    <ArrowRightLeft className="mr-2 h-4 w-4" />
+                    <span>Move to Garden...</span>
+                </DropdownMenuItem>
+            )}
+
+            {/* Duplicate to Garden */}
+            {locations.length > 0 ? (
+                <DropdownMenuSub>
+                    <DropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>
+                        <CopyPlus className="mr-2 h-4 w-4" />
+                        <span>Duplicate to Garden</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent onClick={(e) => e.stopPropagation()}>
+                        {locations.map(loc => (
+                            <DropdownMenuItem
+                                key={loc.id}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleQuickDuplicate(loc);
+                                }}
+                            >
+                                <Fence className="mr-2 h-4 w-4" />
+                                <span>{loc.name} {loc.id === planting.gardenId ? '(Current)' : ''}</span>
+                            </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setTransferDialogMode('duplicate');
+                                setIsTransferDialogOpen(true);
+                            }}
+                        >
+                            <span>Custom copy / New garden...</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                </DropdownMenuSub>
+            ) : (
+                <DropdownMenuItem
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setTransferDialogMode('duplicate');
+                        setIsTransferDialogOpen(true);
+                    }}
+                >
+                    <CopyPlus className="mr-2 h-4 w-4" />
+                    <span>Duplicate to Garden...</span>
+                </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onMarkAsDuplicate}>
                 <Copy className="mr-2 h-4 w-4" />
-                Mark as Duplicate...
+                Mark as Duplicate Species...
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">Delete</DropdownMenuItem>
@@ -240,65 +413,95 @@ export function PlantCard({
         </DropdownMenuContent>
     );
 
+    const shareDialogElement = (
+        <SharePlantDialog
+            isOpen={isShareDialogOpen}
+            onOpenChange={setIsShareDialogOpen}
+            planting={planting}
+            viability={viability}
+            viabilityReasoning={viabilityReasoning}
+            upcomingViability={upcomingViability}
+            upcomingTiming={upcomingTiming}
+            upcomingReasoning={upcomingReasoning}
+            currentSeason={currentSeason}
+            onGetViability={onGetViability}
+            otherPlantings={otherPlantings}
+        />
+    );
+
+    const transferDialogElement = (
+        <MoveOrDuplicatePlantDialog
+            isOpen={isTransferDialogOpen}
+            onOpenChange={setIsTransferDialogOpen}
+            planting={planting}
+            initialMode={transferDialogMode}
+            onSwitchGarden={onSwitchGarden}
+        />
+    );
+
     // Collapsed list view rendering
     if (isCollapsed) {
         return (
-            <Card className="flex items-center justify-between p-3 transition-all hover:bg-muted/30 gap-3">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                    {activeImageUrl ? (
-                        <div className="relative w-12 h-12 flex-shrink-0 rounded-md overflow-hidden bg-muted/40">
-                            <img
-                                src={activeImageUrl}
-                                alt={plant.species}
-                                width={48}
-                                height={48}
-                                className="w-full h-full object-cover"
-                                onError={() => setImgFailed(true)}
-                                loading="lazy"
-                            />
-                        </div>
-                    ) : (
-                        <div className="w-12 h-12 flex-shrink-0 rounded-md bg-muted/50 flex items-center justify-center text-muted-foreground">
-                            <Sprout className="h-6 w-6 opacity-60" />
-                        </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-headline font-semibold text-sm truncate">{planting.name}</h4>
-                            <span className="text-xs text-muted-foreground truncate hidden sm:inline">({plant.species})</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                            {viabilityIndicatorElement}
-                            {latestStatus && (
-                                <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-normal", statusConfig[latestStatus.status])}>
-                                    {latestStatus.status}
-                                </Badge>
-                            )}
-                            {showGardenLabel && planting.garden && (
-                                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                    <Fence className="h-2.5 w-2.5" />
-                                    {planting.garden.name}
-                                </span>
-                            )}
+            <>
+                <Card className="flex items-center justify-between p-3 transition-all hover:bg-muted/30 gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                        {activeImageUrl ? (
+                            <div className="relative w-12 h-12 flex-shrink-0 rounded-md overflow-hidden bg-muted/40">
+                                <img
+                                    src={activeImageUrl}
+                                    alt={plant.species}
+                                    width={48}
+                                    height={48}
+                                    className="w-full h-full object-cover"
+                                    onError={() => setImgFailed(true)}
+                                    loading="lazy"
+                                />
+                            </div>
+                        ) : (
+                            <div className="w-12 h-12 flex-shrink-0 rounded-md bg-muted/50 flex items-center justify-center text-muted-foreground">
+                                <Sprout className="h-6 w-6 opacity-60" />
+                            </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-headline font-semibold text-sm truncate">{planting.name}</h4>
+                                <span className="text-xs text-muted-foreground truncate hidden sm:inline">({plant.species})</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                {viabilityIndicatorElement}
+                                {latestStatus && (
+                                    <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-normal", statusConfig[latestStatus.status])}>
+                                        {latestStatus.status}
+                                    </Badge>
+                                )}
+                                {showGardenLabel && planting.garden && (
+                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                        <Fence className="h-2.5 w-2.5" />
+                                        {planting.garden.name}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                    {onToggleCollapse && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleCollapse} title="Expand card">
-                            <ChevronDown className="h-4 w-4" />
-                        </Button>
-                    )}
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
+                    <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {onToggleCollapse && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleCollapse} title="Expand card">
+                                <ChevronDown className="h-4 w-4" />
                             </Button>
-                        </DropdownMenuTrigger>
-                        {dropdownMenuContent}
-                    </DropdownMenu>
-                </div>
-            </Card>
+                        )}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            {dropdownMenuContent}
+                        </DropdownMenu>
+                    </div>
+                </Card>
+                {shareDialogElement}
+                {transferDialogElement}
+            </>
         );
     }
 
@@ -408,22 +611,6 @@ export function PlantCard({
         </>
     );
 
-    const shareDialogElement = (
-        <SharePlantDialog
-            isOpen={isShareDialogOpen}
-            onOpenChange={setIsShareDialogOpen}
-            planting={planting}
-            viability={viability}
-            viabilityReasoning={viabilityReasoning}
-            upcomingViability={upcomingViability}
-            upcomingTiming={upcomingTiming}
-            upcomingReasoning={upcomingReasoning}
-            currentSeason={currentSeason}
-            onGetViability={onGetViability}
-            otherPlantings={otherPlantings}
-        />
-    );
-
     if (isSelectionMode) {
         return (
              <div
@@ -453,6 +640,7 @@ export function PlantCard({
                     {cardContent}
                 </Card>
                 {shareDialogElement}
+                {transferDialogElement}
              </div>
         );
     }
@@ -463,6 +651,7 @@ export function PlantCard({
                 {cardContent}
             </Card>
             {shareDialogElement}
+            {transferDialogElement}
         </>
     );
 }

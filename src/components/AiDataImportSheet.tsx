@@ -1546,6 +1546,8 @@ export function AiDataImportSheet({
                   areApiKeysSet={areApiKeysSet}
                   apiKeys={apiKeys}
                   plants={plants}
+                  locations={allLocations}
+                  defaultGardenId={activeLocation?.id}
                 />
               ) : null}
             </TabsContent>

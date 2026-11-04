@@ -1167,7 +1167,7 @@ export const evaluateStageViability = (
 export const evaluatePlantingViability = (
     planting: PlantingWithPlant,
     conditions?: Conditions,
-    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod; ignoreAi?: boolean }
 ): StageViability => {
     const activeConditions = conditions || planting.garden?.conditions;
     const activeOptions = options || {
@@ -1183,36 +1183,56 @@ export const evaluatePlantingViability = (
         ? planting.history[planting.history.length - 1].status
         : 'Wishlist';
 
-    // 1. If planting has cached stageViability matching the current stage, return it
-    if (planting.stageViability && planting.stageViability.stage === latestStatus) {
-        return planting.stageViability;
-    }
+    // If not ignoring AI, prioritize stage-matched AI assessments
+    if (!options?.ignoreAi) {
+        // 1. If planting has cached stageViability strictly matching the current stage, return it
+        if (planting.stageViability && planting.stageViability.stage === latestStatus) {
+            return planting.stageViability;
+        }
 
-    // 2. If planting has AI assessment matching the current stage, construct and return it
-    if (latestStatus === 'Wishlist' && planting.seasonalViabilities && planting.seasonalViabilities.length > 0) {
-        const seasons = planting.seasonalViabilities.filter(s => s.viability !== 'N/A');
-        const bestSeason = seasons.slice().sort((a, b) => ((b.score || (b.viability === 'High' ? 5 : b.viability === 'Medium' ? 3 : 1))) - (a.score || (a.viability === 'High' ? 5 : a.viability === 'Medium' ? 3 : 1)))[0]?.season || 'Spring';
-        const activeSeasonMatch = activeConditions?.currentSeason ? seasons.some(s => s.season === activeConditions.currentSeason) : false;
-        return {
-            stage: 'Wishlist',
-            overallViability: planting.viability || (seasons.some(s => s.viability === 'High') ? 'High' : seasons.some(s => s.viability === 'Medium') ? 'Medium' : 'Low'),
-            seasons,
-            activeSeasonMatch,
-            bestSeason,
-            reasoning: planting.viabilityReasoning || 'AI Seasonal Viability Assessment',
-        };
-    }
+        // 2. If planting has AI assessment matching the current stage, construct and return it with explicit stage
+        if (latestStatus === 'Wishlist' && planting.seasonalViabilities && planting.seasonalViabilities.length > 0) {
+            const seasons = planting.seasonalViabilities.filter(s => s.viability !== 'N/A');
+            const bestSeason = seasons.slice().sort((a, b) => ((b.score || (b.viability === 'High' ? 5 : b.viability === 'Medium' ? 3 : 1))) - (a.score || (a.viability === 'High' ? 5 : a.viability === 'Medium' ? 3 : 1)))[0]?.season || 'Spring';
+            const activeSeasonMatch = activeConditions?.currentSeason ? seasons.some(s => s.season === activeConditions.currentSeason) : false;
+            return {
+                stage: 'Wishlist',
+                overallViability: planting.viability || (seasons.some(s => s.viability === 'High') ? 'High' : seasons.some(s => s.viability === 'Medium') ? 'Medium' : 'Low'),
+                seasons,
+                activeSeasonMatch,
+                bestSeason,
+                reasoning: planting.viabilityReasoning || 'AI Seasonal Viability Assessment',
+            };
+        }
 
-    if (latestStatus === 'Planting' && planting.prepForecast) {
-        return planting.prepForecast;
-    }
+        if (latestStatus === 'Planting' && planting.prepForecast) {
+            return {
+                stage: 'Planting',
+                ...planting.prepForecast,
+                overallViability: planting.prepForecast.overallViability || planting.prepForecast.prepViability,
+                isIncompatible: planting.prepForecast.overallViability === 'N/A' || planting.prepForecast.prepViability === 'N/A',
+            };
+        }
 
-    if (latestStatus === 'Growing' && planting.growAssessment) {
-        return planting.growAssessment;
-    }
+        if (latestStatus === 'Growing' && planting.growAssessment) {
+            return {
+                stage: 'Growing',
+                ...planting.growAssessment,
+                stressFactor: planting.growAssessment.stressFactor || 'None',
+                tendingAdvice: planting.growAssessment.tendingAdvice || 'Monitor soil moisture and ambient sunlight.',
+                reasoning: planting.growAssessment.reasoning || planting.viabilityReasoning || 'AI In-Ground Vigor Assessment',
+            };
+        }
 
-    if (latestStatus === 'Harvest' && planting.harvestAssessment) {
-        return planting.harvestAssessment;
+        if (latestStatus === 'Harvest' && planting.harvestAssessment) {
+            return {
+                stage: 'Harvest',
+                ...planting.harvestAssessment,
+                harvestWindow: planting.harvestAssessment.harvestWindow || 'Peak Window',
+                successionAdvice: planting.harvestAssessment.successionAdvice || 'Rotate bed after harvest.',
+                reasoning: planting.harvestAssessment.reasoning || planting.viabilityReasoning || 'AI Harvest Ripeness Assessment',
+            };
+        }
     }
 
     return evaluateStageViability(latestStatus, planting.plant, activeConditions, activeOptions);
