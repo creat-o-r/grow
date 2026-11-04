@@ -11,7 +11,7 @@ import { usePrevious } from '@/hooks/use-previous';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
 import { loadDataset } from '@/lib/datasets';
-import { Viability, SeasonName, getSuitableSeasons, getUpcomingViability, evaluatePlantingViability, getOverallViabilityLevel, getWishSeasonalViabilities, analyzeGrowViability, analyzeHarvestViability, ALL_PROPAGATION_METHODS, enrichSeasonalViabilities, getAllPropagationMethodViabilities } from '@/lib/viability';
+import { Viability, SeasonName, getSuitableSeasons, getUpcomingViability, evaluatePlantingViability, getOverallViabilityLevel, getWishSeasonalViabilities, analyzeGrowViability, analyzeHarvestViability, ALL_PROPAGATION_METHODS } from '@/lib/viability';
 import { decodeSeedPackFromInput, mergeSeedPackIntoDb } from '@/lib/seed-pack';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import {
@@ -26,7 +26,6 @@ import type { DiscrepancyItemUpdated } from '@/lib/sync-diff';
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
-import { PlantForm } from '@/components/PlantForm';
 import { AiLogPanel } from '@/components/AiLogPanel';
 import { SettingsSheet } from '@/components/SettingsSheet';
 import { AiDataImportSheet, type UnifiedImportTab } from '@/components/AiDataImportSheet';
@@ -55,7 +54,6 @@ type PlantStatus = StatusHistory['status'];
 
 
 export default function Home() {
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [plantingToEdit, setPlantingToEdit] = useState<PlantingWithPlant | null>(null);
   const [newPlantDefaultStatus, setNewPlantDefaultStatus] = useState<PlantStatus>('Wishlist');
   const [isClient, setIsClient] = useState(false);
@@ -422,7 +420,6 @@ export default function Home() {
     await db.plantings.add(newPlanting);
     triggerDebouncedStream(getCurrentGardenDataset);
 
-    setIsSheetOpen(false);
     setIsAiImportSheetOpen(false);
     toast({
       title: 'Plant Added',
@@ -449,7 +446,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       triggerDebouncedStream(getCurrentGardenDataset);
 
       setPlantingToEdit(null);
-      setIsSheetOpen(false);
       setIsAiImportSheetOpen(false);
       toast({
           title: 'Plant Updated',
@@ -486,14 +482,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
     setPreloadedDatasetForReview(null);
     setUnifiedImportTab(tab);
     setIsAiImportSheetOpen(true);
-  };
-
-  const handleSheetOpenChange = (open: boolean) => {
-    setIsSheetOpen(open);
-    setIsAiImportSheetOpen(open);
-    if (!open) {
-      setPlantingToEdit(null);
-    }
   };
 
   const handleSwitchGarden = useCallback((targetGardenId: string) => {
@@ -953,31 +941,9 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       ? planting.history[planting.history.length - 1].status
       : 'Wishlist';
 
-    // Auto-heal botanical compatibility: If planting has an incompatible propagation method,
-    // heal it to the recommended or top compatible method before sending prompt to AI.
-    let resolvedPropagationMethod = planting.propagationMethod || 'seed';
-    const methodChecks = getAllPropagationMethodViabilities(planting.plant, activeLocation.conditions, {
-      growingSystems: activeLocation.growingSystems,
-      growingMethods: activeLocation.growingMethods,
-    });
-    const currentMethodCheck = methodChecks.find(m => m.method === resolvedPropagationMethod);
-    if (currentMethodCheck && (currentMethodCheck.isIncompatible || currentMethodCheck.overallViability === 'N/A')) {
-      const compatibleTarget = methodChecks.find(m => m.isRecommended) || methodChecks.find(m => !m.isIncompatible && m.overallViability !== 'N/A') || methodChecks[0];
-      if (compatibleTarget && compatibleTarget.method !== resolvedPropagationMethod) {
-        console.warn(`[Viability Auto-Heal] Auto-correcting incompatible method "${resolvedPropagationMethod}" to "${compatibleTarget.method}" for ${planting.name} (${planting.plant.species})`);
-        resolvedPropagationMethod = compatibleTarget.method;
-        try {
-          await db.plantings.update(planting.id, { propagationMethod: resolvedPropagationMethod });
-          planting.propagationMethod = resolvedPropagationMethod;
-        } catch (err) {
-          console.warn('Failed to update healed propagation method in DB', err);
-        }
-      }
-    }
-
     const promptData = {
         stage,
-        propagationMethod: resolvedPropagationMethod,
+        propagationMethod: planting.propagationMethod || 'seed',
         plant: {
             species: planting.plant.species,
             germinationNeeds: planting.plant.germinationNeeds,
@@ -1069,47 +1035,64 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           };
         }) : undefined;
 
-        const fallbackSeasonalViabilities = getWishSeasonalViabilities(
-          planting.plant,
-          activeLocation.conditions,
-          {
-            growingSystems: activeLocation.growingSystems,
-            growingMethods: activeLocation.growingMethods,
-            propagationMethod: resolvedPropagationMethod,
-          }
-        );
+        // PURE AI VIABILITY: No local fallback calculations or enrichments!
+        const scoreMap: Record<string, number> = { High: 5, Medium: 3, Low: 1, 'N/A': 0 };
+        const rawAiSeasons = (result.seasonalViabilities || []).map(sv => {
+          return {
+            season: sv.season,
+            viability: sv.viability,
+            score: scoreMap[sv.viability] || 0,
+            reasoning: sv.reasoning || '',
+            prepViability: sv.prepViability,
+            prepSummary: sv.prepSummary,
+            growViability: sv.growViability,
+            harvestViability: sv.harvestViability,
+            harvestType: sv.harvestType,
+            harvestWindow: sv.harvestWindow,
+            seedSavingNotes: sv.seedSavingNotes,
+            growInfo: sv.growViability ? {
+              vigorViability: sv.growViability,
+              stressFactor: result.growAssessment?.stressFactor || 'None',
+              tendingAdvice: result.growAssessment?.tendingAdvice || 'Monitor soil moisture and ambient sunlight.',
+              reasoning: sv.reasoning || '',
+            } : undefined,
+            harvestInfo: (sv.harvestViability || sv.harvestType) ? {
+              harvestType: sv.harvestType || result.harvestAssessment?.harvestType || 'Fruit / Crop',
+              ripenessViability: sv.harvestViability || sv.viability,
+              harvestWindow: sv.harvestWindow || result.harvestAssessment?.harvestWindow || '',
+              description: sv.reasoning || '',
+              seedSavingNotes: sv.seedSavingNotes || result.harvestAssessment?.seedSavingNotes,
+              successionAdvice: result.harvestAssessment?.successionAdvice,
+            } : undefined,
+          };
+        });
 
-        const enrichedSeasonalViabilities = (result.seasonalViabilities && result.seasonalViabilities.length > 0)
-          ? enrichSeasonalViabilities(
-              result.seasonalViabilities as SeasonalViability[],
-              planting.plant,
-              activeLocation.conditions,
-              {
-                growingSystems: activeLocation.growingSystems,
-                growingMethods: activeLocation.growingMethods,
-                propagationMethod: resolvedPropagationMethod,
-              }
-            )
-          : undefined;
+        const ALL_4_SEASONS: SeasonName[] = ['Spring', 'Summer', 'Autumn', 'Winter'];
+        const aiSeasonMap = new Map<string, SeasonalViability>();
+        rawAiSeasons.forEach(s => aiSeasonMap.set(s.season.toLowerCase(), s));
 
         const currentSeasonName = activeLocation.conditions?.currentSeason;
 
-        const baseSeasonalViabilities = (enrichedSeasonalViabilities && enrichedSeasonalViabilities.length > 0)
-          ? enrichedSeasonalViabilities
-          : fallbackSeasonalViabilities;
-
-        // Strictly synchronize the active season's entry with the AI's actual microclimate assessment
-        const resolvedSeasonalViabilities = baseSeasonalViabilities.map(sv => {
-          if (currentSeasonName && sv.season.toLowerCase() === currentSeasonName.toLowerCase()) {
-            return {
-              ...sv,
-              viability: finalViability,
-              reasoning: result.reasoning || sv.reasoning,
-              prepViability: result.prepForecast?.prepViability || finalViability,
-              score: finalViability === 'High' ? 5 : finalViability === 'Medium' ? 3 : 1,
-            };
+        const resolvedSeasonalViabilities = ALL_4_SEASONS.map(sName => {
+          const existing = aiSeasonMap.get(sName.toLowerCase());
+          if (existing) {
+            if (currentSeasonName && existing.season.toLowerCase() === currentSeasonName.toLowerCase()) {
+              return {
+                ...existing,
+                viability: finalViability,
+                reasoning: result.reasoning || existing.reasoning,
+                prepViability: result.prepForecast?.prepViability || finalViability,
+                score: scoreMap[finalViability] || 0,
+              };
+            }
+            return existing;
           }
-          return sv;
+          return {
+            season: sName,
+            viability: 'N/A' as Viability,
+            score: 0,
+            reasoning: `No AI viability evaluation provided for ${sName}.`,
+          };
         });
 
         for (const p of duplicatePlantings) {
@@ -1134,7 +1117,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           } else if (pStage === 'Planting' && result.prepForecast) {
             aiStageViability = {
               stage: 'Planting',
-              propagationMethod: resolvedPropagationMethod,
+              propagationMethod: p.propagationMethod || 'seed',
               prepViability: result.prepForecast.prepViability,
               growViability: result.prepForecast.growViability,
               harvestViability: result.prepForecast.harvestViability,
@@ -1166,7 +1149,6 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           }
 
           await db.plantings.update(p.id, {
-            propagationMethod: resolvedPropagationMethod,
             viability: finalViability,
             viabilityReasoning: result.reasoning,
             viabilityAssessedAt: assessedAt,
@@ -1719,47 +1701,64 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             };
           }) : undefined;
 
-          const fallbackSeasonalViabilities = getWishSeasonalViabilities(
-            samplePlanting.plant,
-            activeLocation.conditions,
-            {
-              growingSystems: activeLocation.growingSystems,
-              growingMethods: activeLocation.growingMethods,
-              propagationMethod: samplePlanting.propagationMethod,
-            }
-          );
+          // PURE AI VIABILITY: No local fallback calculations or enrichments!
+          const scoreMap: Record<string, number> = { High: 5, Medium: 3, Low: 1, 'N/A': 0 };
+          const rawAiSeasons = (result.seasonalViabilities || []).map(sv => {
+            return {
+              season: sv.season,
+              viability: sv.viability,
+              score: scoreMap[sv.viability] || 0,
+              reasoning: sv.reasoning || '',
+              prepViability: sv.prepViability,
+              prepSummary: sv.prepSummary,
+              growViability: sv.growViability,
+              harvestViability: sv.harvestViability,
+              harvestType: sv.harvestType,
+              harvestWindow: sv.harvestWindow,
+              seedSavingNotes: sv.seedSavingNotes,
+              growInfo: sv.growViability ? {
+                vigorViability: sv.growViability,
+                stressFactor: result.growAssessment?.stressFactor || 'None',
+                tendingAdvice: result.growAssessment?.tendingAdvice || 'Monitor soil moisture and ambient sunlight.',
+                reasoning: sv.reasoning || '',
+              } : undefined,
+              harvestInfo: (sv.harvestViability || sv.harvestType) ? {
+                harvestType: sv.harvestType || result.harvestAssessment?.harvestType || 'Fruit / Crop',
+                ripenessViability: sv.harvestViability || sv.viability,
+                harvestWindow: sv.harvestWindow || result.harvestAssessment?.harvestWindow || '',
+                description: sv.reasoning || '',
+                seedSavingNotes: sv.seedSavingNotes || result.harvestAssessment?.seedSavingNotes,
+                successionAdvice: result.harvestAssessment?.successionAdvice,
+              } : undefined,
+            };
+          });
 
-          const enrichedSeasonalViabilities = (result.seasonalViabilities && result.seasonalViabilities.length > 0)
-            ? enrichSeasonalViabilities(
-                result.seasonalViabilities as SeasonalViability[],
-                samplePlanting.plant,
-                activeLocation.conditions,
-                {
-                  growingSystems: activeLocation.growingSystems,
-                  growingMethods: activeLocation.growingMethods,
-                  propagationMethod: samplePlanting.propagationMethod,
-                }
-              )
-            : undefined;
+          const ALL_4_SEASONS: SeasonName[] = ['Spring', 'Summer', 'Autumn', 'Winter'];
+          const aiSeasonMap = new Map<string, SeasonalViability>();
+          rawAiSeasons.forEach(s => aiSeasonMap.set(s.season.toLowerCase(), s));
 
           const currentSeasonName = activeLocation.conditions?.currentSeason;
 
-          const baseSeasonalViabilities = (enrichedSeasonalViabilities && enrichedSeasonalViabilities.length > 0)
-            ? enrichedSeasonalViabilities
-            : fallbackSeasonalViabilities;
-
-          // Strictly synchronize the active season's entry with the AI's actual microclimate assessment
-          const resolvedSeasonalViabilities = baseSeasonalViabilities.map(sv => {
-            if (currentSeasonName && sv.season.toLowerCase() === currentSeasonName.toLowerCase()) {
-              return {
-                ...sv,
-                viability: result.viability,
-                reasoning: result.reasoning || sv.reasoning,
-                prepViability: result.prepForecast?.prepViability || result.viability,
-                score: result.viability === 'High' ? 5 : result.viability === 'Medium' ? 3 : 1,
-              };
+          const resolvedSeasonalViabilities = ALL_4_SEASONS.map(sName => {
+            const existing = aiSeasonMap.get(sName.toLowerCase());
+            if (existing) {
+              if (currentSeasonName && existing.season.toLowerCase() === currentSeasonName.toLowerCase()) {
+                return {
+                  ...existing,
+                  viability: result.viability,
+                  reasoning: result.reasoning || existing.reasoning,
+                  prepViability: result.prepForecast?.prepViability || result.viability,
+                  score: scoreMap[result.viability] || 0,
+                };
+              }
+              return existing;
             }
-            return sv;
+            return {
+              season: sName,
+              viability: 'N/A' as Viability,
+              score: 0,
+              reasoning: `No AI viability evaluation provided for ${sName}.`,
+            };
           });
 
           // Apply the AI viability result to ALL duplicate plantings in this group
@@ -4477,28 +4476,6 @@ const mainAddButtonDefaultStatus = useMemo(() => {
           onApplyFieldToAll={handleApplyFieldToAllSelectedGardens}
         />
       )}
-
-      <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
-        <SheetContent className="w-full max-w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="font-headline">{plantingToEdit ? 'Edit Plant' : 'Add a New Plant'}</SheetTitle>
-          </SheetHeader>
-          <PlantForm 
-            plantingToEdit={plantingToEdit}
-            defaultStatus={newPlantDefaultStatus}
-            onSubmit={plantingToEdit ? handleUpdatePlant : handleAddPlant}
-            onConfigureApiKey={() => {
-              handleSheetOpenChange(false);
-              setIsSettingsSheetOpen(true);
-            }}
-            areApiKeysSet={areApiKeysSet}
-            apiKeys={apiKeys}
-            plants={plants || []}
-            locations={locations || []}
-            defaultGardenId={activeLocationId || undefined}
-          />
-        </SheetContent>
-      </Sheet>
       
       <PreOperationRemoteConflictDialog
         open={pendingConflictDialog.open}

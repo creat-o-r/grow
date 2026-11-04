@@ -209,6 +209,19 @@ export function ViabilityIndicator({
     || propPropagationMethod 
     || 'seed';
 
+  // Check if this component is displaying verified AI viability data
+  const hasAiData = Boolean(
+    viability || 
+    reasoning || 
+    propSeasonalViabilities?.length || 
+    propPrepForecast || 
+    propGrowAssessment || 
+    propHarvestAssessment || 
+    (propRelatedMethods && propRelatedMethods.length > 0) || 
+    (resolvedWish && 'reasoning' in resolvedWish && resolvedWish.reasoning) ||
+    (stageViability && 'reasoning' in (stageViability as any) && (stageViability as any).reasoning)
+  );
+
   // 2. Resolve all botanical propagation methods for the default/current season
   const allMethods: PropagationMethodInfo[] = useMemo(() => {
     if (propRelatedMethods && propRelatedMethods.length > 0) {
@@ -219,6 +232,19 @@ export function ViabilityIndicator({
     }
     if (resolvedWish && 'applicableMethods' in resolvedWish && resolvedWish.applicableMethods && resolvedWish.applicableMethods.length > 0) {
       return resolvedWish.applicableMethods;
+    }
+    // In AI mode, do NOT run local calculation! Generate clean method items from ALL_PROPAGATION_METHODS
+    if (hasAiData) {
+      return ALL_PROPAGATION_METHODS.map(m => ({
+        ...m,
+        prepViability: 'Medium' as Viability,
+        growViability: 'Medium' as Viability,
+        harvestViability: 'Medium' as Viability,
+        overallViability: 'Medium' as Viability,
+        isIncompatible: false,
+        prepReasoning: '',
+        isRecommended: false,
+      }));
     }
     if (!plant) {
       return [];
@@ -233,16 +259,16 @@ export function ViabilityIndicator({
       growingSystems,
       growingMethods,
     });
-  }, [propRelatedMethods, resolvedPrep, resolvedWish, plant, conditions, currentSeason, growingSystems, growingMethods]);
+  }, [hasAiData, propRelatedMethods, resolvedPrep, resolvedWish, plant, conditions, currentSeason, growingSystems, growingMethods]);
 
   // Query propagation methods specifically evaluated for any target season
   const getMethodsForSeason = useCallback((season?: SeasonName): PropagationMethodInfo[] => {
+    // If AI data exists, NEVER run local calculations!
+    if (hasAiData || (propRelatedMethods && propRelatedMethods.length > 0)) {
+      return allMethods;
+    }
     if (!plant) return allMethods;
     const targetSeason = season || (currentSeason as SeasonName) || 'Spring';
-    // If targetSeason matches currentSeason and propRelatedMethods exists, use it
-    if ((!season || season === currentSeason) && propRelatedMethods && propRelatedMethods.length > 0) {
-      return propRelatedMethods;
-    }
     const conds: Conditions = {
       temperature: '20°C',
       sunlight: 'Full Sun',
@@ -254,7 +280,7 @@ export function ViabilityIndicator({
       growingSystems,
       growingMethods,
     });
-  }, [plant, currentSeason, propRelatedMethods, conditions, growingSystems, growingMethods, allMethods]);
+  }, [hasAiData, allMethods, plant, currentSeason, propRelatedMethods, conditions, growingSystems, growingMethods]);
 
   const activeMethodInfo = useMemo(() => {
     const found = allMethods.find(m => m.method === activeMethod);
@@ -509,16 +535,19 @@ export function ViabilityIndicator({
 
   // 1. WISHLIST VIEW: Complete 4-Season calendar map
   const fallbackWishSeasons = useMemo(() => {
-    if (!plant) return [];
+    // If AI data exists, NEVER run local calculations!
+    if (hasAiData || !plant) return [];
     return getAll4SeasonsViabilities(plant, conditions, {
       growingSystems,
       growingMethods,
       propagationMethod: activeMethod,
     });
-  }, [plant, conditions, growingSystems, growingMethods, activeMethod]);
+  }, [hasAiData, plant, conditions, growingSystems, growingMethods, activeMethod]);
 
   const rawWishSeasons = (wishSeasons && wishSeasons.length > 0)
     ? wishSeasons
+    : (propSeasonalViabilities && propSeasonalViabilities.length > 0)
+    ? propSeasonalViabilities
     : (resolvedWish?.seasons && resolvedWish.seasons.length > 0)
     ? resolvedWish.seasons
     : fallbackWishSeasons;
@@ -527,13 +556,21 @@ export function ViabilityIndicator({
   const seasons = useMemo(() => {
     const ALL_4_SEASONS: SeasonName[] = ['Spring', 'Summer', 'Autumn', 'Winter'];
     const seasonMap = new Map<string, SeasonalViability>();
-    (rawWishSeasons || []).forEach(s => {
+    (rawWishSeasons || []).forEach((s: SeasonalViability) => {
       seasonMap.set(s.season.toLowerCase(), s);
     });
 
     return ALL_4_SEASONS.map(sName => {
       const existing = seasonMap.get(sName.toLowerCase());
       if (existing) return existing;
+      if (hasAiData) {
+        return {
+          season: sName,
+          viability: 'N/A' as Viability,
+          score: 0,
+          reasoning: `No AI seasonal assessment provided for ${sName}.`,
+        };
+      }
       if (plant) {
         return getSeasonalViabilityForSeason(plant, sName, conditions, {
           growingSystems,
@@ -548,7 +585,7 @@ export function ViabilityIndicator({
         reasoning: `No seasonal viability data recorded for ${sName}.`,
       };
     });
-  }, [rawWishSeasons, plant, conditions, growingSystems, growingMethods, activeMethod]);
+  }, [hasAiData, rawWishSeasons, plant, conditions, growingSystems, growingMethods, activeMethod]);
 
   const explicitViability = viability || resolvedWish?.overallViability;
 
@@ -594,11 +631,15 @@ export function ViabilityIndicator({
 
   const viewingMethods = getMethodsForSeason(activeViewingSeason);
   const seasonData = effectiveSeasons.find(s => s.season.toLowerCase() === activeViewingSeason.toLowerCase()) 
-    || (plant ? getSeasonalViabilityForSeason(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
+    || (hasAiData ? undefined : (plant ? getSeasonalViabilityForSeason(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined));
   const growInfo = seasonData?.growInfo 
-    || (plant ? getSeasonalGrowInfo(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
+    || (hasAiData 
+      ? (propGrowAssessment ? { vigorViability: propGrowAssessment.vigorViability, stressFactor: propGrowAssessment.stressFactor, tendingAdvice: propGrowAssessment.tendingAdvice || '', reasoning: propGrowAssessment.reasoning || '' } : undefined) 
+      : (plant ? getSeasonalGrowInfo(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined));
   const harvestInfo = seasonData?.harvestInfo 
-    || (plant ? getSeasonalHarvestInfo(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
+    || (hasAiData 
+      ? (propHarvestAssessment ? { harvestType: propHarvestAssessment.harvestType || 'Fruit / Crop', ripenessViability: propHarvestAssessment.ripenessViability, harvestWindow: propHarvestAssessment.harvestWindow || '', description: propHarvestAssessment.reasoning || '', seedSavingNotes: propHarvestAssessment.seedSavingNotes, successionAdvice: propHarvestAssessment.successionAdvice } : undefined) 
+      : (plant ? getSeasonalHarvestInfo(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined));
 
   // Full-Cycle Pipeline Viabilities for activeViewingSeason
   const currentPrepViab: Viability = seasonData?.prepViability 
@@ -981,7 +1022,7 @@ export function ViabilityIndicator({
                         <span>{growInfo.stressFactor}</span>
                       </Badge>
                     )}
-                    <Badge variant="outline" className={cn("text-[10px] font-mono", viabilityConfig[growInfo.vigorViability]?.className)}>
+                    <Badge variant="outline" className={cn("text-[10px] font-mono", viabilityConfig[growInfo.vigorViability as Viability]?.className)}>
                       {growInfo.vigorViability}
                     </Badge>
                   </div>
@@ -1005,14 +1046,14 @@ export function ViabilityIndicator({
               <div className="space-y-1.5 border-t border-border/60 pt-2.5">
                 <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-foreground font-semibold">
-                    <span>{harvestTypeConfig[harvestInfo.harvestType]?.icon || '🍎'}</span>
+                    <span>{harvestTypeConfig[harvestInfo.harvestType as HarvestType]?.icon || '🍎'}</span>
                     <span>3. {activeViewingSeason} Harvest</span>
                   </span>
                   <div className="flex items-center gap-1">
-                    <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 font-medium", harvestTypeConfig[harvestInfo.harvestType]?.badgeClass)}>
+                    <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 font-medium", harvestTypeConfig[harvestInfo.harvestType as HarvestType]?.badgeClass)}>
                       {harvestInfo.harvestType}
                     </Badge>
-                    <Badge variant="outline" className={cn("text-[10px] font-mono", viabilityConfig[harvestInfo.ripenessViability]?.className)}>
+                    <Badge variant="outline" className={cn("text-[10px] font-mono", viabilityConfig[harvestInfo.ripenessViability as Viability]?.className)}>
                       {harvestInfo.ripenessViability}
                     </Badge>
                   </div>
@@ -1433,9 +1474,9 @@ export function ViabilityIndicator({
   if (resolvedHarvest && (targetStage === 'Harvest' || (targetStage !== 'Growing' && targetStage !== 'Planting' && targetStage !== 'Wishlist'))) {
     const cfg = viabilityConfig[resolvedHarvest.ripenessViability] || viabilityConfig.High;
     const effectiveHarvestType = resolvedHarvest.harvestType 
-      || (plant ? getSeasonalHarvestInfo(plant, (currentSeason || 'Spring') as SeasonName, conditions).harvestType : undefined);
+      || (hasAiData ? undefined : (plant ? getSeasonalHarvestInfo(plant, (currentSeason || 'Spring') as SeasonName, conditions).harvestType : undefined));
     const effectiveSeedSavingNotes = resolvedHarvest.seedSavingNotes 
-      || (plant ? getSeasonalHarvestInfo(plant, (currentSeason || 'Spring') as SeasonName, conditions).seedSavingNotes : undefined);
+      || (hasAiData ? undefined : (plant ? getSeasonalHarvestInfo(plant, (currentSeason || 'Spring') as SeasonName, conditions).seedSavingNotes : undefined));
     const isSeasonDifferent = currentSeason && activeViewingSeason.toLowerCase() !== currentSeason.toLowerCase();
 
     return (

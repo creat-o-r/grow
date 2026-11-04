@@ -1205,8 +1205,9 @@ export const evaluatePlantingViability = (
 
         // 2. If planting has AI assessment matching the current stage, construct and return it with explicit stage
         if (latestStatus === 'Wishlist' && planting.seasonalViabilities && planting.seasonalViabilities.length > 0) {
-            const seasons = planting.seasonalViabilities.filter(s => s.viability !== 'N/A');
-            const bestSeason = seasons.slice().sort((a, b) => ((b.score || (b.viability === 'High' ? 5 : b.viability === 'Medium' ? 3 : 1))) - (a.score || (a.viability === 'High' ? 5 : a.viability === 'Medium' ? 3 : 1)))[0]?.season || 'Spring';
+            const seasons = planting.seasonalViabilities;
+            const scoreMap: Record<string, number> = { High: 5, Medium: 3, Low: 1, 'N/A': 0 };
+            const bestSeason = seasons.slice().sort((a, b) => ((scoreMap[b.viability] || b.score || 0)) - ((scoreMap[a.viability] || a.score || 0)))[0]?.season || 'Spring';
             const activeSeasonMatch = activeConditions?.currentSeason ? seasons.some(s => s.season === activeConditions.currentSeason) : false;
             return {
                 stage: 'Wishlist',

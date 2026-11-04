@@ -204,6 +204,18 @@ export function PlantCard({
         if (planting.methodViabilities && planting.methodViabilities.length > 0) {
             return planting.methodViabilities;
         }
+        if (viabilityMechanism === 'ai') {
+            return ALL_PROPAGATION_METHODS.map(m => ({
+                ...m,
+                prepViability: 'Medium' as Viability,
+                growViability: 'Medium' as Viability,
+                harvestViability: 'Medium' as Viability,
+                overallViability: 'Medium' as Viability,
+                isIncompatible: false,
+                prepReasoning: '',
+                isRecommended: false,
+            }));
+        }
         const conds: Conditions = planting.garden?.conditions || {
             temperature: '20°C',
             sunlight: 'Full Sun',
@@ -214,7 +226,7 @@ export function PlantCard({
             growingSystems: planting.garden?.growingSystems,
             growingMethods: planting.garden?.growingMethods,
         });
-    }, [plant, planting.garden, activeSeason, planting.methodViabilities]);
+    }, [plant, planting.garden, activeSeason, planting.methodViabilities, viabilityMechanism]);
 
     const activeMethodInfo = methodViabilities.find(m => m.method === activePropagationMethod) || methodViabilities[0];
 
@@ -240,12 +252,12 @@ export function PlantCard({
     // Unified 4-stage viability analysis
     const stageViability = isPendingAi 
         ? undefined 
-        : evaluatePlantingViability(planting, gardenConditions, {
+        : (viabilityMechanism === 'ai' ? planting.stageViability : evaluatePlantingViability(planting, gardenConditions, {
             growingSystems: planting.garden?.growingSystems,
             growingMethods: planting.garden?.growingMethods,
             propagationMethod: activePropagationMethod,
-            ignoreAi: viabilityMechanism === 'local',
-          });
+            ignoreAi: true,
+          }));
 
     const viabilityIndicatorElement = isPendingAi ? (
         <Button

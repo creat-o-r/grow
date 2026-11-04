@@ -446,7 +446,6 @@ export function AiDataImportSheet({
       return;
     }
     saveP2PRoomId(p2pRoomId);
-    notifyP2PRoomChanged(p2pRoomId);
 
     // Cross-session updates: poll the room (cheap "peek", no dataset download) while this sheet is
     // open and the tab is visible. A new packetId written by a DIFFERENT session raises a toast.
@@ -1680,7 +1679,7 @@ export function AiDataImportSheet({
                     </div>
 
                     {/* Grower Handle & Device Extension Card */}
-                    <div className="flex flex-col gap-1.5 bg-background/90 border rounded-lg p-2.5 text-xs w-full sm:w-auto min-w-[270px]">
+                    <div className="flex flex-col gap-2 bg-background/90 border rounded-lg p-2.5 text-xs w-full sm:w-auto sm:min-w-[270px]">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5">
                           <User className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -1698,109 +1697,176 @@ export function AiDataImportSheet({
                       </div>
 
                       {growerIdentity?.isClaimed ? (
-                        /* CLAIMED STATE: Root handle locked, device extension editable */
-                        <div className="flex items-center justify-between gap-2 pt-0.5">
-                          <div className="flex items-center gap-1 min-w-0 font-mono text-xs">
-                            <span className="font-bold text-foreground truncate" title="Claimed Root Handle (Locked)">
-                              @{rootHandle || 'grower'}
-                            </span>
-                            <span className="text-muted-foreground font-bold">/</span>
-                            {isEditingDeviceId ? (
-                              <div className="flex items-center gap-1">
-                                <Input
-                                  value={tempDeviceId}
-                                  onChange={(e) => setTempDeviceId(e.target.value)}
-                                  placeholder="laptop"
-                                  className="h-6 text-xs font-mono font-medium py-0 px-1.5 w-20"
-                                  autoFocus
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleSaveDeviceExtension();
-                                    if (e.key === 'Escape') setIsEditingDeviceId(false);
-                                  }}
-                                />
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0 hover:bg-primary/10"
-                                  onClick={handleSaveDeviceExtension}
-                                  title="Save Device Extension"
-                                >
-                                  <Check className="h-3.5 w-3.5 text-primary" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1">
-                                <span
-                                  className="text-primary font-semibold truncate bg-muted/70 px-1.5 py-0.5 rounded text-[11px] cursor-pointer hover:bg-muted"
-                                  onClick={() => {
-                                    setTempDeviceId(deviceId);
-                                    setIsEditingDeviceId(true);
-                                  }}
-                                  title="Click to edit device extension"
-                                >
-                                  {deviceId || 'device'}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setTempDeviceId(deviceId);
-                                    setIsEditingDeviceId(true);
-                                  }}
-                                  className="text-muted-foreground hover:text-primary text-[10px] ml-0.5"
-                                  title="Edit device extension"
-                                >
-                                  edit
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                        /* CLAIMED STATE: Root handle & device extension both editable on mobile & desktop */
+                        <div className="flex flex-col gap-1.5 pt-0.5">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-1 min-w-0 font-mono text-xs flex-wrap">
+                              {/* Root Handle Editor */}
+                              {isEditingHandle ? (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-muted-foreground font-semibold">@</span>
+                                  <Input
+                                    value={tempRootHandle}
+                                    onChange={(e) => setTempRootHandle(e.target.value)}
+                                    placeholder="colby_gardens"
+                                    className="h-6 text-xs font-mono font-medium py-0 px-1.5 w-28"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleSaveRootHandle();
+                                      if (e.key === 'Escape') setIsEditingHandle(false);
+                                    }}
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 hover:bg-primary/10"
+                                    onClick={handleSaveRootHandle}
+                                    title="Save Root Handle"
+                                  >
+                                    <Check className="h-3.5 w-3.5 text-primary" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 hover:bg-muted"
+                                    onClick={() => setIsEditingHandle(false)}
+                                    title="Cancel"
+                                  >
+                                    <X className="h-3 w-3 text-muted-foreground" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <span
+                                    className="font-bold text-foreground truncate cursor-pointer hover:text-primary hover:underline"
+                                    onClick={() => {
+                                      setTempRootHandle(rootHandle);
+                                      setIsEditingHandle(true);
+                                    }}
+                                    title="Click to edit root handle"
+                                  >
+                                    @{rootHandle || 'grower'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setTempRootHandle(rootHandle);
+                                      setIsEditingHandle(true);
+                                    }}
+                                    className="text-muted-foreground hover:text-primary text-[10px] ml-0.5"
+                                    title="Edit root handle"
+                                  >
+                                    edit
+                                  </button>
+                                </div>
+                              )}
 
-                          <button
-                            type="button"
-                            onClick={() => setIsResetConfirmOpen(true)}
-                            className="text-[10px] text-muted-foreground hover:text-destructive underline shrink-0 ml-2"
-                            title="Reset identity and generate new keypair"
-                          >
-                            Reset
-                          </button>
+                              <span className="text-muted-foreground font-bold">/</span>
+
+                              {/* Device Extension Editor */}
+                              {isEditingDeviceId ? (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    value={tempDeviceId}
+                                    onChange={(e) => setTempDeviceId(e.target.value)}
+                                    placeholder="laptop"
+                                    className="h-6 text-xs font-mono font-medium py-0 px-1.5 w-20"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleSaveDeviceExtension();
+                                      if (e.key === 'Escape') setIsEditingDeviceId(false);
+                                    }}
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 hover:bg-primary/10"
+                                    onClick={handleSaveDeviceExtension}
+                                    title="Save Device Extension"
+                                  >
+                                    <Check className="h-3.5 w-3.5 text-primary" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <span
+                                    className="text-primary font-semibold truncate bg-muted/70 px-1.5 py-0.5 rounded text-[11px] cursor-pointer hover:bg-muted"
+                                    onClick={() => {
+                                      setTempDeviceId(deviceId);
+                                      setIsEditingDeviceId(true);
+                                    }}
+                                    title="Click to edit device extension"
+                                  >
+                                    {deviceId || 'device'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setTempDeviceId(deviceId);
+                                      setIsEditingDeviceId(true);
+                                    }}
+                                    className="text-muted-foreground hover:text-primary text-[10px] ml-0.5"
+                                    title="Edit device extension"
+                                  >
+                                    edit
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setIsResetConfirmOpen(true)}
+                              className="text-[10px] text-muted-foreground hover:text-destructive underline shrink-0 ml-auto"
+                              title="Reset identity and generate new keypair"
+                            >
+                              Reset
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         /* UNCLAIMED STATE: User can enter desired handle and click Claim Handle */
                         <div className="space-y-1.5 pt-0.5">
-                          <div className="flex items-center gap-1 font-mono text-xs">
-                            <span className="text-muted-foreground font-semibold">@</span>
-                            <Input
-                              value={tempRootHandle}
-                              onChange={(e) => setTempRootHandle(e.target.value)}
-                              placeholder="colby_gardens"
-                              className="h-6 text-xs font-mono font-medium py-0 px-1.5 flex-1 min-w-[110px]"
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleClaimRootHandle();
-                              }}
-                            />
-                            <span className="text-muted-foreground font-bold">/</span>
-                            <Input
-                              value={tempDeviceId}
-                              onChange={(e) => setTempDeviceId(e.target.value)}
-                              placeholder="laptop"
-                              className="h-6 text-xs font-mono font-medium py-0 px-1.5 w-16"
-                              title="Device ID extension"
-                            />
-                            <Button
-                              type="button"
-                              size="sm"
-                              className="h-6 text-[10px] px-2 gap-1 shrink-0"
-                              onClick={handleClaimRootHandle}
-                              disabled={!tempRootHandle.trim()}
-                              title="Claim and permanently lock root handle"
-                            >
-                              <Lock className="h-2.5 w-2.5" />
-                              <span>Claim</span>
-                            </Button>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 font-mono text-xs">
+                            <div className="flex items-center gap-1 flex-1 min-w-0">
+                              <span className="text-muted-foreground font-semibold">@</span>
+                              <Input
+                                value={tempRootHandle}
+                                onChange={(e) => setTempRootHandle(e.target.value)}
+                                placeholder="colby_gardens"
+                                className="h-7 text-xs font-mono font-medium py-0 px-2 flex-1 min-w-0"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleClaimRootHandle();
+                                }}
+                              />
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="text-muted-foreground font-bold">/</span>
+                              <Input
+                                value={tempDeviceId}
+                                onChange={(e) => setTempDeviceId(e.target.value)}
+                                placeholder="phone"
+                                className="h-7 text-xs font-mono font-medium py-0 px-1.5 w-16"
+                                title="Device ID extension"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="h-7 text-[10px] px-2.5 gap-1 shrink-0 ml-auto sm:ml-0"
+                                onClick={handleClaimRootHandle}
+                                disabled={!tempRootHandle.trim()}
+                                title="Claim and save root handle"
+                              >
+                                <Lock className="h-2.5 w-2.5" />
+                                <span>Claim</span>
+                              </Button>
+                            </div>
                           </div>
                           <p className="text-[10px] text-muted-foreground">
-                            Claiming locks this root handle to this device key.
+                            Claiming sets your root handle across P2P rooms and proofs.
                           </p>
                         </div>
                       )}

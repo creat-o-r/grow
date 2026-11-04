@@ -164,6 +164,18 @@ export function PlantingDashboardCard({
         if (planting.methodViabilities && planting.methodViabilities.length > 0) {
             return planting.methodViabilities;
         }
+        if (viabilityMechanism === 'ai') {
+            return ALL_PROPAGATION_METHODS.map(m => ({
+                ...m,
+                prepViability: 'Medium' as Viability,
+                growViability: 'Medium' as Viability,
+                harvestViability: 'Medium' as Viability,
+                overallViability: 'Medium' as Viability,
+                isIncompatible: false,
+                prepReasoning: '',
+                isRecommended: false,
+            }));
+        }
         const conds = planting.garden?.conditions || {
             temperature: '20°C',
             sunlight: 'Full Sun',
@@ -174,7 +186,7 @@ export function PlantingDashboardCard({
             growingSystems: planting.garden?.growingSystems,
             growingMethods: planting.garden?.growingMethods,
         });
-    }, [planting.plant, planting.garden, currentSeason, planting.methodViabilities]);
+    }, [planting.plant, planting.garden, currentSeason, planting.methodViabilities, viabilityMechanism]);
 
     const activeMethodInfo = methodViabilities.find(m => m.method === activePropagationMethod);
 
@@ -440,7 +452,7 @@ export function PlantingDashboardCard({
                 </div>
                 <div className="flex flex-wrap gap-2 items-center pt-2">
                     <ViabilityIndicator 
-                        stageViability={viabilityMechanism === 'ai' && !planting.viability && !effectiveViability ? undefined : evaluatePlantingViability(planting, planting.garden?.conditions, { propagationMethod: activePropagationMethod, ignoreAi: viabilityMechanism === 'local' })}
+                        stageViability={viabilityMechanism === 'ai' ? planting.stageViability : evaluatePlantingViability(planting, planting.garden?.conditions, { propagationMethod: activePropagationMethod, ignoreAi: true })}
                         viability={effectiveViability} 
                         reasoning={viabilityReasoning || planting.viabilityReasoning} 
                         plantName={planting.name}
