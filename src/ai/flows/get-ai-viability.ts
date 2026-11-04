@@ -148,9 +148,10 @@ Analyze the following information:
       - "upcomingTiming": The timeframe within this current season (e.g. 'Mid-to-late Spring', 'Late Spring once soil exceeds 15°C', 'Late Summer').
       - "upcomingReasoning": A concise explanation of the expected seasonal change that will elevate its viability.
     - If no higher viability is likely during this current season, omit the upcoming fields.
-4.  **Evaluate Seasonal Viabilities for Wishlist Planning Across Full Lifecycle (Prep, Grow, Harvest)**:
-    - For each season (Spring, Summer, Autumn, Winter):
-      - User rule: List all seasons where viability is 'High' or 'Medium'. If multiple seasons qualify, list all of them.
+4.  **Evaluate Seasonal Viabilities Across Full Lifecycle for All 4 Seasons (MANDATORY)**:
+    - You MUST ALWAYS provide an entry for each of the 4 seasons (Spring, Summer, Autumn, Winter):
+      - "season": 'Spring' | 'Summer' | 'Autumn' | 'Winter'
+      - "viability": Overall feasibility in that season ('High', 'Medium', 'Low', or 'N/A').
       - "prepViability": Viability of starting/germinating in that season.
       - "prepSummary": Brief summary of viable propagation methods for that season (e.g. 'Transplant High, Direct Seed Medium').
       - "growViability": Vegetative vigor in that season ('High', 'Medium', 'Low').
@@ -158,8 +159,8 @@ Analyze the following information:
       - "harvestType": Classify season's harvest into 'Fruit / Crop', 'Seeds / Seed Saving', 'Roots / Bulbs', or 'Greens / Herbs'.
       - "harvestWindow": Concise season-specific harvest timing (e.g. 'Mid Summer Peak Fruit', 'Late Summer Dry Seed Umbels', 'Winter Frost Sweetened Greens').
       - "seedSavingNotes": Practical seed saving guidance if applicable (e.g. collect dry siliques before rain, ferment tomato seeds 2-3 days, cure garlic bulbs, or run germination tests).
-5.  **Evaluate All Propagation Methods (methodViabilities)**:
-    - For all botanical propagation methods: 'seed', 'transplant', 'cutting', 'air-layering', 'division', 'runner', 'bulb-clove':
+5.  **Evaluate All 7 Botanical Propagation Methods (methodViabilities) (MANDATORY)**:
+    - You MUST ALWAYS provide an entry for all 7 methods: 'seed', 'transplant', 'cutting', 'air-layering', 'division', 'runner', 'bulb-clove':
       - Evaluate viability ('High', 'Medium', 'Low', or 'N/A').
       - If a method is botanically impossible for this species (e.g. carrots cannot be propagated via cuttings; annuals cannot be air-layered; single-stem crops cannot be divided), mark it 'N/A' and set isIncompatible=true.
       - Provide a concise reasoning for each method.
@@ -191,7 +192,7 @@ Return your final analysis in the specified output format.
         {
           hasGeminiKey: Boolean(apiKey),
           systemPrompt:
-            'You are an expert horticulturalist. Return JSON with fields: viability ("High" | "Medium" | "Low" | "N/A"), reasoning (string), optional upcomingViability ("High" | "Medium"), upcomingTiming (string), upcomingReasoning (string), optional seasonalViabilities (array of {season, viability: "High" | "Medium" | "Low" | "N/A", reasoning, prepViability, prepSummary, growViability, harvestViability, harvestType: "Fruit / Crop" | "Seeds / Seed Saving" | "Roots / Bulbs" | "Greens / Herbs", harvestWindow, seedSavingNotes}), optional methodViabilities (array of {method: "seed" | "transplant" | "cutting" | "air-layering" | "division" | "runner" | "bulb-clove", viability: "High" | "Medium" | "Low" | "N/A", reasoning, isIncompatible: boolean}), optional prepForecast ({prepViability, growViability, harvestViability, overallViability, prepReasoning, growReasoning, harvestReasoning, summary}), optional growAssessment ({vigorViability, stressFactor, tendingAdvice, reasoning}), and optional harvestAssessment ({ripenessViability, harvestWindow, harvestType, seedSavingNotes, successionAdvice, reasoning}).',
+            'You are an expert horticulturalist. Return valid JSON. MANDATORY: You must always provide: 1) "viability" ("High" | "Medium" | "Low" | "N/A"), 2) "reasoning" (string), 3) "seasonalViabilities" with entries for all 4 seasons: Spring, Summer, Autumn, Winter ({season, viability, reasoning, prepViability, prepSummary, growViability, harvestViability, harvestType, harvestWindow, seedSavingNotes}), 4) "methodViabilities" with entries for all 7 methods: seed, transplant, cutting, air-layering, division, runner, bulb-clove ({method, viability, reasoning, isIncompatible}), 5) "prepForecast" ({prepViability, growViability, harvestViability, overallViability, prepReasoning, growReasoning, harvestReasoning, summary}), 6) "growAssessment" ({vigorViability, stressFactor, tendingAdvice, reasoning}), 7) "harvestAssessment" ({ripenessViability, harvestWindow, harvestType, seedSavingNotes, successionAdvice, reasoning}), and 8) optional upcomingViability ("High" | "Medium"), upcomingTiming, upcomingReasoning when viability will improve later in this same season.',
           userPrompt: `Analyze viability for Plant: ${flowInput.plant.species} (Germination: ${flowInput.plant.germinationNeeds}, Optimal: ${flowInput.plant.optimalConditions}) in Stage=${flowInput.stage || 'Wishlist'}, PropagationMethod=${flowInput.propagationMethod || 'seed'}, Garden Conditions: Season=${flowInput.garden.conditions.currentSeason || 'N/A'}, Temp=${flowInput.garden.conditions.temperature}, Sunlight=${flowInput.garden.conditions.sunlight}, Soil=${flowInput.garden.conditions.soil}, Systems=${flowInput.garden.growingSystems || 'N/A'}, Methods=${flowInput.garden.growingMethods || 'N/A'}.`,
           groqApiKey: flowInput.apiKeys?.groq,
           openrouterApiKey: flowInput.apiKeys?.openrouter,

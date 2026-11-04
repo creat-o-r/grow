@@ -966,6 +966,16 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           };
         }) : undefined;
 
+        const fallbackSeasonalViabilities = getWishSeasonalViabilities(
+          planting.plant,
+          activeLocation.conditions,
+          {
+            growingSystems: activeLocation.growingSystems,
+            growingMethods: activeLocation.growingMethods,
+            propagationMethod: planting.propagationMethod,
+          }
+        );
+
         const enrichedSeasonalViabilities = (result.seasonalViabilities && result.seasonalViabilities.length > 0)
           ? enrichSeasonalViabilities(
               result.seasonalViabilities as SeasonalViability[],
@@ -979,6 +989,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             )
           : undefined;
 
+        const resolvedSeasonalViabilities = (enrichedSeasonalViabilities && enrichedSeasonalViabilities.length > 0)
+          ? enrichedSeasonalViabilities
+          : fallbackSeasonalViabilities;
+
         for (const p of duplicatePlantings) {
           const pStage: PlantStatus = (p.history && p.history.length > 0)
             ? p.history[p.history.length - 1].status
@@ -986,14 +1000,12 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
           let aiStageViability: StageViability | undefined = undefined;
           if (pStage === 'Wishlist') {
-            const seasons = (enrichedSeasonalViabilities && enrichedSeasonalViabilities.length > 0)
-              ? enrichedSeasonalViabilities.filter(s => s.viability !== 'N/A')
-              : undefined;
+            const seasons = resolvedSeasonalViabilities.filter(s => s.viability !== 'N/A');
             const bestSeason = seasons && seasons.length > 0 ? seasons[0].season : 'Spring';
             aiStageViability = {
               stage: 'Wishlist',
               overallViability: finalViability,
-              seasons: seasons || [],
+              seasons: seasons.length > 0 ? seasons : fallbackSeasonalViabilities,
               activeSeasonMatch: activeLocation.conditions?.currentSeason ? (seasons || []).some(s => s.season === activeLocation.conditions.currentSeason) : false,
               bestSeason,
               reasoning: result.reasoning,
@@ -1040,7 +1052,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             upcomingTiming: result.upcomingTiming,
             upcomingReasoning: result.upcomingReasoning,
             ...(aiStageViability ? { stageViability: aiStageViability } : {}),
-            ...(enrichedSeasonalViabilities ? { seasonalViabilities: enrichedSeasonalViabilities } : (result.seasonalViabilities ? { seasonalViabilities: result.seasonalViabilities } : {})),
+            seasonalViabilities: resolvedSeasonalViabilities,
             ...(result.prepForecast ? { prepForecast: result.prepForecast } : {}),
             ...(result.growAssessment ? { growAssessment: result.growAssessment } : {}),
             ...(result.harvestAssessment ? { harvestAssessment: result.harvestAssessment } : {}),
@@ -1496,6 +1508,16 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
             };
           }) : undefined;
 
+          const fallbackSeasonalViabilities = getWishSeasonalViabilities(
+            samplePlanting.plant,
+            activeLocation.conditions,
+            {
+              growingSystems: activeLocation.growingSystems,
+              growingMethods: activeLocation.growingMethods,
+              propagationMethod: samplePlanting.propagationMethod,
+            }
+          );
+
           const enrichedSeasonalViabilities = (result.seasonalViabilities && result.seasonalViabilities.length > 0)
             ? enrichSeasonalViabilities(
                 result.seasonalViabilities as SeasonalViability[],
@@ -1509,6 +1531,10 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
               )
             : undefined;
 
+          const resolvedSeasonalViabilities = (enrichedSeasonalViabilities && enrichedSeasonalViabilities.length > 0)
+            ? enrichedSeasonalViabilities
+            : fallbackSeasonalViabilities;
+
           // Apply the AI viability result to ALL duplicate plantings in this group
           for (const planting of group) {
             const pStage: PlantStatus = (planting.history && planting.history.length > 0)
@@ -1517,14 +1543,12 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
             let aiStageViability: StageViability | undefined = undefined;
             if (pStage === 'Wishlist') {
-              const seasons = (enrichedSeasonalViabilities && enrichedSeasonalViabilities.length > 0)
-                ? enrichedSeasonalViabilities.filter(s => s.viability !== 'N/A')
-                : undefined;
+              const seasons = resolvedSeasonalViabilities.filter(s => s.viability !== 'N/A');
               const bestSeason = seasons && seasons.length > 0 ? seasons[0].season : 'Spring';
               aiStageViability = {
                 stage: 'Wishlist',
                 overallViability: result.viability,
-                seasons: seasons || [],
+                seasons: seasons.length > 0 ? seasons : fallbackSeasonalViabilities,
                 activeSeasonMatch: activeLocation.conditions?.currentSeason ? (seasons || []).some(s => s.season === activeLocation.conditions.currentSeason) : false,
                 bestSeason,
                 reasoning: result.reasoning,
@@ -1571,7 +1595,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
               upcomingTiming: result.upcomingTiming,
               upcomingReasoning: result.upcomingReasoning,
               ...(aiStageViability ? { stageViability: aiStageViability } : {}),
-              ...(enrichedSeasonalViabilities ? { seasonalViabilities: enrichedSeasonalViabilities } : (result.seasonalViabilities ? { seasonalViabilities: result.seasonalViabilities } : {})),
+              seasonalViabilities: resolvedSeasonalViabilities,
               ...(result.prepForecast ? { prepForecast: result.prepForecast } : {}),
               ...(result.growAssessment ? { growAssessment: result.growAssessment } : {}),
               ...(result.harvestAssessment ? { harvestAssessment: result.harvestAssessment } : {}),
@@ -1798,7 +1822,11 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
     const groupedBySeason: { [season: string]: PlantingWithPlant[] } = {};
     wishlistPlantings.forEach(p => {
-        const wishSeasons = getWishSeasonalViabilities(p.plant, activeLocation.conditions);
+        const wishSeasons = (p.stageViability && p.stageViability.stage === 'Wishlist' && p.stageViability.seasons && p.stageViability.seasons.length > 0)
+            ? p.stageViability.seasons.filter(s => s.viability !== 'N/A')
+            : (p.seasonalViabilities && p.seasonalViabilities.length > 0)
+            ? p.seasonalViabilities.filter(s => s.viability !== 'N/A')
+            : getWishSeasonalViabilities(p.plant, activeLocation.conditions);
         const qualifyingSeasons = wishSeasons.length > 0 
             ? wishSeasons.map(s => s.season) 
             : [getBestPlantSeason(p.plant)];

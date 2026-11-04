@@ -22,7 +22,8 @@ import {
   getAllPropagationMethodViabilities,
   getSeasonalViabilityForSeason,
   getSeasonalGrowInfo,
-  getSeasonalHarvestInfo
+  getSeasonalHarvestInfo,
+  getWishSeasonalViabilities
 } from '@/lib/viability';
 import type { Plant, Conditions } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -456,10 +457,29 @@ export function ViabilityIndicator({
   };
 
   // 1. WISHLIST VIEW: List of viabilities per season (> Low)
-  if (resolvedWish || (wishSeasons && wishSeasons.length > 0)) {
-    const seasons = (wishSeasons || []).filter(s => s.viability !== 'N/A');
-    const overallViab = resolvedWish?.overallViability || (seasons.some(s => s.viability === 'High') ? 'High' : seasons.some(s => s.viability === 'Medium') ? 'Medium' : 'Low');
+  const fallbackWishSeasons = useMemo(() => {
+    if (!plant) return [];
+    return getWishSeasonalViabilities(plant, conditions, {
+      growingSystems,
+      growingMethods,
+      propagationMethod: activeMethod,
+    }).filter(s => s.viability !== 'N/A');
+  }, [plant, conditions, growingSystems, growingMethods, activeMethod]);
+
+  const rawWishSeasons = (wishSeasons && wishSeasons.length > 0)
+    ? wishSeasons
+    : (resolvedWish?.seasons && resolvedWish.seasons.length > 0)
+    ? resolvedWish.seasons
+    : fallbackWishSeasons;
+
+  const seasons = (rawWishSeasons || []).filter(s => s.viability !== 'N/A');
+
+  if ((resolvedWish || (wishSeasons && wishSeasons.length > 0) || stageViability?.stage === 'Wishlist') && seasons.length > 0) {
+    const overallViab = resolvedWish?.overallViability || viability || (seasons.some(s => s.viability === 'High') ? 'High' : seasons.some(s => s.viability === 'Medium') ? 'Medium' : 'Low');
     const primaryBorderClass = viabilityConfig[overallViab]?.borderClass || 'border-border';
+
+    const viabilityRanks: Record<Viability, number> = { High: 2, Medium: 1, Low: 0, 'N/A': -1 };
+    const hasUpcomingHigher = upcomingViability && viabilityRanks[upcomingViability] > viabilityRanks[overallViab];
 
     // The season currently focused in the popup (clicking a season badge focuses on that season only)
     const activeViewingSeason: SeasonName = selectedSeason 
@@ -516,6 +536,26 @@ export function ViabilityIndicator({
                 </Badge>
               );
             })}
+
+            {hasUpcomingHigher && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[11px] font-medium cursor-pointer transition-all flex items-center gap-1 select-none py-0.5 border-dashed",
+                  upcomingViability === 'High' 
+                    ? "bg-green-50 text-green-700 border-green-400 dark:bg-green-950/40 dark:text-green-300 dark:border-green-700" 
+                    : "bg-yellow-50 text-yellow-700 border-yellow-400 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-700"
+                )}
+                title={upcomingReasoning || `Viability expected to rise to ${upcomingViability}${upcomingTiming ? ` during ${upcomingTiming}` : ''}`}
+              >
+                <TrendingUp className="h-3 w-3" />
+                <span>
+                  {upcomingViability} upcoming
+                  {upcomingTiming && ` (${upcomingTiming})`}
+                </span>
+              </Badge>
+            )}
+
             <Info className="h-3 w-3 opacity-60 ml-0.5" onClick={() => setIsOpen(prev => !prev)} />
           </div>
         </PopoverTrigger>
@@ -665,6 +705,33 @@ export function ViabilityIndicator({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {hasUpcomingHigher && (
+            <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 text-xs space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                <TrendingUp className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                <span>Upcoming Viability: {upcomingViability}</span>
+                {upcomingTiming && <span className="font-mono text-[10px] text-muted-foreground">• {upcomingTiming}</span>}
+              </div>
+              {upcomingReasoning && (
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  {upcomingReasoning}
+                </p>
+              )}
+            </div>
+          )}
+
+          {(reasoning || resolvedWish?.reasoning) && (
+            <div className="space-y-1 border-t border-border/60 pt-2.5">
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 text-foreground">
+                <Sparkles className="h-3 w-3 text-primary" />
+                <span>Horticultural Assessment</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {reasoning || resolvedWish?.reasoning}
+              </p>
             </div>
           )}
 
@@ -1014,8 +1081,8 @@ export function ViabilityIndicator({
   }
 
   // 5. STANDARD / LEGACY FALLBACK VIEW
-  const effectiveViability = viability || 'Low';
-  const config = viabilityConfig[effectiveViability];
+  const effectiveViability: Viability = (viability || resolvedWish?.overallViability || (stageViability && 'overallViability' in stageViability ? (stageViability as any).overallViability : undefined) || 'Low') as Viability;
+  const config = viabilityConfig[effectiveViability] || viabilityConfig.Low;
 
   if (!config) {
     return null;
@@ -1117,7 +1184,7 @@ export function ViabilityIndicator({
         <div className="space-y-1">
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Current Assessment</span>
           <div className="text-xs text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed pr-1 font-sans">
-            {reasoning ? reasoning : "No detailed reasoning saved for this plant yet. Click 'Viability Analysis' in the plant menu to generate a fresh assessment."}
+            {reasoning ? reasoning : (resolvedWish?.reasoning ? resolvedWish.reasoning : "No detailed reasoning saved for this plant yet. Click 'Viability Analysis' in the plant menu to generate a fresh assessment.")}
           </div>
         </div>
 
