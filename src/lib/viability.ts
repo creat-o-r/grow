@@ -380,12 +380,12 @@ export const analyzePrepViability = (
                 break;
             }
             case 'cutting': {
-                if (!isCuttingCapable && (isBrassica || isTaproot || plantInfo.includes('lettuce') || plantInfo.includes('spinach') || plantInfo.includes('corn') || plantInfo.includes('bean') || plantInfo.includes('pea'))) {
+                if (!isCuttingCapable && (isBrassica || isTaproot || plantInfo.includes('lettuce') || plantInfo.includes('spinach') || plantInfo.includes('corn') || plantInfo.includes('bean') || plantInfo.includes('pea') || plantInfo.includes('sunflower') || plantInfo.includes('helianthus') || plantInfo.includes('annual'))) {
                     isIncompatible = true;
                     prepViability = 'N/A';
                     growViability = 'N/A';
                     harvestViability = 'N/A';
-                    prepReasoning = 'No use / N/A: heading annuals require primary seedling root systems; stem cuttings do not form productive curds or taproots.';
+                    prepReasoning = 'No use / N/A: taprooted or herbaceous annuals (sunflowers, corn, beans) require primary seed root systems; stem cuttings do not root or form productive blooms.';
                 } else if (currentSeason === 'Spring' || currentSeason === 'Summer') {
                     prepViability = 'High';
                     prepReasoning = 'Softwood stem cuttings and side suckers root vigorously in water or moist perlite in 5-10 days.';
@@ -987,6 +987,19 @@ export const getWishSeasonalViabilities = (
 
     evaluated.sort((a, b) => (b.score || 0) - (a.score || 0));
     return [evaluated[0]];
+};
+
+/**
+ * Returns complete seasonal viabilities for all 4 calendar seasons (Spring, Summer, Autumn, Winter)
+ * without filtering out N/A or Low, providing a complete 4-season lifecycle map.
+ */
+export const getAll4SeasonsViabilities = (
+    plant: Plant,
+    conditions?: Conditions,
+    options?: { growingSystems?: string; growingMethods?: string; propagationMethod?: PropagationMethod }
+): SeasonalViability[] => {
+    const allSeasons: SeasonName[] = ['Spring', 'Summer', 'Autumn', 'Winter'];
+    return allSeasons.map(season => getSeasonalViabilityForSeason(plant, season, conditions, options));
 };
 
 /**

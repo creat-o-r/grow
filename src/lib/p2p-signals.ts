@@ -161,9 +161,9 @@ export function updateGrowerIdentity(updates: Partial<LocalGrowerIdentity>): Loc
   let dev = current.deviceId;
   let isClaimed = current.isClaimed;
 
-  if (updates.rootHandle && !current.isClaimed) {
+  if (updates.rootHandle) {
     root = updates.rootHandle.replace(/^@+/, '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-  } else if (updates.displayName && !current.isClaimed) {
+  } else if (updates.displayName) {
     root = parseGrowerAddress(updates.displayName).rootHandle.toLowerCase().replace(/[^a-z0-9_-]/g, '');
   }
   if (updates.deviceId !== undefined) {

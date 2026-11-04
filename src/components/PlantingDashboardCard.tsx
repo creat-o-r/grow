@@ -21,6 +21,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { ViabilityIndicator } from './ViabilityIndicator';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import { MoveOrDuplicatePlantDialog } from './MoveOrDuplicatePlantDialog';
+import type { DiscrepancyItemUpdated } from '@/lib/sync-diff';
 
 type PlantingDashboardCardProps = {
     planting: PlantingWithPlant;
@@ -33,6 +34,8 @@ type PlantingDashboardCardProps = {
     onQuickStatusChange: (planting: PlantingWithPlant, newStatus: StatusHistory['status']) => void;
     viabilityMechanism?: ViabilityAnalysisMode;
     onSwitchGarden?: (gardenId: string) => void;
+    remoteUpdate?: DiscrepancyItemUpdated;
+    onReviewRemoteUpdate?: (update: DiscrepancyItemUpdated) => void;
 };
 
 export function PlantingDashboardCard({ 
@@ -46,6 +49,8 @@ export function PlantingDashboardCard({
     onQuickStatusChange,
     viabilityMechanism = 'local',
     onSwitchGarden,
+    remoteUpdate,
+    onReviewRemoteUpdate,
 }: PlantingDashboardCardProps) {
     const [seedsOnHand, setSeedsOnHand] = useState<number | string>('');
     const [plannedQty, setPlannedQty] = useState<number | string>(planting.plannedQty || '');
@@ -179,6 +184,10 @@ export function PlantingDashboardCard({
     const otherApplicableCount = otherApplicableMethods.length;
 
     const handlePropagationMethodChange = async (newMethod: PropagationMethod) => {
+        if (remoteUpdate && onReviewRemoteUpdate) {
+            onReviewRemoteUpdate(remoteUpdate);
+            return;
+        }
         try {
             await db.plantings.update(planting.id, { propagationMethod: newMethod });
             toast({
@@ -239,6 +248,10 @@ export function PlantingDashboardCard({
     };
 
     const handleSetSeeds = () => {
+        if (remoteUpdate && onReviewRemoteUpdate) {
+            onReviewRemoteUpdate(remoteUpdate);
+            return;
+        }
         const qty = Number(seedsOnHand);
         if (qty > 0) {
             updatePlantingStatus('Planting', qty);
@@ -252,6 +265,10 @@ export function PlantingDashboardCard({
     };
 
     const handleSetPlannedQty = async () => {
+        if (remoteUpdate && onReviewRemoteUpdate) {
+            onReviewRemoteUpdate(remoteUpdate);
+            return;
+        }
         const qty = Number(plannedQty);
         if (plannedQty !== '' && !isNaN(qty) && qty >= 0 && qty !== planting.plannedQty) {
             setIsSavingPlannedQty(true);
@@ -447,6 +464,20 @@ export function PlantingDashboardCard({
                             {latestStatus.status}
                         </Badge>
                     )}
+                    {remoteUpdate && (
+                        <Badge 
+                            variant="outline" 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onReviewRemoteUpdate?.(remoteUpdate);
+                            }}
+                            className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 text-xs py-0 cursor-pointer flex items-center gap-1 hover:bg-amber-500/25 transition-colors select-none"
+                            title={`Another device (@${remoteUpdate.peerHandle || 'remote'}) updated this: ${remoteUpdate.changeSummary || 'newer changes available'}. Click to review before operation.`}
+                        >
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0 animate-ping" />
+                            <span>⚡ Remote Update</span>
+                        </Badge>
+                    )}
                 </div>
 
                 {/* Botanical Propagation Method Selector with Real-Time Viabilities */}
@@ -488,15 +519,18 @@ export function PlantingDashboardCard({
                         </SelectTrigger>
                         <SelectContent>
                             {methodViabilities.map((info) => {
-                                const isNA = info.overallViability === 'N/A';
+                                const isNA = info.overallViability === 'N/A' || info.isIncompatible;
                                 return (
-                                    <SelectItem key={info.method} value={info.method} className="text-xs">
+                                    <SelectItem key={info.method} value={info.method} disabled={isNA} className="text-xs">
                                         <div className="flex items-center justify-between gap-2 w-full">
-                                            <span className={cn("flex items-center gap-1.5", isNA && "line-through text-muted-foreground")}>
+                                            <span className={cn("flex items-center gap-1.5", isNA && "line-through text-muted-foreground opacity-50")}>
                                                 <span>{info.icon}</span>
                                                 <span>{info.label}</span>
                                                 {info.isRecommended && (
                                                     <span className="text-[10px] text-primary font-bold">★ Rec</span>
+                                                )}
+                                                {isNA && (
+                                                    <span className="text-[9px] text-destructive font-mono">(Incompatible)</span>
                                                 )}
                                             </span>
                                             <span className={cn(
@@ -514,7 +548,26 @@ export function PlantingDashboardCard({
                             })}
                         </SelectContent>
                     </Select>
-                    {activeMethodInfo?.prepReasoning && (
+                    {activeMethodInfo && (activeMethodInfo.overallViability === 'N/A' || activeMethodInfo.isIncompatible) && (
+                        <div className="p-2 rounded bg-destructive/10 border border-destructive/30 text-xs space-y-1">
+                            <div className="flex items-center justify-between text-destructive font-semibold text-[11px]">
+                                <span>⚠️ Incompatible Method</span>
+                                {otherApplicableMethods[0] && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePropagationMethodChange(otherApplicableMethods[0].method)}
+                                        className="text-primary hover:underline text-[10px] font-bold"
+                                    >
+                                        Switch to {otherApplicableMethods[0].label}
+                                    </button>
+                                )}
+                            </div>
+                            <p className="text-[10px] text-destructive/90 leading-tight">
+                                {activeMethodInfo.prepReasoning || `${planting.plant.species} cannot be propagated via ${activeMethodInfo.label}.`}
+                            </p>
+                        </div>
+                    )}
+                    {activeMethodInfo?.prepReasoning && activeMethodInfo.overallViability !== 'N/A' && !activeMethodInfo.isIncompatible && (
                         <p className="text-[10px] text-muted-foreground leading-tight bg-background/60 p-1.5 rounded border border-border/40">
                             {activeMethodInfo.prepReasoning}
                         </p>

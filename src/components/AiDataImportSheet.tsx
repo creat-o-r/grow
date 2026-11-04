@@ -603,6 +603,29 @@ export function AiDataImportSheet({
     }
   };
 
+  const handleSaveRootHandle = () => {
+    try {
+      const clean = tempRootHandle.trim();
+      if (!clean) return;
+      const updated = claimGrowerHandle(clean, tempDeviceId || deviceId);
+      setGrowerIdentity(updated);
+      setRootHandle(updated.rootHandle);
+      setDeviceId(updated.deviceId);
+      setGrowerHandle(updated.displayName);
+      setIsEditingHandle(false);
+      toast({
+        title: 'Grower Handle Saved',
+        description: `Set grower handle to "@${updated.rootHandle}". Full address: ${updated.displayName}.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Save Failed',
+        description: err?.message || 'Could not save handle.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleSaveDeviceExtension = () => {
     try {
       const cleanDev = tempDeviceId.trim();

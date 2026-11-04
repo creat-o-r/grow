@@ -23,7 +23,8 @@ import {
   getSeasonalViabilityForSeason,
   getSeasonalGrowInfo,
   getSeasonalHarvestInfo,
-  getWishSeasonalViabilities
+  getWishSeasonalViabilities,
+  getAll4SeasonsViabilities
 } from '@/lib/viability';
 import type { Plant, Conditions, PlantStatus } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -506,14 +507,14 @@ export function ViabilityIndicator({
     );
   };
 
-  // 1. WISHLIST VIEW: List of viabilities per season (> Low)
+  // 1. WISHLIST VIEW: Complete 4-Season calendar map
   const fallbackWishSeasons = useMemo(() => {
     if (!plant) return [];
-    return getWishSeasonalViabilities(plant, conditions, {
+    return getAll4SeasonsViabilities(plant, conditions, {
       growingSystems,
       growingMethods,
       propagationMethod: activeMethod,
-    }).filter(s => s.viability !== 'N/A');
+    });
   }, [plant, conditions, growingSystems, growingMethods, activeMethod]);
 
   const rawWishSeasons = (wishSeasons && wishSeasons.length > 0)
@@ -522,7 +523,32 @@ export function ViabilityIndicator({
     ? resolvedWish.seasons
     : fallbackWishSeasons;
 
-  const seasons = (rawWishSeasons || []).filter(s => s.viability !== 'N/A');
+  // Complete 4-Season calendar: ensure Spring, Summer, Autumn, and Winter all persist
+  const seasons = useMemo(() => {
+    const ALL_4_SEASONS: SeasonName[] = ['Spring', 'Summer', 'Autumn', 'Winter'];
+    const seasonMap = new Map<string, SeasonalViability>();
+    (rawWishSeasons || []).forEach(s => {
+      seasonMap.set(s.season.toLowerCase(), s);
+    });
+
+    return ALL_4_SEASONS.map(sName => {
+      const existing = seasonMap.get(sName.toLowerCase());
+      if (existing) return existing;
+      if (plant) {
+        return getSeasonalViabilityForSeason(plant, sName, conditions, {
+          growingSystems,
+          growingMethods,
+          propagationMethod: activeMethod,
+        });
+      }
+      return {
+        season: sName,
+        viability: 'N/A' as Viability,
+        score: 0,
+        reasoning: `No seasonal viability data recorded for ${sName}.`,
+      };
+    });
+  }, [rawWishSeasons, plant, conditions, growingSystems, growingMethods, activeMethod]);
 
   const explicitViability = viability || resolvedWish?.overallViability;
 
@@ -542,6 +568,22 @@ export function ViabilityIndicator({
     });
   }, [seasons, currentSeason, explicitViability]);
 
+  // Season badges shown on the card trigger (qualifying viable seasons + active garden season)
+  const triggerSeasons = useMemo(() => {
+    const viable = effectiveSeasons.filter(s => s.viability === 'High' || s.viability === 'Medium');
+    if (currentSeason) {
+      const currentEntry = effectiveSeasons.find(s => s.season.toLowerCase() === currentSeason.toLowerCase());
+      if (currentEntry && !viable.some(s => s.season.toLowerCase() === currentSeason.toLowerCase())) {
+        viable.push(currentEntry);
+        const seasonOrder: Record<string, number> = { Spring: 0, Summer: 1, Autumn: 2, Winter: 3 };
+        viable.sort((a, b) => (seasonOrder[a.season] ?? 0) - (seasonOrder[b.season] ?? 0));
+      }
+    }
+    if (viable.length > 0) return viable;
+    const sorted = [...effectiveSeasons].sort((a, b) => (b.score || 0) - (a.score || 0));
+    return sorted.slice(0, 1);
+  }, [effectiveSeasons, currentSeason]);
+
   // The season currently focused in the popup (clicking a season badge or season tab focuses on that season)
   const activeViewingSeason: SeasonName = (selectedSeason && effectiveSeasons.some(s => s.season.toLowerCase() === selectedSeason.toLowerCase())) 
     ? selectedSeason
@@ -558,8 +600,35 @@ export function ViabilityIndicator({
   const harvestInfo = seasonData?.harvestInfo 
     || (plant ? getSeasonalHarvestInfo(plant, activeViewingSeason, conditions, { growingSystems, growingMethods, propagationMethod: activeMethod }) : undefined);
 
+  // Full-Cycle Pipeline Viabilities for activeViewingSeason
+  const currentPrepViab: Viability = seasonData?.prepViability 
+    || (activeMethodInfo ? activeMethodInfo.overallViability : seasonData?.viability) 
+    || 'Medium';
+
+  const currentGrowViab: Viability = growInfo?.vigorViability 
+    || seasonData?.growViability 
+    || seasonData?.viability 
+    || 'Medium';
+
+  const currentHarvViab: Viability = harvestInfo?.ripenessViability 
+    || seasonData?.harvestViability 
+    || seasonData?.viability 
+    || 'Medium';
+
+  const currentHarvType: HarvestType = harvestInfo?.harvestType 
+    || seasonData?.harvestType 
+    || 'Fruit / Crop';
+
+  const currentHarvWindow: string | undefined = harvestInfo?.harvestWindow 
+    || seasonData?.harvestWindow;
+
+  const currentSeedSavingNotes: string | undefined = harvestInfo?.seedSavingNotes 
+    || seasonData?.seedSavingNotes;
+
+  const currentSuccessionAdvice: string | undefined = harvestInfo?.successionAdvice 
+    || seasonData?.successionAdvice;
+
   const renderSeasonTabs = (activeSeason: SeasonName) => {
-    if (effectiveSeasons.length <= 1) return null;
     return (
       <div className="p-2 border-b border-border/40 bg-muted/15 shrink-0">
         <div className="grid grid-cols-4 gap-1.5 p-1 bg-muted/60 rounded-lg text-xs font-medium">
@@ -632,7 +701,7 @@ export function ViabilityIndicator({
               }
             }}
           >
-            {effectiveSeasons.map((sv) => {
+            {triggerSeasons.map((sv) => {
               const cfg = viabilityConfig[sv.viability] || viabilityConfig.Medium;
               const isCurrentSeason = currentSeason && sv.season.toLowerCase() === currentSeason.toLowerCase();
               const isSelected = selectedSeason === sv.season;
@@ -752,6 +821,148 @@ export function ViabilityIndicator({
 
           {/* Scrollable Body with overscroll-contain */}
           <div className="p-3.5 space-y-3 overflow-y-auto overscroll-contain flex-1">
+            {/* Prominent Botanical Incompatibility & 1-Click Auto-Healing Banner */}
+            {isPrepNA && (
+              <div className="p-3 rounded-xl border border-destructive/50 bg-destructive/10 text-xs space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🚫</span>
+                    <div>
+                      <div className="font-bold text-destructive text-xs">
+                        Botanical Incompatibility Detected
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {plant?.species || 'This species'} cannot be propagated via <span className="font-semibold text-destructive">{activeMethodInfo?.label || activeMethod}</span>.
+                      </div>
+                    </div>
+                  </div>
+                  <Badge variant="destructive" className="text-[9px] font-mono shrink-0">
+                    No Use / N/A
+                  </Badge>
+                </div>
+
+                {activeMethodInfo?.prepReasoning && (
+                  <p className="text-[11px] text-foreground/80 leading-snug bg-background/60 p-2 rounded border border-border/40">
+                    {activeMethodInfo.prepReasoning}
+                  </p>
+                )}
+
+                {onSelectPropagationMethod && applicableMethods.length > 0 && (
+                  <div className="flex items-center gap-2 pt-1 flex-wrap">
+                    <span className="text-[10px] text-primary font-medium">Auto-Correct to:</span>
+                    {applicableMethods.map((comp) => (
+                      <Button
+                        key={comp.method}
+                        size="sm"
+                        variant="default"
+                        className="h-7 text-xs gap-1.5 shadow-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectPropagationMethod(comp.method);
+                        }}
+                      >
+                        <span>{comp.icon}</span>
+                        <span>Switch to {comp.label}</span>
+                        <span className="text-[10px] opacity-80 font-mono">({comp.overallViability})</span>
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Visual 3-Stage Full-Cycle Pipeline Banner (1. Prep ➔ 2. Grow ➔ 3. Harv) */}
+            <div className="p-3 rounded-xl border border-primary/25 bg-primary/5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                  <span>🔄</span>
+                  <span>{activeViewingSeason} Full 3-Stage Lifecycle</span>
+                </span>
+                <Badge variant="outline" className={cn("text-[10px] font-mono", activeSeasonCfg.className)}>
+                  {seasonData?.viability || overallViab}
+                </Badge>
+              </div>
+
+              {/* 3 Connected Pipeline Step Cards */}
+              <div className="grid grid-cols-3 gap-1.5 items-stretch">
+                {/* Step 1: Prep */}
+                <div className={cn(
+                  "p-2 rounded-lg border text-xs flex flex-col justify-between transition-all bg-background/80",
+                  viabilityConfig[currentPrepViab]?.borderClass || "border-border/60"
+                )}>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                        <span>🌱</span> 1. Prep
+                      </span>
+                      <Badge variant="outline" className={cn("text-[9px] px-1 py-0 font-mono", viabilityConfig[currentPrepViab]?.className)}>
+                        {currentPrepViab}
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] text-foreground/90 font-medium line-clamp-2 leading-tight">
+                      {seasonData?.prepSummary || (activeMethodInfo ? `${activeMethodInfo.label} (${activeMethodInfo.overallViability})` : 'Seed sowing')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 2: Grow */}
+                <div className={cn(
+                  "p-2 rounded-lg border text-xs flex flex-col justify-between transition-all bg-background/80",
+                  viabilityConfig[currentGrowViab]?.borderClass || "border-border/60"
+                )}>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                        <span>🌿</span> 2. Grow
+                      </span>
+                      <Badge variant="outline" className={cn("text-[9px] px-1 py-0 font-mono", viabilityConfig[currentGrowViab]?.className)}>
+                        {currentGrowViab}
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] text-foreground/90 font-medium line-clamp-2 leading-tight">
+                      {growInfo?.stressFactor && growInfo.stressFactor !== 'None' ? (
+                        <span className="text-amber-600 dark:text-amber-400 font-semibold">{growInfo.stressFactor}</span>
+                      ) : (
+                        <span>Vegetative Vigor</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 3: Harvest */}
+                <div className={cn(
+                  "p-2 rounded-lg border text-xs flex flex-col justify-between transition-all bg-background/80",
+                  viabilityConfig[currentHarvViab]?.borderClass || "border-border/60"
+                )}>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                        <span>{harvestTypeConfig[currentHarvType]?.icon || '🧺'}</span> 3. Harv
+                      </span>
+                      <Badge variant="outline" className={cn("text-[9px] px-1 py-0 font-mono", viabilityConfig[currentHarvViab]?.className)}>
+                        {currentHarvViab}
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] text-foreground/90 font-medium truncate">
+                      {currentHarvType}
+                    </p>
+                    {currentHarvWindow && (
+                      <span className="text-[9px] text-muted-foreground block truncate">
+                        {currentHarvWindow}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Trajectory narrative */}
+              {seasonData?.reasoning && (
+                <p className="text-[11px] text-foreground/90 leading-snug bg-background/60 p-2 rounded-md border border-border/40">
+                  {seasonData.reasoning}
+                </p>
+              )}
+            </div>
+
             {/* 1. Prep Methods evaluated for THIS season only */}
             {renderMethodsSection(viewingMethods, activeViewingSeason)}
 
@@ -813,40 +1024,24 @@ export function ViabilityIndicator({
                   <p className="text-[11px] text-foreground/90 leading-snug">
                     {harvestInfo.description}
                   </p>
-                  {harvestInfo.seedSavingNotes && (
+                  {currentSeedSavingNotes && (
                     <div className="p-2 rounded border border-amber-500/30 bg-amber-500/10 text-xs space-y-0.5">
                       <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1">
                         <span>🌾</span> Seed Saving Guide:
                       </span>
                       <p className="text-[10px] text-amber-900/90 dark:text-amber-200/90 leading-snug">
-                        {harvestInfo.seedSavingNotes}
+                        {currentSeedSavingNotes}
                       </p>
                     </div>
                   )}
-                </div>
-              </div>
-            )}
-
-            {/* Full Cycle Feasibility Trajectory for THIS season */}
-            {seasonData && (
-              <div className="space-y-1.5 border-t border-border/60 pt-2.5">
-                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-                  <span>{activeViewingSeason} Lifecycle Feasibility</span>
-                  <Badge variant="outline" className={cn("text-[10px] font-mono", viabilityConfig[seasonData.viability]?.className)}>
-                    {seasonData.viability} Viability
-                  </Badge>
-                </div>
-                <div className="p-2.5 rounded-lg border border-primary/30 bg-primary/5 text-xs space-y-1">
-                  <p className="text-[11px] text-foreground/90 leading-snug">
-                    {seasonData.reasoning}
-                  </p>
-                  {seasonData.prepViability && seasonData.growViability && seasonData.harvestViability && (
-                    <div className="text-[9px] text-muted-foreground font-mono flex items-center gap-1 pt-1 border-t border-border/40">
-                      <span>Prep {seasonData.prepViability}</span>
-                      <span>➔</span>
-                      <span>Grow {seasonData.growViability}</span>
-                      <span>➔</span>
-                      <span>Harv {seasonData.harvestViability}</span>
+                  {currentSuccessionAdvice && (
+                    <div className="p-2 rounded border border-emerald-500/30 bg-emerald-500/10 text-xs space-y-0.5">
+                      <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                        <span>🔄</span> Succession Crop &amp; Bed Turnover:
+                      </span>
+                      <p className="text-[10px] text-emerald-900/90 dark:text-emerald-200/90 leading-snug">
+                        {currentSuccessionAdvice}
+                      </p>
                     </div>
                   )}
                 </div>

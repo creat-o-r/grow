@@ -20,6 +20,7 @@ import { useExtensions } from '@/extensions/use-extensions';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import { SharePlantDialog } from './SharePlantDialog';
 import { MoveOrDuplicatePlantDialog } from './MoveOrDuplicatePlantDialog';
+import type { DiscrepancyItemUpdated } from '@/lib/sync-diff';
 
 type PlantCardProps = {
   planting: PlantingWithPlant;
@@ -44,6 +45,8 @@ type PlantCardProps = {
   onToggleCollapse?: () => void;
   viabilityMechanism?: ViabilityAnalysisMode;
   onSwitchGarden?: (gardenId: string) => void;
+  remoteUpdate?: DiscrepancyItemUpdated;
+  onReviewRemoteUpdate?: (update: DiscrepancyItemUpdated) => void;
 };
 
 export function PlantCard({
@@ -69,6 +72,8 @@ export function PlantCard({
     onToggleCollapse,
     viabilityMechanism,
     onSwitchGarden,
+    remoteUpdate,
+    onReviewRemoteUpdate,
 }: PlantCardProps) {
     const { plant } = planting;
     const syncImageUrl = getCuratedPlantImage(plant, planting.name);
@@ -474,6 +479,20 @@ export function PlantCard({
                                         {latestStatus.status}
                                     </Badge>
                                 )}
+                                {remoteUpdate && (
+                                    <Badge 
+                                        variant="outline" 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onReviewRemoteUpdate?.(remoteUpdate);
+                                        }}
+                                        className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 text-[10px] py-0 cursor-pointer flex items-center gap-1 hover:bg-amber-500/25 transition-colors select-none"
+                                        title={`Another device (@${remoteUpdate.peerHandle || 'remote'}) updated this: ${remoteUpdate.changeSummary || 'newer changes available'}. Click to review before operation.`}
+                                    >
+                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0 animate-ping" />
+                                        <span>⚡ Remote Update</span>
+                                    </Badge>
+                                )}
                                 {showGardenLabel && planting.garden && (
                                     <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                                         <Fence className="h-2.5 w-2.5" />
@@ -558,6 +577,20 @@ export function PlantCard({
                     {latestStatus && (
                         <Badge variant="outline" className={cn("font-normal", statusConfig[latestStatus.status])}>
                             {latestStatus.status}
+                        </Badge>
+                    )}
+                    {remoteUpdate && (
+                        <Badge 
+                            variant="outline" 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onReviewRemoteUpdate?.(remoteUpdate);
+                            }}
+                            className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 text-xs py-0 cursor-pointer flex items-center gap-1.5 hover:bg-amber-500/25 transition-colors select-none"
+                            title={`Another device (@${remoteUpdate.peerHandle || 'remote'}) updated this: ${remoteUpdate.changeSummary || 'newer changes available'}. Click to review before operation.`}
+                        >
+                            <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0 animate-ping" />
+                            <span>⚡ Remote Update from @{remoteUpdate.peerHandle || 'device'}</span>
                         </Badge>
                     )}
                     {latestStatus?.status === 'Planting' && planting.seedsOnHand && planting.seedsOnHand > 0 && (

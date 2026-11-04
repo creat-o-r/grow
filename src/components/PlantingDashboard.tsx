@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle, Upload, Sprout, Sparkles } from 'lucide-react';
 import { PlantingDashboardCard } from './PlantingDashboardCard';
 import { Badge } from '@/components/ui/badge';
+import type { DiscrepancyItemUpdated } from '@/lib/sync-diff';
 
 
 type PlantingDashboardProps = {
@@ -23,9 +24,24 @@ type PlantingDashboardProps = {
     onQuickStatusChange: (planting: PlantingWithPlant, newStatus: StatusHistory['status']) => void;
     viabilityMechanism?: ViabilityAnalysisMode;
     onSwitchGarden?: (gardenId: string) => void;
+    remotePlantingUpdates?: Map<string, DiscrepancyItemUpdated>;
+    onReviewRemoteUpdate?: (update: DiscrepancyItemUpdated) => void;
 };
 
-export function PlantingDashboard({ plantings, viabilityData, reasoningData, upcomingData, gardenConditions, onOpenAddSheet, onOpenSettings, onQuickStatusChange, viabilityMechanism = 'local', onSwitchGarden }: PlantingDashboardProps) {
+export function PlantingDashboard({ 
+    plantings, 
+    viabilityData, 
+    reasoningData, 
+    upcomingData, 
+    gardenConditions, 
+    onOpenAddSheet, 
+    onOpenSettings, 
+    onQuickStatusChange, 
+    viabilityMechanism = 'local', 
+    onSwitchGarden,
+    remotePlantingUpdates,
+    onReviewRemoteUpdate,
+}: PlantingDashboardProps) {
 
     const viabilityGroups = useMemo(() => {
         const groups: Record<Viability | 'Unanalyzed', PlantingWithPlant[]> = {
@@ -163,6 +179,8 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             onQuickStatusChange={onQuickStatusChange} 
                                             viabilityMechanism={viabilityMechanism}
                                             onSwitchGarden={onSwitchGarden}
+                                            remoteUpdate={remotePlantingUpdates?.get(p.id)}
+                                            onReviewRemoteUpdate={onReviewRemoteUpdate}
                                         />
                                     ))}
                                 </div>
@@ -185,6 +203,8 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             onQuickStatusChange={onQuickStatusChange} 
                                             viabilityMechanism={viabilityMechanism}
                                             onSwitchGarden={onSwitchGarden}
+                                            remoteUpdate={remotePlantingUpdates?.get(p.id)}
+                                            onReviewRemoteUpdate={onReviewRemoteUpdate}
                                         />
                                     ))}
                                 </div>
@@ -207,6 +227,8 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             onQuickStatusChange={onQuickStatusChange} 
                                             viabilityMechanism={viabilityMechanism}
                                             onSwitchGarden={onSwitchGarden}
+                                            remoteUpdate={remotePlantingUpdates?.get(p.id)}
+                                            onReviewRemoteUpdate={onReviewRemoteUpdate}
                                         />
                                     ))}
                                 </div>
@@ -232,6 +254,8 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             onQuickStatusChange={onQuickStatusChange} 
                                             viabilityMechanism={viabilityMechanism}
                                             onSwitchGarden={onSwitchGarden}
+                                            remoteUpdate={remotePlantingUpdates?.get(p.id)}
+                                            onReviewRemoteUpdate={onReviewRemoteUpdate}
                                         />
                                     ))}
                                 </div>
@@ -255,6 +279,8 @@ export function PlantingDashboard({ plantings, viabilityData, reasoningData, upc
                                             onQuickStatusChange={onQuickStatusChange} 
                                             viabilityMechanism={viabilityMechanism}
                                             onSwitchGarden={onSwitchGarden}
+                                            remoteUpdate={remotePlantingUpdates?.get(p.id)}
+                                            onReviewRemoteUpdate={onReviewRemoteUpdate}
                                         />
                                     ))}
                                 </div>

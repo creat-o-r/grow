@@ -38,6 +38,7 @@ import {
   Unlock,
   RotateCcw,
   Smartphone,
+  Save,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -221,7 +222,7 @@ export function SettingsSheet({
     }
   }, [isOpen]);
 
-  const handleClaimRootHandle = () => {
+  const handleSaveRootHandle = () => {
     try {
       const clean = rootHandle.trim();
       if (!clean) return;
@@ -231,17 +232,18 @@ export function SettingsSheet({
       setDeviceId(updated.deviceId);
       setGrowerHandle(updated.displayName);
       toast({
-        title: 'Grower Handle Claimed',
-        description: `Permanently claimed "@${updated.rootHandle}" on this device. Full address: ${updated.displayName}.`,
+        title: 'Grower Handle Saved',
+        description: `Set grower handle to "@${updated.rootHandle}". Full address: ${updated.displayName}.`,
       });
     } catch (err: any) {
       toast({
-        title: 'Claim Failed',
-        description: err?.message || 'Could not claim handle.',
+        title: 'Save Failed',
+        description: err?.message || 'Could not save handle.',
         variant: 'destructive',
       });
     }
   };
+  const handleClaimRootHandle = handleSaveRootHandle;
 
   const handleSaveDeviceExtension = () => {
     try {
@@ -666,106 +668,104 @@ export function SettingsSheet({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {growerIdentity?.isClaimed ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-lg border bg-muted/30">
-                      <div>
-                        <div className="text-[11px] font-medium text-muted-foreground">Claimed Root Handle</div>
-                        <div className="font-mono text-base font-bold text-foreground flex items-center gap-1.5">
-                          <span>@{growerIdentity.rootHandle}</span>
-                          <Lock className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-                        </div>
-                      </div>
-                      <div className="text-right sm:text-right">
-                        <div className="text-[11px] font-medium text-muted-foreground">Full Network Address</div>
-                        <div className="font-mono text-xs text-primary font-semibold">
-                          @{growerIdentity.rootHandle}/{deviceId || 'device'}
-                        </div>
-                      </div>
+                {/* 1. Root Handle Input Field (Always visible & editable on mobile and desktop) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="grower-root-handle" className="text-xs font-semibold flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-primary" />
+                      <span>Grower Handle</span>
+                    </Label>
+                    {growerIdentity?.isClaimed ? (
+                      <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1 px-1.5 py-0 h-4 font-mono font-medium">
+                        <Lock className="h-2.5 w-2.5" /> Claimed
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 px-1.5 py-0 h-4 font-mono">
+                        Unclaimed
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1 flex items-center">
+                      <span className="absolute left-2.5 font-mono text-xs text-muted-foreground font-semibold">@</span>
+                      <Input
+                        id="grower-root-handle"
+                        value={rootHandle}
+                        onChange={(e) => setRootHandle(e.target.value)}
+                        placeholder="colby_gardens"
+                        className="text-xs h-9 font-mono pl-7 w-full"
+                      />
                     </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-9 text-xs shrink-0 gap-1 px-3 w-full sm:w-auto"
+                      onClick={handleSaveRootHandle}
+                      disabled={!rootHandle.trim() || (rootHandle.trim() === growerIdentity?.rootHandle && growerIdentity?.isClaimed)}
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      <span>{growerIdentity?.isClaimed ? 'Save Handle' : 'Claim Handle'}</span>
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Your public handle for live P2P garden streaming, seed swap surplus, and community proofs.
+                  </p>
+                </div>
 
-                    <div className="space-y-1.5">
-                      <Label htmlFor="grower-device-input" className="text-xs flex items-center gap-1">
-                        <Smartphone className="h-3 w-3 text-muted-foreground" />
-                        <span>Device ID Extension</span>
-                      </Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="grower-device-input"
-                          value={deviceId}
-                          onChange={(e) => setDeviceId(e.target.value)}
-                          placeholder="laptop, phone, studio"
-                          className="text-xs h-8 font-mono"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs shrink-0"
-                          onClick={handleSaveDeviceExtension}
-                        >
-                          Save Device ID
-                        </Button>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">
-                        Customize this device&apos;s extension to distinguish your laptop, phone, or tablet in multi-device mirroring.
-                      </p>
+                {/* 2. Device ID Extension Field */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="grower-device-input" className="text-xs font-semibold flex items-center gap-1.5">
+                    <Smartphone className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span>Device ID Extension</span>
+                  </Label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1 flex items-center">
+                      <span className="absolute left-2.5 font-mono text-xs text-muted-foreground font-semibold">/</span>
+                      <Input
+                        id="grower-device-input"
+                        value={deviceId}
+                        onChange={(e) => setDeviceId(e.target.value)}
+                        placeholder="laptop, phone, studio"
+                        className="text-xs h-9 font-mono pl-7 w-full"
+                      />
                     </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 text-xs shrink-0 gap-1 px-3 w-full sm:w-auto"
+                      onClick={handleSaveDeviceExtension}
+                      disabled={!deviceId.trim() || deviceId.trim() === growerIdentity?.deviceId}
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      <span>Save Device ID</span>
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Distinguishes this device (e.g. mobile phone) in multi-device mirroring.
+                  </p>
+                </div>
 
-                    <div className="pt-1 flex items-center justify-between text-xs border-t">
-                      <span className="text-[11px] text-muted-foreground">
-                        Root handle is permanently locked to this device keypair.
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs text-muted-foreground hover:text-destructive gap-1 px-2"
-                        onClick={() => setIsResetConfirmOpen(true)}
-                      >
-                        <RotateCcw className="h-3 w-3" />
-                        <span>Reset Identity</span>
-                      </Button>
+                {/* 3. Full Network Address Preview & Identity Reset */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-lg border bg-muted/30 font-mono text-xs">
+                  <div>
+                    <div className="text-[11px] font-sans font-medium text-muted-foreground">Full Network Address</div>
+                    <div className="text-sm font-bold text-primary flex items-center gap-1.5">
+                      <span>@{rootHandle.trim() || growerIdentity?.rootHandle || 'grower'}/{deviceId.trim() || growerIdentity?.deviceId || 'device'}</span>
+                      {growerIdentity?.isClaimed && <Lock className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="grower-claim-root" className="text-xs">Claim Root Handle</Label>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs text-muted-foreground font-semibold">@</span>
-                        <Input
-                          id="grower-claim-root"
-                          value={rootHandle}
-                          onChange={(e) => setRootHandle(e.target.value)}
-                          placeholder="colby_gardens"
-                          className="text-xs h-8 font-mono"
-                        />
-                        <span className="font-mono text-xs text-muted-foreground font-semibold">/</span>
-                        <Input
-                          value={deviceId}
-                          onChange={(e) => setDeviceId(e.target.value)}
-                          placeholder="laptop"
-                          className="text-xs h-8 font-mono w-24 shrink-0"
-                          title="Device extension"
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="h-8 text-xs shrink-0 gap-1"
-                          onClick={handleClaimRootHandle}
-                          disabled={!rootHandle.trim()}
-                        >
-                          <Lock className="h-3 w-3" />
-                          <span>Claim Handle</span>
-                        </Button>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">
-                        Claiming permanently locks your root handle to this browser so peers can verify your garden updates and proofs.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground hover:text-destructive gap-1 px-2 self-start sm:self-auto"
+                    onClick={() => setIsResetConfirmOpen(true)}
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span>Reset Identity</span>
+                  </Button>
+                </div>
 
                 <div className="space-y-1.5 pt-2 border-t">
                   <Label htmlFor="grower-region-input" className="text-xs">Microclimate / Region</Label>

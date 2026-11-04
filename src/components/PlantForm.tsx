@@ -737,15 +737,18 @@ export function PlantForm({
                       </FormControl>
                       <SelectContent>
                         {methodViabilities.map((info) => {
-                          const isNA = info.overallViability === 'N/A';
+                          const isNA = info.overallViability === 'N/A' || info.isIncompatible;
                           return (
-                            <SelectItem key={info.method} value={info.method}>
+                            <SelectItem key={info.method} value={info.method} disabled={isNA}>
                               <div className="flex items-center justify-between gap-3 w-full">
-                                <span className={cn("flex items-center gap-1.5", isNA && "line-through text-muted-foreground")}>
+                                <span className={cn("flex items-center gap-1.5", isNA && "line-through text-muted-foreground opacity-50")}>
                                   <span>{info.icon}</span>
                                   <span className="font-medium">{info.label}</span>
                                   {info.isRecommended && (
                                     <span className="text-[10px] text-primary font-bold">★ Recommended</span>
+                                  )}
+                                  {isNA && (
+                                    <span className="text-[9px] text-destructive font-mono">(Incompatible)</span>
                                   )}
                                 </span>
                                 <span className={cn(

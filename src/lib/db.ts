@@ -87,3 +87,7 @@ db.version(1).stores({
 
 
 export { db };
+
+if (typeof window !== 'undefined') {
+  (window as unknown as { growDb: typeof db }).growDb = db;
+}

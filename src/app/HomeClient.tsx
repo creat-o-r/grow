@@ -11,7 +11,7 @@ import { usePrevious } from '@/hooks/use-previous';
 import { getEnvironmentalData } from '@/ai/flows/get-environmental-data';
 import { getAiViability } from '@/ai/flows/get-ai-viability';
 import { loadDataset } from '@/lib/datasets';
-import { Viability, SeasonName, getSuitableSeasons, getUpcomingViability, evaluatePlantingViability, getOverallViabilityLevel, getWishSeasonalViabilities, analyzeGrowViability, analyzeHarvestViability, ALL_PROPAGATION_METHODS, enrichSeasonalViabilities } from '@/lib/viability';
+import { Viability, SeasonName, getSuitableSeasons, getUpcomingViability, evaluatePlantingViability, getOverallViabilityLevel, getWishSeasonalViabilities, analyzeGrowViability, analyzeHarvestViability, ALL_PROPAGATION_METHODS, enrichSeasonalViabilities, getAllPropagationMethodViabilities } from '@/lib/viability';
 import { decodeSeedPackFromInput, mergeSeedPackIntoDb } from '@/lib/seed-pack';
 import { getCuratedPlantImage, resolveRealPlantImage } from '@/lib/plant-images';
 import {
@@ -21,6 +21,8 @@ import {
 } from '@/lib/p2p-signals';
 import { ExtensionSlotBar } from '@/extensions/ExtensionSlotBar';
 import { useP2PRoomLiveSync } from '@/hooks/useP2PRoomLiveSync';
+import { PreOperationRemoteConflictDialog } from '@/components/PreOperationRemoteConflictDialog';
+import type { DiscrepancyItemUpdated } from '@/lib/sync-diff';
 
 import { LocationSwitcher } from '@/components/LocationSwitcher';
 import { PlantCard } from '@/components/PlantCard';
@@ -132,6 +134,14 @@ export default function Home() {
     trustedGrowers: liveTrustedGrowers,
     autoStream: isLiveAutoStream,
     triggerDebouncedStream,
+    pendingRemoteDiscrepancy,
+    remotePlantingUpdates,
+    latestRemoteDataset,
+    checkRemoteUpdateForPlanting,
+    dismissRemoteUpdateForPlanting,
+    clearPendingRemoteUpdates,
+    applyRemoteUpdateForPlanting,
+    applyAllPendingRemoteDiscrepancies,
   } = useP2PRoomLiveSync({
     activeLocationId: activeLocationId || undefined,
     onReviewRequested: (incoming, peer) => {
@@ -149,6 +159,53 @@ export default function Home() {
       });
     },
   });
+
+  const [pendingConflictDialog, setPendingConflictDialog] = useState<{
+    open: boolean;
+    update: DiscrepancyItemUpdated | null;
+    operationLabel: string;
+    onProceed: () => void | Promise<void>;
+  }>({
+    open: false,
+    update: null,
+    operationLabel: '',
+    onProceed: () => {},
+  });
+
+  const guardWithRemoteCheck = useCallback(
+    (plantingId: string, operationLabel: string, executeOperation: () => void | Promise<void>) => {
+      const remoteUpdate = checkRemoteUpdateForPlanting(plantingId);
+      if (remoteUpdate) {
+        setPendingConflictDialog({
+          open: true,
+          update: remoteUpdate,
+          operationLabel,
+          onProceed: async () => {
+            dismissRemoteUpdateForPlanting(plantingId);
+            await executeOperation();
+          },
+        });
+        return false;
+      }
+      executeOperation();
+      return true;
+    },
+    [checkRemoteUpdateForPlanting, dismissRemoteUpdateForPlanting]
+  );
+
+  const handleReviewRemoteUpdate = useCallback(
+    (update: DiscrepancyItemUpdated) => {
+      setPendingConflictDialog({
+        open: true,
+        update,
+        operationLabel: 'Review Remote Update',
+        onProceed: () => {
+          dismissRemoteUpdateForPlanting(update.localPlantingId);
+        },
+      });
+    },
+    [dismissRemoteUpdateForPlanting]
+  );
 
   useEffect(() => {
     setIsClient(true);
@@ -374,28 +431,30 @@ export default function Home() {
 };
 
 const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant) => {
-    const existing = await db.plantings.get(updatedPlanting.id);
-    if (existing && existing.gardenId !== updatedPlanting.gardenId) {
-      // Plant was moved to another garden location - clear stale garden assessments
-      updatedPlanting.viability = undefined;
-      updatedPlanting.viabilityReasoning = undefined;
-      updatedPlanting.stageViability = undefined;
-      updatedPlanting.prepForecast = undefined;
-      updatedPlanting.growAssessment = undefined;
-      updatedPlanting.harvestAssessment = undefined;
-      updatedPlanting.methodViabilities = undefined;
-      updatedPlanting.seasonalViabilities = undefined;
-    }
-    await db.plantings.put(updatedPlanting);
-    await db.plants.put(updatedPlant);
-    triggerDebouncedStream(getCurrentGardenDataset);
+    guardWithRemoteCheck(updatedPlanting.id, 'Save Plant Updates', async () => {
+      const existing = await db.plantings.get(updatedPlanting.id);
+      if (existing && existing.gardenId !== updatedPlanting.gardenId) {
+        // Plant was moved to another garden location - clear stale garden assessments
+        updatedPlanting.viability = undefined;
+        updatedPlanting.viabilityReasoning = undefined;
+        updatedPlanting.stageViability = undefined;
+        updatedPlanting.prepForecast = undefined;
+        updatedPlanting.growAssessment = undefined;
+        updatedPlanting.harvestAssessment = undefined;
+        updatedPlanting.methodViabilities = undefined;
+        updatedPlanting.seasonalViabilities = undefined;
+      }
+      await db.plantings.put(updatedPlanting);
+      await db.plants.put(updatedPlant);
+      triggerDebouncedStream(getCurrentGardenDataset);
 
-    setPlantingToEdit(null);
-    setIsSheetOpen(false);
-    setIsAiImportSheetOpen(false);
-    toast({
-        title: 'Plant Updated',
-        description: `${updatedPlanting.name} has been updated.`,
+      setPlantingToEdit(null);
+      setIsSheetOpen(false);
+      setIsAiImportSheetOpen(false);
+      toast({
+          title: 'Plant Updated',
+          description: `${updatedPlanting.name} has been updated.`,
+      });
     });
 };
 
@@ -413,10 +472,12 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   };
   
   const handleEditPlanting = (planting: PlantingWithPlant) => {
-    setPlantingToEdit(planting);
-    setPreloadedDatasetForReview(null);
-    setUnifiedImportTab('single');
-    setIsAiImportSheetOpen(true);
+    guardWithRemoteCheck(planting.id, 'Edit Plant Details', () => {
+      setPlantingToEdit(planting);
+      setPreloadedDatasetForReview(null);
+      setUnifiedImportTab('single');
+      setIsAiImportSheetOpen(true);
+    });
   };
 
   const handleOpenAddSheet = (defaultStatus?: PlantStatus, tab: UnifiedImportTab = 'single') => {
@@ -810,10 +871,13 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   const promptDelete = (item: GardenLocation | PlantingWithPlant) => {
     if ('conditions' in item) { // It's a GardenLocation
         setLocationToDelete(item);
+        setIsDeleteAlertOpen(true);
     } else { // It's a PlantingWithPlant
-        setPlantingToDelete(item);
+        guardWithRemoteCheck(item.id, 'Delete Plant', () => {
+          setPlantingToDelete(item);
+          setIsDeleteAlertOpen(true);
+        });
     }
-    setIsDeleteAlertOpen(true);
   };
 
   const handleDeleteLocation = async () => {
@@ -889,9 +953,31 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
       ? planting.history[planting.history.length - 1].status
       : 'Wishlist';
 
+    // Auto-heal botanical compatibility: If planting has an incompatible propagation method,
+    // heal it to the recommended or top compatible method before sending prompt to AI.
+    let resolvedPropagationMethod = planting.propagationMethod || 'seed';
+    const methodChecks = getAllPropagationMethodViabilities(planting.plant, activeLocation.conditions, {
+      growingSystems: activeLocation.growingSystems,
+      growingMethods: activeLocation.growingMethods,
+    });
+    const currentMethodCheck = methodChecks.find(m => m.method === resolvedPropagationMethod);
+    if (currentMethodCheck && (currentMethodCheck.isIncompatible || currentMethodCheck.overallViability === 'N/A')) {
+      const compatibleTarget = methodChecks.find(m => m.isRecommended) || methodChecks.find(m => !m.isIncompatible && m.overallViability !== 'N/A') || methodChecks[0];
+      if (compatibleTarget && compatibleTarget.method !== resolvedPropagationMethod) {
+        console.warn(`[Viability Auto-Heal] Auto-correcting incompatible method "${resolvedPropagationMethod}" to "${compatibleTarget.method}" for ${planting.name} (${planting.plant.species})`);
+        resolvedPropagationMethod = compatibleTarget.method;
+        try {
+          await db.plantings.update(planting.id, { propagationMethod: resolvedPropagationMethod });
+          planting.propagationMethod = resolvedPropagationMethod;
+        } catch (err) {
+          console.warn('Failed to update healed propagation method in DB', err);
+        }
+      }
+    }
+
     const promptData = {
         stage,
-        propagationMethod: planting.propagationMethod || 'seed',
+        propagationMethod: resolvedPropagationMethod,
         plant: {
             species: planting.plant.species,
             germinationNeeds: planting.plant.germinationNeeds,
@@ -989,7 +1075,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           {
             growingSystems: activeLocation.growingSystems,
             growingMethods: activeLocation.growingMethods,
-            propagationMethod: planting.propagationMethod,
+            propagationMethod: resolvedPropagationMethod,
           }
         );
 
@@ -1001,7 +1087,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
               {
                 growingSystems: activeLocation.growingSystems,
                 growingMethods: activeLocation.growingMethods,
-                propagationMethod: planting.propagationMethod,
+                propagationMethod: resolvedPropagationMethod,
               }
             )
           : undefined;
@@ -1033,20 +1119,22 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
           let aiStageViability: StageViability | undefined = undefined;
           if (pStage === 'Wishlist') {
-            const seasons = resolvedSeasonalViabilities.filter(s => s.viability !== 'N/A');
-            const bestSeason = seasons && seasons.length > 0 ? seasons[0].season : 'Spring';
+            const seasons = resolvedSeasonalViabilities;
+            const scoreMap: Record<string, number> = { High: 3, Medium: 2, Low: 1, 'N/A': 0 };
+            const sortedByScore = [...seasons].sort((a, b) => (scoreMap[b.viability] || 0) - (scoreMap[a.viability] || 0));
+            const bestSeason = sortedByScore.length > 0 ? sortedByScore[0].season : 'Spring';
             aiStageViability = {
               stage: 'Wishlist',
               overallViability: finalViability,
-              seasons: seasons.length > 0 ? seasons : resolvedSeasonalViabilities,
-              activeSeasonMatch: activeLocation.conditions?.currentSeason ? (seasons || []).some(s => s.season === activeLocation.conditions.currentSeason) : false,
+              seasons,
+              activeSeasonMatch: activeLocation.conditions?.currentSeason ? seasons.some(s => s.season.toLowerCase() === activeLocation.conditions.currentSeason?.toLowerCase() && s.viability !== 'N/A' && s.viability !== 'Low') : false,
               bestSeason,
               reasoning: result.reasoning,
             };
           } else if (pStage === 'Planting' && result.prepForecast) {
             aiStageViability = {
               stage: 'Planting',
-              propagationMethod: p.propagationMethod || 'seed',
+              propagationMethod: resolvedPropagationMethod,
               prepViability: result.prepForecast.prepViability,
               growViability: result.prepForecast.growViability,
               harvestViability: result.prepForecast.harvestViability,
@@ -1078,6 +1166,7 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
           }
 
           await db.plantings.update(p.id, {
+            propagationMethod: resolvedPropagationMethod,
             viability: finalViability,
             viabilityReasoning: result.reasoning,
             viabilityAssessedAt: assessedAt,
@@ -1219,104 +1308,108 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
   };
 
   const handleQuickStatusChange = async (planting: PlantingWithPlant, newStatus: PlantStatus) => {
-    const originalHistory = planting.history;
-    const originalStageViability = planting.stageViability;
+    guardWithRemoteCheck(planting.id, `Mark as ${newStatus}`, async () => {
+      const originalHistory = planting.history;
+      const originalStageViability = planting.stageViability;
 
-    const newHistoryEntry: StatusHistory = {
-      id: `hist-${Date.now()}`,
-      status: newStatus,
-      date: new Date().toISOString(),
-      notes: 'Status changed via Quick Change',
-    };
-
-    const newHistory = [...originalHistory, newHistoryEntry];
-
-    // Dynamically update stageViability to match the new stage using existing assessments
-    let updatedStageViability: StageViability | undefined = undefined;
-    if (newStatus === 'Growing' && planting.growAssessment) {
-      updatedStageViability = {
-        stage: 'Growing',
-        ...planting.growAssessment,
-        stressFactor: planting.growAssessment.stressFactor || 'None',
-        tendingAdvice: planting.growAssessment.tendingAdvice || 'Monitor soil moisture and ambient sunlight.',
-        reasoning: planting.growAssessment.reasoning || planting.viabilityReasoning || 'In-ground vigor assessment',
+      const newHistoryEntry: StatusHistory = {
+        id: `hist-${Date.now()}`,
+        status: newStatus,
+        date: new Date().toISOString(),
+        notes: 'Status changed via Quick Change',
       };
-    } else if (newStatus === 'Harvest' && planting.harvestAssessment) {
-      updatedStageViability = {
-        stage: 'Harvest',
-        ...planting.harvestAssessment,
-        harvestWindow: planting.harvestAssessment.harvestWindow || 'Peak Window',
-        successionAdvice: planting.harvestAssessment.successionAdvice || 'Rotate bed after harvest.',
-        reasoning: planting.harvestAssessment.reasoning || planting.viabilityReasoning || 'Harvest ripeness assessment',
-      };
-    } else if (newStatus === 'Planting' && planting.prepForecast) {
-      updatedStageViability = {
-        stage: 'Planting',
-        ...planting.prepForecast,
-        overallViability: planting.prepForecast.overallViability || planting.viability || 'Medium',
-      };
-    } else if (newStatus === 'Wishlist' && planting.seasonalViabilities) {
-      const seasons = planting.seasonalViabilities.filter(s => s.viability !== 'N/A');
-      updatedStageViability = {
-        stage: 'Wishlist',
-        overallViability: planting.viability || (seasons.some(s => s.viability === 'High') ? 'High' : seasons.some(s => s.viability === 'Medium') ? 'Medium' : 'Low'),
-        seasons: seasons.length > 0 ? seasons : planting.seasonalViabilities,
-        bestSeason: seasons[0]?.season || 'Spring',
-        reasoning: planting.viabilityReasoning || 'AI Seasonal Viability Assessment',
-      };
-    }
 
-    try {
-      await db.plantings.update(planting.id, { 
-        history: newHistory,
-        ...(updatedStageViability ? { stageViability: updatedStageViability } : {})
-      });
-      triggerDebouncedStream(getCurrentGardenDataset);
+      const newHistory = [...originalHistory, newHistoryEntry];
 
-      if (newStatus === 'Harvest') {
-        await publishCommunityViabilitySignal({
-          species: planting.plant.species,
-          region: activeLocation?.location || activeLocation?.name || 'Local Microclimate',
-          season: activeLocation?.conditions?.currentSeason,
-          soil: activeLocation?.conditions?.soil,
-          verdict: 'harvest-verified',
-          viability: 'High',
-          notes: `Harvest verified for ${planting.name}`,
-        });
+      // Dynamically update stageViability to match the new stage using existing assessments
+      let updatedStageViability: StageViability | undefined = undefined;
+      if (newStatus === 'Growing' && planting.growAssessment) {
+        updatedStageViability = {
+          stage: 'Growing',
+          ...planting.growAssessment,
+          stressFactor: planting.growAssessment.stressFactor || 'None',
+          tendingAdvice: planting.growAssessment.tendingAdvice || 'Monitor soil moisture and ambient sunlight.',
+          reasoning: planting.growAssessment.reasoning || planting.viabilityReasoning || 'In-ground vigor assessment',
+        };
+      } else if (newStatus === 'Harvest' && planting.harvestAssessment) {
+        updatedStageViability = {
+          stage: 'Harvest',
+          ...planting.harvestAssessment,
+          harvestWindow: planting.harvestAssessment.harvestWindow || 'Peak Window',
+          successionAdvice: planting.harvestAssessment.successionAdvice || 'Rotate bed after harvest.',
+          reasoning: planting.harvestAssessment.reasoning || planting.viabilityReasoning || 'Harvest ripeness assessment',
+        };
+      } else if (newStatus === 'Planting' && planting.prepForecast) {
+        updatedStageViability = {
+          stage: 'Planting',
+          ...planting.prepForecast,
+          overallViability: planting.prepForecast.overallViability || planting.viability || 'Medium',
+        };
+      } else if (newStatus === 'Wishlist' && planting.seasonalViabilities) {
+        const seasons = planting.seasonalViabilities;
+        const scoreMap: Record<string, number> = { High: 3, Medium: 2, Low: 1, 'N/A': 0 };
+        const sorted = [...seasons].sort((a, b) => (scoreMap[b.viability] || 0) - (scoreMap[a.viability] || 0));
+        updatedStageViability = {
+          stage: 'Wishlist',
+          overallViability: planting.viability || sorted[0]?.viability || 'Medium',
+          seasons,
+          bestSeason: sorted[0]?.season || 'Spring',
+          reasoning: planting.viabilityReasoning || 'AI Seasonal Viability Assessment',
+        };
       }
 
-      const handleUndo = async () => {
-        try {
-          await db.plantings.update(planting.id, { 
-            history: originalHistory,
-            ...(originalStageViability !== undefined ? { stageViability: originalStageViability } : {})
-          });
-          toast({
-            title: 'Undo Successful',
-            description: `${planting.name}'s status has been reverted.`,
-          });
-        } catch (undoError) {
-          toast({
-            title: 'Undo Failed',
-            description: 'Could not revert the change.',
-            variant: 'destructive',
+      try {
+        await db.plantings.update(planting.id, { 
+          history: newHistory,
+          ...(updatedStageViability ? { stageViability: updatedStageViability } : {})
+        });
+        triggerDebouncedStream(getCurrentGardenDataset);
+
+        if (newStatus === 'Harvest') {
+          await publishCommunityViabilitySignal({
+            species: planting.plant.species,
+            region: activeLocation?.location || activeLocation?.name || 'Local Microclimate',
+            season: activeLocation?.conditions?.currentSeason,
+            soil: activeLocation?.conditions?.soil,
+            verdict: 'harvest-verified',
+            viability: 'High',
+            notes: `Harvest verified for ${planting.name}`,
           });
         }
-      };
 
-      toast({
-        title: 'Status Updated',
-        description: `${planting.name} is now "${newStatus}".`,
-        action: <ToastAction altText="Undo" onClick={handleUndo}>Undo</ToastAction>,
-      });
-    } catch (error) {
-      console.error("Failed to update status:", error);
-      toast({
-        title: 'Update Failed',
-        description: 'Could not change the planting status.',
-        variant: 'destructive',
-      });
-    }
+        const handleUndo = async () => {
+          try {
+            await db.plantings.update(planting.id, { 
+              history: originalHistory,
+              ...(originalStageViability !== undefined ? { stageViability: originalStageViability } : {})
+            });
+            toast({
+              title: 'Undo Successful',
+              description: `${planting.name}'s status has been reverted.`,
+            });
+          } catch (undoError) {
+            toast({
+              title: 'Undo Failed',
+              description: 'Could not revert the change.',
+              variant: 'destructive',
+            });
+          }
+        };
+
+        toast({
+          title: 'Status Updated',
+          description: `${planting.name} is now "${newStatus}".`,
+          action: <ToastAction altText="Undo" onClick={handleUndo}>Undo</ToastAction>,
+        });
+      } catch (error) {
+        console.error("Failed to update status:", error);
+        toast({
+          title: 'Update Failed',
+          description: 'Could not change the planting status.',
+          variant: 'destructive',
+        });
+      }
+    });
   };
 
   const effectivelySingleGardenView = useMemo(() => {
@@ -1677,13 +1770,15 @@ const handleUpdatePlant = async (updatedPlanting: Planting, updatedPlant: Plant)
 
             let aiStageViability: StageViability | undefined = undefined;
             if (pStage === 'Wishlist') {
-              const seasons = resolvedSeasonalViabilities.filter(s => s.viability !== 'N/A');
-              const bestSeason = seasons && seasons.length > 0 ? seasons[0].season : 'Spring';
+              const seasons = resolvedSeasonalViabilities;
+              const scoreMap: Record<string, number> = { High: 3, Medium: 2, Low: 1, 'N/A': 0 };
+              const sorted = [...seasons].sort((a, b) => (scoreMap[b.viability] || 0) - (scoreMap[a.viability] || 0));
+              const bestSeason = sorted.length > 0 ? sorted[0].season : 'Spring';
               aiStageViability = {
                 stage: 'Wishlist',
                 overallViability: result.viability,
-                seasons: seasons.length > 0 ? seasons : resolvedSeasonalViabilities,
-                activeSeasonMatch: activeLocation.conditions?.currentSeason ? (seasons || []).some(s => s.season === activeLocation.conditions.currentSeason) : false,
+                seasons,
+                activeSeasonMatch: activeLocation.conditions?.currentSeason ? seasons.some(s => s.season.toLowerCase() === activeLocation.conditions.currentSeason?.toLowerCase() && s.viability !== 'N/A' && s.viability !== 'Low') : false,
                 bestSeason,
                 reasoning: result.reasoning,
               };
@@ -2918,6 +3013,53 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                   conditions={activeLocation?.conditions}
                 />
 
+                {/* Pre-Operation Remote Updates Awareness Banner */}
+                {remotePlantingUpdates.size > 0 && (
+                  <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                        <AlertTriangle className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-foreground flex items-center gap-2 flex-wrap">
+                          <span>Remote updates detected on {remotePlantingUpdates.size} plant{remotePlantingUpdates.size === 1 ? '' : 's'}</span>
+                          {latestRemoteDataset?.peerName && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/40 text-amber-700 dark:text-amber-300">
+                              from @{latestRemoteDataset.peerName}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Another device updated planting details. Review or sync changes before local operations to prevent accidental overwrites.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white gap-1 px-2.5 font-medium shadow-xs"
+                        onClick={async () => {
+                          await applyAllPendingRemoteDiscrepancies();
+                        }}
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        <span>Sync All ({remotePlantingUpdates.size})</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground"
+                        onClick={() => clearPendingRemoteUpdates()}
+                        title="Dismiss remote updates notification"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        <span className="sr-only">Dismiss</span>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Mobile Floating Search Bar */}
                 <div className="sm:hidden mb-2">
                   <PlantSearchBar
@@ -3423,6 +3565,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                           otherPlantings={plantingsWithPlants}
                                            onSwitchGarden={handleSwitchGarden}
                                           viabilityMechanism={viabilityMechanism}
+                                          remoteUpdate={checkRemoteUpdateForPlanting(p.id)}
+                                          onReviewRemoteUpdate={handleReviewRemoteUpdate}
                                         />
                                       </div>
                                     ))}
@@ -3528,7 +3672,9 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                   otherPlantings={plantingsWithPlants}
                                            onSwitchGarden={handleSwitchGarden}
                                                   viabilityMechanism={viabilityMechanism}
-                                                />
+                                          remoteUpdate={checkRemoteUpdateForPlanting(p.id)}
+                                          onReviewRemoteUpdate={handleReviewRemoteUpdate}
+                                        />
                                               </div>
                                             ))}
                                           </div>
@@ -3617,7 +3763,9 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                 otherPlantings={plantingsWithPlants}
                                            onSwitchGarden={handleSwitchGarden}
                                                 viabilityMechanism={viabilityMechanism}
-                                              />
+                                          remoteUpdate={checkRemoteUpdateForPlanting(p.id)}
+                                          onReviewRemoteUpdate={handleReviewRemoteUpdate}
+                                        />
                                             </div>
                                           ))}
                                         </div>
@@ -3791,7 +3939,9 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                               otherPlantings={plantingsWithPlants}
                                            onSwitchGarden={handleSwitchGarden}
                                               viabilityMechanism={viabilityMechanism}
-                                          />
+                                          remoteUpdate={checkRemoteUpdateForPlanting(p.id)}
+                                          onReviewRemoteUpdate={handleReviewRemoteUpdate}
+                                        />
                                         </div>
                                       ))}
                                   </div>
@@ -3830,7 +3980,9 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                         otherPlantings={plantingsWithPlants}
                                            onSwitchGarden={handleSwitchGarden}
                                                         viabilityMechanism={viabilityMechanism}
-                                                    />
+                                          remoteUpdate={checkRemoteUpdateForPlanting(p.id)}
+                                          onReviewRemoteUpdate={handleReviewRemoteUpdate}
+                                        />
                                                   </div>
                                                 ))}
                                             </div>
@@ -3877,7 +4029,9 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                                   otherPlantings={plantingsWithPlants}
                                            onSwitchGarden={handleSwitchGarden}
                                                 viabilityMechanism={viabilityMechanism}
-                                              />
+                                          remoteUpdate={checkRemoteUpdateForPlanting(p.id)}
+                                          onReviewRemoteUpdate={handleReviewRemoteUpdate}
+                                        />
                                             </div>
                                         ))}
                                     </div>
@@ -3894,6 +4048,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                   onQuickStatusChange={handleQuickStatusChange}
                                   viabilityMechanism={viabilityMechanism}
                                   onSwitchGarden={handleSwitchGarden}
+                                  remotePlantingUpdates={remotePlantingUpdates}
+                                  onReviewRemoteUpdate={handleReviewRemoteUpdate}
                               />
                           </div>
                       ) : statusFilter === 'Growing' ? (
@@ -3985,7 +4141,9 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                               otherPlantings={plantingsWithPlants}
                                            onSwitchGarden={handleSwitchGarden}
                                               viabilityMechanism={viabilityMechanism}
-                                          />
+                                          remoteUpdate={checkRemoteUpdateForPlanting(p.id)}
+                                          onReviewRemoteUpdate={handleReviewRemoteUpdate}
+                                        />
                                         </div>
                                     ))}
                                 </div>
@@ -4092,7 +4250,9 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                               otherPlantings={plantingsWithPlants}
                                            onSwitchGarden={handleSwitchGarden}
                                               viabilityMechanism={viabilityMechanism}
-                                          />
+                                          remoteUpdate={checkRemoteUpdateForPlanting(p.id)}
+                                          onReviewRemoteUpdate={handleReviewRemoteUpdate}
+                                        />
                                         </div>
                                     ))}
                                 </div>
@@ -4133,6 +4293,8 @@ const mainAddButtonDefaultStatus = useMemo(() => {
                                             otherPlantings={plantingsWithPlants}
                                            onSwitchGarden={handleSwitchGarden}
                                           viabilityMechanism={viabilityMechanism}
+                                          remoteUpdate={checkRemoteUpdateForPlanting(p.id)}
+                                          onReviewRemoteUpdate={handleReviewRemoteUpdate}
                                         />
                                       </div>
                                   ))}
@@ -4337,6 +4499,24 @@ const mainAddButtonDefaultStatus = useMemo(() => {
           />
         </SheetContent>
       </Sheet>
+      
+      <PreOperationRemoteConflictDialog
+        open={pendingConflictDialog.open}
+        onOpenChange={(open) => setPendingConflictDialog(prev => ({ ...prev, open }))}
+        update={pendingConflictDialog.update}
+        operationLabel={pendingConflictDialog.operationLabel}
+        onSyncRemoteFirst={async () => {
+          if (pendingConflictDialog.update) {
+            await applyRemoteUpdateForPlanting(pendingConflictDialog.update.localPlantingId);
+          }
+          setPendingConflictDialog(prev => ({ ...prev, open: false, update: null }));
+        }}
+        onProceedAnyway={async () => {
+          const proceed = pendingConflictDialog.onProceed;
+          setPendingConflictDialog(prev => ({ ...prev, open: false, update: null }));
+          await proceed();
+        }}
+      />
     </div>
   );
 }

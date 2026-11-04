@@ -87,6 +87,7 @@ export type SeasonalHarvestInfo = {
   harvestWindow: string;
   description: string;
   seedSavingNotes?: string;
+  successionAdvice?: string;
 };
 
 export type SeasonalGrowInfo = {
@@ -111,6 +112,7 @@ export type SeasonalViability = {
   harvestType?: HarvestType;
   harvestWindow?: string;
   seedSavingNotes?: string;
+  successionAdvice?: string;
   fullCycleSummary?: string;
 };
 
